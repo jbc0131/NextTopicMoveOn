@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor,
+  ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor, getSpecDisplay,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
   saveState, loadState,
 } from "./constants";
@@ -77,7 +77,7 @@ function AssignmentRow({ rowCfg, assignedIds, roster, onDrop, onClear }) {
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
                 {slot.name}
-                <span style={{ color: `${color}77`, fontSize: 9 }}>{slot.specName} {getClass(slot)}</span>
+                <span style={{ color: `${color}77`, fontSize: 9 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
               </span>
               <button onClick={() => onClear(rowCfg.key, slot.id)} style={{
                 background: "none", border: "none", color: "#555",
@@ -88,7 +88,7 @@ function AssignmentRow({ rowCfg, assignedIds, roster, onDrop, onClear }) {
         })}
         {slots.length === 0 && (
           <span style={{ color: "#2a2a3a", fontSize: 11, fontStyle: "italic" }}>
-            {over ? "⬇ drop here" : "— empty —"}
+            {over ? "⬇ drop here" : ""}
           </span>
         )}
         {slots.length > 0 && over && (

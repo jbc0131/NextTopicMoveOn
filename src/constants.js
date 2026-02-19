@@ -34,6 +34,13 @@ export function getClass(slot) {
   return slot.className;
 }
 
+// Returns a clean display name for the spec — strips trailing digits used
+// internally to disambiguate specs with the same name across classes
+// e.g. "Protection1" → "Protection", "Holy1" → "Holy", "Restoration1" → "Restoration"
+export function getSpecDisplay(slot) {
+  return (slot.specName || "").replace(/\d+$/, "");
+}
+
 export function getColor(slot) {
   // Prefer the color field from the JSON — it's already correct per class
   if (slot.color && slot.color !== "#000000") return slot.color;

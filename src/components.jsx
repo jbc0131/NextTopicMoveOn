@@ -1,4 +1,4 @@
-import { ROLE_COLORS, getClass, getColor } from "./constants";
+import { ROLE_COLORS, getClass, getSpecDisplay, getColor } from "./constants";
 
 // ── Shared font import ────────────────────────────────────────────────────────
 export function FontImport() {
@@ -56,13 +56,13 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
         color: color, fontFamily: "'Cinzel', serif", whiteSpace: "nowrap",
         transition: "background 0.15s, border-color 0.15s",
       }}
-      title={`${slot.name} — ${slot.specName} ${cls}`}
+      title={`${slot.name} — ${getSpecDisplay(slot)} ${cls}`}
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
       <span>{slot.name}</span>
       {!compact && (
         <span style={{ color: `${color}88`, fontSize: 9, marginLeft: 2 }}>
-          {slot.specName} {cls}
+          {getSpecDisplay(slot)} {cls}
         </span>
       )}
     </div>

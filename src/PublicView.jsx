@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ROLE_COLORS, getColor, getClass,
+  ROLE_COLORS, getColor, getSpecDisplay, getClass,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
   loadState,
 } from "./constants";
@@ -98,12 +98,12 @@ function PublicRow({ rowCfg, slots, searchName }) {
             }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
               <span style={{ fontWeight: nameMatch ? 700 : 600 }}>{slot.name}</span>
-              <span style={{ color: `${color}77`, fontSize: 9 }}>{slot.specName} {getClass(slot)}</span>
+              <span style={{ color: `${color}77`, fontSize: 9 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
               {nameMatch && <span style={{ color: color, fontSize: 9 }}>◄</span>}
             </span>
           );
         }) : (
-          <span style={{ color: "#1e1e2e", fontSize: 11, fontStyle: "italic" }}>— unassigned —</span>
+
         )}
       </div>
     </div>
@@ -200,8 +200,8 @@ export default function PublicView() {
           <div style={{ fontSize: 18, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif", letterSpacing: "0.04em" }}>
             ⚔ NEXT TOPIC MOVE ON
           </div>
-          <div style={{ fontSize: 9, color: "#2a1800", letterSpacing: "0.2em", marginTop: 1 }}>
-            GRUUL'S LAIR · MAGTHERIDON'S LAIR · READ ONLY
+          <div style={{ fontSize: 11, color: "#ffffff", letterSpacing: "0.05em", marginTop: 2 }}>
+            Dreamscythe
           </div>
         </div>
 
@@ -209,7 +209,6 @@ export default function PublicView() {
           <div style={{ display: "flex", gap: 20, marginLeft: 16, alignItems: "center" }}>
             {raidDate   && <Meta label="Date"   value={raidDate} />}
             {raidLeader && <Meta label="Leader" value={raidLeader} />}
-            <Meta label="Slots" value={`${filledSlots} / ${totalSlots}`} />
           </div>
         )}
 
