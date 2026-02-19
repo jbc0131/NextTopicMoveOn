@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor, getSpecDisplay,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
+  CUBE1_KEYS, ALL_CUBE_KEYS,
   saveState, loadState,
 } from "./constants";
 import {
@@ -35,86 +36,148 @@ function RosterToken({ slot, onDragStart, compact }) {
   return <PlayerBadge slot={slot} compact={compact} draggable onDragStart={onDragStart} />;
 }
 
-// ── Assignment row (drop target) — supports multiple players ──────────────────
-function AssignmentRow({ rowCfg, assignedIds, roster, onDrop, onClear }) {
+// ── Cube conflict checker ─────────────────────────────────────────────────────
+// Returns which cube group (1, 2, 3) a player is currently assigned to, or null
+function getCubeGroupOf(playerId, assignments) {
+  for (const [k, ids] of Object.entries(assignments)) {
+    const idArr = Array.isArray(ids) ? ids : [ids];
+    if (!idArr.includes(playerId)) continue;
+    if (CUBE1_KEYS.includes(k))  return 1;
+    if (CUBE2_KEYS.includes(k))  return 2;
+    if (CUBEBU_KEYS.includes(k)) return 3;
+  }
+  return null;
+}
+// Returns which cube group a given slot key belongs to, or null
+function getCubeGroupOfKey(key) {
+  if (CUBE1_KEYS.includes(key))  return 1;
+  if (CUBE2_KEYS.includes(key))  return 2;
+  if (CUBEBU_KEYS.includes(key)) return 3;
+  return null;
+}
+// Keep these for backwards compat in drop handler
+function isInCube1(playerId, assignments) { return getCubeGroupOf(playerId, assignments) === 1; }
+function isOnAnyCube(playerId, assignments) { return getCubeGroupOf(playerId, assignments) !== null; }
+
+// ── Assignment row (drop target) — supports multiple players + text input ─────
+function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClear, onTextChange, assignments, conflictError }) {
   const [over, setOver] = useState(false);
   const rc    = ROLE_COLORS[rowCfg.role];
   const ids   = assignedIds ? (Array.isArray(assignedIds) ? assignedIds : [assignedIds]) : [];
   const slots = ids.map(id => roster.find(s => s.id === id)).filter(Boolean);
 
   return (
-    <div
-      onDragOver={e => { e.preventDefault(); setOver(true); }}
-      onDragLeave={() => setOver(false)}
-      onDrop={e => { e.preventDefault(); setOver(false); onDrop(rowCfg.key); }}
-      style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "5px 10px", borderRadius: 5, minHeight: 32,
-        background: over ? `${rc.border}55` : rc.bg,
-        border: `1px solid ${over ? rc.label : rc.border}`,
-        transition: "all 0.12s",
-      }}
-    >
-      {/* Label + hint in white */}
-      <span style={{ fontSize: 10, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 180, flexShrink: 0 }}>
-        {rowCfg.label}
-        {rowCfg.hint && (
-          <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>
-        )}
-      </span>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div
+        onDragOver={e => { e.preventDefault(); setOver(true); }}
+        onDragLeave={() => setOver(false)}
+        onDrop={e => { e.preventDefault(); setOver(false); onDrop(rowCfg.key); }}
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "5px 10px", borderRadius: 5, minHeight: 32,
+          background: over ? `${rc.border}55` : rc.bg,
+          border: `1px solid ${conflictError ? "#ef4444" : over ? rc.label : rc.border}`,
+          transition: "all 0.12s",
+        }}
+      >
+        {/* Label */}
+        <span style={{ fontSize: 10, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 180, flexShrink: 0 }}>
+          {rowCfg.label}
+          {rowCfg.hint && (
+            <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>
+          )}
+        </span>
 
-      {/* Players + drop hint */}
-      <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
-        {slots.map(slot => {
-          const color = getColor(slot);
-          return (
-            <div key={slot.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <span style={{
-                background: `${color}20`, border: `1px solid ${color}44`,
-                borderRadius: 4, padding: "2px 8px",
-                color: color, fontFamily: "'Cinzel', serif", fontSize: 12,
-                display: "inline-flex", alignItems: "center", gap: 5,
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                {slot.name}
-                <span style={{ color: `${color}77`, fontSize: 9 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
-              </span>
-              <button onClick={() => onClear(rowCfg.key, slot.id)} style={{
-                background: "none", border: "none", color: "#555",
-                cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px",
-              }} title="Remove">×</button>
-            </div>
-          );
-        })}
-        {slots.length === 0 && (
-          <span style={{ color: "#2a2a3a", fontSize: 11, fontStyle: "italic" }}>
-            {over ? "⬇ drop here" : ""}
-          </span>
-        )}
-        {slots.length > 0 && over && (
-          <span style={{ color: rc.label, fontSize: 10, fontStyle: "italic" }}>+ add</span>
+        {/* Player badges */}
+        <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+          {slots.map(slot => {
+            const color = getColor(slot);
+            return (
+              <div key={slot.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span style={{
+                  background: `${color}20`, border: `1px solid ${color}44`,
+                  borderRadius: 4, padding: "2px 8px",
+                  color: color, fontFamily: "'Cinzel', serif", fontSize: 12,
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                  {slot.name}
+                  <span style={{ color: `${color}77`, fontSize: 9 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
+                </span>
+                <button onClick={() => onClear(rowCfg.key, slot.id)} style={{
+                  background: "none", border: "none", color: "#555",
+                  cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px",
+                }} title="Remove">×</button>
+              </div>
+            );
+          })}
+          {over && <span style={{ color: rc.label, fontSize: 10, fontStyle: "italic" }}>⬇ drop here</span>}
+        </div>
+
+        {/* Text input for shatter groups */}
+        {rowCfg.textInput && (
+          <input
+            value={textValues?.[rowCfg.key] || ""}
+            onChange={e => onTextChange(rowCfg.key, e.target.value)}
+            placeholder="Notes…"
+            style={{
+              background: "#0d0d1a", border: "1px solid #2a2a4a", borderRadius: 4,
+              color: "#c8a84b", padding: "3px 8px", fontSize: 11,
+              fontFamily: "'Cinzel', serif", outline: "none", width: 160,
+            }}
+          />
         )}
       </div>
+      {conflictError && (
+        <div style={{ fontSize: 9, color: "#ef4444", paddingLeft: 10, fontFamily: "'Cinzel', serif" }}>
+          ⚠ {conflictError}
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Boss panel wrapper ────────────────────────────────────────────────────────
-function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, roster, onDrop, onClear }) {
-  let lastRole = null;
+function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, onDrop, onClear, onTextChange }) {
+  // Build section headers, respecting roleLabel overrides on first row of each new label
   const items = [];
+  let lastSectionKey = null;
   rows.forEach(r => {
-    if (r.role !== lastRole) { items.push({ type: "header", role: r.role }); lastRole = r.role; }
-    items.push({ type: "row", row: r });
+    const sectionKey = r.roleLabel || r.role;
+    if (sectionKey !== lastSectionKey) {
+      items.push({ type: "header", role: r.role, label: r.roleLabel || null });
+      lastSectionKey = sectionKey;
+    }
+    // Cube conflict error — flag any player assigned to this slot that's also in a different cube group
+    let conflictError = null;
+    const thisGroup = getCubeGroupOfKey(r.key);
+    if (thisGroup !== null) {
+      const ids = assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : [];
+      const groupNames = { 1: "Cube Clicker 1", 2: "Cube Clicker 2", 3: "Backup Cube Clickers" };
+      for (const id of ids) {
+        const otherGroup = getCubeGroupOf(id, { ...assignments, [r.key]: ids.filter(x => x !== id) });
+        if (otherGroup !== null && otherGroup !== thisGroup) {
+          const player = roster.find(s => s.id === id);
+          conflictError = `${player?.name || "Player"} is also in ${groupNames[otherGroup]}!`;
+          break;
+        }
+      }
+    }
+    items.push({ type: "row", row: r, conflictError });
   });
+
   return (
     <BossPanel title={title} icon={icon} subtitle={subtitle} bossImage={bossImage}>
       {items.map((item, i) =>
         item.type === "header"
-          ? <RoleHeader key={i} role={item.role} />
+          ? <RoleHeader key={i} role={item.role} overrideLabel={item.label} />
           : <AssignmentRow key={item.row.key} rowCfg={item.row}
               assignedIds={assignments[item.row.key]}
-              roster={roster} onDrop={onDrop} onClear={onClear} />
+              textValues={textValues}
+              roster={roster} onDrop={onDrop} onClear={onClear}
+              onTextChange={onTextChange}
+              assignments={assignments}
+              conflictError={item.conflictError} />
       )}
     </BossPanel>
   );
@@ -309,7 +372,8 @@ function ManualAddPlayer({ onAdd }) {
 export default function AdminView() {
   const [unlocked,    setUnlocked]    = useState(false);
   const [roster,      setRoster]      = useState([]);
-  const [assignments, setAssignments] = useState({});
+  const [assignments,  setAssignments]  = useState({});
+  const [textInputs,   setTextInputs]   = useState({});
   const [raidDate,    setRaidDate]    = useState("");
   const [raidLeader,  setRaidLeader]  = useState("");
   const [activeTab,   setActiveTab]   = useState("gruul");
@@ -335,6 +399,7 @@ export default function AdminView() {
         if (s.assignments) setAssignments(s.assignments);
         if (s.raidDate)    setRaidDate(s.raidDate);
         if (s.raidLeader)  setRaidLeader(s.raidLeader);
+        if (s.textInputs)  setTextInputs(s.textInputs);
       }
     }
     load();
@@ -342,7 +407,7 @@ export default function AdminView() {
 
   // ── Save handler ────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    const state = { roster, assignments, raidDate, raidLeader };
+    const state = { roster, assignments, textInputs, raidDate, raidLeader };
     // Always save locally as a backup
     saveState(state);
 
@@ -390,11 +455,22 @@ export default function AdminView() {
   const handleDragStart = (e, slot) => { setDragSlot(slot); e.dataTransfer.effectAllowed = "move"; };
   const handleDrop = key => {
     if (!dragSlot) return;
+    const playerId = dragSlot.id;
     setAssignments(prev => {
       const existing = prev[key] ? (Array.isArray(prev[key]) ? prev[key] : [prev[key]]) : [];
-      // Don't add same player twice to same slot
-      if (existing.includes(dragSlot.id)) return prev;
-      return { ...prev, [key]: [...existing, dragSlot.id] };
+      if (existing.includes(playerId)) return prev; // already on this exact slot
+
+      // Cube group conflict: a player can only be in ONE cube group (1, 2, or Backup)
+      const targetGroup = getCubeGroupOfKey(key);
+      if (targetGroup !== null) {
+        const playerCurrentGroup = getCubeGroupOf(playerId, prev);
+        if (playerCurrentGroup !== null && playerCurrentGroup !== targetGroup) {
+          const groupNames = { 1: "Cube Clicker 1", 2: "Cube Clicker 2", 3: "Backup Cube Clickers" };
+          alert(`${dragSlot.name} is already in "${groupNames[playerCurrentGroup]}" and cannot also be in "${groupNames[targetGroup]}".`);
+          return prev;
+        }
+      }
+      return { ...prev, [key]: [...existing, playerId] };
     });
     setDragSlot(null);
   };
@@ -406,8 +482,9 @@ export default function AdminView() {
     else n[key] = updated;
     return n;
   });
-  const handleClearAll  = () => { if (confirm("Clear all assignments?")) setAssignments({}); };
-  const handleAddManual = slot => setRoster(prev => [...prev, slot]);
+  const handleClearAll  = () => { if (confirm("Clear all assignments?")) { setAssignments({}); setTextInputs({}); } };
+  const handleAddManual  = slot => setRoster(prev => [...prev, slot]);
+  const handleTextChange = (key, val) => setTextInputs(prev => ({ ...prev, [key]: val }));
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   // All players always visible in sidebar — same player can fill multiple roles
@@ -503,12 +580,15 @@ export default function AdminView() {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <div style={{ flex: 1, display: "flex", overflow: "auto", position: "relative" }}>
 
           {/* ── Roster sidebar ── */}
           <div style={{
             width: 280, background: "#080810", borderRight: "1px solid #1a1a2a",
             display: "flex", flexDirection: "column", flexShrink: 0,
+            position: "sticky", left: 0, top: 0,
+            height: "calc(100vh - 52px)", overflowY: "hidden",
+            zIndex: 10,
           }}>
             <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#3a3a5a", letterSpacing: "0.15em" }}>
               ROSTER · {roster.length} PLAYERS
@@ -537,7 +617,7 @@ export default function AdminView() {
           </div>
 
           {/* ── Assignment area ── */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
+          <div style={{ flex: 1, padding: "14px 16px", minWidth: 0 }}>
             {!FIREBASE_OK && <SetupBanner />}
             <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={raidDate} raidLeader={raidLeader} />
 
@@ -545,9 +625,9 @@ export default function AdminView() {
               <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
               <div style={{ display: "flex", gap: 12 }}>
                 <AdminPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
-                  rows={GRUUL_MAULGAR} assignments={assignments} roster={roster} onDrop={handleDrop} onClear={handleClear} />
+                  rows={GRUUL_MAULGAR} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
                 <AdminPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul}
-                  rows={GRUUL_BOSS} assignments={assignments} roster={roster} onDrop={handleDrop} onClear={handleClear} />
+                  rows={GRUUL_BOSS} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
               </div>
             </>}
 
@@ -555,9 +635,9 @@ export default function AdminView() {
               <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
               <div style={{ display: "flex", gap: 12 }}>
                 <AdminPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
-                  rows={MAGS_P1} assignments={assignments} roster={roster} onDrop={handleDrop} onClear={handleClear} />
+                  rows={MAGS_P1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
                 <AdminPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags}
-                  rows={MAGS_P2} assignments={assignments} roster={roster} onDrop={handleDrop} onClear={handleClear} />
+                  rows={MAGS_P2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
               </div>
             </>}
           </div>

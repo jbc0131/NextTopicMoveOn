@@ -70,10 +70,11 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
 }
 
 // ── Section role header ───────────────────────────────────────────────────────
-export function RoleHeader({ role }) {
+export function RoleHeader({ role, overrideLabel }) {
   const rc     = ROLE_COLORS[role];
   const icons  = { Tank: "🛡", Healer: "💚", DPS: "⚔" };
   const titles = { Tank: "Tank Assignments", Healer: "Healer Assignments", DPS: "DPS Assignments" };
+  const label  = overrideLabel || titles[role];
   return (
     <div style={{
       padding: "7px 10px", background: rc.tag, borderRadius: 4,
@@ -81,7 +82,7 @@ export function RoleHeader({ role }) {
       letterSpacing: "0.12em", marginTop: 12, marginBottom: 4,
       textAlign: "center", fontWeight: 700,
     }}>
-      {icons[role]}  {titles[role]}
+      {icons[role]}  {label}
     </div>
   );
 }

@@ -61,7 +61,7 @@ function SearchBox({ value, onChange }) {
 }
 
 // ── Read-only assignment row — with highlight support ─────────────────────────
-function PublicRow({ rowCfg, slots, searchName }) {
+function PublicRow({ rowCfg, slots, textValue, searchName }) {
   const rc = ROLE_COLORS[rowCfg.role];
 
   // Check if any assigned player matches the search
@@ -104,16 +104,29 @@ function PublicRow({ rowCfg, slots, searchName }) {
           );
         })}
       </div>
+      {textValue && (
+        <span style={{
+          fontSize: 10, color: "#c8a84b", fontFamily: "'Cinzel', serif",
+          background: "#1a1000", border: "1px solid #c8a84b33",
+          borderRadius: 4, padding: "2px 8px", whiteSpace: "nowrap",
+        }}>
+          {textValue}
+        </span>
+      )}
     </div>
   );
 }
 
 // ── Public read-only panel ────────────────────────────────────────────────────
-function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, roster, searchName }) {
-  let lastRole = null;
-  const items  = [];
+function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, searchName }) {
+  const items = [];
+  let lastSectionKey = null;
   rows.forEach(r => {
-    if (r.role !== lastRole) { items.push({ type: "header", role: r.role }); lastRole = r.role; }
+    const sectionKey = r.roleLabel || r.role;
+    if (sectionKey !== lastSectionKey) {
+      items.push({ type: "header", role: r.role, label: r.roleLabel || null });
+      lastSectionKey = sectionKey;
+    }
     items.push({ type: "row", row: r });
   });
   const resolve = key => {
@@ -125,8 +138,11 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, rost
     <BossPanel title={title} icon={icon} subtitle={subtitle} bossImage={bossImage}>
       {items.map((item, i) =>
         item.type === "header"
-          ? <RoleHeader key={i} role={item.role} />
-          : <PublicRow key={item.row.key} rowCfg={item.row} slots={resolve(item.row.key)} searchName={searchName} />
+          ? <RoleHeader key={i} role={item.role} overrideLabel={item.label} />
+          : <PublicRow key={item.row.key} rowCfg={item.row}
+              slots={resolve(item.row.key)}
+              textValue={textValues?.[item.row.key] || ""}
+              searchName={searchName} />
       )}
     </BossPanel>
   );
@@ -251,9 +267,9 @@ export default function PublicView() {
             <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
             <div style={{ display: "flex", gap: 14 }}>
               <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
-                rows={GRUUL_MAULGAR} assignments={assignments} roster={roster} searchName={searchName} />
+                rows={GRUUL_MAULGAR} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
               <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul}
-                rows={GRUUL_BOSS} assignments={assignments} roster={roster} searchName={searchName} />
+                rows={GRUUL_BOSS} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
             </div>
           </>}
 
@@ -261,9 +277,9 @@ export default function PublicView() {
             <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
             <div style={{ display: "flex", gap: 14 }}>
               <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
-                rows={MAGS_P1} assignments={assignments} roster={roster} searchName={searchName} />
+                rows={MAGS_P1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
               <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags}
-                rows={MAGS_P2} assignments={assignments} roster={roster} searchName={searchName} />
+                rows={MAGS_P2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
             </div>
           </>}
         </div>
