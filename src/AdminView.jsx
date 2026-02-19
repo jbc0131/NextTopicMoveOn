@@ -261,10 +261,11 @@ export default function AdminView() {
   const handleClearAll  = () => { if (confirm("Clear all assignments?")) setAssignments({}); };
 
   // ── Derived ─────────────────────────────────────────────────────────────────
+  // All players always visible in sidebar — same player can fill multiple roles
   const assignedIds  = new Set(Object.values(assignments));
   const filtered     = roster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
-  const unassigned   = filtered.filter(s => !assignedIds.has(s.id));
-  const assignedList = filtered.filter(s =>  assignedIds.has(s.id));
+  const unassigned   = filtered; // show everyone always
+  const assignedList = [];       // no separate assigned section needed
 
   if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />;
 
@@ -280,9 +281,9 @@ export default function AdminView() {
       }}>
         <div>
           <div style={{ fontSize: 15, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif" }}>
-            ⚔ RAID ASSIGNMENTS — ADMIN
+            ⚔ NEXT TOPIC MOVE ON — ADMIN
           </div>
-          <div style={{ fontSize: 9, color: "#3a2000", letterSpacing: "0.2em" }}>GRUUL'S LAIR · MAGTHERIDON</div>
+          <div style={{ fontSize: 9, color: "#3a2000", letterSpacing: "0.2em" }}>GRUUL'S LAIR  ·  MAGTHERIDON'S LAIR</div>
         </div>
 
         <div style={{ display: "flex", gap: 8, marginLeft: 16, alignItems: "center" }}>
@@ -357,7 +358,7 @@ export default function AdminView() {
 
           {/* ── Roster sidebar ── */}
           <div style={{
-            width: 210, background: "#080810", borderRight: "1px solid #1a1a2a",
+            width: 280, background: "#080810", borderRight: "1px solid #1a1a2a",
             display: "flex", flexDirection: "column", flexShrink: 0,
           }}>
             <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#3a3a5a", letterSpacing: "0.15em" }}>
@@ -377,20 +378,12 @@ export default function AdminView() {
             </div>
             {/* Unassigned */}
             <div style={{ padding: "5px 8px", fontSize: 8, color: "#4ade80", letterSpacing: "0.1em", borderBottom: "1px solid #1a1a2a" }}>
-              UNASSIGNED ({unassigned.length})
+              ALL PLAYERS ({filtered.length})
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "6px 8px", display: "flex", flexDirection: "column", gap: 4 }}>
               {unassigned.map(s => <RosterToken key={s.id} slot={s} onDragStart={handleDragStart} />)}
             </div>
-            {/* Assigned */}
-            {assignedList.length > 0 && <>
-              <div style={{ padding: "5px 8px", fontSize: 8, color: "#2a2a4a", letterSpacing: "0.1em", borderTop: "1px solid #1a1a2a" }}>
-                ASSIGNED ({assignedList.length})
-              </div>
-              <div style={{ maxHeight: 160, overflowY: "auto", padding: "6px 8px", display: "flex", flexDirection: "column", gap: 3 }}>
-                {assignedList.map(s => <RosterToken key={s.id} slot={s} onDragStart={handleDragStart} compact />)}
-              </div>
-            </>}
+
           </div>
 
           {/* ── Assignment area ── */}

@@ -148,7 +148,7 @@ export default function PublicView() {
       }}>
         <div>
           <div style={{ fontSize: 18, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif", letterSpacing: "0.04em" }}>
-            ⚔ TBC RAID ASSIGNMENTS
+            ⚔ NEXT TOPIC MOVE ON
           </div>
           <div style={{ fontSize: 9, color: "#2a1800", letterSpacing: "0.2em", marginTop: 1 }}>
             GRUUL'S LAIR · MAGTHERIDON'S LAIR · READ ONLY
