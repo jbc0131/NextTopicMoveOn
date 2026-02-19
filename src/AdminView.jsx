@@ -35,12 +35,12 @@ function RosterToken({ slot, onDragStart, compact }) {
   return <PlayerBadge slot={slot} compact={compact} draggable onDragStart={onDragStart} />;
 }
 
-// ── Assignment row (drop target) ──────────────────────────────────────────────
-function AssignmentRow({ rowCfg, assignedId, roster, onDrop, onClear }) {
+// ── Assignment row (drop target) — supports multiple players ──────────────────
+function AssignmentRow({ rowCfg, assignedIds, roster, onDrop, onClear }) {
   const [over, setOver] = useState(false);
-  const rc   = ROLE_COLORS[rowCfg.role];
-  const slot = assignedId ? roster.find(s => s.id === assignedId) : null;
-  const color = slot ? getColor(slot) : null;
+  const rc    = ROLE_COLORS[rowCfg.role];
+  const ids   = assignedIds ? (Array.isArray(assignedIds) ? assignedIds : [assignedIds]) : [];
+  const slots = ids.map(id => roster.find(s => s.id === id)).filter(Boolean);
 
   return (
     <div
@@ -55,35 +55,44 @@ function AssignmentRow({ rowCfg, assignedId, roster, onDrop, onClear }) {
         transition: "all 0.12s",
       }}
     >
-      <span style={{ fontSize: 10, color: rc.label, fontFamily: "'Cinzel', serif", minWidth: 180, flexShrink: 0 }}>
+      {/* Label + hint in white */}
+      <span style={{ fontSize: 10, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 180, flexShrink: 0 }}>
         {rowCfg.label}
         {rowCfg.hint && (
-          <span style={{ color: "#444", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>
+          <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>
         )}
       </span>
 
-      <div style={{ flex: 1 }}>
-        {slot ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{
-              background: `${color}20`, border: `1px solid ${color}44`,
-              borderRadius: 4, padding: "2px 10px",
-              color: color, fontFamily: "'Cinzel', serif", fontSize: 12,
-              display: "inline-flex", alignItems: "center", gap: 6,
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />
-              {slot.name}
-              <span style={{ color: `${color}77`, fontSize: 9 }}>{slot.specName} {getClass(slot)}</span>
-            </span>
-            <button onClick={() => onClear(rowCfg.key)} style={{
-              background: "none", border: "none", color: "#444",
-              cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "0 3px",
-            }} title="Clear slot">×</button>
-          </div>
-        ) : (
+      {/* Players + drop hint */}
+      <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+        {slots.map(slot => {
+          const color = getColor(slot);
+          return (
+            <div key={slot.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span style={{
+                background: `${color}20`, border: `1px solid ${color}44`,
+                borderRadius: 4, padding: "2px 8px",
+                color: color, fontFamily: "'Cinzel', serif", fontSize: 12,
+                display: "inline-flex", alignItems: "center", gap: 5,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                {slot.name}
+                <span style={{ color: `${color}77`, fontSize: 9 }}>{slot.specName} {getClass(slot)}</span>
+              </span>
+              <button onClick={() => onClear(rowCfg.key, slot.id)} style={{
+                background: "none", border: "none", color: "#555",
+                cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px",
+              }} title="Remove">×</button>
+            </div>
+          );
+        })}
+        {slots.length === 0 && (
           <span style={{ color: "#2a2a3a", fontSize: 11, fontStyle: "italic" }}>
             {over ? "⬇ drop here" : "— empty —"}
           </span>
+        )}
+        {slots.length > 0 && over && (
+          <span style={{ color: rc.label, fontSize: 10, fontStyle: "italic" }}>+ add</span>
         )}
       </div>
     </div>
@@ -104,7 +113,7 @@ function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, roste
         item.type === "header"
           ? <RoleHeader key={i} role={item.role} />
           : <AssignmentRow key={item.row.key} rowCfg={item.row}
-              assignedId={assignments[item.row.key]}
+              assignedIds={assignments[item.row.key]}
               roster={roster} onDrop={onDrop} onClear={onClear} />
       )}
     </BossPanel>
@@ -256,8 +265,24 @@ export default function AdminView() {
 
   // ── Drag & drop ─────────────────────────────────────────────────────────────
   const handleDragStart = (e, slot) => { setDragSlot(slot); e.dataTransfer.effectAllowed = "move"; };
-  const handleDrop      = key => { if (!dragSlot) return; setAssignments(prev => ({ ...prev, [key]: dragSlot.id })); setDragSlot(null); };
-  const handleClear     = key => setAssignments(prev => { const n = { ...prev }; delete n[key]; return n; });
+  const handleDrop = key => {
+    if (!dragSlot) return;
+    setAssignments(prev => {
+      const existing = prev[key] ? (Array.isArray(prev[key]) ? prev[key] : [prev[key]]) : [];
+      // Don't add same player twice to same slot
+      if (existing.includes(dragSlot.id)) return prev;
+      return { ...prev, [key]: [...existing, dragSlot.id] };
+    });
+    setDragSlot(null);
+  };
+  const handleClear = (key, playerId) => setAssignments(prev => {
+    const existing = prev[key] ? (Array.isArray(prev[key]) ? prev[key] : [prev[key]]) : [];
+    const updated = existing.filter(id => id !== playerId);
+    const n = { ...prev };
+    if (updated.length === 0) delete n[key];
+    else n[key] = updated;
+    return n;
+  });
   const handleClearAll  = () => { if (confirm("Clear all assignments?")) setAssignments({}); };
 
   // ── Derived ─────────────────────────────────────────────────────────────────

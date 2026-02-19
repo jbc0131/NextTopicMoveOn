@@ -79,6 +79,7 @@ export function RoleHeader({ role }) {
       padding: "4px 10px", background: rc.tag, borderRadius: 4,
       fontSize: 10, fontFamily: "'Cinzel', serif", color: "#fff",
       letterSpacing: "0.1em", marginTop: 10, marginBottom: 3,
+      textAlign: "center",
     }}>
       {icons[role]} {titles[role]}
     </div>
@@ -106,13 +107,7 @@ export function BossPanel({ title, icon, subtitle, bossImage, children }) {
           <div style={{ position: "absolute", inset: 0, background: banner.glow }} />
         )}
 
-        {/* Decorative horizontal rule line */}
-        {banner && (
-          <div style={{
-            position: "absolute", left: 0, right: 0, top: "50%",
-            height: 1, background: `linear-gradient(to right, ${banner.accent}55, transparent 70%)`,
-          }} />
-        )}
+
 
         {/* Top-right metadata label */}
         {banner && (

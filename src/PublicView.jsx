@@ -26,33 +26,35 @@ function SyncBadge({ live }) {
   );
 }
 
-// ── Single read-only assignment row ──────────────────────────────────────────
-function PublicRow({ rowCfg, slot }) {
-  const rc    = ROLE_COLORS[rowCfg.role];
-  const color = slot ? getColor(slot) : null;
+// ── Read-only assignment row — supports multiple players ─────────────────────
+function PublicRow({ rowCfg, slots }) {
+  const rc = ROLE_COLORS[rowCfg.role];
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
       padding: "5px 10px", borderRadius: 5, minHeight: 30,
       background: rc.bg, border: `1px solid ${rc.border}`,
     }}>
-      <span style={{ fontSize: 10, color: rc.label, fontFamily: "'Cinzel', serif", minWidth: 180, flexShrink: 0 }}>
+      <span style={{ fontSize: 10, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 180, flexShrink: 0 }}>
         {rowCfg.label}
-        {rowCfg.hint && <span style={{ color: "#333", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
+        {rowCfg.hint && <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
       </span>
-      <div style={{ flex: 1 }}>
-        {slot ? (
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            background: `${color}18`, border: `1px solid ${color}44`,
-            borderRadius: 4, padding: "3px 10px",
-            color: color, fontFamily: "'Cinzel', serif", fontSize: 12,
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
-            <span style={{ fontWeight: 600 }}>{slot.name}</span>
-            <span style={{ color: `${color}77`, fontSize: 9 }}>{slot.specName} {getClass(slot)}</span>
-          </span>
-        ) : (
+      <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {slots && slots.length > 0 ? slots.map(slot => {
+          const color = getColor(slot);
+          return (
+            <span key={slot.id} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: `${color}18`, border: `1px solid ${color}44`,
+              borderRadius: 4, padding: "3px 10px",
+              color: color, fontFamily: "'Cinzel', serif", fontSize: 12,
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+              <span style={{ fontWeight: 600 }}>{slot.name}</span>
+              <span style={{ color: `${color}77`, fontSize: 9 }}>{slot.specName} {getClass(slot)}</span>
+            </span>
+          );
+        }) : (
           <span style={{ color: "#1e1e2e", fontSize: 11, fontStyle: "italic" }}>— unassigned —</span>
         )}
       </div>
@@ -68,13 +70,17 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, rost
     if (r.role !== lastRole) { items.push({ type: "header", role: r.role }); lastRole = r.role; }
     items.push({ type: "row", row: r });
   });
-  const resolve = key => assignments[key] ? roster.find(s => s.id === assignments[key]) : null;
+  const resolve = key => {
+    if (!assignments[key]) return [];
+    const ids = Array.isArray(assignments[key]) ? assignments[key] : [assignments[key]];
+    return ids.map(id => roster.find(s => s.id === id)).filter(Boolean);
+  };
   return (
     <BossPanel title={title} icon={icon} subtitle={subtitle} bossImage={bossImage}>
       {items.map((item, i) =>
         item.type === "header"
           ? <RoleHeader key={i} role={item.role} />
-          : <PublicRow key={item.row.key} rowCfg={item.row} slot={resolve(item.row.key)} />
+          : <PublicRow key={item.row.key} rowCfg={item.row} slots={resolve(item.row.key)} />
       )}
     </BossPanel>
   );
