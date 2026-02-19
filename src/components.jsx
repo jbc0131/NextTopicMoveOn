@@ -17,7 +17,7 @@ export function FontImport() {
 // ── Player badge (used in both views) ────────────────────────────────────────
 export function PlayerBadge({ slot, compact = false, draggable: isDraggable = false, onDragStart }) {
   const color = getColor(slot);
-  const cls = getClass(slot);
+  const cls   = getClass(slot);
   return (
     <div
       draggable={isDraggable}
@@ -46,8 +46,8 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
 
 // ── Section role header ───────────────────────────────────────────────────────
 export function RoleHeader({ role }) {
-  const rc = ROLE_COLORS[role];
-  const icons = { Tank: "🛡", Healer: "💚", DPS: "⚔" };
+  const rc     = ROLE_COLORS[role];
+  const icons  = { Tank: "🛡", Healer: "💚", DPS: "⚔" };
   const titles = { Tank: "Tank Assignments", Healer: "Healer Assignments", DPS: "DPS Assignments" };
   return (
     <div style={{
@@ -61,25 +61,68 @@ export function RoleHeader({ role }) {
 }
 
 // ── Boss panel wrapper ────────────────────────────────────────────────────────
-export function BossPanel({ title, icon, subtitle, children }) {
+export function BossPanel({ title, icon, subtitle, bossImage, children }) {
+  const [imgError, setImgError] = useState(false);
   return (
     <div style={{
       background: "#0a0a12", border: "1px solid #1e1e3a",
-      borderRadius: 8, padding: 12, flex: 1, minWidth: 0,
+      borderRadius: 8, overflow: "hidden", flex: 1, minWidth: 0,
     }}>
-      <div style={{
-        fontFamily: "'Cinzel', serif", fontSize: 13, color: "#c8a84b",
-        borderBottom: "1px solid #2a2a1a", paddingBottom: 6, marginBottom: 8,
-        display: "flex", alignItems: "center", gap: 6,
-      }}>
-        {icon} {title}
-        {subtitle && (
-          <span style={{ color: "#3a3a2a", fontSize: 9, marginLeft: "auto", letterSpacing: "0.1em" }}>
-            {subtitle}
-          </span>
-        )}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      {/* Boss image banner */}
+      {bossImage && !imgError && (
+        <div style={{
+          position: "relative", height: 90, overflow: "hidden",
+          borderBottom: "1px solid #1e1e3a",
+        }}>
+          <img
+            src={bossImage}
+            alt={title}
+            onError={() => setImgError(true)}
+            style={{
+              width: "100%", height: "100%", objectFit: "cover",
+              objectPosition: "center 25%",
+              filter: "brightness(0.55) saturate(0.8)",
+            }}
+          />
+          {/* Gradient overlay so title is readable */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(to right, #0a0a12cc 0%, transparent 50%, #0a0a12cc 100%)",
+          }} />
+          {/* Title overlaid on image */}
+          <div style={{
+            position: "absolute", bottom: 8, left: 12, right: 12,
+            display: "flex", alignItems: "flex-end", justifyContent: "space-between",
+          }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: "#e8c870", fontWeight: 700, textShadow: "0 1px 6px #000a" }}>
+              {icon} {title}
+            </div>
+            {subtitle && (
+              <div style={{ fontSize: 9, color: "#8a7040", letterSpacing: "0.1em", textShadow: "0 1px 4px #000" }}>
+                {subtitle}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Fallback header when no image / image failed */}
+      {(!bossImage || imgError) && (
+        <div style={{
+          fontFamily: "'Cinzel', serif", fontSize: 13, color: "#c8a84b",
+          borderBottom: "1px solid #2a2a1a", padding: "10px 12px",
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          {icon} {title}
+          {subtitle && (
+            <span style={{ color: "#3a3a2a", fontSize: 9, marginLeft: "auto", letterSpacing: "0.1em" }}>
+              {subtitle}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 3, padding: 12 }}>
         {children}
       </div>
     </div>

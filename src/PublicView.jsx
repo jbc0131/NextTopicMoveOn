@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ROLE_COLORS, getColor, getClass,
-  GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2,
+  GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_IMAGES,
   loadState,
 } from "./constants";
 import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar } from "./components";
@@ -61,7 +61,7 @@ function PublicRow({ rowCfg, slot }) {
 }
 
 // ── Public read-only panel ────────────────────────────────────────────────────
-function PublicPanel({ title, icon, subtitle, rows, assignments, roster }) {
+function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, roster }) {
   let lastRole = null;
   const items  = [];
   rows.forEach(r => {
@@ -70,7 +70,7 @@ function PublicPanel({ title, icon, subtitle, rows, assignments, roster }) {
   });
   const resolve = key => assignments[key] ? roster.find(s => s.id === assignments[key]) : null;
   return (
-    <BossPanel title={title} icon={icon} subtitle={subtitle}>
+    <BossPanel title={title} icon={icon} subtitle={subtitle} bossImage={bossImage}>
       {items.map((item, i) =>
         item.type === "header"
           ? <RoleHeader key={i} role={item.role} />
@@ -198,9 +198,9 @@ export default function PublicView() {
           {activeTab === "gruul" && <>
             <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
             <div style={{ display: "flex", gap: 14 }}>
-              <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five"
+              <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_IMAGES.maulgar}
                 rows={GRUUL_MAULGAR} assignments={assignments} roster={roster} />
-              <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter"
+              <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_IMAGES.gruul}
                 rows={GRUUL_BOSS} assignments={assignments} roster={roster} />
             </div>
           </>}
@@ -208,9 +208,9 @@ export default function PublicView() {
           {activeTab === "mags" && <>
             <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
             <div style={{ display: "flex", gap: 14 }}>
-              <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously"
+              <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_IMAGES.mags}
                 rows={MAGS_P1} assignments={assignments} roster={roster} />
-              <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move"
+              <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_IMAGES.mags}
                 rows={MAGS_P2} assignments={assignments} roster={roster} />
             </div>
           </>}

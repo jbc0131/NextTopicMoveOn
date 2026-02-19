@@ -3,26 +3,43 @@ export const CLASS_COLORS = {
   Warrior: "#C69B6D", Paladin: "#F48CBA", Hunter:  "#AAD372",
   Rogue:   "#FFF468", Priest:  "#FFFFFF", Shaman:  "#0070DD",
   Mage:    "#3FC7EB", Warlock: "#8788EE", Druid:   "#FF7C0A",
-  Tank:    "#AAD372",
+};
+
+// Map spec name → actual class name for Tank-role slots
+// (the JSON sets className="Tank" for all tanks regardless of class)
+const SPEC_TO_CLASS = {
+  Protection1:  "Paladin",
+  Protection:   "Warrior",
+  Guardian:     "Druid",
+  Feral:        "Druid",
+  // add more here if your roster ever has a Bear/Prot Warrior edge case
 };
 
 const ROLE_BY_SPEC = {
-  Protection1: "Tank", Protection: "Tank", Guardian: "Tank",
+  Protection1: "Tank", Protection: "Tank", Guardian: "Tank", Feral: "Tank",
   Holy: "Healer", Holy1: "Healer", Discipline: "Healer",
   Restoration: "Healer", Restoration1: "Healer", Dreamstate: "Healer",
 };
+
 export function getRole(slot) {
   if (slot.className === "Tank") return "Tank";
   return ROLE_BY_SPEC[slot.specName] || "DPS";
 }
 
 export function getClass(slot) {
-  return slot.className === "Tank" ? slot.specName.replace("1", "") : slot.className;
+  // If the bot set className="Tank", look up the real class from the spec name
+  if (slot.className === "Tank") {
+    return SPEC_TO_CLASS[slot.specName] || "Warrior"; // fallback to Warrior
+  }
+  return slot.className;
 }
 
 export function getColor(slot) {
+  // Prefer the color field from the JSON — it's already correct per class
+  if (slot.color && slot.color !== "#000000") return slot.color;
+  // Fallback: derive from class name
   const cls = getClass(slot);
-  return CLASS_COLORS[cls] || CLASS_COLORS[slot.className] || "#aaa";
+  return CLASS_COLORS[cls] || "#aaa";
 }
 
 // ── Role colours ─────────────────────────────────────────────────────────────
@@ -30,6 +47,13 @@ export const ROLE_COLORS = {
   Tank:   { bg: "#0d2035", border: "#1a4a7a", label: "#60a5fa", tag: "#1d4ed8" },
   Healer: { bg: "#0b2010", border: "#1a5c1a", label: "#4ade80", tag: "#15803d" },
   DPS:    { bg: "#200d0d", border: "#6b1818", label: "#f87171", tag: "#b91c1c" },
+};
+
+// ── Boss images (Wowhead NPC portraits) ──────────────────────────────────────
+export const BOSS_IMAGES = {
+  maulgar: "https://wow.zamimg.com/uploads/screenshots/normal/1058022.jpg",
+  gruul:   "https://wow.zamimg.com/uploads/screenshots/normal/1058023.jpg",
+  mags:    "https://wow.zamimg.com/uploads/screenshots/normal/895682.jpg",
 };
 
 // ── Assignment definitions ────────────────────────────────────────────────────
@@ -129,18 +153,13 @@ export const ALL_ROWS = [
 const STORAGE_KEY = "raidAssignments_v1";
 
 export function saveState(state) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.error("Failed to save state", e);
-  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch (e) { console.error("Failed to save state", e); }
 }
 
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 }
