@@ -83,7 +83,7 @@ function PublicRow({ rowCfg, slots, searchName }) {
         {rowCfg.hint && <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
       </span>
       <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 4 }}>
-        {slots && slots.length > 0 ? slots.map(slot => {
+        {slots && slots.length > 0 && slots.map(slot => {
           const color = getColor(slot);
           const nameMatch = searchName && slot.name.toLowerCase().includes(searchName.toLowerCase());
           return (
@@ -102,9 +102,7 @@ function PublicRow({ rowCfg, slots, searchName }) {
               {nameMatch && <span style={{ color: color, fontSize: 9 }}>◄</span>}
             </span>
           );
-        }) : (
-
-        )}
+        })}
       </div>
     </div>
   );
