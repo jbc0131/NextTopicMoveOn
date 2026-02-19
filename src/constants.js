@@ -49,12 +49,8 @@ export const ROLE_COLORS = {
   DPS:    { bg: "#200d0d", border: "#6b1818", label: "#f87171", tag: "#b91c1c" },
 };
 
-// ── Boss images (Wowhead NPC portraits) ──────────────────────────────────────
-export const BOSS_IMAGES = {
-  maulgar: "https://wow.zamimg.com/uploads/screenshots/normal/1058022.jpg",
-  gruul:   "https://wow.zamimg.com/uploads/screenshots/normal/1058023.jpg",
-  mags:    "https://wow.zamimg.com/uploads/screenshots/normal/895682.jpg",
-};
+// Boss images are inline SVG components in components.jsx — see BossBanner
+export const BOSS_KEYS = { maulgar: "maulgar", gruul: "gruul", mags: "mags" };
 
 // ── Assignment definitions ────────────────────────────────────────────────────
 export const GRUUL_MAULGAR = [

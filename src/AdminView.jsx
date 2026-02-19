@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ROLE_COLORS, getRole, getClass, getColor,
-  GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_IMAGES,
+  GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
   saveState, loadState,
 } from "./constants";
 import {
@@ -401,9 +401,9 @@ export default function AdminView() {
             {activeTab === "gruul" && <>
               <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
               <div style={{ display: "flex", gap: 12 }}>
-                <AdminPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_IMAGES.maulgar}
+                <AdminPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
                   rows={GRUUL_MAULGAR} assignments={assignments} roster={roster} onDrop={handleDrop} onClear={handleClear} />
-                <AdminPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_IMAGES.gruul}
+                <AdminPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul}
                   rows={GRUUL_BOSS} assignments={assignments} roster={roster} onDrop={handleDrop} onClear={handleClear} />
               </div>
             </>}
@@ -411,9 +411,9 @@ export default function AdminView() {
             {activeTab === "mags" && <>
               <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
               <div style={{ display: "flex", gap: 12 }}>
-                <AdminPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_IMAGES.mags}
+                <AdminPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
                   rows={MAGS_P1} assignments={assignments} roster={roster} onDrop={handleDrop} onClear={handleClear} />
-                <AdminPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_IMAGES.mags}
+                <AdminPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags}
                   rows={MAGS_P2} assignments={assignments} roster={roster} onDrop={handleDrop} onClear={handleClear} />
               </div>
             </>}
