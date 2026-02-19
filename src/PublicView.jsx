@@ -10,7 +10,7 @@ import { fetchFromFirebase, subscribeToFirebase, isFirebaseConfigured } from "./
 
 const FIREBASE_OK = isFirebaseConfigured();
 
-// ── Live sync indicator ───────────────────────────────────────────────────────
+// ── Live sync badge ───────────────────────────────────────────────────────────
 function SyncBadge({ live }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: live ? "#4ade80" : "#444", fontFamily: "'Cinzel', serif" }}>
@@ -26,14 +26,57 @@ function SyncBadge({ live }) {
   );
 }
 
-// ── Read-only assignment row — supports multiple players ─────────────────────
-function PublicRow({ rowCfg, slots }) {
+// ── Search box ────────────────────────────────────────────────────────────────
+function SearchBox({ value, onChange }) {
+  return (
+    <div style={{ position: "relative", width: 240 }}>
+      <span style={{
+        position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+        fontSize: 13, color: "#444", pointerEvents: "none",
+      }}>🔍</span>
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="Search your name…"
+        style={{
+          width: "100%", background: "#0d0d1a",
+          border: `1px solid ${value ? "#c8a84b88" : "#2a2a3a"}`,
+          borderRadius: 6, color: value ? "#c8a84b" : "#666",
+          padding: "6px 10px 6px 32px",
+          fontFamily: "'Cinzel', serif", fontSize: 11, outline: "none",
+          transition: "border-color 0.2s, color 0.2s",
+        }}
+      />
+      {value && (
+        <button
+          onClick={() => onChange("")}
+          style={{
+            position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+            background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 14,
+          }}
+        >×</button>
+      )}
+    </div>
+  );
+}
+
+// ── Read-only assignment row — with highlight support ─────────────────────────
+function PublicRow({ rowCfg, slots, searchName }) {
   const rc = ROLE_COLORS[rowCfg.role];
+
+  // Check if any assigned player matches the search
+  const isHighlighted = searchName && slots.some(
+    s => s.name.toLowerCase().includes(searchName.toLowerCase())
+  );
+
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
       padding: "5px 10px", borderRadius: 5, minHeight: 30,
-      background: rc.bg, border: `1px solid ${rc.border}`,
+      background: isHighlighted ? "#2a2000" : rc.bg,
+      border: `1px solid ${isHighlighted ? "#c8a84b" : rc.border}`,
+      transition: "all 0.2s",
+      boxShadow: isHighlighted ? "0 0 12px #c8a84b44, inset 0 0 20px #c8a84b0a" : "none",
     }}>
       <span style={{ fontSize: 10, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 180, flexShrink: 0 }}>
         {rowCfg.label}
@@ -42,16 +85,21 @@ function PublicRow({ rowCfg, slots }) {
       <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 4 }}>
         {slots && slots.length > 0 ? slots.map(slot => {
           const color = getColor(slot);
+          const nameMatch = searchName && slot.name.toLowerCase().includes(searchName.toLowerCase());
           return (
             <span key={slot.id} style={{
               display: "inline-flex", alignItems: "center", gap: 6,
-              background: `${color}18`, border: `1px solid ${color}44`,
+              background: nameMatch ? `${color}35` : `${color}18`,
+              border: `1px solid ${nameMatch ? color : color + "44"}`,
               borderRadius: 4, padding: "3px 10px",
               color: color, fontFamily: "'Cinzel', serif", fontSize: 12,
+              boxShadow: nameMatch ? `0 0 8px ${color}66` : "none",
+              transition: "all 0.2s",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
-              <span style={{ fontWeight: 600 }}>{slot.name}</span>
+              <span style={{ fontWeight: nameMatch ? 700 : 600 }}>{slot.name}</span>
               <span style={{ color: `${color}77`, fontSize: 9 }}>{slot.specName} {getClass(slot)}</span>
+              {nameMatch && <span style={{ color: color, fontSize: 9 }}>◄</span>}
             </span>
           );
         }) : (
@@ -63,7 +111,7 @@ function PublicRow({ rowCfg, slots }) {
 }
 
 // ── Public read-only panel ────────────────────────────────────────────────────
-function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, roster }) {
+function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, roster, searchName }) {
   let lastRole = null;
   const items  = [];
   rows.forEach(r => {
@@ -80,7 +128,7 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, rost
       {items.map((item, i) =>
         item.type === "header"
           ? <RoleHeader key={i} role={item.role} />
-          : <PublicRow key={item.row.key} rowCfg={item.row} slots={resolve(item.row.key)} />
+          : <PublicRow key={item.row.key} rowCfg={item.row} slots={resolve(item.row.key)} searchName={searchName} />
       )}
     </BossPanel>
   );
@@ -94,9 +142,7 @@ function EmptyState({ loading }) {
       <div style={{ fontFamily: "'Cinzel', serif", color: "#2a2a4a", fontSize: 14 }}>
         {loading ? "Loading assignments…" : "No assignments published yet"}
       </div>
-      {!loading && (
-        <div style={{ color: "#1a1a2a", fontSize: 11 }}>The raid leader hasn't saved assignments yet — check back soon.</div>
-      )}
+      {!loading && <div style={{ color: "#1a1a2a", fontSize: 11 }}>The raid leader hasn't saved assignments yet — check back soon.</div>}
     </div>
   );
 }
@@ -108,24 +154,22 @@ export default function PublicView() {
   const [liveSync,   setLiveSync]  = useState(false);
   const [activeTab,  setActiveTab] = useState("gruul");
   const [lastUpdate, setLastUpdate]= useState(null);
+  const [searchName, setSearchName]= useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     if (FIREBASE_OK) {
-      // Subscribe to real-time updates
       const unsub = subscribeToFirebase(snapshot => {
         setData(snapshot);
         setLoading(false);
         setLiveSync(true);
         setLastUpdate(new Date());
       });
-      // Also do an initial fetch to populate faster before the subscription fires
       fetchFromFirebase()
         .then(d => { if (d) { setData(d); setLoading(false); } })
         .catch(() => {});
       return () => unsub();
     } else {
-      // Fallback: load from localStorage
       const s = loadState();
       setData(s);
       setLoading(false);
@@ -150,7 +194,7 @@ export default function PublicView() {
       <div style={{
         background: "linear-gradient(180deg, #0d0800 0%, #060608 100%)",
         borderBottom: "1px solid #2a1800",
-        padding: "12px 24px", display: "flex", alignItems: "center", gap: 16, flexShrink: 0,
+        padding: "12px 24px", display: "flex", alignItems: "center", gap: 16, flexShrink: 0, flexWrap: "wrap",
       }}>
         <div>
           <div style={{ fontSize: 18, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif", letterSpacing: "0.04em" }}>
@@ -162,22 +206,27 @@ export default function PublicView() {
         </div>
 
         {hasData && (
-          <div style={{ display: "flex", gap: 20, marginLeft: 24, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 20, marginLeft: 16, alignItems: "center" }}>
             {raidDate   && <Meta label="Date"   value={raidDate} />}
             {raidLeader && <Meta label="Leader" value={raidLeader} />}
             <Meta label="Slots" value={`${filledSlots} / ${totalSlots}`} />
           </div>
         )}
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
-          {/* Live sync badge */}
+        {/* 🔍 Search box */}
+        {hasData && (
+          <div style={{ marginLeft: "auto" }}>
+            <SearchBox value={searchName} onChange={setSearchName} />
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 12, alignItems: "center", marginLeft: hasData ? 12 : "auto" }}>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && (
             <span style={{ fontSize: 9, color: "#2a2a2a", fontFamily: "'Cinzel', serif" }}>
               Updated {lastUpdate.toLocaleTimeString()}
             </span>
           )}
-          {/* Subtle admin link */}
           <button
             onClick={() => navigate("/admin")}
             style={{
@@ -205,9 +254,9 @@ export default function PublicView() {
             <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
             <div style={{ display: "flex", gap: 14 }}>
               <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
-                rows={GRUUL_MAULGAR} assignments={assignments} roster={roster} />
+                rows={GRUUL_MAULGAR} assignments={assignments} roster={roster} searchName={searchName} />
               <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul}
-                rows={GRUUL_BOSS} assignments={assignments} roster={roster} />
+                rows={GRUUL_BOSS} assignments={assignments} roster={roster} searchName={searchName} />
             </div>
           </>}
 
@@ -215,9 +264,9 @@ export default function PublicView() {
             <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
             <div style={{ display: "flex", gap: 14 }}>
               <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
-                rows={MAGS_P1} assignments={assignments} roster={roster} />
+                rows={MAGS_P1} assignments={assignments} roster={roster} searchName={searchName} />
               <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags}
-                rows={MAGS_P2} assignments={assignments} roster={roster} />
+                rows={MAGS_P2} assignments={assignments} roster={roster} searchName={searchName} />
             </div>
           </>}
         </div>

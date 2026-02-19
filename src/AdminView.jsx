@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ROLE_COLORS, getRole, getClass, getColor,
+  ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
   saveState, loadState,
 } from "./constants";
@@ -182,6 +182,129 @@ function SetupBanner() {
   );
 }
 
+
+// ── Class/spec definitions for manual character creation ─────────────────────
+const CLASS_SPECS = {
+  Warrior:  ["Arms", "Fury", "Protection"],
+  Paladin:  ["Holy", "Protection1", "Retribution"],
+  Hunter:   ["Beast Mastery", "Marksmanship", "Survival"],
+  Rogue:    ["Assassination", "Combat", "Subtlety"],
+  Priest:   ["Discipline", "Holy1", "Shadow"],
+  Shaman:   ["Elemental", "Enhancement", "Restoration"],
+  Mage:     ["Arcane", "Fire", "Frost"],
+  Warlock:  ["Affliction", "Demonology", "Destruction"],
+  Druid:    ["Balance", "Feral", "Restoration1", "Guardian"],
+};
+// Friendly display names for spec keys that have suffix numbers
+const SPEC_DISPLAY = {
+  Protection1: "Protection", Holy1: "Holy", Restoration1: "Restoration",
+};
+function specLabel(s) { return SPEC_DISPLAY[s] || s; }
+
+// ── Manual character creator ──────────────────────────────────────────────────
+function ManualAddPlayer({ onAdd }) {
+  const [open, setOpen]       = useState(false);
+  const [name, setName]       = useState("");
+  const [cls,  setCls]        = useState("Warrior");
+  const [spec, setSpec]       = useState("Arms");
+  const [error, setError]     = useState("");
+
+  const specs = CLASS_SPECS[cls] || [];
+
+  // Reset spec when class changes
+  const handleClass = c => { setCls(c); setSpec(CLASS_SPECS[c][0]); };
+
+  const handleAdd = () => {
+    if (!name.trim()) { setError("Enter a name"); return; }
+    const color = CLASS_COLORS[cls] || "#aaa";
+    const newSlot = {
+      id:        `manual_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+      name:      name.trim(),
+      className: cls,
+      specName:  spec,
+      color,
+      manual:    true,
+    };
+    onAdd(newSlot);
+    setName("");
+    setCls("Warrior");
+    setSpec("Arms");
+    setError("");
+    setOpen(false);
+  };
+
+  const color = CLASS_COLORS[cls] || "#aaa";
+
+  if (!open) return (
+    <button onClick={() => setOpen(true)} style={{
+      background: "#0a100a", border: "1px dashed #2a4a2a", borderRadius: 5,
+      color: "#4ade80", padding: "4px 12px", cursor: "pointer",
+      fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.05em",
+      width: "100%", marginTop: 6,
+    }}>
+      + Add Character
+    </button>
+  );
+
+  return (
+    <div style={{
+      background: "#0a100a", border: "1px solid #2a4a2a", borderRadius: 6,
+      padding: "10px 10px 8px", marginTop: 6, display: "flex", flexDirection: "column", gap: 6,
+    }}>
+      <div style={{ fontSize: 9, color: "#4ade80", letterSpacing: "0.1em", fontFamily: "'Cinzel', serif", marginBottom: 2 }}>
+        ADD CHARACTER
+      </div>
+      {/* Name input */}
+      <input
+        autoFocus
+        value={name}
+        onChange={e => { setName(e.target.value); setError(""); }}
+        onKeyDown={e => e.key === "Enter" && handleAdd()}
+        placeholder="Character name"
+        style={{
+          background: "#080810", border: `1px solid ${error ? "#ef4444" : "#1a1a2a"}`,
+          borderRadius: 4, color: "#fff", padding: "5px 8px",
+          fontFamily: "'Cinzel', serif", fontSize: 11, outline: "none", width: "100%",
+        }}
+      />
+      {error && <div style={{ color: "#ef4444", fontSize: 10 }}>{error}</div>}
+      {/* Class selector */}
+      <select value={cls} onChange={e => handleClass(e.target.value)} style={{
+        background: "#080810", border: "1px solid #1a1a2a", borderRadius: 4,
+        color: color, padding: "5px 8px", fontFamily: "'Cinzel', serif",
+        fontSize: 11, outline: "none", width: "100%", cursor: "pointer",
+      }}>
+        {Object.keys(CLASS_SPECS).map(c => (
+          <option key={c} value={c} style={{ color: CLASS_COLORS[c] || "#fff", background: "#080810" }}>{c}</option>
+        ))}
+      </select>
+      {/* Spec selector */}
+      <select value={spec} onChange={e => setSpec(e.target.value)} style={{
+        background: "#080810", border: "1px solid #1a1a2a", borderRadius: 4,
+        color: "#aaa", padding: "5px 8px", fontFamily: "'Cinzel', serif",
+        fontSize: 11, outline: "none", width: "100%", cursor: "pointer",
+      }}>
+        {specs.map(s => (
+          <option key={s} value={s} style={{ background: "#080810" }}>{specLabel(s)}</option>
+        ))}
+      </select>
+      {/* Buttons */}
+      <div style={{ display: "flex", gap: 6 }}>
+        <button onClick={handleAdd} style={{
+          flex: 1, background: "#0a200a", border: "1px solid #4ade8055",
+          borderRadius: 4, color: "#4ade80", padding: "5px",
+          cursor: "pointer", fontFamily: "'Cinzel', serif", fontSize: 10,
+        }}>✓ Add</button>
+        <button onClick={() => { setOpen(false); setError(""); setName(""); }} style={{
+          flex: 1, background: "#1a0a0a", border: "1px solid #ef444455",
+          borderRadius: 4, color: "#ef4444", padding: "5px",
+          cursor: "pointer", fontFamily: "'Cinzel', serif", fontSize: 10,
+        }}>✗ Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Admin App ────────────────────────────────────────────────────────────
 export default function AdminView() {
   const [unlocked,    setUnlocked]    = useState(false);
@@ -284,6 +407,7 @@ export default function AdminView() {
     return n;
   });
   const handleClearAll  = () => { if (confirm("Clear all assignments?")) setAssignments({}); };
+  const handleAddManual = slot => setRoster(prev => [...prev, slot]);
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   // All players always visible in sidebar — same player can fill multiple roles
@@ -408,6 +532,7 @@ export default function AdminView() {
             <div style={{ flex: 1, overflowY: "auto", padding: "6px 8px", display: "flex", flexDirection: "column", gap: 4 }}>
               {unassigned.map(s => <RosterToken key={s.id} slot={s} onDragStart={handleDragStart} />)}
             </div>
+            <div style={{ padding: "0 8px 8px" }}><ManualAddPlayer onAdd={handleAddManual} /></div>
 
           </div>
 

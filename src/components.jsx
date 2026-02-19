@@ -76,12 +76,12 @@ export function RoleHeader({ role }) {
   const titles = { Tank: "Tank Assignments", Healer: "Healer Assignments", DPS: "DPS Assignments" };
   return (
     <div style={{
-      padding: "4px 10px", background: rc.tag, borderRadius: 4,
-      fontSize: 10, fontFamily: "'Cinzel', serif", color: "#fff",
-      letterSpacing: "0.1em", marginTop: 10, marginBottom: 3,
-      textAlign: "center",
+      padding: "7px 10px", background: rc.tag, borderRadius: 4,
+      fontSize: 13, fontFamily: "'Cinzel', serif", color: "#fff",
+      letterSpacing: "0.12em", marginTop: 12, marginBottom: 4,
+      textAlign: "center", fontWeight: 700,
     }}>
-      {icons[role]} {titles[role]}
+      {icons[role]}  {titles[role]}
     </div>
   );
 }
