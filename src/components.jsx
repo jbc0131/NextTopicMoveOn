@@ -64,11 +64,11 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
       style={{
         display: "flex", alignItems: "center", gap: 5,
         background: `${color}18`, border: `1px solid ${color}44`,
-        borderRadius: 4, padding: "4px 10px",
+        borderRadius: 4, padding: "4px 8px",
         cursor: isDraggable ? "grab" : "default",
-        userSelect: "none", fontSize: 13,
+        userSelect: "none", fontSize: "13px", lineHeight: "1.2",
         color: color, fontFamily: "'Cinzel', serif",
-        width: "100%", minWidth: 0, overflow: "hidden",
+        width: "100%", minWidth: 0, overflow: "hidden", boxSizing: "border-box",
         transition: "background 0.15s, border-color 0.15s",
       }}
       title={`${slot.name} — ${specFull} ${cls}`}

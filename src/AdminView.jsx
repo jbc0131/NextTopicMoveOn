@@ -678,7 +678,7 @@ export default function AdminView({ teamId, teamName }) {
                 ? `UNIQUE PLAYERS (${karaFiltered.length}) · ${karaAssignedIds.size} PLACED`
                 : `ALL PLAYERS (${filtered.length})`}
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: "6px 8px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: "6px 8px", display: "flex", flexDirection: "column", gap: 4, alignItems: "stretch" }}>
               {activeTab === "kara"
                 ? (() => {
                     const items = [];
