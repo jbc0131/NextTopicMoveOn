@@ -1,4 +1,4 @@
-import { ROLE_COLORS, getClass, getSpecDisplay, getColor, getRole } from "./constants";
+import { ROLE_COLORS, getClass, getSpecDisplay, getColor, getRole, cycleSpec, CLASS_SPECS } from "./constants";
 
 // ── Shared font import ────────────────────────────────────────────────────────
 export function FontImport() {
@@ -100,17 +100,17 @@ export function RoleHeader({ role, overrideLabel }) {
 }
 
 // ── Boss panel wrapper ────────────────────────────────────────────────────────
-export function BossPanel({ title, icon, subtitle, bossImage, children }) {
+export function BossPanel({ title, icon, subtitle, bossImage, children, compact = false }) {
   const banner = bossImage ? BOSS_BANNERS[bossImage] : null;
 
   return (
     <div style={{
       background: "#0a0a12", border: "1px solid #1e1e3a",
-      borderRadius: 8, overflow: "hidden", flex: 1, minWidth: 0,
+      borderRadius: compact ? 0 : 8, overflow: "hidden", flex: 1, minWidth: 0,
     }}>
       {/* Banner */}
       <div style={{
-        position: "relative", height: 64,
+        position: "relative", height: compact ? 44 : 64,
         background: banner ? banner.gradient : "#0d0d1a",
         borderBottom: `1px solid ${banner ? banner.accent + "44" : "#1e1e3a"}`,
         overflow: "hidden",
@@ -156,13 +156,13 @@ export function BossPanel({ title, icon, subtitle, bossImage, children }) {
           }} />
           <div>
             <div style={{
-              fontFamily: "'Cinzel', serif", fontSize: 17, fontWeight: 700,
+              fontFamily: "'Cinzel', serif", fontSize: compact ? 12 : 17, fontWeight: 700,
               color: banner ? banner.accent : "#c8a84b",
               letterSpacing: "0.05em", lineHeight: 1.2,
             }}>
               {icon} {title}
             </div>
-            {subtitle && (
+            {subtitle && !compact && (
               <div style={{
                 fontSize: 9, color: banner ? banner.accent + "66" : "#3a3a2a",
                 letterSpacing: "0.12em", marginTop: 2,
@@ -182,8 +182,7 @@ export function BossPanel({ title, icon, subtitle, bossImage, children }) {
 }
 
 // ── Karazhan team header with composition tracker ─────────────────────────────
-export function KaraTeamHeader({ teamNum, assignments, allRows, roster }) {
-  // Count tanks/healers/dps across both groups for this team
+export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOverrides }) {
   const keys = new Set(allRows.map(r => r.key));
   let tanks = 0, healers = 0, dps = 0;
   Object.entries(assignments).forEach(([key, ids]) => {
@@ -192,8 +191,10 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster }) {
     idList.forEach(id => {
       const player = roster.find(s => s.id === id);
       if (!player) return;
-      const role = getRole(player);
-      if (role === "Tank")   tanks++;
+      const overriddenSpec = specOverrides?.[id];
+      const effective = overriddenSpec ? { ...player, specName: overriddenSpec, className: overriddenSpec } : player;
+      const role = getRole(effective);
+      if (role === "Tank")        tanks++;
       else if (role === "Healer") healers++;
       else dps++;
     });
@@ -220,27 +221,74 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster }) {
       background: "linear-gradient(135deg, #0d0a1a 0%, #080610 100%)",
       border: "1px solid #9b72cf44",
       borderRadius: "8px 8px 0 0",
-      padding: "10px 16px",
-      display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
-      borderBottom: "2px solid #9b72cf33",
+      padding: "16px 24px",
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexWrap: "wrap",
+      borderBottom: "2px solid #9b72cf55",
+      position: "relative",
     }}>
       <div style={{
-        fontSize: 15, color: "#9b72cf", fontFamily: "'Cinzel Decorative', serif",
-        letterSpacing: "0.06em", marginRight: 8,
+        fontSize: 30, color: "#d4b8f0", fontFamily: "'Cinzel Decorative', serif",
+        letterSpacing: "0.1em", textAlign: "center", textShadow: "0 0 20px #9b72cf66",
       }}>
         🏰 TEAM {teamNum}
       </div>
-      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         {pill("TANK",   tanks,   "#60a5fa", "#001828")}
         {pill("HEALER", healers, "#4ade80", "#001808")}
         {pill("DPS",    dps,     "#f87171", "#180808")}
       </div>
       <div style={{
-        marginLeft: "auto", fontSize: 10, color: total === 10 ? "#4ade80" : "#9b72cf88",
+        position: "absolute", right: 16,
+        fontSize: 11, color: total === 10 ? "#4ade80" : "#9b72cf55",
         fontFamily: "'Cinzel', serif", letterSpacing: "0.1em",
+        fontWeight: total === 10 ? 700 : 400,
       }}>
         {total}/10 {total === 10 ? "✓ FULL" : ""}
       </div>
+    </div>
+  );
+}
+
+// ── Kara player badge — with click-to-cycle spec ──────────────────────────────
+export function KaraPlayerBadge({ slot, onSpecCycle, compact = false }) {
+  const color   = getColor(slot);
+  const cls     = getClass(slot);
+  const specs   = CLASS_SPECS[cls] || [];
+  const canCycle = specs.length > 1;
+  const specDisplay = (slot.specName || "").replace(/\d+$/, "");
+  const role    = getRole(slot);
+  const roleColor = role === "Tank" ? "#60a5fa" : role === "Healer" ? "#4ade80" : "#f87171";
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 6,
+      background: `${color}18`, border: `1px solid ${color}44`,
+      borderRadius: 4, padding: "4px 8px 4px 10px",
+      color, fontFamily: "'Cinzel', serif",
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+      <span style={{ fontWeight: 600, fontSize: 13 }}>{slot.name}</span>
+
+      {/* Spec cycling button */}
+      {canCycle && onSpecCycle ? (
+        <button
+          onClick={() => onSpecCycle(slot.id)}
+          title={`Click to cycle spec (${specs.map(s => s.specName.replace(/\d+$/,'')).join(' → ')})`}
+          style={{
+            marginLeft: 4, display: "flex", alignItems: "center", gap: 4,
+            background: `${roleColor}18`, border: `1px solid ${roleColor}44`,
+            borderRadius: 10, padding: "2px 8px", cursor: "pointer",
+            color: roleColor, fontSize: 10, fontFamily: "'Cinzel', serif",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background=`${roleColor}33`; e.currentTarget.style.borderColor=roleColor; }}
+          onMouseLeave={e => { e.currentTarget.style.background=`${roleColor}18`; e.currentTarget.style.borderColor=`${roleColor}44`; }}
+        >
+          {specDisplay} {cls} ↻
+        </button>
+      ) : (
+        <span style={{ color: `${color}77`, fontSize: 11 }}>{specDisplay} {cls}</span>
+      )}
     </div>
   );
 }

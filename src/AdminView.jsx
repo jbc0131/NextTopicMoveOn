@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor, getSpecDisplay,
+  ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor, getSpecDisplay, cycleSpec,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
   KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3, KARA_ALL_ROWS,
   CUBE1_KEYS, CUBE2_KEYS, CUBEBU_KEYS, ALL_CUBE_KEYS,
   saveState, loadState,
 } from "./constants";
 import {
-  FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader,
+  FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader, KaraPlayerBadge,
 } from "./components";
 import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured } from "./firebase";
 
@@ -61,7 +61,7 @@ function isInCube1(playerId, assignments) { return getCubeGroupOf(playerId, assi
 function isOnAnyCube(playerId, assignments) { return getCubeGroupOf(playerId, assignments) !== null; }
 
 // ── Assignment row (drop target) — supports multiple players + text input ─────
-function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClear, onTextChange, assignments, conflictError }) {
+function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClear, onTextChange, onSpecCycle, assignments, conflictError }) {
   const [over, setOver] = useState(false);
   const rc    = ROLE_COLORS[rowCfg.role];
   const ids   = assignedIds ? (Array.isArray(assignedIds) ? assignedIds : [assignedIds]) : [];
@@ -81,13 +81,15 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
           transition: "all 0.12s",
         }}
       >
-        {/* Label */}
-        <span style={{ fontSize: 14, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 220, flexShrink: 0 }}>
-          {rowCfg.label}
-          {rowCfg.hint && (
-            <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>
-          )}
-        </span>
+        {/* Label — hidden for blank kara slots */}
+        {rowCfg.label && (
+          <span style={{ fontSize: 14, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 220, flexShrink: 0 }}>
+            {rowCfg.label}
+            {rowCfg.hint && (
+              <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>
+            )}
+          </span>
+        )}
 
         {/* Player badges */}
         <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
@@ -95,16 +97,20 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
             const color = getColor(slot);
             return (
               <div key={slot.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <span style={{
-                  background: `${color}20`, border: `1px solid ${color}44`,
-                  borderRadius: 4, padding: "2px 8px",
-                  color: color, fontFamily: "'Cinzel', serif", fontSize: 14,
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                  {slot.name}
-                  <span style={{ color: `${color}77`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
-                </span>
+                {onSpecCycle ? (
+                  <KaraPlayerBadge slot={slot} onSpecCycle={onSpecCycle} />
+                ) : (
+                  <span style={{
+                    background: `${color}20`, border: `1px solid ${color}44`,
+                    borderRadius: 4, padding: "2px 8px",
+                    color: color, fontFamily: "'Cinzel', serif", fontSize: 14,
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                  }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                    {slot.name}
+                    <span style={{ color: `${color}77`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
+                  </span>
+                )}
                 <button onClick={() => onClear(rowCfg.key, slot.id)} style={{
                   background: "none", border: "none", color: "#555",
                   cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px",
@@ -139,7 +145,7 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
 }
 
 // ── Boss panel wrapper ────────────────────────────────────────────────────────
-function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, onDrop, onClear, onTextChange }) {
+function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, onDrop, onClear, onTextChange, onSpecCycle, compact }) {
   // Build section headers, respecting roleLabel overrides on first row of each new label
   const items = [];
   let lastSectionKey = null;
@@ -168,7 +174,7 @@ function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, textV
   });
 
   return (
-    <BossPanel title={title} icon={icon} subtitle={subtitle} bossImage={bossImage}>
+    <BossPanel title={title} icon={icon} subtitle={subtitle} bossImage={bossImage} compact={compact}>
       {items.map((item, i) =>
         item.type === "header"
           ? <RoleHeader key={i} role={item.role} overrideLabel={item.label} />
@@ -177,6 +183,7 @@ function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, textV
               textValues={textValues}
               roster={roster} onDrop={onDrop} onClear={onClear}
               onTextChange={onTextChange}
+              onSpecCycle={onSpecCycle}
               assignments={assignments}
               conflictError={item.conflictError} />
       )}
@@ -375,6 +382,7 @@ export default function AdminView({ teamId, teamName }) {
   const [roster,      setRoster]      = useState([]);
   const [assignments,  setAssignments]  = useState({});
   const [textInputs,   setTextInputs]   = useState({});
+  const [specOverrides, setSpecOverrides] = useState({}); // { [playerId]: specName }
   const [raidDate,    setRaidDate]    = useState("");
   const [raidLeader,  setRaidLeader]  = useState("");
   const [activeTab,   setActiveTab]   = useState("gruul");
@@ -395,11 +403,12 @@ export default function AdminView({ teamId, teamName }) {
       }
       if (!s) s = loadState(teamId);
       if (s) {
-        if (s.roster)      setRoster(s.roster);
-        if (s.assignments) setAssignments(s.assignments);
-        if (s.raidDate)    setRaidDate(s.raidDate);
-        if (s.raidLeader)  setRaidLeader(s.raidLeader);
-        if (s.textInputs)  setTextInputs(s.textInputs);
+        if (s.roster)        setRoster(s.roster);
+        if (s.assignments)   setAssignments(s.assignments);
+        if (s.raidDate)      setRaidDate(s.raidDate);
+        if (s.raidLeader)    setRaidLeader(s.raidLeader);
+        if (s.textInputs)    setTextInputs(s.textInputs);
+        if (s.specOverrides) setSpecOverrides(s.specOverrides);
       }
     }
     load();
@@ -407,7 +416,7 @@ export default function AdminView({ teamId, teamName }) {
 
   // ── Save handler ────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    const state = { roster, assignments, textInputs, raidDate, raidLeader };
+    const state = { roster, assignments, textInputs, raidDate, raidLeader, specOverrides };
     saveState(state, teamId);
 
     if (!FIREBASE_OK) {
@@ -425,7 +434,23 @@ export default function AdminView({ teamId, teamName }) {
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 4000);
     }
-  }, [roster, assignments, raidDate, raidLeader, teamId]);
+  }, [roster, assignments, textInputs, raidDate, raidLeader, specOverrides, teamId]);
+
+  // ── Spec cycling (Kara only) ─────────────────────────────────────────────────
+  const handleSpecCycle = (playerId) => {
+    setRoster(prev => prev.map(s => {
+      if (s.id !== playerId) return s;
+      const { specName: nextSpec, baseClass } = cycleSpec(s);
+      // Preserve the real class in baseClass so future cycles still work
+      return { ...s, specName: nextSpec, className: nextSpec, baseClass };
+    }));
+    setSpecOverrides(prev => {
+      const player = roster.find(s => s.id === playerId);
+      if (!player) return prev;
+      const { specName: nextSpec } = cycleSpec(player);
+      return { ...prev, [playerId]: nextSpec };
+    });
+  };
 
   // ── JSON import ─────────────────────────────────────────────────────────────
   const handleImportJSON = text => {
@@ -694,12 +719,12 @@ export default function AdminView({ teamId, teamName }) {
                   />
                   <div style={{ display: "flex", gap: 0, border: "1px solid #9b72cf33", borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
                     <div style={{ flex: 1, borderRight: "1px solid #9b72cf22" }}>
-                      <AdminPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara"
-                        rows={team.g1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                      <AdminPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
+                        rows={team.g1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onSpecCycle={handleSpecCycle} />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <AdminPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara"
-                        rows={team.g2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                      <AdminPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
+                        rows={team.g2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onSpecCycle={handleSpecCycle} />
                     </div>
                   </div>
                 </div>

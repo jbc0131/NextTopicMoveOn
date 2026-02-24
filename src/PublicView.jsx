@@ -138,7 +138,7 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile }) {
 }
 
 // ── Public read-only panel ────────────────────────────────────────────────────
-function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, searchName, isMobile }) {
+function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, searchName, isMobile, specOverrides, compact }) {
   const items = [];
   let lastSectionKey = null;
   rows.forEach(r => {
@@ -152,10 +152,16 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, text
   const resolve = key => {
     if (!assignments[key]) return [];
     const ids = Array.isArray(assignments[key]) ? assignments[key] : [assignments[key]];
-    return ids.map(id => roster.find(s => s.id === id)).filter(Boolean);
+    return ids.map(id => {
+      const p = roster.find(s => s.id === id);
+      if (!p) return null;
+      // Apply any spec override for this player
+      const overriddenSpec = specOverrides?.[id];
+      return overriddenSpec ? { ...p, specName: overriddenSpec, className: overriddenSpec } : p;
+    }).filter(Boolean);
   };
   return (
-    <BossPanel title={title} icon={icon} subtitle={subtitle} bossImage={bossImage}>
+    <BossPanel title={title} icon={icon} subtitle={subtitle} bossImage={bossImage} compact={compact}>
       {items.map((item, i) =>
         item.type === "header"
           ? <RoleHeader key={i} role={item.role} overrideLabel={item.label} />
@@ -215,10 +221,11 @@ export default function PublicView({ teamId, teamName }) {
     }
   }, [teamId]);
 
-  const roster      = data?.roster      ?? [];
-  const assignments = data?.assignments ?? {};
-  const raidDate    = data?.raidDate    ?? "";
-  const raidLeader  = data?.raidLeader  ?? "";
+  const roster        = data?.roster        ?? [];
+  const assignments   = data?.assignments   ?? {};
+  const specOverrides = data?.specOverrides ?? {};
+  const raidDate      = data?.raidDate      ?? "";
+  const raidLeader    = data?.raidLeader    ?? "";
 
   const totalSlots  = [...GRUUL_MAULGAR, ...GRUUL_BOSS, ...MAGS_P1, ...MAGS_P2, ...KARA_ALL_ROWS].length;
   const filledSlots = Object.keys(assignments).length;
@@ -319,15 +326,16 @@ export default function PublicView({ teamId, teamName }) {
                   assignments={assignments}
                   allRows={[...team.g1, ...team.g2]}
                   roster={roster}
+                  specOverrides={specOverrides}
                 />
                 <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", border: "1px solid #9b72cf33", borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
                   <div style={{ flex: 1, borderRight: isNarrow ? "none" : "1px solid #9b72cf22", borderBottom: isNarrow ? "1px solid #9b72cf22" : "none" }}>
-                    <PublicPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara"
-                      rows={team.g1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+                    <PublicPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
+                      rows={team.g1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <PublicPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara"
-                      rows={team.g2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+                    <PublicPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
+                      rows={team.g2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} />
                   </div>
                 </div>
               </div>

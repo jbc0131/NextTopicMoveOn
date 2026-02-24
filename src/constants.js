@@ -16,20 +16,27 @@ const SPEC_TO_CLASS = {
 };
 
 const ROLE_BY_SPEC = {
+  // Tanks
   Protection1: "Tank", Protection: "Tank", Guardian: "Tank", Feral: "Tank",
+  // Healers
   Holy: "Healer", Holy1: "Healer", Discipline: "Healer",
   Restoration: "Healer", Restoration1: "Healer", Dreamstate: "Healer",
+  // Everything else is DPS (Arms, Fury, Retribution, BeastMastery, Marksmanship,
+  // Survival, Assassination, Combat, Subtlety, Shadow, Elemental, Enhancement,
+  // Arcane, Fire, Frost, Affliction, Demonology, Destruction, Balance)
 };
 
 export function getRole(slot) {
-  if (slot.className === "Tank") return "Tank";
+  // After spec cycling, className is overwritten — use ROLE_BY_SPEC as source of truth
   return ROLE_BY_SPEC[slot.specName] || "DPS";
 }
 
 export function getClass(slot) {
+  // If baseClass was preserved by spec cycling, always use it
+  if (slot.baseClass) return slot.baseClass;
   // If the bot set className="Tank", look up the real class from the spec name
   if (slot.className === "Tank") {
-    return SPEC_TO_CLASS[slot.specName] || "Warrior"; // fallback to Warrior
+    return SPEC_TO_CLASS[slot.specName] || "Warrior";
   }
   return slot.className;
 }
@@ -47,6 +54,67 @@ export function getColor(slot) {
   // Fallback: derive from class name
   const cls = getClass(slot);
   return CLASS_COLORS[cls] || "#aaa";
+}
+
+// ── All specs per class (TBC) ─────────────────────────────────────────────────
+// Used for the Kara spec-cycle feature. Internal names match specName in the JSON.
+export const CLASS_SPECS = {
+  Warrior: [
+    { specName: "Arms",        role: "DPS"    },
+    { specName: "Fury",        role: "DPS"    },
+    { specName: "Protection",  role: "Tank"   },
+  ],
+  Paladin: [
+    { specName: "Holy1",       role: "Healer" },
+    { specName: "Protection1", role: "Tank"   },
+    { specName: "Retribution", role: "DPS"    },
+  ],
+  Hunter: [
+    { specName: "BeastMastery", role: "DPS"  },
+    { specName: "Marksmanship", role: "DPS"  },
+    { specName: "Survival",     role: "DPS"  },
+  ],
+  Rogue: [
+    { specName: "Assassination", role: "DPS" },
+    { specName: "Combat",        role: "DPS" },
+    { specName: "Subtlety",      role: "DPS" },
+  ],
+  Priest: [
+    { specName: "Discipline",   role: "Healer" },
+    { specName: "Holy",         role: "Healer" },
+    { specName: "Shadow",       role: "DPS"    },
+  ],
+  Shaman: [
+    { specName: "Elemental",    role: "DPS"    },
+    { specName: "Enhancement",  role: "DPS"    },
+    { specName: "Restoration1", role: "Healer" },
+  ],
+  Mage: [
+    { specName: "Arcane",  role: "DPS" },
+    { specName: "Fire",    role: "DPS" },
+    { specName: "Frost",   role: "DPS" },
+  ],
+  Warlock: [
+    { specName: "Affliction",  role: "DPS" },
+    { specName: "Demonology",  role: "DPS" },
+    { specName: "Destruction", role: "DPS" },
+  ],
+  Druid: [
+    { specName: "Balance",      role: "DPS"    },
+    { specName: "Feral",        role: "Tank"   },
+    { specName: "Restoration",  role: "Healer" },
+  ],
+};
+
+// Given a slot, cycle to the next spec. Uses slot.baseClass to preserve the
+// real class even after specName/className have been overwritten by cycling.
+export function cycleSpec(slot) {
+  const cls = slot.baseClass || getClass(slot);
+  const specs = CLASS_SPECS[cls];
+  if (!specs) return slot.specName;
+  const idx = specs.findIndex(s => s.specName === slot.specName);
+  const nextSpec = specs[(idx + 1) % specs.length].specName;
+  return { specName: nextSpec, baseClass: cls };
 }
 
 // ── Role colours ─────────────────────────────────────────────────────────────
