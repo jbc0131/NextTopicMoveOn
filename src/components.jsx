@@ -54,6 +54,9 @@ const BOSS_BANNERS = {
 export function PlayerBadge({ slot, compact = false, draggable: isDraggable = false, onDragStart }) {
   const color = getColor(slot);
   const cls   = getClass(slot);
+  const specFull = getSpecDisplay(slot);
+  // Abbreviated spec+class for sidebar: "Fury War", "BM Hunt", "Resto Sham" etc.
+  const specShort = specFull.slice(0, 4) + " " + cls.slice(0, 4);
   return (
     <div
       draggable={isDraggable}
@@ -63,18 +66,20 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
         background: `${color}18`, border: `1px solid ${color}44`,
         borderRadius: 4, padding: compact ? "2px 7px" : "4px 10px",
         cursor: isDraggable ? "grab" : "default",
-        userSelect: "none", fontSize: compact ? 13 : 15,
+        userSelect: "none", fontSize: compact ? 13 : 14,
         color: color, fontFamily: "'Cinzel', serif",
-        width: "100%", minWidth: 0,
+        width: "100%", minWidth: 0, overflow: "hidden",
         transition: "background 0.15s, border-color 0.15s",
       }}
-      title={`${slot.name} — ${getSpecDisplay(slot)} ${cls}`}
+      title={`${slot.name} — ${specFull} ${cls}`}
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{slot.name}</span>
+      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, flex: 1 }}>
+        {slot.name}
+      </span>
       {!compact && (
-        <span style={{ color: `${color}88`, fontSize: 11, marginLeft: 2, whiteSpace: "nowrap", flexShrink: 0 }}>
-          {getSpecDisplay(slot)} {cls}
+        <span style={{ color: `${color}88`, fontSize: 10, whiteSpace: "nowrap", flexShrink: 0, marginLeft: 2 }}>
+          {specShort}
         </span>
       )}
     </div>
