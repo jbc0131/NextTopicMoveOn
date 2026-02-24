@@ -78,7 +78,7 @@ function PublicRow({ rowCfg, slots, textValue, searchName }) {
       transition: "all 0.2s",
       boxShadow: isHighlighted ? "0 0 12px #c8a84b44, inset 0 0 20px #c8a84b0a" : "none",
     }}>
-      <span style={{ fontSize: 10, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 180, flexShrink: 0 }}>
+      <span style={{ fontSize: 14, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 220, flexShrink: 0 }}>
         {rowCfg.label}
         {rowCfg.hint && <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
       </span>
@@ -92,13 +92,13 @@ function PublicRow({ rowCfg, slots, textValue, searchName }) {
               background: nameMatch ? `${color}35` : `${color}18`,
               border: `1px solid ${nameMatch ? color : color + "44"}`,
               borderRadius: 4, padding: "3px 10px",
-              color: color, fontFamily: "'Cinzel', serif", fontSize: 12,
+              color: color, fontFamily: "'Cinzel', serif", fontSize: 14,
               boxShadow: nameMatch ? `0 0 8px ${color}66` : "none",
               transition: "all 0.2s",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
               <span style={{ fontWeight: nameMatch ? 700 : 600 }}>{slot.name}</span>
-              <span style={{ color: `${color}77`, fontSize: 9 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
+              <span style={{ color: `${color}77`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
               {nameMatch && <span style={{ color: color, fontSize: 9 }}>◄</span>}
             </span>
           );

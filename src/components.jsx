@@ -52,7 +52,7 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
         background: `${color}18`, border: `1px solid ${color}44`,
         borderRadius: 4, padding: compact ? "2px 7px" : "4px 10px",
         cursor: isDraggable ? "grab" : "default",
-        userSelect: "none", fontSize: compact ? 11 : 12,
+        userSelect: "none", fontSize: compact ? 13 : 15,
         color: color, fontFamily: "'Cinzel', serif", whiteSpace: "nowrap",
         transition: "background 0.15s, border-color 0.15s",
       }}
@@ -61,7 +61,7 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
       <span>{slot.name}</span>
       {!compact && (
-        <span style={{ color: `${color}88`, fontSize: 9, marginLeft: 2 }}>
+        <span style={{ color: `${color}88`, fontSize: 11, marginLeft: 2 }}>
           {getSpecDisplay(slot)} {cls}
         </span>
       )}
@@ -78,7 +78,7 @@ export function RoleHeader({ role, overrideLabel }) {
   return (
     <div style={{
       padding: "7px 10px", background: rc.tag, borderRadius: 4,
-      fontSize: 13, fontFamily: "'Cinzel', serif", color: "#fff",
+      fontSize: 16, fontFamily: "'Cinzel', serif", color: "#fff",
       letterSpacing: "0.12em", marginTop: 12, marginBottom: 4,
       textAlign: "center", fontWeight: 700,
     }}>
@@ -144,7 +144,7 @@ export function BossPanel({ title, icon, subtitle, bossImage, children }) {
           }} />
           <div>
             <div style={{
-              fontFamily: "'Cinzel', serif", fontSize: 14, fontWeight: 700,
+              fontFamily: "'Cinzel', serif", fontSize: 17, fontWeight: 700,
               color: banner ? banner.accent : "#c8a84b",
               letterSpacing: "0.05em", lineHeight: 1.2,
             }}>
@@ -180,7 +180,7 @@ export function RaidTabs({ activeTab, onTab, raidDate, raidLeader }) {
       {tabs.map(t => (
         <button key={t.id} onClick={() => onTab(t.id)} style={{
           padding: "7px 20px", borderRadius: 6, cursor: "pointer",
-          fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.05em",
+          fontFamily: "'Cinzel', serif", fontSize: 15, letterSpacing: "0.05em",
           background: activeTab === t.id ? "#1a1000" : "#0a0a14",
           border: `1px solid ${activeTab === t.id ? "#c8a84b" : "#2a2a3a"}`,
           color: activeTab === t.id ? "#c8a84b" : "#444",

@@ -81,7 +81,7 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
         }}
       >
         {/* Label */}
-        <span style={{ fontSize: 10, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 180, flexShrink: 0 }}>
+        <span style={{ fontSize: 14, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 220, flexShrink: 0 }}>
           {rowCfg.label}
           {rowCfg.hint && (
             <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>
@@ -97,12 +97,12 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
                 <span style={{
                   background: `${color}20`, border: `1px solid ${color}44`,
                   borderRadius: 4, padding: "2px 8px",
-                  color: color, fontFamily: "'Cinzel', serif", fontSize: 12,
+                  color: color, fontFamily: "'Cinzel', serif", fontSize: 14,
                   display: "inline-flex", alignItems: "center", gap: 5,
                 }}>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
                   {slot.name}
-                  <span style={{ color: `${color}77`, fontSize: 9 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
+                  <span style={{ color: `${color}77`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
                 </span>
                 <button onClick={() => onClear(rowCfg.key, slot.id)} style={{
                   background: "none", border: "none", color: "#555",
