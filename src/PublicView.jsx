@@ -11,6 +11,17 @@ import { fetchFromFirebase, subscribeToFirebase, isFirebaseConfigured } from "./
 
 const FIREBASE_OK = isFirebaseConfigured();
 
+// ── Responsive hook ───────────────────────────────────────────────────────────
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
+
 // ── Live sync badge ───────────────────────────────────────────────────────────
 function SyncBadge({ live }) {
   return (
@@ -79,7 +90,7 @@ function PublicRow({ rowCfg, slots, textValue, searchName }) {
       transition: "all 0.2s",
       boxShadow: isHighlighted ? "0 0 12px #c8a84b44, inset 0 0 20px #c8a84b0a" : "none",
     }}>
-      <span style={{ fontSize: 14, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 220, flexShrink: 0 }}>
+      <span style={{ fontSize: 14, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 180, maxWidth: 220, flexShrink: 0 }}>
         {rowCfg.label}
         {rowCfg.hint && <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
       </span>
@@ -171,6 +182,9 @@ export default function PublicView() {
   const [lastUpdate, setLastUpdate]= useState(null);
   const [searchName, setSearchName]= useState("");
   const navigate = useNavigate();
+  const width = useWindowWidth();
+  const isMobile = width < 768;
+  const isNarrow = width < 1100;
 
   useEffect(() => {
     if (FIREBASE_OK) {
@@ -209,10 +223,11 @@ export default function PublicView() {
       <div style={{
         background: "linear-gradient(180deg, #0d0800 0%, #060608 100%)",
         borderBottom: "1px solid #2a1800",
-        padding: "12px 24px", display: "flex", alignItems: "center", gap: 16, flexShrink: 0, flexWrap: "wrap",
+        padding: "12px 24px", display: "flex", alignItems: "center", gap: 16,
+        flexShrink: 0, flexWrap: "wrap",
       }}>
         <div>
-          <div style={{ fontSize: 18, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif", letterSpacing: "0.04em" }}>
+          <div style={{ fontSize: isMobile ? 14 : 18, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif", letterSpacing: "0.04em" }}>
             ⚔ NEXT TOPIC MOVE ON
           </div>
           <div style={{ fontSize: 11, color: "#ffffff", letterSpacing: "0.05em", marginTop: 2 }}>
@@ -220,7 +235,7 @@ export default function PublicView() {
           </div>
         </div>
 
-        {hasData && (
+        {hasData && !isMobile && (
           <div style={{ display: "flex", gap: 20, marginLeft: 16, alignItems: "center" }}>
             {raidDate   && <Meta label="Date"   value={raidDate} />}
             {raidLeader && <Meta label="Leader" value={raidLeader} />}
@@ -229,14 +244,14 @@ export default function PublicView() {
 
         {/* 🔍 Search box */}
         {hasData && (
-          <div style={{ marginLeft: "auto" }}>
+          <div style={{ marginLeft: isMobile ? 0 : "auto", width: isMobile ? "100%" : 240 }}>
             <SearchBox value={searchName} onChange={setSearchName} />
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 12, alignItems: "center", marginLeft: hasData ? 12 : "auto" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", marginLeft: isMobile ? 0 : (hasData ? 12 : "auto") }}>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
-          {lastUpdate && (
+          {lastUpdate && !isMobile && (
             <span style={{ fontSize: 9, color: "#2a2a2a", fontFamily: "'Cinzel', serif" }}>
               Updated {lastUpdate.toLocaleTimeString()}
             </span>
@@ -266,7 +281,7 @@ export default function PublicView() {
 
           {activeTab === "gruul" && <>
             <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
-            <div style={{ display: "flex", gap: 14 }}>
+            <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
                 rows={GRUUL_MAULGAR} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
               <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul}
@@ -275,7 +290,7 @@ export default function PublicView() {
           </>}
 
           {activeTab === "kara" && <>
-            <div style={{ display: "flex", gap: 14 }}>
+            <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="KARAZHAN — TEAM 1" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
                 rows={KARA_TEAM_1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
               <PublicPanel title="KARAZHAN — TEAM 2" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
@@ -287,7 +302,7 @@ export default function PublicView() {
 
           {activeTab === "mags" && <>
             <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
-            <div style={{ display: "flex", gap: 14 }}>
+            <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
                 rows={MAGS_P1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
               <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags}

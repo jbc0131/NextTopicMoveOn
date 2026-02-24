@@ -9,6 +9,10 @@ export function FontImport() {
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: #080810; }
       ::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
+      body { margin: 0; overflow-x: hidden; }
+      @media (max-width: 768px) {
+        input, textarea, select { font-size: 16px !important; }
+      }
     `}</style>
   );
 }
@@ -184,7 +188,7 @@ export function RaidTabs({ activeTab, onTab, raidDate, raidLeader }) {
     { id: "kara",  label: "Karazhan",     icon: "🏰" },
   ];
   return (
-    <div style={{ display: "flex", gap: 4, marginBottom: 12, alignItems: "center" }}>
+    <div style={{ display: "flex", gap: 4, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => onTab(t.id)} style={{
           padding: "7px 20px", borderRadius: 6, cursor: "pointer",
