@@ -3,26 +3,24 @@ import { FontImport } from "./components";
 
 const TEAMS = [
   {
-    id:       "team-dick",
-    name:     "TEAM DICK",
-    day:      "Tuesday",
-    icon:     "🍆",
-    color:    "#c8a84b",
-    bg:       "#1a1000",
-    border:   "#c8a84b44",
-    glow:     "#c8a84b22",
-    path:     "/team-dick",
+    id:     "team-dick",
+    name:   "TEAM DICK",
+    day:    "Tuesday",
+    color:  "#c8a84b",
+    border: "#c8a84b66",
+    glow:   "#c8a84b33",
+    image:  "/teamdick.png",
+    path:   "/team-dick",
   },
   {
-    id:       "team-balls",
-    name:     "TEAM BALLS",
-    day:      "Thursday",
-    icon:     "🍒",
-    color:    "#60a5fa",
-    bg:       "#001020",
-    border:   "#60a5fa44",
-    glow:     "#60a5fa22",
-    path:     "/team-balls",
+    id:     "team-balls",
+    name:   "TEAM BALLS",
+    day:    "Thursday",
+    color:  "#60a5fa",
+    border: "#60a5fa66",
+    glow:   "#60a5fa33",
+    image:  "/teamballs.png",
+    path:   "/team-balls",
   },
 ];
 
@@ -56,43 +54,46 @@ export default function LandingPage() {
       <div style={{
         display: "flex", gap: 24, flexWrap: "wrap", justifyContent: "center",
       }}>
-        {TEAMS.map(team => (
+      {TEAMS.map(team => (
           <button
             key={team.id}
             onClick={() => navigate(team.path)}
             style={{
-              background: team.bg,
-              border: `1px solid ${team.border}`,
-              borderRadius: 12, padding: "40px 52px",
+              position: "relative",
+              backgroundImage: `url(${team.image})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              border: `2px solid ${team.border}`,
+              borderRadius: 12, padding: 0,
               cursor: "pointer", textAlign: "center",
               transition: "all 0.2s",
-              minWidth: 240,
-              boxShadow: `0 0 0 transparent`,
+              width: 320, height: 200,
+              overflow: "hidden",
+              boxShadow: "0 4px 24px #00000088",
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.border = `1px solid ${team.color}`;
-              e.currentTarget.style.boxShadow = `0 0 32px ${team.glow}`;
-              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.border = `2px solid ${team.color}`;
+              e.currentTarget.style.boxShadow = `0 0 40px ${team.glow}, 0 4px 24px #00000088`;
+              e.currentTarget.style.transform = "translateY(-4px) scale(1.02)";
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.border = `1px solid ${team.border}`;
-              e.currentTarget.style.boxShadow = "0 0 0 transparent";
-              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.border = `2px solid ${team.border}`;
+              e.currentTarget.style.boxShadow = "0 4px 24px #00000088";
+              e.currentTarget.style.transform = "translateY(0) scale(1)";
             }}
           >
-            <div style={{ fontSize: 48, marginBottom: 16 }}>{team.icon}</div>
+            {/* Dark overlay at bottom for the day label */}
             <div style={{
-              fontSize: 22, color: team.color,
-              fontFamily: "'Cinzel Decorative', serif",
-              letterSpacing: "0.04em", marginBottom: 10,
+              position: "absolute", bottom: 0, left: 0, right: 0,
+              background: "linear-gradient(transparent, #000000cc)",
+              padding: "24px 16px 12px",
             }}>
-              {team.name}
-            </div>
-            <div style={{
-              fontSize: 11, color: team.color + "88",
-              letterSpacing: "0.18em",
-            }}>
-              {team.day.toUpperCase()} RAID
+              <div style={{
+                fontSize: 11, color: team.color + "cc",
+                letterSpacing: "0.2em", fontFamily: "'Cinzel', serif",
+              }}>
+                {team.day.toUpperCase()} RAID
+              </div>
             </div>
           </button>
         ))}
