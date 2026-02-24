@@ -194,6 +194,16 @@ function EmptyState({ loading }) {
   );
 }
 
+// ── Meta label ────────────────────────────────────────────────────────────────
+function Meta({ label, value }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      <span style={{ fontSize: 8, color: "#aaa", letterSpacing: "0.15em", fontFamily: "'Cinzel', serif" }}>{label.toUpperCase()}</span>
+      <span style={{ fontSize: 11, color: "#c8a84b", fontFamily: "'Cinzel', serif" }}>{value}</span>
+    </div>
+  );
+}
+
 // ── Main Public View ──────────────────────────────────────────────────────────
 export default function PublicView({ teamId, teamName }) {
   const [data,       setData]      = useState(null);
@@ -287,7 +297,21 @@ export default function PublicView({ teamId, teamName }) {
                 Updated {lastUpdate.toLocaleTimeString()}
               </span>
             )}
-      {/* ── Content ── */}
+            <button
+              onClick={() => navigate("/")}
+              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
+              onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+              onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
+            >← Teams</button>
+            <button
+              onClick={() => navigate(`/${teamId}/admin`)}
+              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
+              onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+              onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
+            >Admin</button>
+          </div>
+        </div>
+      </div>
 
       {/* ── Content ── */}
       {(!hasData) ? (
@@ -341,15 +365,6 @@ export default function PublicView({ teamId, teamName }) {
           </>}
         </div>
       )}
-    </div>
-  );
-}
-
-function Meta({ label, value }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      <span style={{ fontSize: 8, color: "#2a2010", letterSpacing: "0.15em", fontFamily: "'Cinzel', serif" }}>{label.toUpperCase()}</span>
-      <span style={{ fontSize: 11, color: "#8a7040", fontFamily: "'Cinzel', serif" }}>{value}</span>
     </div>
   );
 }
