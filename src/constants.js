@@ -75,13 +75,13 @@ export const GRUUL_MAULGAR = [
   { key: "heal_krosh",      label: "Krosh Firehand Tank",      role: "Healer", hint: "" },
   { key: "heal_raid",       label: "Raid",                     role: "Healer", hint: "" },
   // Misc Assignments
-  { key: "misc_blindeye_int",  label: "Blindeye the Seer Interrupt",      role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  { key: "misc_olm_warlock",   label: "Olm the Summoner Warlock (Banish)(Enslave)", role: "DPS", hint: "" },
-  { key: "misc_md_maulgar",    label: "High King Maulgar Misdirect",      role: "DPS", hint: "" },
-  { key: "misc_md_blindeye",   label: "Blindeye the Seer Misdirect",      role: "DPS", hint: "" },
-  { key: "misc_md_olm",        label: "Olm the Summoner Misdirect",       role: "DPS", hint: "" },
-  { key: "misc_md_kiggler",    label: "Kiggler the Crazed Misdirect",     role: "DPS", hint: "" },
-  { key: "misc_md_krosh",      label: "Krosh Firehand Misdirect",         role: "DPS", hint: "" },
+  { key: "misc_blindeye_int",  label: "Blindeye the Seer Interrupt",               role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "misc_olm_warlock",   label: "Olm the Summoner Warlock (Banish)(Enslave)", role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "misc_md_maulgar",    label: "High King Maulgar Misdirect",               role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "misc_md_blindeye",   label: "Blindeye the Seer Misdirect",               role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "misc_md_olm",        label: "Olm the Summoner Misdirect",                role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "misc_md_kiggler",    label: "Kiggler the Crazed Misdirect",              role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "misc_md_krosh",      label: "Krosh Firehand Misdirect",                  role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 export const GRUUL_BOSS = [
@@ -92,9 +92,9 @@ export const GRUUL_BOSS = [
   { key: "g_rheal1",   label: "Raid Heal",         role: "Healer", hint: "" },
   // Misc Assignments
   { key: "g_shat1",    label: "Shatter Group North", role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
-  { key: "g_shat2",    label: "Shatter Group East",  role: "DPS", hint: "", textInput: true },
-  { key: "g_shat3",    label: "Shatter Group South", role: "DPS", hint: "", textInput: true },
-  { key: "g_shat4",    label: "Shatter Group West",  role: "DPS", hint: "", textInput: true },
+  { key: "g_shat2",    label: "Shatter Group East",  role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+  { key: "g_shat3",    label: "Shatter Group South", role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+  { key: "g_shat4",    label: "Shatter Group West",  role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
 ];
 
 export const MAGS_P1 = [
