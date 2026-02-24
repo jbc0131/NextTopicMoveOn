@@ -72,7 +72,7 @@ function PublicRow({ rowCfg, slots, textValue, searchName }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
-      padding: "5px 10px", borderRadius: 5, minHeight: 30,
+      padding: "8px 12px", borderRadius: 5, minHeight: 44,
       background: isHighlighted ? "#2a2000" : rc.bg,
       border: `1px solid ${isHighlighted ? "#c8a84b" : rc.border}`,
       transition: "all 0.2s",

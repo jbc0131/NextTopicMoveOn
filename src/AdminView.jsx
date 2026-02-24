@@ -74,7 +74,7 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
         onDrop={e => { e.preventDefault(); setOver(false); onDrop(rowCfg.key); }}
         style={{
           display: "flex", alignItems: "center", gap: 8,
-          padding: "5px 10px", borderRadius: 5, minHeight: 32,
+          padding: "8px 12px", borderRadius: 5, minHeight: 44,
           background: over ? `${rc.border}55` : rc.bg,
           border: `1px solid ${conflictError ? "#ef4444" : over ? rc.label : rc.border}`,
           transition: "all 0.12s",
