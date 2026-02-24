@@ -183,7 +183,7 @@ function EmptyState({ loading }) {
 }
 
 // ── Main Public View ──────────────────────────────────────────────────────────
-export default function PublicView() {
+export default function PublicView({ teamId, teamName }) {
   const [data,       setData]      = useState(null);
   const [loading,    setLoading]   = useState(true);
   const [liveSync,   setLiveSync]  = useState(false);
@@ -202,18 +202,18 @@ export default function PublicView() {
         setLoading(false);
         setLiveSync(true);
         setLastUpdate(new Date());
-      });
-      fetchFromFirebase()
+      }, teamId);
+      fetchFromFirebase(teamId)
         .then(d => { if (d) { setData(d); setLoading(false); } })
         .catch(() => {});
       return () => unsub();
     } else {
-      const s = loadState();
+      const s = loadState(teamId);
       setData(s);
       setLoading(false);
       setLiveSync(false);
     }
-  }, []);
+  }, [teamId]);
 
   const roster      = data?.roster      ?? [];
   const assignments = data?.assignments ?? {};
@@ -240,7 +240,7 @@ export default function PublicView() {
             ⚔ NEXT TOPIC MOVE ON
           </div>
           <div style={{ fontSize: 11, color: "#ffffff", letterSpacing: "0.05em", marginTop: 2 }}>
-            Dreamscythe
+            {teamName}
           </div>
         </div>
 
@@ -266,7 +266,20 @@ export default function PublicView() {
             </span>
           )}
           <button
-            onClick={() => navigate("/admin")}
+            onClick={() => navigate("/")}
+            style={{
+              background: "none", border: "1px solid #1a1a1a",
+              borderRadius: 4, color: "#2a2a2a", cursor: "pointer",
+              padding: "4px 10px", fontSize: 10, fontFamily: "'Cinzel', serif",
+              transition: "color 0.2s, border-color 0.2s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color="#555"; e.currentTarget.style.borderColor="#555"; }}
+            onMouseLeave={e => { e.currentTarget.style.color="#2a2a2a"; e.currentTarget.style.borderColor="#1a1a1a"; }}
+          >
+            ← Teams
+          </button>
+          <button
+            onClick={() => navigate(`/${teamId}/admin`)}
             style={{
               background: "none", border: "1px solid #1a1a1a",
               borderRadius: 4, color: "#2a2a2a", cursor: "pointer",

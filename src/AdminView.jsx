@@ -370,7 +370,7 @@ function ManualAddPlayer({ onAdd }) {
 }
 
 // ── Main Admin App ────────────────────────────────────────────────────────────
-export default function AdminView() {
+export default function AdminView({ teamId, teamName }) {
   const [unlocked,    setUnlocked]    = useState(false);
   const [roster,      setRoster]      = useState([]);
   const [assignments,  setAssignments]  = useState({});
@@ -391,10 +391,9 @@ export default function AdminView() {
     async function load() {
       let s = null;
       if (FIREBASE_OK) {
-        try { s = await fetchFromFirebase(); } catch (e) { console.warn("Firebase fetch failed", e); }
+        try { s = await fetchFromFirebase(teamId); } catch (e) { console.warn("Firebase fetch failed", e); }
       }
-      // Fall back to localStorage
-      if (!s) s = loadState();
+      if (!s) s = loadState(teamId);
       if (s) {
         if (s.roster)      setRoster(s.roster);
         if (s.assignments) setAssignments(s.assignments);
@@ -404,13 +403,12 @@ export default function AdminView() {
       }
     }
     load();
-  }, []);
+  }, [teamId]);
 
   // ── Save handler ────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     const state = { roster, assignments, textInputs, raidDate, raidLeader };
-    // Always save locally as a backup
-    saveState(state);
+    saveState(state, teamId);
 
     if (!FIREBASE_OK) {
       setSaveStatus("offline");
@@ -419,7 +417,7 @@ export default function AdminView() {
 
     setSaveStatus("saving");
     try {
-      await saveToFirebase(state);
+      await saveToFirebase(state, teamId);
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (e) {
@@ -427,7 +425,7 @@ export default function AdminView() {
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 4000);
     }
-  }, [roster, assignments, raidDate, raidLeader]);
+  }, [roster, assignments, raidDate, raidLeader, teamId]);
 
   // ── JSON import ─────────────────────────────────────────────────────────────
   const handleImportJSON = text => {
@@ -548,7 +546,7 @@ export default function AdminView() {
           <div style={{ fontSize: 15, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif" }}>
             ⚔ NEXT TOPIC MOVE ON — ADMIN
           </div>
-          <div style={{ fontSize: 9, color: "#3a2000", letterSpacing: "0.2em" }}>GRUUL'S LAIR  ·  MAGTHERIDON'S LAIR</div>
+          <div style={{ fontSize: 9, color: "#3a2000", letterSpacing: "0.2em" }}>{teamName}</div>
         </div>
 
         <div style={{ display: "flex", gap: 8, marginLeft: 16, alignItems: "center" }}>
@@ -567,7 +565,7 @@ export default function AdminView() {
           <button onClick={handleSave} style={btn("#0a1a00", "#4ade8044", "#4ade80")}>
             {FIREBASE_OK ? "☁️ Save & Publish" : "💾 Save"}
           </button>
-          <button onClick={() => navigate("/")} style={btn("#001020", "#60a5fa44", "#60a5fa")}>
+          <button onClick={() => navigate(`/${teamId}`)} style={btn("#001020", "#60a5fa44", "#60a5fa")}>
             👁 Public View →
           </button>
         </div>

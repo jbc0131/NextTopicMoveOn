@@ -174,16 +174,18 @@ export const ALL_ROWS = [
 ];
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
-const STORAGE_KEY = "raidAssignments_v1";
+function storageKey(teamId) {
+  return `raidAssignments_v1_${teamId}`;
+}
 
-export function saveState(state) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+export function saveState(state, teamId) {
+  try { localStorage.setItem(storageKey(teamId), JSON.stringify(state)); }
   catch (e) { console.error("Failed to save state", e); }
 }
 
-export function loadState() {
+export function loadState(teamId) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey(teamId));
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }

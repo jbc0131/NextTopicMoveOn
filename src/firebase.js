@@ -18,15 +18,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
-// We store everything in a single Firestore document
-const RAID_DOC = doc(db, "raid", "assignments");
+// Each team gets its own Firestore document under the "raid" collection
+// teamId: "team-dick" | "team-balls"
+function raidDoc(teamId) {
+  return doc(db, "raid", teamId);
+}
 
 /**
- * Save the full raid state to Firestore.
- * @param {{ roster, assignments, raidDate, raidLeader }} state
+ * Save the full raid state to Firestore for a specific team.
  */
-export async function saveToFirebase(state) {
-  await setDoc(RAID_DOC, {
+export async function saveToFirebase(state, teamId) {
+  await setDoc(raidDoc(teamId), {
     roster:      state.roster      ?? [],
     assignments: state.assignments ?? {},
     raidDate:    state.raidDate    ?? "",
@@ -36,21 +38,20 @@ export async function saveToFirebase(state) {
 }
 
 /**
- * Read the current state from Firestore once (used for initial load).
+ * Read the current state from Firestore once for a specific team.
  * Returns null if the document doesn't exist yet.
  */
-export async function fetchFromFirebase() {
-  const snap = await getDoc(RAID_DOC);
+export async function fetchFromFirebase(teamId) {
+  const snap = await getDoc(raidDoc(teamId));
   return snap.exists() ? snap.data() : null;
 }
 
 /**
- * Subscribe to real-time updates from Firestore.
- * Calls `callback(data)` whenever the document changes.
+ * Subscribe to real-time updates from Firestore for a specific team.
  * Returns an unsubscribe function.
  */
-export function subscribeToFirebase(callback) {
-  return onSnapshot(RAID_DOC, snap => {
+export function subscribeToFirebase(callback, teamId) {
+  return onSnapshot(raidDoc(teamId), snap => {
     if (snap.exists()) callback(snap.data());
   });
 }
