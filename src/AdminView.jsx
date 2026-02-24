@@ -63,6 +63,7 @@ function isOnAnyCube(playerId, assignments) { return getCubeGroupOf(playerId, as
 // ── Assignment row (drop target) — supports multiple players + text input ─────
 function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClear, onTextChange, onSpecCycle, assignments, conflictError }) {
   const [over, setOver] = useState(false);
+  const dropRef = useRef(null);
   const rc    = ROLE_COLORS[rowCfg.role];
   const ids   = assignedIds ? (Array.isArray(assignedIds) ? assignedIds : [assignedIds]) : [];
   const slots = ids.map(id => roster.find(s => s.id === id)).filter(Boolean);
@@ -70,8 +71,14 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div
+        ref={dropRef}
         onDragOver={e => { e.preventDefault(); setOver(true); }}
-        onDragLeave={() => setOver(false)}
+        onDragLeave={e => {
+          // Only clear "over" if the cursor has left the drop zone entirely,
+          // not just moved onto a child element inside it
+          if (dropRef.current && dropRef.current.contains(e.relatedTarget)) return;
+          setOver(false);
+        }}
         onDrop={e => { e.preventDefault(); setOver(false); onDrop(rowCfg.key); }}
         style={{
           display: "flex", alignItems: "center", gap: 8,
