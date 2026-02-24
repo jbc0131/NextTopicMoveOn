@@ -680,21 +680,39 @@ export default function AdminView({ teamId, teamName }) {
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "6px 8px", display: "flex", flexDirection: "column", gap: 4 }}>
               {activeTab === "kara"
-                ? karaFiltered.map(s => {
-                    const placed = karaAssignedIds.has(s.id);
-                    return (
-                      <div key={s.id} style={{ position: "relative", opacity: placed ? 0.4 : 1, transition: "opacity 0.2s" }}
-                        title={placed ? `${s.name} is already in a Kara team` : undefined}>
-                        <RosterToken slot={s} onDragStart={placed ? () => {} : handleDragStart} compact={false} />
-                        {placed && (
-                          <span style={{
-                            position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
-                            fontSize: 9, color: "#9b72cf", fontFamily: "'Cinzel', serif", pointerEvents: "none",
-                          }}>✓ placed</span>
-                        )}
-                      </div>
-                    );
-                  })
+                ? (() => {
+                    const items = [];
+                    const sortedDividers = [...dividers].sort((a, b) => a.position - b.position);
+                    let dividerIdx = 0;
+                    karaFiltered.forEach(s => {
+                      while (dividerIdx < sortedDividers.length &&
+                             s.groupNumber >= sortedDividers[dividerIdx].position) {
+                        const d = sortedDividers[dividerIdx];
+                        items.push(
+                          <div key={`divider-${d.name}`} style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 0 2px" }}>
+                            <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
+                            <span style={{ fontSize: 8, color: "#ff7755", fontFamily: "'Cinzel', serif", letterSpacing: "0.2em", whiteSpace: "nowrap" }}>— {d.name} —</span>
+                            <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
+                          </div>
+                        );
+                        dividerIdx++;
+                      }
+                      const placed = karaAssignedIds.has(s.id);
+                      items.push(
+                        <div key={s.id} style={{ position: "relative", opacity: placed ? 0.4 : 1, transition: "opacity 0.2s" }}
+                          title={placed ? `${s.name} is already in a Kara team` : undefined}>
+                          <RosterToken slot={s} onDragStart={placed ? () => {} : handleDragStart} compact={false} />
+                          {placed && (
+                            <span style={{
+                              position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+                              fontSize: 9, color: "#9b72cf", fontFamily: "'Cinzel', serif", pointerEvents: "none",
+                            }}>✓ placed</span>
+                          )}
+                        </div>
+                      );
+                    });
+                    return items;
+                  })()
                 : (() => {
                     const items = [];
                     const sortedDividers = [...dividers].sort((a, b) => a.position - b.position);
