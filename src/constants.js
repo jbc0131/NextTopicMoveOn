@@ -148,29 +148,33 @@ export const MAGS_P2 = [
   { key: "m_p2c1e",  label: "Cube Clicker (Triangle)",    role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
 ];
 
-// ── Karazhan — 10-man team templates ─────────────────────────────────────────
-function karaTeam(n) {
-  const p = `k${n}`;
+// ── Karazhan — 10-man team templates (2 groups of 5) ─────────────────────────
+function karaGroup(teamNum, groupNum) {
+  const p = `k${teamNum}g${groupNum}`;
   return [
-    { key: `${p}_tank1`,  label: "Tank 1",   role: "Tank",   hint: "" },
-    { key: `${p}_tank2`,  label: "Tank 2",   role: "Tank",   hint: "" },
-    { key: `${p}_heal1`,  label: "Healer 1", role: "Healer", hint: "" },
-    { key: `${p}_heal2`,  label: "Healer 2", role: "Healer", hint: "" },
-    { key: `${p}_dps1`,   label: "DPS 1",    role: "DPS",    hint: "" },
-    { key: `${p}_dps2`,   label: "DPS 2",    role: "DPS",    hint: "" },
-    { key: `${p}_dps3`,   label: "DPS 3",    role: "DPS",    hint: "" },
-    { key: `${p}_dps4`,   label: "DPS 4",    role: "DPS",    hint: "" },
-    { key: `${p}_dps5`,   label: "DPS 5",    role: "DPS",    hint: "" },
-    { key: `${p}_dps6`,   label: "DPS 6",    role: "DPS",    hint: "" },
+    { key: `${p}_p1`, label: "Player 1", role: "DPS", roleLabel: " ", hint: "" },
+    { key: `${p}_p2`, label: "Player 2", role: "DPS", roleLabel: " ", hint: "" },
+    { key: `${p}_p3`, label: "Player 3", role: "DPS", roleLabel: " ", hint: "" },
+    { key: `${p}_p4`, label: "Player 4", role: "DPS", roleLabel: " ", hint: "" },
+    { key: `${p}_p5`, label: "Player 5", role: "DPS", roleLabel: " ", hint: "" },
   ];
 }
-export const KARA_TEAM_1 = karaTeam(1);
-export const KARA_TEAM_2 = karaTeam(2);
-export const KARA_TEAM_3 = karaTeam(3);
+
+// Each team exposes both groups so panels can render them side by side
+export const KARA_TEAM_1 = { g1: karaGroup(1,1), g2: karaGroup(1,2) };
+export const KARA_TEAM_2 = { g1: karaGroup(2,1), g2: karaGroup(2,2) };
+export const KARA_TEAM_3 = { g1: karaGroup(3,1), g2: karaGroup(3,2) };
+
+// Flat list for ALL_ROWS (used for key lookups)
+export const KARA_ALL_ROWS = [
+  ...KARA_TEAM_1.g1, ...KARA_TEAM_1.g2,
+  ...KARA_TEAM_2.g1, ...KARA_TEAM_2.g2,
+  ...KARA_TEAM_3.g1, ...KARA_TEAM_3.g2,
+];
 
 export const ALL_ROWS = [
   ...GRUUL_MAULGAR, ...GRUUL_BOSS, ...MAGS_P1, ...MAGS_P2,
-  ...KARA_TEAM_1, ...KARA_TEAM_2, ...KARA_TEAM_3,
+  ...KARA_ALL_ROWS,
 ];
 
 // ── localStorage helpers ──────────────────────────────────────────────────────

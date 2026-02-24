@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor, getSpecDisplay,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
-  KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3,
+  KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3, KARA_ALL_ROWS,
   CUBE1_KEYS, CUBE2_KEYS, CUBEBU_KEYS, ALL_CUBE_KEYS,
   saveState, loadState,
 } from "./constants";
@@ -517,12 +517,7 @@ export default function AdminView({ teamId, teamName }) {
     seenNames.add(s.name.toLowerCase());
     return true;
   });
-  // All Kara slot keys
-  const karaKeys = new Set([
-    ...KARA_TEAM_1.map(r => r.key),
-    ...KARA_TEAM_2.map(r => r.key),
-    ...KARA_TEAM_3.map(r => r.key),
-  ]);
+  const karaKeys = new Set(KARA_ALL_ROWS.map(r => r.key));
   // IDs placed into any Kara slot
   const karaAssignedIds = new Set(
     Object.entries(assignments)
@@ -689,14 +684,19 @@ export default function AdminView({ teamId, teamName }) {
             </>}
 
             {activeTab === "kara" && <>
-              <div style={{ display: "flex", gap: 12 }}>
-                <AdminPanel title="KARAZHAN — TEAM 1" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
-                  rows={KARA_TEAM_1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
-                <AdminPanel title="KARAZHAN — TEAM 2" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
-                  rows={KARA_TEAM_2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
-                <AdminPanel title="KARAZHAN — TEAM 3" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
-                  rows={KARA_TEAM_3} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
-              </div>
+              {[KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].map((team, i) => (
+                <div key={i} style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 10, color: "#9b72cf", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", marginBottom: 6 }}>
+                    ⬛ KARAZHAN TEAM {i + 1}
+                  </div>
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <AdminPanel title={`TEAM ${i + 1} — GROUP 1`} icon="🏰" subtitle="5-Man Group" bossImage="kara"
+                      rows={team.g1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                    <AdminPanel title={`TEAM ${i + 1} — GROUP 2`} icon="🏰" subtitle="5-Man Group" bossImage="kara"
+                      rows={team.g2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                  </div>
+                </div>
+              ))}
             </>}
 
             {activeTab === "mags" && <>

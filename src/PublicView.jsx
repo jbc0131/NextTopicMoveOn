@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ROLE_COLORS, getColor, getSpecDisplay, getClass,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
-  KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3,
+  KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3, KARA_ALL_ROWS,
   loadState,
 } from "./constants";
 import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar } from "./components";
@@ -220,7 +220,7 @@ export default function PublicView({ teamId, teamName }) {
   const raidDate    = data?.raidDate    ?? "";
   const raidLeader  = data?.raidLeader  ?? "";
 
-  const totalSlots  = [...GRUUL_MAULGAR, ...GRUUL_BOSS, ...MAGS_P1, ...MAGS_P2, ...KARA_TEAM_1, ...KARA_TEAM_2, ...KARA_TEAM_3].length;
+  const totalSlots  = [...GRUUL_MAULGAR, ...GRUUL_BOSS, ...MAGS_P1, ...MAGS_P2, ...KARA_ALL_ROWS].length;
   const filledSlots = Object.keys(assignments).length;
   const hasData     = roster.length > 0 && filledSlots > 0;
 
@@ -312,14 +312,19 @@ export default function PublicView({ teamId, teamName }) {
           </>}
 
           {activeTab === "kara" && <>
-            <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
-              <PublicPanel title="KARAZHAN — TEAM 1" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
-                rows={KARA_TEAM_1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
-              <PublicPanel title="KARAZHAN — TEAM 2" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
-                rows={KARA_TEAM_2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
-              <PublicPanel title="KARAZHAN — TEAM 3" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
-                rows={KARA_TEAM_3} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
-            </div>
+            {[KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].map((team, i) => (
+              <div key={i} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 10, color: "#9b72cf", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", marginBottom: 6 }}>
+                  ⬛ KARAZHAN TEAM {i + 1}
+                </div>
+                <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
+                  <PublicPanel title={`TEAM ${i + 1} — GROUP 1`} icon="🏰" subtitle="5-Man Group" bossImage="kara"
+                    rows={team.g1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+                  <PublicPanel title={`TEAM ${i + 1} — GROUP 2`} icon="🏰" subtitle="5-Man Group" bossImage="kara"
+                    rows={team.g2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+                </div>
+              </div>
+            ))}
           </>}
 
           {activeTab === "mags" && <>

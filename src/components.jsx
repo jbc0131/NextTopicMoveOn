@@ -85,7 +85,8 @@ export function RoleHeader({ role, overrideLabel }) {
   const rc     = ROLE_COLORS[role];
   const icons  = { Tank: "🛡", Healer: "💚", DPS: "⚔" };
   const titles = { Tank: "Tank Assignments", Healer: "Healer Assignments", DPS: "DPS Assignments" };
-  const label  = overrideLabel || titles[role];
+  const label  = overrideLabel ?? titles[role];
+  if (!label.trim()) return null;
   return (
     <div style={{
       padding: "7px 10px", background: rc.tag, borderRadius: 4,
