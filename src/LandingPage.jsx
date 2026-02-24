@@ -6,7 +6,7 @@ const TEAMS = [
     id:       "team-dick",
     name:     "TEAM DICK",
     day:      "Tuesday",
-    icon:     "⚔",
+    icon:     "🍆",
     color:    "#c8a84b",
     bg:       "#1a1000",
     border:   "#c8a84b44",
@@ -17,7 +17,7 @@ const TEAMS = [
     id:       "team-balls",
     name:     "TEAM BALLS",
     day:      "Thursday",
-    icon:     "🔥",
+    icon:     "🍒",
     color:    "#60a5fa",
     bg:       "#001020",
     border:   "#60a5fa44",
@@ -107,14 +107,15 @@ export default function LandingPage() {
             key={team.id}
             onClick={() => navigate(`${team.path}/admin`)}
             style={{
-              background: "none", border: "1px solid #1a1a1a",
-              borderRadius: 4, color: "#2a2a2a", cursor: "pointer",
-              padding: "4px 14px", fontSize: 10,
-              fontFamily: "'Cinzel', serif", letterSpacing: "0.08em",
-              transition: "color 0.2s, border-color 0.2s",
+              background: "#0d0d1a",
+              border: `1px solid ${team.color}55`,
+              borderRadius: 6, color: team.color + "99", cursor: "pointer",
+              padding: "8px 20px", fontSize: 11,
+              fontFamily: "'Cinzel', serif", letterSpacing: "0.1em",
+              transition: "all 0.2s",
             }}
-            onMouseEnter={e => { e.currentTarget.style.color="#555"; e.currentTarget.style.borderColor="#555"; }}
-            onMouseLeave={e => { e.currentTarget.style.color="#2a2a2a"; e.currentTarget.style.borderColor="#1a1a1a"; }}
+            onMouseEnter={e => { e.currentTarget.style.color=team.color; e.currentTarget.style.borderColor=team.color; }}
+            onMouseLeave={e => { e.currentTarget.style.color=team.color+"99"; e.currentTarget.style.borderColor=team.color+"55"; }}
           >
             {team.name} Admin
           </button>
