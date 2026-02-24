@@ -47,7 +47,7 @@ export default function LandingPage() {
         }}>
           ⚔ NEXT TOPIC MOVE ON
         </div>
-        <div style={{ fontSize: 13, color: "#444", letterSpacing: "0.2em" }}>
+        <div style={{ fontSize: 13, color: "#a08040", letterSpacing: "0.2em" }}>
           DREAMSCYTHE  ·  SELECT YOUR RAID TEAM
         </div>
       </div>
