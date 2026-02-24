@@ -64,12 +64,12 @@ export default function LandingPage() {
               position: "relative",
               backgroundImage: `url(${team.image})`,
               backgroundSize: "cover",
-              backgroundPosition: "center",
+              backgroundPosition: "top center",
               border: `2px solid ${team.border}`,
               borderRadius: 12, padding: 0,
               cursor: "pointer", textAlign: "center",
               transition: "all 0.2s",
-              width: 320, height: 200,
+              width: 320, height: 230,
               overflow: "hidden",
               boxShadow: "0 4px 24px #00000088",
             }}
@@ -87,12 +87,13 @@ export default function LandingPage() {
             {/* Dark overlay at bottom for the day label */}
             <div style={{
               position: "absolute", bottom: 0, left: 0, right: 0,
-              background: "linear-gradient(transparent, #000000cc)",
-              padding: "24px 16px 12px",
+              background: "linear-gradient(transparent, #000000ee)",
+              padding: "32px 16px 14px",
             }}>
               <div style={{
-                fontSize: 11, color: team.color + "cc",
-                letterSpacing: "0.2em", fontFamily: "'Cinzel', serif",
+                fontSize: 13, color: team.color,
+                letterSpacing: "0.25em", fontFamily: "'Cinzel', serif",
+                fontWeight: 700, textShadow: `0 0 12px ${team.color}, 0 2px 4px #000`,
               }}>
                 {team.day.toUpperCase()} RAID
               </div>
