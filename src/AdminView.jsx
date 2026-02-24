@@ -8,7 +8,7 @@ import {
   saveState, loadState,
 } from "./constants";
 import {
-  FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar,
+  FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader,
 } from "./components";
 import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured } from "./firebase";
 
@@ -685,15 +685,22 @@ export default function AdminView({ teamId, teamName }) {
 
             {activeTab === "kara" && <>
               {[KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].map((team, i) => (
-                <div key={i} style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 10, color: "#9b72cf", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", marginBottom: 6 }}>
-                    ⬛ KARAZHAN TEAM {i + 1}
-                  </div>
-                  <div style={{ display: "flex", gap: 12 }}>
-                    <AdminPanel title={`TEAM ${i + 1} — GROUP 1`} icon="🏰" subtitle="5-Man Group" bossImage="kara"
-                      rows={team.g1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
-                    <AdminPanel title={`TEAM ${i + 1} — GROUP 2`} icon="🏰" subtitle="5-Man Group" bossImage="kara"
-                      rows={team.g2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                <div key={i} style={{ marginBottom: 20 }}>
+                  <KaraTeamHeader
+                    teamNum={i + 1}
+                    assignments={assignments}
+                    allRows={[...team.g1, ...team.g2]}
+                    roster={roster}
+                  />
+                  <div style={{ display: "flex", gap: 0, border: "1px solid #9b72cf33", borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
+                    <div style={{ flex: 1, borderRight: "1px solid #9b72cf22" }}>
+                      <AdminPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara"
+                        rows={team.g1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <AdminPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara"
+                        rows={team.g2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                    </div>
                   </div>
                 </div>
               ))}

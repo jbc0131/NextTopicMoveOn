@@ -6,7 +6,7 @@ import {
   KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3, KARA_ALL_ROWS,
   loadState,
 } from "./constants";
-import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar } from "./components";
+import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader } from "./components";
 import { fetchFromFirebase, subscribeToFirebase, isFirebaseConfigured } from "./firebase";
 
 const FIREBASE_OK = isFirebaseConfigured();
@@ -313,15 +313,22 @@ export default function PublicView({ teamId, teamName }) {
 
           {activeTab === "kara" && <>
             {[KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].map((team, i) => (
-              <div key={i} style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 10, color: "#9b72cf", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", marginBottom: 6 }}>
-                  ⬛ KARAZHAN TEAM {i + 1}
-                </div>
-                <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
-                  <PublicPanel title={`TEAM ${i + 1} — GROUP 1`} icon="🏰" subtitle="5-Man Group" bossImage="kara"
-                    rows={team.g1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
-                  <PublicPanel title={`TEAM ${i + 1} — GROUP 2`} icon="🏰" subtitle="5-Man Group" bossImage="kara"
-                    rows={team.g2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+              <div key={i} style={{ marginBottom: 20 }}>
+                <KaraTeamHeader
+                  teamNum={i + 1}
+                  assignments={assignments}
+                  allRows={[...team.g1, ...team.g2]}
+                  roster={roster}
+                />
+                <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", border: "1px solid #9b72cf33", borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
+                  <div style={{ flex: 1, borderRight: isNarrow ? "none" : "1px solid #9b72cf22", borderBottom: isNarrow ? "1px solid #9b72cf22" : "none" }}>
+                    <PublicPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara"
+                      rows={team.g1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <PublicPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara"
+                      rows={team.g2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+                  </div>
                 </div>
               </div>
             ))}

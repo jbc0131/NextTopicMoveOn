@@ -152,11 +152,11 @@ export const MAGS_P2 = [
 function karaGroup(teamNum, groupNum) {
   const p = `k${teamNum}g${groupNum}`;
   return [
-    { key: `${p}_p1`, label: "Player 1", role: "DPS", roleLabel: " ", hint: "" },
-    { key: `${p}_p2`, label: "Player 2", role: "DPS", roleLabel: " ", hint: "" },
-    { key: `${p}_p3`, label: "Player 3", role: "DPS", roleLabel: " ", hint: "" },
-    { key: `${p}_p4`, label: "Player 4", role: "DPS", roleLabel: " ", hint: "" },
-    { key: `${p}_p5`, label: "Player 5", role: "DPS", roleLabel: " ", hint: "" },
+    { key: `${p}_p1`, label: "", role: "DPS", roleLabel: " ", hint: "" },
+    { key: `${p}_p2`, label: "", role: "DPS", roleLabel: " ", hint: "" },
+    { key: `${p}_p3`, label: "", role: "DPS", roleLabel: " ", hint: "" },
+    { key: `${p}_p4`, label: "", role: "DPS", roleLabel: " ", hint: "" },
+    { key: `${p}_p5`, label: "", role: "DPS", roleLabel: " ", hint: "" },
   ];
 }
 

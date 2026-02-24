@@ -1,4 +1,4 @@
-import { ROLE_COLORS, getClass, getSpecDisplay, getColor } from "./constants";
+import { ROLE_COLORS, getClass, getSpecDisplay, getColor, getRole } from "./constants";
 
 // ── Shared font import ────────────────────────────────────────────────────────
 export function FontImport() {
@@ -176,6 +176,70 @@ export function BossPanel({ title, icon, subtitle, bossImage, children }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 3, padding: 12 }}>
         {children}
+      </div>
+    </div>
+  );
+}
+
+// ── Karazhan team header with composition tracker ─────────────────────────────
+export function KaraTeamHeader({ teamNum, assignments, allRows, roster }) {
+  // Count tanks/healers/dps across both groups for this team
+  const keys = new Set(allRows.map(r => r.key));
+  let tanks = 0, healers = 0, dps = 0;
+  Object.entries(assignments).forEach(([key, ids]) => {
+    if (!keys.has(key)) return;
+    const idList = Array.isArray(ids) ? ids : [ids];
+    idList.forEach(id => {
+      const player = roster.find(s => s.id === id);
+      if (!player) return;
+      const role = getRole(player);
+      if (role === "Tank")   tanks++;
+      else if (role === "Healer") healers++;
+      else dps++;
+    });
+  });
+  const total = tanks + healers + dps;
+
+  const pill = (label, count, color, bg) => (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 6,
+      background: bg, border: `1px solid ${color}44`,
+      borderRadius: 20, padding: "4px 12px",
+    }}>
+      <span style={{ fontSize: 11, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{label}</span>
+      <span style={{
+        background: count > 0 ? color : "#333", color: count > 0 ? "#000" : "#666",
+        borderRadius: 10, fontSize: 11, fontWeight: 700,
+        padding: "1px 7px", fontFamily: "'Cinzel', serif", minWidth: 20, textAlign: "center",
+      }}>{count}</span>
+    </div>
+  );
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #0d0a1a 0%, #080610 100%)",
+      border: "1px solid #9b72cf44",
+      borderRadius: "8px 8px 0 0",
+      padding: "10px 16px",
+      display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+      borderBottom: "2px solid #9b72cf33",
+    }}>
+      <div style={{
+        fontSize: 15, color: "#9b72cf", fontFamily: "'Cinzel Decorative', serif",
+        letterSpacing: "0.06em", marginRight: 8,
+      }}>
+        🏰 TEAM {teamNum}
+      </div>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        {pill("TANK",   tanks,   "#60a5fa", "#001828")}
+        {pill("HEALER", healers, "#4ade80", "#001808")}
+        {pill("DPS",    dps,     "#f87171", "#180808")}
+      </div>
+      <div style={{
+        marginLeft: "auto", fontSize: 10, color: total === 10 ? "#4ade80" : "#9b72cf88",
+        fontFamily: "'Cinzel', serif", letterSpacing: "0.1em",
+      }}>
+        {total}/10 {total === 10 ? "✓ FULL" : ""}
       </div>
     </div>
   );
