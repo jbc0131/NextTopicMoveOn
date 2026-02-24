@@ -648,10 +648,10 @@ export default function AdminView({ teamId, teamName }) {
 
           {/* ── Roster sidebar ── */}
           <div style={{
-            width: 280, background: "#080810", borderRight: "1px solid #1a1a2a",
+            width: 220, background: "#080810", borderRight: "1px solid #1a1a2a",
             display: "flex", flexDirection: "column", flexShrink: 0,
-            height: "100%", overflowY: "hidden",
-            zIndex: 10, flexShrink: 0,
+            height: "100%", overflow: "hidden",
+            zIndex: 10,
           }}>
             <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#3a3a5a", letterSpacing: "0.15em" }}>
               ROSTER · {roster.length} PLAYERS

@@ -59,20 +59,21 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
       draggable={isDraggable}
       onDragStart={isDraggable ? (e) => onDragStart(e, slot) : undefined}
       style={{
-        display: "inline-flex", alignItems: "center", gap: 5,
+        display: "flex", alignItems: "center", gap: 5,
         background: `${color}18`, border: `1px solid ${color}44`,
         borderRadius: 4, padding: compact ? "2px 7px" : "4px 10px",
         cursor: isDraggable ? "grab" : "default",
         userSelect: "none", fontSize: compact ? 13 : 15,
-        color: color, fontFamily: "'Cinzel', serif", whiteSpace: "nowrap",
+        color: color, fontFamily: "'Cinzel', serif",
+        width: "100%", minWidth: 0,
         transition: "background 0.15s, border-color 0.15s",
       }}
       title={`${slot.name} — ${getSpecDisplay(slot)} ${cls}`}
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
-      <span>{slot.name}</span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{slot.name}</span>
       {!compact && (
-        <span style={{ color: `${color}88`, fontSize: 11, marginLeft: 2 }}>
+        <span style={{ color: `${color}88`, fontSize: 11, marginLeft: 2, whiteSpace: "nowrap", flexShrink: 0 }}>
           {getSpecDisplay(slot)} {cls}
         </span>
       )}
