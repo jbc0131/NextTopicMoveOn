@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor, getSpecDisplay,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
-  CUBE1_KEYS, ALL_CUBE_KEYS,
+  CUBE1_KEYS, CUBE2_KEYS, CUBEBU_KEYS, ALL_CUBE_KEYS,
   saveState, loadState,
 } from "./constants";
 import {
