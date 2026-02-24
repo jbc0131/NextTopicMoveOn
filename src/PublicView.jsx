@@ -9,6 +9,8 @@ import {
 import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader } from "./components";
 import { fetchFromFirebase, subscribeToFirebase, isFirebaseConfigured } from "./firebase";
 
+const FIREBASE_OK = isFirebaseConfigured();
+
 import teamDickImg  from "./teamdick.png";
 import teamBallsImg from "./teamballs.png";
 
