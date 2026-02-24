@@ -73,44 +73,52 @@ function SearchBox({ value, onChange }) {
 }
 
 // ── Read-only assignment row — with highlight support ─────────────────────────
-function PublicRow({ rowCfg, slots, textValue, searchName }) {
+function PublicRow({ rowCfg, slots, textValue, searchName, isMobile }) {
   const rc = ROLE_COLORS[rowCfg.role];
 
-  // Check if any assigned player matches the search
   const isHighlighted = searchName && slots.some(
     s => s.name.toLowerCase().includes(searchName.toLowerCase())
   );
 
   return (
     <div style={{
-      display: "flex", alignItems: "center", gap: 10,
+      display: "flex", flexDirection: isMobile ? "column" : "row",
+      alignItems: isMobile ? "flex-start" : "center",
+      gap: isMobile ? 6 : 10,
       padding: "8px 12px", borderRadius: 5, minHeight: 44,
       background: isHighlighted ? "#2a2000" : rc.bg,
       border: `1px solid ${isHighlighted ? "#c8a84b" : rc.border}`,
       transition: "all 0.2s",
       boxShadow: isHighlighted ? "0 0 12px #c8a84b44, inset 0 0 20px #c8a84b0a" : "none",
     }}>
-      <span style={{ fontSize: 14, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 180, maxWidth: 220, flexShrink: 0 }}>
+      <span style={{
+        fontSize: isMobile ? 12 : 14, color: "#ffffff",
+        fontFamily: "'Cinzel', serif",
+        flexShrink: 0,
+        ...(isMobile ? {} : { minWidth: 180, maxWidth: 220 }),
+      }}>
         {rowCfg.label}
         {rowCfg.hint && <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
       </span>
-      <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 4 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, width: isMobile ? "100%" : undefined, flex: isMobile ? undefined : 1 }}>
         {slots && slots.length > 0 && slots.map(slot => {
           const color = getColor(slot);
           const nameMatch = searchName && slot.name.toLowerCase().includes(searchName.toLowerCase());
           return (
             <span key={slot.id} style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
+              display: "inline-flex", alignItems: "center", gap: 5,
               background: nameMatch ? `${color}35` : `${color}18`,
               border: `1px solid ${nameMatch ? color : color + "44"}`,
-              borderRadius: 4, padding: "3px 10px",
-              color: color, fontFamily: "'Cinzel', serif", fontSize: 14,
+              borderRadius: 4, padding: "4px 10px",
+              color: color, fontFamily: "'Cinzel', serif", fontSize: isMobile ? 13 : 14,
               boxShadow: nameMatch ? `0 0 8px ${color}66` : "none",
-              transition: "all 0.2s",
+              transition: "all 0.2s", maxWidth: "100%",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
               <span style={{ fontWeight: nameMatch ? 700 : 600 }}>{slot.name}</span>
-              <span style={{ color: `${color}77`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
+              {!isMobile && (
+                <span style={{ color: `${color}77`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
+              )}
               {nameMatch && <span style={{ color: color, fontSize: 9 }}>◄</span>}
             </span>
           );
@@ -130,7 +138,7 @@ function PublicRow({ rowCfg, slots, textValue, searchName }) {
 }
 
 // ── Public read-only panel ────────────────────────────────────────────────────
-function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, searchName }) {
+function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, searchName, isMobile }) {
   const items = [];
   let lastSectionKey = null;
   rows.forEach(r => {
@@ -154,7 +162,8 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, text
           : <PublicRow key={item.row.key} rowCfg={item.row}
               slots={resolve(item.row.key)}
               textValue={textValues?.[item.row.key] || ""}
-              searchName={searchName} />
+              searchName={searchName}
+              isMobile={isMobile} />
       )}
     </BossPanel>
   );
@@ -276,27 +285,27 @@ export default function PublicView() {
       {(!hasData) ? (
         <EmptyState loading={loading} />
       ) : (
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "10px 10px" : "16px 24px" }}>
           <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={raidDate} raidLeader={raidLeader} />
 
           {activeTab === "gruul" && <>
             <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
             <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
-                rows={GRUUL_MAULGAR} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
+                rows={GRUUL_MAULGAR} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
               <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul}
-                rows={GRUUL_BOSS} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
+                rows={GRUUL_BOSS} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
             </div>
           </>}
 
           {activeTab === "kara" && <>
             <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="KARAZHAN — TEAM 1" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
-                rows={KARA_TEAM_1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
+                rows={KARA_TEAM_1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
               <PublicPanel title="KARAZHAN — TEAM 2" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
-                rows={KARA_TEAM_2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
+                rows={KARA_TEAM_2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
               <PublicPanel title="KARAZHAN — TEAM 3" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
-                rows={KARA_TEAM_3} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
+                rows={KARA_TEAM_3} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
             </div>
           </>}
 
@@ -304,9 +313,9 @@ export default function PublicView() {
             <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
             <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
-                rows={MAGS_P1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
+                rows={MAGS_P1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
               <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags}
-                rows={MAGS_P2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} />
+                rows={MAGS_P2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
             </div>
           </>}
         </div>
