@@ -37,6 +37,7 @@ const BOSS_BANNERS = {
     label:    "KARAZHAN  ·  10-MAN RAID",
     rune:     "🏰",
   },
+  mags: {
     gradient: "linear-gradient(135deg, #200800 0%, #140400 40%, #0c0204 100%)",
     accent:   "#cc3300",
     glow:     "radial-gradient(ellipse at 20% 50%, #cc330022 0%, transparent 65%)",
