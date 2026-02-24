@@ -644,15 +644,14 @@ export default function AdminView({ teamId, teamName }) {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, display: "flex", overflow: "auto", position: "relative" }}>
+        <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
 
           {/* ── Roster sidebar ── */}
           <div style={{
             width: 280, background: "#080810", borderRight: "1px solid #1a1a2a",
             display: "flex", flexDirection: "column", flexShrink: 0,
-            position: "sticky", left: 0, top: 0,
-            height: "calc(100vh - 52px)", overflowY: "hidden",
-            zIndex: 10,
+            height: "100%", overflowY: "hidden",
+            zIndex: 10, flexShrink: 0,
           }}>
             <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#3a3a5a", letterSpacing: "0.15em" }}>
               ROSTER · {roster.length} PLAYERS
@@ -701,7 +700,7 @@ export default function AdminView({ teamId, teamName }) {
           </div>
 
           {/* ── Assignment area ── */}
-          <div style={{ flex: 1, padding: "14px 16px", minWidth: 0 }}>
+          <div style={{ flex: 1, padding: "14px 16px", minWidth: 0, overflowY: "auto", height: "100%" }}>
             {!FIREBASE_OK && <SetupBanner />}
             <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={raidDate} raidLeader={raidLeader} />
 
