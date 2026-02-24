@@ -587,7 +587,40 @@ export default function AdminView({ teamId, teamName }) {
       .flatMap(([, ids]) => Array.isArray(ids) ? ids : [ids])
   );
 
-  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />;
+  const [discordCopied, setDiscordCopied] = useState(false);
+
+  const handleCopyDiscord = () => {
+    const lines = [];
+    const raidInfo = [raidDate, raidLeader].filter(Boolean).join(" · ");
+    lines.push(`📅 **Karazhan Raid${raidInfo ? " — " + raidInfo : ""}**`);
+    lines.push("");
+
+    [KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].forEach((team, i) => {
+      const allRows = [...team.g1, ...team.g2];
+      const placedIds = allRows
+        .flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
+      if (placedIds.length === 0) return;
+
+      lines.push(`🏰 **TEAM ${i + 1}**`);
+
+      [team.g1, team.g2].forEach((group, gi) => {
+        const groupIds = group
+          .flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
+        if (groupIds.length === 0) return;
+        lines.push(`> **Group ${gi + 1}**`);
+        groupIds.forEach(id => {
+          const player = roster.find(s => s.id === id);
+          if (player) lines.push(`> <@${player.id}>`);
+        });
+      });
+      lines.push("");
+    });
+
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setDiscordCopied(true);
+      setTimeout(() => setDiscordCopied(false), 2000);
+    });
+  };
 
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: "#06060f", display: "flex", flexDirection: "column" }}>
@@ -625,6 +658,11 @@ export default function AdminView({ teamId, teamName }) {
           <button onClick={() => navigate(`/${teamId}`)} style={btn("#001020", "#60a5fa44", "#60a5fa")}>
             👁 Public View →
           </button>
+          {activeTab === "kara" && (
+            <button onClick={handleCopyDiscord} style={btn("#000820", "#5865f244", discordCopied ? "#4ade80" : "#5865f2")}>
+              {discordCopied ? "✓ Copied!" : "💬 Copy Discord"}
+            </button>
+          )}
         </div>
       </div>
 
