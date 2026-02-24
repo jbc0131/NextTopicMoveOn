@@ -61,7 +61,7 @@ function isInCube1(playerId, assignments) { return getCubeGroupOf(playerId, assi
 function isOnAnyCube(playerId, assignments) { return getCubeGroupOf(playerId, assignments) !== null; }
 
 // ── Assignment row (drop target) — supports multiple players + text input ─────
-function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClear, onTextChange, onSpecCycle, assignments, conflictError }) {
+function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClear, onTextChange, onSpecCycle, onDragStart, assignments, conflictError }) {
   const [over, setOver] = useState(false);
   const dropRef = useRef(null);
   const rc    = ROLE_COLORS[rowCfg.role];
@@ -107,12 +107,18 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
                 {onSpecCycle ? (
                   <KaraPlayerBadge slot={slot} onSpecCycle={onSpecCycle} />
                 ) : (
-                  <span style={{
-                    background: `${color}20`, border: `1px solid ${color}44`,
-                    borderRadius: 4, padding: "2px 8px",
-                    color: color, fontFamily: "'Cinzel', serif", fontSize: 14,
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                  }}>
+                  <span
+                    draggable
+                    onDragStart={e => { e.stopPropagation(); onDragStart(e, slot, rowCfg.key); }}
+                    style={{
+                      background: `${color}20`, border: `1px solid ${color}44`,
+                      borderRadius: 4, padding: "2px 8px",
+                      color: color, fontFamily: "'Cinzel', serif", fontSize: 13,
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      cursor: "grab", userSelect: "none",
+                    }}
+                    title="Drag to move to another slot"
+                  >
                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
                     {slot.name}
                     <span style={{ color: `${color}77`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
@@ -152,7 +158,7 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
 }
 
 // ── Boss panel wrapper ────────────────────────────────────────────────────────
-function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, onDrop, onClear, onTextChange, onSpecCycle, compact }) {
+function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, onDrop, onClear, onTextChange, onSpecCycle, onDragStart, compact }) {
   // Build section headers, respecting roleLabel overrides on first row of each new label
   const items = [];
   let lastSectionKey = null;
@@ -191,6 +197,7 @@ function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, textV
               roster={roster} onDrop={onDrop} onClear={onClear}
               onTextChange={onTextChange}
               onSpecCycle={onSpecCycle}
+              onDragStart={onDragStart}
               assignments={assignments}
               conflictError={item.conflictError} />
       )}
@@ -395,6 +402,7 @@ export default function AdminView({ teamId, teamName }) {
   const [raidLeader,  setRaidLeader]  = useState("");
   const [activeTab,   setActiveTab]   = useState("gruul");
   const [dragSlot,    setDragSlot]    = useState(null);
+  const [dragSourceKey, setDragSourceKey] = useState(null); // slot key player is being dragged FROM
   const [roleFilter,  setRoleFilter]  = useState("All");
   const [showImport,  setShowImport]  = useState(false);
   const [jsonError,   setJsonError]   = useState("");
@@ -486,19 +494,23 @@ export default function AdminView({ teamId, teamName }) {
   };
 
   // ── Drag & drop ─────────────────────────────────────────────────────────────
-  const handleDragStart = (e, slot) => { setDragSlot(slot); e.dataTransfer.effectAllowed = "move"; };
+  const handleDragStart = (e, slot, sourceKey = null) => {
+    setDragSlot(slot);
+    setDragSourceKey(sourceKey);
+    e.dataTransfer.effectAllowed = "move";
+  };
   const handleDrop = key => {
     if (!dragSlot) return;
     const playerId = dragSlot.id;
     setAssignments(prev => {
       const existing = prev[key] ? (Array.isArray(prev[key]) ? prev[key] : [prev[key]]) : [];
-      if (existing.includes(playerId)) return prev; // already on this exact slot
+      if (existing.includes(playerId) && dragSourceKey === key) return prev; // same slot, no-op
 
       // Kara: block if a player with the same name is already placed in any kara slot
       if (karaKeys.has(key)) {
         const dragName = dragSlot.name.toLowerCase();
         const alreadyPlaced = Object.entries(prev)
-          .filter(([k]) => karaKeys.has(k))
+          .filter(([k]) => karaKeys.has(k) && k !== dragSourceKey)
           .flatMap(([, ids]) => Array.isArray(ids) ? ids : [ids])
           .some(id => {
             const p = roster.find(s => s.id === id);
@@ -510,7 +522,7 @@ export default function AdminView({ teamId, teamName }) {
         }
       }
 
-      // Cube group conflict: a player can only be in ONE cube group (1, 2, or Backup)
+      // Cube group conflict check
       const targetGroup = getCubeGroupOfKey(key);
       if (targetGroup !== null) {
         const playerCurrentGroup = getCubeGroupOf(playerId, prev);
@@ -520,9 +532,24 @@ export default function AdminView({ teamId, teamName }) {
           return prev;
         }
       }
-      return { ...prev, [key]: [...existing, playerId] };
+
+      let next = { ...prev };
+
+      // Remove from source slot if dragging from an assigned slot
+      if (dragSourceKey && dragSourceKey !== key) {
+        const srcExisting = next[dragSourceKey] ? (Array.isArray(next[dragSourceKey]) ? next[dragSourceKey] : [next[dragSourceKey]]) : [];
+        const srcUpdated = srcExisting.filter(id => id !== playerId);
+        if (srcUpdated.length === 0) delete next[dragSourceKey];
+        else next[dragSourceKey] = srcUpdated;
+      }
+
+      if (!existing.includes(playerId)) {
+        next[key] = [...existing, playerId];
+      }
+      return next;
     });
     setDragSlot(null);
+    setDragSourceKey(null);
   };
   const handleClear = (key, playerId) => setAssignments(prev => {
     const existing = prev[key] ? (Array.isArray(prev[key]) ? prev[key] : [prev[key]]) : [];
@@ -747,9 +774,9 @@ export default function AdminView({ teamId, teamName }) {
               <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
               <div style={{ display: "flex", gap: 12 }}>
                 <AdminPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
-                  rows={GRUUL_MAULGAR} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                  rows={GRUUL_MAULGAR} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onDragStart={handleDragStart} />
                 <AdminPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul}
-                  rows={GRUUL_BOSS} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                  rows={GRUUL_BOSS} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onDragStart={handleDragStart} />
               </div>
             </>}
 
@@ -765,11 +792,11 @@ export default function AdminView({ teamId, teamName }) {
                   <div style={{ display: "flex", gap: 0, border: "1px solid #9b72cf33", borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
                     <div style={{ flex: 1, borderRight: "1px solid #9b72cf22" }}>
                       <AdminPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                        rows={team.g1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onSpecCycle={handleSpecCycle} />
+                        rows={team.g1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onSpecCycle={handleSpecCycle} onDragStart={handleDragStart} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <AdminPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                        rows={team.g2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onSpecCycle={handleSpecCycle} />
+                        rows={team.g2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onSpecCycle={handleSpecCycle} onDragStart={handleDragStart} />
                     </div>
                   </div>
                 </div>
@@ -780,9 +807,9 @@ export default function AdminView({ teamId, teamName }) {
               <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
               <div style={{ display: "flex", gap: 12 }}>
                 <AdminPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
-                  rows={MAGS_P1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                  rows={MAGS_P1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onDragStart={handleDragStart} />
                 <AdminPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags}
-                  rows={MAGS_P2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                  rows={MAGS_P2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onDragStart={handleDragStart} />
               </div>
             </>}
           </div>
