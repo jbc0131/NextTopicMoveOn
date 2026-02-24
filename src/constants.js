@@ -112,16 +112,16 @@ export const MAGS_P1 = [
   { key: "m_ph1h5",  label: "Channeler Tank (Triangle)", role: "Healer", hint: "" },
   // Interrupt Assignments
   { key: "m_int1",   label: "Interrupt (Skull)",         role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
-  { key: "m_int2",   label: "Interrupt (Cross)",         role: "DPS",    hint: "" },
-  { key: "m_int3",   label: "Interrupt (Square)",        role: "DPS",    hint: "" },
-  { key: "m_int4",   label: "Interrupt (Moon)",          role: "DPS",    hint: "" },
-  { key: "m_int5",   label: "Interrupt (Triangle)",      role: "DPS",    hint: "" },
+  { key: "m_int2",   label: "Interrupt (Cross)",         role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "m_int3",   label: "Interrupt (Square)",        role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "m_int4",   label: "Interrupt (Moon)",          role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "m_int5",   label: "Interrupt (Triangle)",      role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
   // Misdirect Assignments
   { key: "m_md1",    label: "Misdirect (Skull)",         role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "m_md2",    label: "Misdirect (Cross)",         role: "DPS",    hint: "" },
-  { key: "m_md3",    label: "Misdirect (Square)",        role: "DPS",    hint: "" },
-  { key: "m_md4",    label: "Misdirect (Moon)",          role: "DPS",    hint: "" },
-  { key: "m_md5",    label: "Misdirect (Triangle)",      role: "DPS",    hint: "" },
+  { key: "m_md2",    label: "Misdirect (Cross)",         role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "m_md3",    label: "Misdirect (Square)",        role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "m_md4",    label: "Misdirect (Moon)",          role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "m_md5",    label: "Misdirect (Triangle)",      role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
 ];
 
 // Cube clicker key groups — used for conflict validation
@@ -142,10 +142,10 @@ export const MAGS_P2 = [
   { key: "m_p2h6",   label: "Cube Clicker (Triangle)",    role: "Healer", hint: "" },
   // Cube Clickers
   { key: "m_p2c1a",  label: "Cube Clicker (Skull)",       role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
-  { key: "m_p2c1b",  label: "Cube Clicker (Cross)",       role: "DPS",    hint: "",                   cubeGroup: 1 },
-  { key: "m_p2c1c",  label: "Cube Clicker (Square)",      role: "DPS",    hint: "",                   cubeGroup: 1 },
-  { key: "m_p2c1d",  label: "Cube Clicker (Moon)",        role: "DPS",    hint: "",                   cubeGroup: 1 },
-  { key: "m_p2c1e",  label: "Cube Clicker (Triangle)",    role: "DPS",    hint: "",                   cubeGroup: 1 },
+  { key: "m_p2c1b",  label: "Cube Clicker (Cross)",       role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
+  { key: "m_p2c1c",  label: "Cube Clicker (Square)",      role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
+  { key: "m_p2c1d",  label: "Cube Clicker (Moon)",        role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
+  { key: "m_p2c1e",  label: "Cube Clicker (Triangle)",    role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
 ];
 
 export const ALL_ROWS = [
