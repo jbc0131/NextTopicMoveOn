@@ -258,36 +258,36 @@ export default function PublicView({ teamId, teamName }) {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 12, alignItems: "center", marginLeft: isMobile ? 0 : (hasData ? 12 : "auto") }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: isMobile ? 0 : (hasData ? 12 : "auto") }}>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && !isMobile && (
-            <span style={{ fontSize: 9, color: "#2a2a2a", fontFamily: "'Cinzel', serif" }}>
+            <span style={{ fontSize: 9, color: "#666", fontFamily: "'Cinzel', serif" }}>
               Updated {lastUpdate.toLocaleTimeString()}
             </span>
           )}
           <button
             onClick={() => navigate("/")}
             style={{
-              background: "none", border: "1px solid #1a1a1a",
-              borderRadius: 4, color: "#2a2a2a", cursor: "pointer",
-              padding: "4px 10px", fontSize: 10, fontFamily: "'Cinzel', serif",
-              transition: "color 0.2s, border-color 0.2s",
+              background: "#0d0d1a", border: "1px solid #444",
+              borderRadius: 4, color: "#aaa", cursor: "pointer",
+              padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif",
+              transition: "color 0.2s, border-color 0.2s, background 0.2s",
             }}
-            onMouseEnter={e => { e.currentTarget.style.color="#555"; e.currentTarget.style.borderColor="#555"; }}
-            onMouseLeave={e => { e.currentTarget.style.color="#2a2a2a"; e.currentTarget.style.borderColor="#1a1a1a"; }}
+            onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+            onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
           >
             ← Teams
           </button>
           <button
             onClick={() => navigate(`/${teamId}/admin`)}
             style={{
-              background: "none", border: "1px solid #1a1a1a",
-              borderRadius: 4, color: "#2a2a2a", cursor: "pointer",
-              padding: "4px 10px", fontSize: 10, fontFamily: "'Cinzel', serif",
-              transition: "color 0.2s, border-color 0.2s",
+              background: "#0d0d1a", border: "1px solid #444",
+              borderRadius: 4, color: "#aaa", cursor: "pointer",
+              padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif",
+              transition: "color 0.2s, border-color 0.2s, background 0.2s",
             }}
-            onMouseEnter={e => { e.currentTarget.style.color="#555"; e.currentTarget.style.borderColor="#555"; }}
-            onMouseLeave={e => { e.currentTarget.style.color="#2a2a2a"; e.currentTarget.style.borderColor="#1a1a1a"; }}
+            onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+            onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
           >
             Admin
           </button>
