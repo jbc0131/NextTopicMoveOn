@@ -643,6 +643,7 @@ export default function AdminView() {
               </div>
             </>}
 
+            {activeTab === "mags" && <>
               <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
               <div style={{ display: "flex", gap: 12 }}>
                 <AdminPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
