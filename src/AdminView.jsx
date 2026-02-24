@@ -461,6 +461,22 @@ export default function AdminView() {
       const existing = prev[key] ? (Array.isArray(prev[key]) ? prev[key] : [prev[key]]) : [];
       if (existing.includes(playerId)) return prev; // already on this exact slot
 
+      // Kara: block if a player with the same name is already placed in any kara slot
+      if (karaKeys.has(key)) {
+        const dragName = dragSlot.name.toLowerCase();
+        const alreadyPlaced = Object.entries(prev)
+          .filter(([k]) => karaKeys.has(k))
+          .flatMap(([, ids]) => Array.isArray(ids) ? ids : [ids])
+          .some(id => {
+            const p = roster.find(s => s.id === id);
+            return p && p.name.toLowerCase() === dragName;
+          });
+        if (alreadyPlaced) {
+          alert(`${dragSlot.name} is already assigned to a Karazhan team.`);
+          return prev;
+        }
+      }
+
       // Cube group conflict: a player can only be in ONE cube group (1, 2, or Backup)
       const targetGroup = getCubeGroupOfKey(key);
       if (targetGroup !== null) {
@@ -489,10 +505,32 @@ export default function AdminView() {
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   // All players always visible in sidebar — same player can fill multiple roles
-  const assignedIds  = new Set(Object.values(assignments));
+  const assignedIds  = new Set(Object.values(assignments).flat());
   const filtered     = roster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
   const unassigned   = filtered; // show everyone always
   const assignedList = [];       // no separate assigned section needed
+
+  // ── Karazhan-specific sidebar logic ─────────────────────────────────────────
+  // Deduplicate roster by name (keep first occurrence)
+  const seenNames = new Set();
+  const karaFiltered = roster.filter(s => {
+    if (roleFilter !== "All" && getRole(s) !== roleFilter) return false;
+    if (seenNames.has(s.name.toLowerCase())) return false;
+    seenNames.add(s.name.toLowerCase());
+    return true;
+  });
+  // All Kara slot keys
+  const karaKeys = new Set([
+    ...KARA_TEAM_1.map(r => r.key),
+    ...KARA_TEAM_2.map(r => r.key),
+    ...KARA_TEAM_3.map(r => r.key),
+  ]);
+  // IDs placed into any Kara slot
+  const karaAssignedIds = new Set(
+    Object.entries(assignments)
+      .filter(([k]) => karaKeys.has(k))
+      .flatMap(([, ids]) => Array.isArray(ids) ? ids : [ids])
+  );
 
   if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />;
 
@@ -593,6 +631,7 @@ export default function AdminView() {
           }}>
             <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#3a3a5a", letterSpacing: "0.15em" }}>
               ROSTER · {roster.length} PLAYERS
+              {activeTab === "kara" && <span style={{ color: "#9b72cf", marginLeft: 6 }}>· KARA MODE</span>}
             </div>
             {/* Role filter */}
             <div style={{ display: "flex", gap: 3, padding: "6px 8px", borderBottom: "1px solid #1a1a2a" }}>
@@ -606,12 +645,31 @@ export default function AdminView() {
                 }}>{r}</button>
               ))}
             </div>
-            {/* Unassigned */}
-            <div style={{ padding: "5px 8px", fontSize: 8, color: "#4ade80", letterSpacing: "0.1em", borderBottom: "1px solid #1a1a2a" }}>
-              ALL PLAYERS ({filtered.length})
+            {/* Player list */}
+            <div style={{ padding: "5px 8px", fontSize: 8, color: activeTab === "kara" ? "#9b72cf" : "#4ade80", letterSpacing: "0.1em", borderBottom: "1px solid #1a1a2a" }}>
+              {activeTab === "kara"
+                ? `UNIQUE PLAYERS (${karaFiltered.length}) · ${karaAssignedIds.size} PLACED`
+                : `ALL PLAYERS (${filtered.length})`}
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "6px 8px", display: "flex", flexDirection: "column", gap: 4 }}>
-              {unassigned.map(s => <RosterToken key={s.id} slot={s} onDragStart={handleDragStart} />)}
+              {activeTab === "kara"
+                ? karaFiltered.map(s => {
+                    const placed = karaAssignedIds.has(s.id);
+                    return (
+                      <div key={s.id} style={{ position: "relative", opacity: placed ? 0.4 : 1, transition: "opacity 0.2s" }}
+                        title={placed ? `${s.name} is already in a Kara team` : undefined}>
+                        <RosterToken slot={s} onDragStart={placed ? () => {} : handleDragStart} compact={false} />
+                        {placed && (
+                          <span style={{
+                            position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+                            fontSize: 9, color: "#9b72cf", fontFamily: "'Cinzel', serif", pointerEvents: "none",
+                          }}>✓ placed</span>
+                        )}
+                      </div>
+                    );
+                  })
+                : unassigned.map(s => <RosterToken key={s.id} slot={s} onDragStart={handleDragStart} />)
+              }
             </div>
             <div style={{ padding: "0 8px 8px" }}><ManualAddPlayer onAdd={handleAddManual} /></div>
 
