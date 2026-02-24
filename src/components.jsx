@@ -30,7 +30,13 @@ const BOSS_BANNERS = {
     label:    "GRUUL'S LAIR  ·  BOSS 2 OF 2",
     rune:     "🗿",
   },
-  mags: {
+  kara: {
+    gradient: "linear-gradient(135deg, #0d0a1a 0%, #080610 40%, #050408 100%)",
+    accent:   "#9b72cf",
+    glow:     "radial-gradient(ellipse at 20% 50%, #9b72cf22 0%, transparent 65%)",
+    label:    "KARAZHAN  ·  10-MAN RAID",
+    rune:     "🏰",
+  },
     gradient: "linear-gradient(135deg, #200800 0%, #140400 40%, #0c0204 100%)",
     accent:   "#cc3300",
     glow:     "radial-gradient(ellipse at 20% 50%, #cc330022 0%, transparent 65%)",
@@ -174,6 +180,7 @@ export function RaidTabs({ activeTab, onTab, raidDate, raidLeader }) {
   const tabs = [
     { id: "gruul", label: "Gruul's Lair", icon: "⚔" },
     { id: "mags",  label: "Magtheridon",  icon: "🔥" },
+    { id: "kara",  label: "Karazhan",     icon: "🏰" },
   ];
   return (
     <div style={{ display: "flex", gap: 4, marginBottom: 12, alignItems: "center" }}>

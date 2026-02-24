@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor, getSpecDisplay,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
+  KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3,
   CUBE1_KEYS, CUBE2_KEYS, CUBEBU_KEYS, ALL_CUBE_KEYS,
   saveState, loadState,
 } from "./constants";
@@ -631,7 +632,17 @@ export default function AdminView() {
               </div>
             </>}
 
-            {activeTab === "mags" && <>
+            {activeTab === "kara" && <>
+              <div style={{ display: "flex", gap: 12 }}>
+                <AdminPanel title="KARAZHAN — TEAM 1" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
+                  rows={KARA_TEAM_1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                <AdminPanel title="KARAZHAN — TEAM 2" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
+                  rows={KARA_TEAM_2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+                <AdminPanel title="KARAZHAN — TEAM 3" icon="🏰" subtitle="10-Man Roster" bossImage="kara"
+                  rows={KARA_TEAM_3} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} />
+              </div>
+            </>}
+
               <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
               <div style={{ display: "flex", gap: 12 }}>
                 <AdminPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}

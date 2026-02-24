@@ -148,8 +148,29 @@ export const MAGS_P2 = [
   { key: "m_p2c1e",  label: "Cube Clicker (Triangle)",    role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
 ];
 
+// ── Karazhan — 10-man team templates ─────────────────────────────────────────
+function karaTeam(n) {
+  const p = `k${n}`;
+  return [
+    { key: `${p}_tank`,   label: "Tank",     role: "Tank",   hint: "" },
+    { key: `${p}_heal1`,  label: "Healer 1", role: "Healer", hint: "" },
+    { key: `${p}_heal2`,  label: "Healer 2", role: "Healer", hint: "" },
+    { key: `${p}_dps1`,   label: "DPS 1",    role: "DPS",    hint: "" },
+    { key: `${p}_dps2`,   label: "DPS 2",    role: "DPS",    hint: "" },
+    { key: `${p}_dps3`,   label: "DPS 3",    role: "DPS",    hint: "" },
+    { key: `${p}_dps4`,   label: "DPS 4",    role: "DPS",    hint: "" },
+    { key: `${p}_dps5`,   label: "DPS 5",    role: "DPS",    hint: "" },
+    { key: `${p}_dps6`,   label: "DPS 6",    role: "DPS",    hint: "" },
+    { key: `${p}_dps7`,   label: "DPS 7",    role: "DPS",    hint: "" },
+  ];
+}
+export const KARA_TEAM_1 = karaTeam(1);
+export const KARA_TEAM_2 = karaTeam(2);
+export const KARA_TEAM_3 = karaTeam(3);
+
 export const ALL_ROWS = [
-  ...GRUUL_MAULGAR, ...GRUUL_BOSS, ...MAGS_P1, ...MAGS_P2
+  ...GRUUL_MAULGAR, ...GRUUL_BOSS, ...MAGS_P1, ...MAGS_P2,
+  ...KARA_TEAM_1, ...KARA_TEAM_2, ...KARA_TEAM_3,
 ];
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
