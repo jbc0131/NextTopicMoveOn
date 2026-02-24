@@ -697,26 +697,27 @@ export default function AdminView({ teamId, teamName }) {
                   })
                 : (() => {
                     const items = [];
-                    let shownDividers = new Set();
+                    const sortedDividers = [...dividers].sort((a, b) => a.position - b.position);
+                    let dividerIdx = 0;
                     unassigned.forEach(s => {
-                      // Check if any divider should appear before this player's group
-                      dividers.forEach(d => {
-                        if (!shownDividers.has(d.name) && s.groupNumber >= d.position) {
-                          shownDividers.add(d.name);
-                          items.push(
-                            <div key={`divider-${d.name}`} style={{
-                              display: "flex", alignItems: "center", gap: 6, margin: "4px 0 2px",
-                            }}>
-                              <div style={{ flex: 1, height: 1, background: "#ff444433" }} />
-                              <span style={{
-                                fontSize: 8, color: "#ff6644", fontFamily: "'Cinzel', serif",
-                                letterSpacing: "0.2em", whiteSpace: "nowrap",
-                              }}>— {d.name} —</span>
-                              <div style={{ flex: 1, height: 1, background: "#ff444433" }} />
-                            </div>
-                          );
-                        }
-                      });
+                      // Insert any dividers whose position is <= this player's groupNumber
+                      while (dividerIdx < sortedDividers.length &&
+                             s.groupNumber >= sortedDividers[dividerIdx].position) {
+                        const d = sortedDividers[dividerIdx];
+                        items.push(
+                          <div key={`divider-${d.name}`} style={{
+                            display: "flex", alignItems: "center", gap: 6, margin: "6px 0 2px",
+                          }}>
+                            <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
+                            <span style={{
+                              fontSize: 8, color: "#ff7755", fontFamily: "'Cinzel', serif",
+                              letterSpacing: "0.2em", whiteSpace: "nowrap",
+                            }}>— {d.name} —</span>
+                            <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
+                          </div>
+                        );
+                        dividerIdx++;
+                      }
                       items.push(<RosterToken key={s.id} slot={s} onDragStart={handleDragStart} />);
                     });
                     return items;
