@@ -152,7 +152,8 @@ export const MAGS_P2 = [
 function karaTeam(n) {
   const p = `k${n}`;
   return [
-    { key: `${p}_tank`,   label: "Tank",     role: "Tank",   hint: "" },
+    { key: `${p}_tank1`,  label: "Tank 1",   role: "Tank",   hint: "" },
+    { key: `${p}_tank2`,  label: "Tank 2",   role: "Tank",   hint: "" },
     { key: `${p}_heal1`,  label: "Healer 1", role: "Healer", hint: "" },
     { key: `${p}_heal2`,  label: "Healer 2", role: "Healer", hint: "" },
     { key: `${p}_dps1`,   label: "DPS 1",    role: "DPS",    hint: "" },
@@ -161,7 +162,6 @@ function karaTeam(n) {
     { key: `${p}_dps4`,   label: "DPS 4",    role: "DPS",    hint: "" },
     { key: `${p}_dps5`,   label: "DPS 5",    role: "DPS",    hint: "" },
     { key: `${p}_dps6`,   label: "DPS 6",    role: "DPS",    hint: "" },
-    { key: `${p}_dps7`,   label: "DPS 7",    role: "DPS",    hint: "" },
   ];
 }
 export const KARA_TEAM_1 = karaTeam(1);
