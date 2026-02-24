@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { FontImport } from "./components";
+import teamDickImg  from "./teamdick.png";
+import teamBallsImg from "./teamballs.png";
 
 const TEAMS = [
   {
@@ -9,7 +11,7 @@ const TEAMS = [
     color:  "#c8a84b",
     border: "#c8a84b66",
     glow:   "#c8a84b33",
-    image:  "/teamdick.png",
+    image:  teamDickImg,
     path:   "/team-dick",
   },
   {
@@ -19,7 +21,7 @@ const TEAMS = [
     color:  "#60a5fa",
     border: "#60a5fa66",
     glow:   "#60a5fa33",
-    image:  "/teamballs.png",
+    image:  teamBallsImg,
     path:   "/team-balls",
   },
 ];
