@@ -390,6 +390,7 @@ export default function AdminView({ teamId, teamName }) {
   const [assignments,  setAssignments]  = useState({});
   const [textInputs,   setTextInputs]   = useState({});
   const [specOverrides, setSpecOverrides] = useState({}); // { [playerId]: specName }
+  const [dividers,      setDividers]      = useState([]); // [{ name, position }]
   const [raidDate,    setRaidDate]    = useState("");
   const [raidLeader,  setRaidLeader]  = useState("");
   const [activeTab,   setActiveTab]   = useState("gruul");
@@ -416,6 +417,7 @@ export default function AdminView({ teamId, teamName }) {
         if (s.raidLeader)    setRaidLeader(s.raidLeader);
         if (s.textInputs)    setTextInputs(s.textInputs);
         if (s.specOverrides) setSpecOverrides(s.specOverrides);
+        if (s.dividers)      setDividers(s.dividers);
       }
     }
     load();
@@ -423,7 +425,7 @@ export default function AdminView({ teamId, teamName }) {
 
   // ── Save handler ────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    const state = { roster, assignments, textInputs, raidDate, raidLeader, specOverrides };
+    const state = { roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
     saveState(state, teamId);
 
     if (!FIREBASE_OK) {
@@ -465,6 +467,7 @@ export default function AdminView({ teamId, teamName }) {
       const data = JSON.parse(text);
       if (!data.slots) throw new Error("No 'slots' array found");
       setRoster(data.slots);
+      setDividers(data.dividers || []);
       setAssignments({});
       setJsonError("");
       setShowImport(false);
@@ -692,7 +695,32 @@ export default function AdminView({ teamId, teamName }) {
                       </div>
                     );
                   })
-                : unassigned.map(s => <RosterToken key={s.id} slot={s} onDragStart={handleDragStart} />)
+                : (() => {
+                    const items = [];
+                    let shownDividers = new Set();
+                    unassigned.forEach(s => {
+                      // Check if any divider should appear before this player's group
+                      dividers.forEach(d => {
+                        if (!shownDividers.has(d.name) && s.groupNumber >= d.position) {
+                          shownDividers.add(d.name);
+                          items.push(
+                            <div key={`divider-${d.name}`} style={{
+                              display: "flex", alignItems: "center", gap: 6, margin: "4px 0 2px",
+                            }}>
+                              <div style={{ flex: 1, height: 1, background: "#ff444433" }} />
+                              <span style={{
+                                fontSize: 8, color: "#ff6644", fontFamily: "'Cinzel', serif",
+                                letterSpacing: "0.2em", whiteSpace: "nowrap",
+                              }}>— {d.name} —</span>
+                              <div style={{ flex: 1, height: 1, background: "#ff444433" }} />
+                            </div>
+                          );
+                        }
+                      });
+                      items.push(<RosterToken key={s.id} slot={s} onDragStart={handleDragStart} />);
+                    });
+                    return items;
+                  })()
               }
             </div>
             <div style={{ padding: "0 8px 8px" }}><ManualAddPlayer onAdd={handleAddManual} /></div>
