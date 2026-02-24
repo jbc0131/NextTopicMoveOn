@@ -682,21 +682,20 @@ export default function AdminView({ teamId, teamName }) {
               {activeTab === "kara"
                 ? (() => {
                     const items = [];
-                    const sortedDividers = [...dividers].sort((a, b) => a.position - b.position);
-                    let dividerIdx = 0;
-                    karaFiltered.forEach(s => {
-                      while (dividerIdx < sortedDividers.length &&
-                             s.groupNumber >= sortedDividers[dividerIdx].position) {
-                        const d = sortedDividers[dividerIdx];
-                        items.push(
-                          <div key={`divider-${d.name}`} style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 0 2px" }}>
-                            <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
-                            <span style={{ fontSize: 8, color: "#ff7755", fontFamily: "'Cinzel', serif", letterSpacing: "0.2em", whiteSpace: "nowrap" }}>— {d.name} —</span>
-                            <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
-                          </div>
-                        );
-                        dividerIdx++;
-                      }
+                    const shownDividers = new Set();
+                    karaFiltered.forEach((s, idx) => {
+                      dividers.forEach(d => {
+                        if (!shownDividers.has(d.name) && s.groupNumber >= d.position) {
+                          shownDividers.add(d.name);
+                          items.push(
+                            <div key={`divider-${d.name}`} style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 0 2px" }}>
+                              <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
+                              <span style={{ fontSize: 8, color: "#ff7755", fontFamily: "'Cinzel', serif", letterSpacing: "0.2em", whiteSpace: "nowrap" }}>— {d.name} —</span>
+                              <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
+                            </div>
+                          );
+                        }
+                      });
                       const placed = karaAssignedIds.has(s.id);
                       items.push(
                         <div key={s.id} style={{ position: "relative", opacity: placed ? 0.4 : 1, transition: "opacity 0.2s" }}
@@ -715,28 +714,21 @@ export default function AdminView({ teamId, teamName }) {
                   })()
                 : (() => {
                     const items = [];
-                    const sortedDividers = [...dividers].sort((a, b) => a.position - b.position);
-                    let dividerIdx = 0;
+                    const shownDividers = new Set();
                     unassigned.forEach(s => {
-                      // Insert any dividers whose position is <= this player's groupNumber
-                      while (dividerIdx < sortedDividers.length &&
-                             s.groupNumber >= sortedDividers[dividerIdx].position) {
-                        const d = sortedDividers[dividerIdx];
-                        items.push(
-                          <div key={`divider-${d.name}`} style={{
-                            display: "flex", alignItems: "center", gap: 6, margin: "6px 0 2px",
-                          }}>
-                            <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
-                            <span style={{
-                              fontSize: 8, color: "#ff7755", fontFamily: "'Cinzel', serif",
-                              letterSpacing: "0.2em", whiteSpace: "nowrap",
-                            }}>— {d.name} —</span>
-                            <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
-                          </div>
-                        );
-                        dividerIdx++;
-                      }
-                      items.push(<RosterToken key={s.id} slot={s} onDragStart={handleDragStart} />);
+                      dividers.forEach(d => {
+                        if (!shownDividers.has(d.name) && s.groupNumber >= d.position) {
+                          shownDividers.add(d.name);
+                          items.push(
+                            <div key={`divider-${d.name}`} style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 0 2px" }}>
+                              <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
+                              <span style={{ fontSize: 8, color: "#ff7755", fontFamily: "'Cinzel', serif", letterSpacing: "0.2em", whiteSpace: "nowrap" }}>— {d.name} —</span>
+                              <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
+                            </div>
+                          );
+                        }
+                      });
+                      items.push(<RosterToken key={s.id} slot={s} onDragStart={handleDragStart} compact={false} />);
                     });
                     return items;
                   })()

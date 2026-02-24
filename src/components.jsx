@@ -64,9 +64,9 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
       style={{
         display: "flex", alignItems: "center", gap: 5,
         background: `${color}18`, border: `1px solid ${color}44`,
-        borderRadius: 4, padding: compact ? "2px 7px" : "4px 10px",
+        borderRadius: 4, padding: "4px 10px",
         cursor: isDraggable ? "grab" : "default",
-        userSelect: "none", fontSize: compact ? 13 : 14,
+        userSelect: "none", fontSize: 13,
         color: color, fontFamily: "'Cinzel', serif",
         width: "100%", minWidth: 0, overflow: "hidden",
         transition: "background 0.15s, border-color 0.15s",
