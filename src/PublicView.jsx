@@ -9,7 +9,13 @@ import {
 import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader } from "./components";
 import { fetchFromFirebase, subscribeToFirebase, isFirebaseConfigured } from "./firebase";
 
-const FIREBASE_OK = isFirebaseConfigured();
+import teamDickImg  from "./teamdick.png";
+import teamBallsImg from "./teamballs.png";
+
+const TEAM_IMAGES = {
+  "team-dick":  teamDickImg,
+  "team-balls": teamBallsImg,
+};
 
 // ── Responsive hook ───────────────────────────────────────────────────────────
 function useWindowWidth() {
@@ -237,69 +243,51 @@ export default function PublicView({ teamId, teamName }) {
 
       {/* ── Header ── */}
       <div style={{
-        background: "linear-gradient(180deg, #0d0800 0%, #060608 100%)",
-        borderBottom: "1px solid #2a1800",
-        padding: "12px 24px", display: "flex", alignItems: "center", gap: 16,
-        flexShrink: 0, flexWrap: "wrap",
+        position: "relative", height: isMobile ? 80 : 120,
+        flexShrink: 0, overflow: "hidden",
+        borderBottom: "2px solid #1a1a2a",
       }}>
-        <div>
-          <div style={{ fontSize: isMobile ? 14 : 18, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif", letterSpacing: "0.04em" }}>
-            ⚔ NEXT TOPIC MOVE ON
-          </div>
-          <div style={{ fontSize: 11, color: "#ffffff", letterSpacing: "0.05em", marginTop: 2 }}>
-            {teamName}
-          </div>
-        </div>
+        {/* Team image as background */}
+        <img
+          src={TEAM_IMAGES[teamId]}
+          alt={teamName}
+          style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: "top center",
+            opacity: 0.85,
+          }}
+        />
+        {/* Overlay for readability */}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, #000000aa 0%, #00000044 50%, #000000aa 100%)" }} />
 
-        {hasData && !isMobile && (
-          <div style={{ display: "flex", gap: 20, marginLeft: 16, alignItems: "center" }}>
-            {raidDate   && <Meta label="Date"   value={raidDate} />}
-            {raidLeader && <Meta label="Leader" value={raidLeader} />}
-          </div>
-        )}
-
-        {/* 🔍 Search box */}
-        {hasData && (
-          <div style={{ marginLeft: isMobile ? 0 : "auto", width: isMobile ? "100%" : 240 }}>
-            <SearchBox value={searchName} onChange={setSearchName} />
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: isMobile ? 0 : (hasData ? 12 : "auto") }}>
-          {FIREBASE_OK && <SyncBadge live={liveSync} />}
-          {lastUpdate && !isMobile && (
-            <span style={{ fontSize: 9, color: "#666", fontFamily: "'Cinzel', serif" }}>
-              Updated {lastUpdate.toLocaleTimeString()}
-            </span>
+        {/* Overlaid controls */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", padding: "0 20px", gap: 12, flexWrap: "wrap",
+        }}>
+          {hasData && !isMobile && (
+            <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+              {raidDate   && <Meta label="Date"   value={raidDate} />}
+              {raidLeader && <Meta label="Leader" value={raidLeader} />}
+            </div>
           )}
-          <button
-            onClick={() => navigate("/")}
-            style={{
-              background: "#0d0d1a", border: "1px solid #444",
-              borderRadius: 4, color: "#aaa", cursor: "pointer",
-              padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif",
-              transition: "color 0.2s, border-color 0.2s, background 0.2s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
-            onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
-          >
-            ← Teams
-          </button>
-          <button
-            onClick={() => navigate(`/${teamId}/admin`)}
-            style={{
-              background: "#0d0d1a", border: "1px solid #444",
-              borderRadius: 4, color: "#aaa", cursor: "pointer",
-              padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif",
-              transition: "color 0.2s, border-color 0.2s, background 0.2s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
-            onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
-          >
-            Admin
-          </button>
-        </div>
-      </div>
+
+          {/* 🔍 Search box */}
+          {hasData && (
+            <div style={{ marginLeft: "auto", width: isMobile ? 160 : 240 }}>
+              <SearchBox value={searchName} onChange={setSearchName} />
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: hasData ? 12 : "auto" }}>
+            {FIREBASE_OK && <SyncBadge live={liveSync} />}
+            {lastUpdate && !isMobile && (
+              <span style={{ fontSize: 9, color: "#aaa", fontFamily: "'Cinzel', serif" }}>
+                Updated {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
+      {/* ── Content ── */}
 
       {/* ── Content ── */}
       {(!hasData) ? (
