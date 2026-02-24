@@ -61,105 +61,91 @@ export const BOSS_KEYS = { maulgar: "maulgar", gruul: "gruul", mags: "mags" };
 
 // ── Assignment definitions ────────────────────────────────────────────────────
 export const GRUUL_MAULGAR = [
-  { key: "maulgar_mt",    label: "Maulgar Tank",         role: "Tank",   hint: "Protection Paladin/Warrior" },
-  { key: "krosh_soak",    label: "Krosh Soaker",          role: "Tank",   hint: "Prot Paladin immune soak" },
-  { key: "olm_tank",      label: "Olm Tank",              role: "Tank",   hint: "Warrior/Druid" },
-  { key: "kiggler_kit",   label: "Kiggler Kiter",         role: "Tank",   hint: "Prot Pally / mobile tank" },
-  { key: "blindeye_tank", label: "Blindeye Tank",         role: "Tank",   hint: "Any tank" },
-  { key: "mt_heal1",      label: "MT Heal 1",             role: "Healer", hint: "" },
-  { key: "mt_heal2",      label: "MT Heal 2",             role: "Healer", hint: "" },
-  { key: "krosh_heal",    label: "Krosh Soaker Heals",    role: "Healer", hint: "Holy Pally ideal" },
-  { key: "raid_heal1",    label: "Raid Heal 1",           role: "Healer", hint: "" },
-  { key: "raid_heal2",    label: "Raid Heal 2",           role: "Healer", hint: "" },
-  { key: "olm_cc",        label: "Olm CC (Sheep)",        role: "DPS",    hint: "Mage" },
-  { key: "olm_sleep",     label: "Olm Trap/Sleep",        role: "DPS",    hint: "Hunter/Druid" },
-  { key: "kiggler_poly",  label: "Kiggler Poly",          role: "DPS",    hint: "Mage" },
-  { key: "spellbreak",    label: "Spellbreaker (Krosh)",  role: "DPS",    hint: "Pummel/kick chain" },
-  { key: "counterspell",  label: "Counterspell (Krosh)",  role: "DPS",    hint: "Mage CS" },
-  { key: "dps_krosh1",    label: "Krosh Kill DPS 1",      role: "DPS",    hint: "" },
-  { key: "dps_krosh2",    label: "Krosh Kill DPS 2",      role: "DPS",    hint: "" },
-  { key: "dps_olm",       label: "Olm Kill DPS",          role: "DPS",    hint: "" },
-  { key: "dps_kiggler",   label: "Kiggler Kill DPS",      role: "DPS",    hint: "" },
-  { key: "dps_blindeye",  label: "Blindeye Kill DPS",     role: "DPS",    hint: "" },
-  { key: "dps_maulgar",   label: "Maulgar Kill DPS",      role: "DPS",    hint: "" },
+  // Tank Assignments
+  { key: "maulgar_mt",      label: "High King Maulgar Tank",   role: "Tank",   hint: "" },
+  { key: "blindeye_tank",   label: "Blindeye the Seer Tank",   role: "Tank",   hint: "" },
+  { key: "olm_tank",        label: "Olm the Summoner Tank",    role: "Tank",   hint: "" },
+  { key: "kiggler_tank",    label: "Kiggler the Crazed Tank",  role: "Tank",   hint: "" },
+  { key: "krosh_tank",      label: "Krosh Firehand Tank",      role: "Tank",   hint: "" },
+  // Healer Assignments
+  { key: "heal_maulgar",    label: "High King Maulgar Tank",   role: "Healer", hint: "" },
+  { key: "heal_blindeye",   label: "Blindeye the Seer Tank",   role: "Healer", hint: "" },
+  { key: "heal_olm",        label: "Olm the Summoner Tank",    role: "Healer", hint: "" },
+  { key: "heal_kiggler",    label: "Kiggler the Crazed Tank",  role: "Healer", hint: "" },
+  { key: "heal_krosh",      label: "Krosh Firehand Tank",      role: "Healer", hint: "" },
+  { key: "heal_raid",       label: "Raid",                     role: "Healer", hint: "" },
+  // Misc Assignments
+  { key: "misc_blindeye_int",  label: "Blindeye the Seer Interrupt",      role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "misc_olm_warlock",   label: "Olm the Summoner Warlock (Banish)(Enslave)", role: "DPS", hint: "" },
+  { key: "misc_md_maulgar",    label: "High King Maulgar Misdirect",      role: "DPS", hint: "" },
+  { key: "misc_md_blindeye",   label: "Blindeye the Seer Misdirect",      role: "DPS", hint: "" },
+  { key: "misc_md_olm",        label: "Olm the Summoner Misdirect",       role: "DPS", hint: "" },
+  { key: "misc_md_kiggler",    label: "Kiggler the Crazed Misdirect",     role: "DPS", hint: "" },
+  { key: "misc_md_krosh",      label: "Krosh Firehand Misdirect",         role: "DPS", hint: "" },
 ];
 
 export const GRUUL_BOSS = [
-  { key: "g_mt",      label: "Main Tank (MT)",   role: "Tank",   hint: "" },
-  { key: "g_ot",      label: "Off Tank / Taunt", role: "Tank",   hint: "" },
-  { key: "g_mtheal1", label: "MT Heal 1",        role: "Healer", hint: "" },
-  { key: "g_mtheal2", label: "MT Heal 2",        role: "Healer", hint: "" },
-  { key: "g_mtheal3", label: "MT Heal 3",        role: "Healer", hint: "" },
-  { key: "g_rheal1",  label: "Raid Heal 1",      role: "Healer", hint: "" },
-  { key: "g_rheal2",  label: "Raid Heal 2",      role: "Healer", hint: "" },
-  { key: "g_rheal3",  label: "Raid Heal 3",      role: "Healer", hint: "" },
-  { key: "g_shat1",   label: "Shatter Group NW", role: "DPS",    hint: "", textInput: true },
-  { key: "g_shat2",   label: "Shatter Group NE", role: "DPS",    hint: "", textInput: true },
-  { key: "g_shat3",   label: "Shatter Group S",  role: "DPS",    hint: "", textInput: true },
-  { key: "g_shat4",   label: "Shatter Group W",  role: "DPS",    hint: "", textInput: true },
-  { key: "g_shat5",   label: "Shatter Group E",  role: "DPS",    hint: "", textInput: true },
+  // Tank Assignments
+  { key: "g_mt",       label: "Main Tank (MT)",    role: "Tank",   hint: "" },
+  // Healer Assignments
+  { key: "g_mtheal1",  label: "Main Tank Heal",    role: "Healer", hint: "" },
+  { key: "g_rheal1",   label: "Raid Heal",         role: "Healer", hint: "" },
+  // Misc Assignments
+  { key: "g_shat1",    label: "Shatter Group North", role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+  { key: "g_shat2",    label: "Shatter Group East",  role: "DPS", hint: "", textInput: true },
+  { key: "g_shat3",    label: "Shatter Group South", role: "DPS", hint: "", textInput: true },
+  { key: "g_shat4",    label: "Shatter Group West",  role: "DPS", hint: "", textInput: true },
 ];
 
 export const MAGS_P1 = [
-  { key: "m_ch1",    label: "Channeler 1 Tank (N)",   role: "Tank",   hint: "" },
-  { key: "m_ch2",    label: "Channeler 2 Tank (NE)",  role: "Tank",   hint: "" },
-  { key: "m_ch3",    label: "Channeler 3 Tank (SE)",  role: "Tank",   hint: "" },
-  { key: "m_ch4",    label: "Channeler 4 Tank (SW)",  role: "Tank",   hint: "" },
-  { key: "m_ch5",    label: "Channeler 5 Tank (NW)",  role: "Tank",   hint: "" },
-  { key: "m_ph1h1",  label: "Tank Heal (N)",          role: "Healer", hint: "" },
-  { key: "m_ph1h2",  label: "Tank Heal (NE)",         role: "Healer", hint: "" },
-  { key: "m_ph1h3",  label: "Tank Heal (W cluster)",  role: "Healer", hint: "" },
-  { key: "m_ph1rh1", label: "Raid Heal 1",            role: "Healer", hint: "" },
-  { key: "m_ph1rh2", label: "Raid Heal 2",            role: "Healer", hint: "" },
-  { key: "m_cube1",  label: "Cube Clicker 1 (NE)",    role: "DPS",    roleLabel: "Interrupt Assignments", hint: "Must reach cube fast" },
-  { key: "m_cube2",  label: "Cube Clicker 2 (SE)",    role: "DPS",    hint: "" },
-  { key: "m_cube3",  label: "Cube Clicker 3 (S)",     role: "DPS",    hint: "" },
-  { key: "m_cube4",  label: "Cube Clicker 4 (SW)",    role: "DPS",    hint: "" },
-  { key: "m_cube5",  label: "Cube Clicker 5 (NW)",    role: "DPS",    hint: "" },
-  { key: "m_dps1",   label: "Kill Group 1",           role: "DPS",    hint: "" },
-  { key: "m_dps2",   label: "Kill Group 2",           role: "DPS",    hint: "" },
-  { key: "m_dps3",   label: "Kill Group 3",           role: "DPS",    hint: "" },
-  { key: "m_dps4",   label: "Kill Group 4",           role: "DPS",    hint: "" },
+  // Tank Assignments
+  { key: "m_ch1",    label: "Channeler Tank (Skull)",    role: "Tank",   hint: "" },
+  { key: "m_ch2",    label: "Channeler Tank (Cross)",    role: "Tank",   hint: "" },
+  { key: "m_ch3",    label: "Channeler Tank (Square)",   role: "Tank",   hint: "" },
+  { key: "m_ch4",    label: "Channeler Tank (Moon)",     role: "Tank",   hint: "" },
+  { key: "m_ch5",    label: "Channeler Tank (Triangle)", role: "Tank",   hint: "" },
+  // Healer Assignments
+  { key: "m_ph1h1",  label: "Channeler Tank (Skull)",    role: "Healer", hint: "" },
+  { key: "m_ph1h2",  label: "Channeler Tank (Cross)",    role: "Healer", hint: "" },
+  { key: "m_ph1h3",  label: "Channeler Tank (Square)",   role: "Healer", hint: "" },
+  { key: "m_ph1h4",  label: "Channeler Tank (Moon)",     role: "Healer", hint: "" },
+  { key: "m_ph1h5",  label: "Channeler Tank (Triangle)", role: "Healer", hint: "" },
+  // Interrupt Assignments
+  { key: "m_int1",   label: "Interrupt (Skull)",         role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "m_int2",   label: "Interrupt (Cross)",         role: "DPS",    hint: "" },
+  { key: "m_int3",   label: "Interrupt (Square)",        role: "DPS",    hint: "" },
+  { key: "m_int4",   label: "Interrupt (Moon)",          role: "DPS",    hint: "" },
+  { key: "m_int5",   label: "Interrupt (Triangle)",      role: "DPS",    hint: "" },
+  // Misdirect Assignments
+  { key: "m_md1",    label: "Misdirect (Skull)",         role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "m_md2",    label: "Misdirect (Cross)",         role: "DPS",    hint: "" },
+  { key: "m_md3",    label: "Misdirect (Square)",        role: "DPS",    hint: "" },
+  { key: "m_md4",    label: "Misdirect (Moon)",          role: "DPS",    hint: "" },
+  { key: "m_md5",    label: "Misdirect (Triangle)",      role: "DPS",    hint: "" },
 ];
 
 // Cube clicker key groups — used for conflict validation
 export const CUBE1_KEYS   = ["m_p2c1a","m_p2c1b","m_p2c1c","m_p2c1d","m_p2c1e"];
-export const CUBE2_KEYS   = ["m_p2c2a","m_p2c2b","m_p2c2c","m_p2c2d","m_p2c2e"];
-export const CUBEBU_KEYS  = ["m_p2cba","m_p2cbb","m_p2cbc","m_p2cbd","m_p2cbe"];
-export const ALL_CUBE_KEYS = [...CUBE1_KEYS, ...CUBE2_KEYS, ...CUBEBU_KEYS];
+export const CUBE2_KEYS   = [];
+export const CUBEBU_KEYS  = [];
+export const ALL_CUBE_KEYS = [...CUBE1_KEYS];
 
 export const MAGS_P2 = [
-  { key: "m_p2mt",   label: "Main Tank (MT)",                   role: "Tank",   hint: "" },
-  { key: "m_p2ot",   label: "OT – Infernal Kiter",              role: "Tank",   hint: "" },
-  { key: "m_p2h1",   label: "MT Heal 1",                        role: "Healer", hint: "" },
-  { key: "m_p2h2",   label: "MT Heal 2",                        role: "Healer", hint: "" },
-  { key: "m_p2h3",   label: "MT Heal 3",                        role: "Healer", hint: "" },
-  { key: "m_p2rh1",  label: "Raid Heal 1",                      role: "Healer", hint: "" },
-  { key: "m_p2rh2",  label: "Raid Heal 2",                      role: "Healer", hint: "" },
-  // Cube Clicker 1 group
-  { key: "m_p2c1a",  label: "Cube Clicker 1 (NE)",              role: "DPS",    roleLabel: "Cube Clicker 1",  hint: "Must reach cube fast", cubeGroup: 1 },
-  { key: "m_p2c1b",  label: "Cube Clicker 1 (SE)",              role: "DPS",    hint: "",                     cubeGroup: 1 },
-  { key: "m_p2c1c",  label: "Cube Clicker 1 (S)",               role: "DPS",    hint: "",                     cubeGroup: 1 },
-  { key: "m_p2c1d",  label: "Cube Clicker 1 (SW)",              role: "DPS",    hint: "",                     cubeGroup: 1 },
-  { key: "m_p2c1e",  label: "Cube Clicker 1 (NW)",              role: "DPS",    hint: "",                     cubeGroup: 1 },
-  // Cube Clicker 2 group
-  { key: "m_p2c2a",  label: "Cube Clicker 2 (NE)",              role: "DPS",    roleLabel: "Cube Clicker 2",  hint: "Must reach cube fast", cubeGroup: 2 },
-  { key: "m_p2c2b",  label: "Cube Clicker 2 (SE)",              role: "DPS",    hint: "",                     cubeGroup: 2 },
-  { key: "m_p2c2c",  label: "Cube Clicker 2 (S)",               role: "DPS",    hint: "",                     cubeGroup: 2 },
-  { key: "m_p2c2d",  label: "Cube Clicker 2 (SW)",              role: "DPS",    hint: "",                     cubeGroup: 2 },
-  { key: "m_p2c2e",  label: "Cube Clicker 2 (NW)",              role: "DPS",    hint: "",                     cubeGroup: 2 },
-  // Backup Cube Clickers
-  { key: "m_p2cba",  label: "Backup Cube Clicker (NE)",         role: "DPS",    roleLabel: "Backup Cube Clickers", hint: "Must reach cube fast", cubeGroup: 3 },
-  { key: "m_p2cbb",  label: "Backup Cube Clicker 2 (SE)",       role: "DPS",    hint: "",                     cubeGroup: 3 },
-  { key: "m_p2cbc",  label: "Backup Cube Clicker (S)",          role: "DPS",    hint: "",                     cubeGroup: 3 },
-  { key: "m_p2cbd",  label: "Backup Cube Clicker (SW)",         role: "DPS",    hint: "",                     cubeGroup: 3 },
-  { key: "m_p2cbe",  label: "Backup Cube Clicker (NW)",         role: "DPS",    hint: "",                     cubeGroup: 3 },
-  { key: "m_p2inf1", label: "Infernal Kill DPS 1",              role: "DPS",    hint: "" },
-  { key: "m_p2inf2", label: "Infernal Kill DPS 2",              role: "DPS",    hint: "" },
-  { key: "m_p2d1",   label: "DPS 1",                            role: "DPS",    hint: "" },
-  { key: "m_p2d2",   label: "DPS 2",                            role: "DPS",    hint: "" },
-  { key: "m_p2d3",   label: "DPS 3",                            role: "DPS",    hint: "" },
-  { key: "m_p2d4",   label: "DPS 4",                            role: "DPS",    hint: "" },
+  // Tank Assignments
+  { key: "m_p2mt",   label: "Main Tank",                  role: "Tank",   hint: "" },
+  // Healer Assignments
+  { key: "m_p2h1",   label: "Main Tank",                  role: "Healer", hint: "" },
+  { key: "m_p2h2",   label: "Cube Clicker (Skull)",       role: "Healer", hint: "" },
+  { key: "m_p2h3",   label: "Cube Clicker (Cross)",       role: "Healer", hint: "" },
+  { key: "m_p2h4",   label: "Cube Clicker (Square)",      role: "Healer", hint: "" },
+  { key: "m_p2h5",   label: "Cube Clicker (Moon)",        role: "Healer", hint: "" },
+  { key: "m_p2h6",   label: "Cube Clicker (Triangle)",    role: "Healer", hint: "" },
+  // Cube Clickers
+  { key: "m_p2c1a",  label: "Cube Clicker (Skull)",       role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
+  { key: "m_p2c1b",  label: "Cube Clicker (Cross)",       role: "DPS",    hint: "",                   cubeGroup: 1 },
+  { key: "m_p2c1c",  label: "Cube Clicker (Square)",      role: "DPS",    hint: "",                   cubeGroup: 1 },
+  { key: "m_p2c1d",  label: "Cube Clicker (Moon)",        role: "DPS",    hint: "",                   cubeGroup: 1 },
+  { key: "m_p2c1e",  label: "Cube Clicker (Triangle)",    role: "DPS",    hint: "",                   cubeGroup: 1 },
 ];
 
 export const ALL_ROWS = [
