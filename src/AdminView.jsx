@@ -41,7 +41,54 @@ function RosterToken({ slot, onDragStart, compact, parseScore, parseColor }) {
   return <PlayerBadge slot={slot} compact={compact} draggable onDragStart={onDragStart} parseScore={parseScore} parseColor={parseColor} />;
 }
 
+// ── Admin WCL name editor — always editable, no locking ──────────────────────
+function AdminWclNameEditor({ player, onChange }) {
+  const [editing, setEditing] = useState(false);
+  const [value,   setValue]   = useState(player.wclName || "");
 
+  const commit = () => { onChange(value.trim()); setEditing(false); };
+  const cancel = () => { setValue(player.wclName || ""); setEditing(false); };
+
+  if (!editing) {
+    return (
+      <span
+        onClick={() => setEditing(true)}
+        style={{ cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 3 }}
+        title={player.wclName ? `WCL: ${player.wclName} — click to change` : "Click to set WCL character name"}
+      >
+        {player.name}
+        {player.wclName && (
+          <span style={{ color: "#555", fontSize: 9, marginLeft: 4 }}>→ {player.wclName}</span>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 3, alignItems: "center", flex: 1 }}>
+      <input
+        autoFocus
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") cancel(); }}
+        placeholder="WCL char name…"
+        style={{
+          flex: 1, minWidth: 0, background: "#080810", border: "1px solid #2a2a4a",
+          borderRadius: 3, color: "#ccc", padding: "2px 5px",
+          fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none",
+        }}
+      />
+      <button onClick={commit} style={{
+        background: "#0a200a", border: "1px solid #4ade8055", borderRadius: 3,
+        color: "#4ade80", padding: "2px 5px", cursor: "pointer", fontSize: 11, flexShrink: 0,
+      }}>✓</button>
+      <button onClick={cancel} style={{
+        background: "#1a0a0a", border: "1px solid #ef444455", borderRadius: 3,
+        color: "#ef4444", padding: "2px 5px", cursor: "pointer", fontSize: 11, flexShrink: 0,
+      }}>✗</button>
+    </div>
+  );
+}
 
 // Returns which cube group (1, 2, 3) a player is currently assigned to, or null
 function getCubeGroupOf(playerId, assignments) {
@@ -606,6 +653,8 @@ export default function AdminView({ teamId, teamName }) {
   const handleClearAll  = () => { if (confirm("Clear all assignments?")) { setAssignments({}); setTextInputs({}); } };
   const handleAddManual  = slot => setRoster(prev => [...prev, slot]);
   const handleTextChange = (key, val) => setTextInputs(prev => ({ ...prev, [key]: val }));
+  const handleWclNameChange = (playerId, wclName) =>
+    setRoster(prev => prev.map(p => p.id === playerId ? { ...p, wclName: wclName || undefined } : p));
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   // All players always visible in sidebar — same player can fill multiple roles
@@ -944,8 +993,11 @@ export default function AdminView({ teamId, teamName }) {
                           padding: "3px 4px", borderBottom: "1px solid #ffffff06",
                         }}>
                           <span style={{ flex: 1, fontSize: 11, color: pColor, fontFamily: "'Cinzel', serif",
-                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {p.name}
+                            overflow: "hidden", minWidth: 0 }}>
+                            <AdminWclNameEditor
+                              player={p}
+                              onChange={wclName => handleWclNameChange(p.id, wclName)}
+                            />
                           </span>
                           <span style={{ width: 32, textAlign: "center", fontSize: 11, fontWeight: 700,
                             fontFamily: "monospace", color: karaColor || "#444" }}>
