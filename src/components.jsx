@@ -129,7 +129,7 @@ export function BossPanel({ title, icon, subtitle, bossImage, children, compact 
         {banner && <div style={{ position: "absolute", inset: 0, background: banner.glow }} />}
 
         {/* Top-right metadata label */}
-        {banner && (
+        {banner && !compact && (
           <div style={{
             position: "absolute", top: 8, right: 12,
             fontSize: 8, color: banner.accent + "bb",
