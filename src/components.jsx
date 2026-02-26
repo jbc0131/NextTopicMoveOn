@@ -187,10 +187,52 @@ export function BossPanel({ title, icon, subtitle, bossImage, children, compact 
   );
 }
 
+// ── Raid utility mappings (TBC) ──────────────────────────────────────────────
+const UTILITY = {
+  decurse: {
+    label: "Decurse", icon: "🌿", color: "#86efac",
+    specs: new Set(["Arcane","Fire","Frost","Balance","Feral","Restoration","Guardian","Dreamstate"]),
+  },
+  dispelMagicFriendly: {
+    label: "Dispel Magic", icon: "💜", color: "#c084fc",
+    specs: new Set(["Holy","Discipline","Shadow","Smite","Holy1","Protection1","Retribution"]),
+  },
+  dispelPoison: {
+    label: "Cure Poison", icon: "💚", color: "#4ade80",
+    specs: new Set(["Holy1","Protection1","Retribution","Balance","Feral","Restoration","Guardian","Dreamstate","Elemental","Enhancement","Restoration1"]),
+  },
+  dispelDisease: {
+    label: "Cure Disease", icon: "🤍", color: "#e2e8f0",
+    specs: new Set(["Holy","Discipline","Shadow","Smite","Holy1","Protection1","Retribution","Elemental","Enhancement","Restoration1"]),
+  },
+  interrupt: {
+    label: "Interrupts", icon: "⚡", color: "#fbbf24",
+    specs: new Set(["Arms","Fury","Protection","Combat","Subtlety","Assassination","Elemental","Enhancement","Restoration1","Beastmastery","Marksmanship","Survival","Affliction","Demonology","Destruction"]),
+  },
+  deenrage: {
+    label: "De-Enrage", icon: "🏹", color: "#fb923c",
+    specs: new Set(["Beastmastery","Marksmanship","Survival"]),
+  },
+};
+
+function getUtilityCounts(playerList) {
+  const counts = {};
+  Object.keys(UTILITY).forEach(k => counts[k] = 0);
+  playerList.forEach(player => {
+    const spec = player.specName;
+    Object.entries(UTILITY).forEach(([key, def]) => {
+      if (def.specs.has(spec)) counts[key]++;
+    });
+  });
+  return counts;
+}
+
 // ── Karazhan team header with composition tracker ─────────────────────────────
 export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOverrides }) {
   const keys = new Set(allRows.map(r => r.key));
   let tanks = 0, healers = 0, dps = 0;
+  const players = [];
+
   Object.entries(assignments).forEach(([key, ids]) => {
     if (!keys.has(key)) return;
     const idList = Array.isArray(ids) ? ids : [ids];
@@ -203,9 +245,11 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOver
       if (role === "Tank")        tanks++;
       else if (role === "Healer") healers++;
       else dps++;
+      players.push(effective);
     });
   });
   const total = tanks + healers + dps;
+  const utility = getUtilityCounts(players);
 
   const pill = (label, count, color, bg) => (
     <div style={{
@@ -222,34 +266,64 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOver
     </div>
   );
 
+  const utilPill = (key) => {
+    const { label, icon, color } = UTILITY[key];
+    const count = utility[key];
+    return (
+      <div key={key} style={{
+        display: "flex", alignItems: "center", gap: 5,
+        background: count > 0 ? `${color}12` : "#0a0a12",
+        border: `1px solid ${count > 0 ? color + "44" : "#1a1a2a"}`,
+        borderRadius: 16, padding: "3px 10px",
+      }}>
+        <span style={{ fontSize: 12 }}>{icon}</span>
+        <span style={{ fontSize: 10, color: count > 0 ? color : "#444", fontFamily: "'Cinzel', serif" }}>{label}</span>
+        <span style={{
+          background: count > 0 ? color : "#222", color: count > 0 ? "#000" : "#555",
+          borderRadius: 10, fontSize: 10, fontWeight: 700,
+          padding: "1px 6px", fontFamily: "'Cinzel', serif", minWidth: 16, textAlign: "center",
+        }}>{count}</span>
+      </div>
+    );
+  };
+
   return (
     <div style={{
       background: "linear-gradient(135deg, #0d0a1a 0%, #080610 100%)",
       border: "1px solid #9b72cf44",
       borderRadius: "8px 8px 0 0",
-      padding: "16px 24px",
-      display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexWrap: "wrap",
+      padding: "14px 24px 12px",
+      display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
       borderBottom: "2px solid #9b72cf55",
       position: "relative",
     }}>
-      <div style={{
-        fontSize: 30, color: "#d4b8f0", fontFamily: "'Cinzel Decorative', serif",
-        letterSpacing: "0.1em", textAlign: "center", textShadow: "0 0 20px #9b72cf66",
-      }}>
-        🏰 TEAM {teamNum}
+      {/* Row 1: Title + role pills + counter */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexWrap: "wrap", width: "100%" }}>
+        <div style={{
+          fontSize: 30, color: "#d4b8f0", fontFamily: "'Cinzel Decorative', serif",
+          letterSpacing: "0.1em", textAlign: "center", textShadow: "0 0 20px #9b72cf66",
+        }}>
+          🏰 TEAM {teamNum}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {pill("TANK",   tanks,   "#60a5fa", "#001828")}
+          {pill("HEALER", healers, "#4ade80", "#001808")}
+          {pill("DPS",    dps,     "#f87171", "#180808")}
+        </div>
+        <div style={{
+          position: "absolute", right: 16, top: 16,
+          fontSize: 11, color: total === 10 ? "#4ade80" : "#9b72cf55",
+          fontFamily: "'Cinzel', serif", letterSpacing: "0.1em",
+          fontWeight: total === 10 ? 700 : 400,
+        }}>
+          {total}/10 {total === 10 ? "✓ FULL" : ""}
+        </div>
       </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        {pill("TANK",   tanks,   "#60a5fa", "#001828")}
-        {pill("HEALER", healers, "#4ade80", "#001808")}
-        {pill("DPS",    dps,     "#f87171", "#180808")}
-      </div>
-      <div style={{
-        position: "absolute", right: 16,
-        fontSize: 11, color: total === 10 ? "#4ade80" : "#9b72cf55",
-        fontFamily: "'Cinzel', serif", letterSpacing: "0.1em",
-        fontWeight: total === 10 ? 700 : 400,
-      }}>
-        {total}/10 {total === 10 ? "✓ FULL" : ""}
+
+      {/* Row 2: Utility pills */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", alignItems: "center" }}>
+        <span style={{ fontSize: 9, color: "#9b72cf88", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", marginRight: 2 }}>RAID UTILITY</span>
+        {Object.keys(UTILITY).map(k => utilPill(k))}
       </div>
     </div>
   );
