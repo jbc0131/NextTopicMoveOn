@@ -72,22 +72,21 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
   const slots = ids.map(id => roster.find(s => s.id === id)).filter(Boolean);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <div
         ref={dropRef}
         onDragOver={e => { e.preventDefault(); setOver(true); }}
         onDragLeave={e => {
-          // Only clear "over" if the cursor has left the drop zone entirely,
-          // not just moved onto a child element inside it
           if (dropRef.current && dropRef.current.contains(e.relatedTarget)) return;
           setOver(false);
         }}
         onDrop={e => { e.preventDefault(); setOver(false); onDrop(rowCfg.key); }}
         style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "8px 12px", borderRadius: 5, minHeight: 44,
-          background: over ? `${rc.border}55` : rc.bg,
-          border: `1px solid ${conflictError ? "#ef4444" : over ? rc.label : rc.border}`,
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "6px 14px 6px 12px", minHeight: 40,
+          background: over ? `${rc.border}22` : "transparent",
+          borderLeft: `3px solid ${conflictError ? "#ef4444" : over ? rc.label : rc.border + "88"}`,
+          borderTop: "none", borderRight: "none", borderBottom: `1px solid #ffffff08`,
           transition: "all 0.12s",
         }}
       >
@@ -887,8 +886,8 @@ export default function AdminView({ teamId, teamName }) {
                     allRows={[...team.g1, ...team.g2]}
                     roster={roster}
                   />
-                  <div style={{ display: "flex", gap: 0, border: "1px solid #9b72cf33", borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
-                    <div style={{ flex: 1, borderRight: "1px solid #9b72cf22" }}>
+                  <div style={{ display: "flex", gap: 0, borderTop: "none" }}>
+                    <div style={{ flex: 1, borderRight: "1px solid #9b72cf18" }}>
                       <AdminPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
                         rows={team.g1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onSpecCycle={handleSpecCycle} onDragStart={handleDragStart} />
                     </div>

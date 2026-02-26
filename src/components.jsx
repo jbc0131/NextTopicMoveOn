@@ -95,12 +95,18 @@ export function RoleHeader({ role, overrideLabel }) {
   if (!label.trim()) return null;
   return (
     <div style={{
-      padding: "7px 10px", background: rc.tag, borderRadius: 4,
-      fontSize: 16, fontFamily: "'Cinzel', serif", color: "#fff",
-      letterSpacing: "0.12em", marginTop: 12, marginBottom: 4,
-      textAlign: "center", fontWeight: 700,
+      display: "flex", alignItems: "center", gap: 10,
+      padding: "10px 14px 4px",
     }}>
-      {icons[role]}  {label}
+      <div style={{ flex: 1, height: 1, background: rc.tag + "66" }} />
+      <span style={{
+        fontSize: 10, fontFamily: "'Cinzel', serif", color: rc.label,
+        letterSpacing: "0.2em", fontWeight: 700, whiteSpace: "nowrap",
+        opacity: 0.85,
+      }}>
+        {icons[role]} {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: rc.tag + "66" }} />
     </div>
   );
 }
@@ -111,22 +117,16 @@ export function BossPanel({ title, icon, subtitle, bossImage, children, compact 
 
   return (
     <div style={{
-      background: "#0a0a12", border: "1px solid #1e1e3a",
-      borderRadius: compact ? 0 : 8, overflow: "hidden", flex: 1, minWidth: 0,
+      background: "transparent", flex: 1, minWidth: 0, overflow: "hidden",
     }}>
       {/* Banner */}
       <div style={{
-        position: "relative", height: compact ? 44 : 64,
+        position: "relative", height: compact ? 44 : 60,
         background: banner ? banner.gradient : "#0d0d1a",
-        borderBottom: `1px solid ${banner ? banner.accent + "44" : "#1e1e3a"}`,
+        borderBottom: `2px solid ${banner ? banner.accent + "33" : "#1e1e3a"}`,
         overflow: "hidden",
       }}>
-        {/* Glow layer */}
-        {banner && (
-          <div style={{ position: "absolute", inset: 0, background: banner.glow }} />
-        )}
-
-
+        {banner && <div style={{ position: "absolute", inset: 0, background: banner.glow }} />}
 
         {/* Top-right metadata label */}
         {banner && (
@@ -139,7 +139,7 @@ export function BossPanel({ title, icon, subtitle, bossImage, children, compact 
           </div>
         )}
 
-        {/* Large decorative rune watermark */}
+        {/* Watermark rune */}
         {banner && (
           <div style={{
             position: "absolute", right: 16, bottom: -8,
@@ -151,14 +151,10 @@ export function BossPanel({ title, icon, subtitle, bossImage, children, compact 
         )}
 
         {/* Main title */}
-        <div style={{
-          position: "absolute", bottom: 10, left: 14,
-          display: "flex", alignItems: "center", gap: 8,
-        }}>
+        <div style={{ position: "absolute", bottom: 10, left: 14, display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{
-            width: 3, height: 28, borderRadius: 2,
-            background: banner ? banner.accent : "#c8a84b",
-            flexShrink: 0,
+            width: 3, height: 24, borderRadius: 2,
+            background: banner ? banner.accent : "#c8a84b", flexShrink: 0,
           }} />
           <div>
             <div style={{
@@ -180,7 +176,7 @@ export function BossPanel({ title, icon, subtitle, bossImage, children, compact 
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 3, padding: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0, padding: "6px 0" }}>
         {children}
       </div>
     </div>
