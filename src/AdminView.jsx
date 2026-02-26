@@ -12,7 +12,10 @@ import {
 } from "./components";
 import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured } from "./firebase";
 
-const ADMIN_PASSWORD = "raidlead"; // ← change this!
+const ADMIN_USERS = {
+  "Admin": "JordanJackson123!",
+  "JBL":   "raidlead123!",
+};
 const FIREBASE_OK = isFirebaseConfigured();
 
 // ── Save status indicator ─────────────────────────────────────────────────────
@@ -207,9 +210,16 @@ function AdminPanel({ title, icon, subtitle, bossImage, rows, assignments, textV
 
 // ── Password gate ─────────────────────────────────────────────────────────────
 function PasswordGate({ onUnlock }) {
-  const [pw, setPw]   = useState("");
-  const [err, setErr] = useState(false);
-  const attempt = () => pw === ADMIN_PASSWORD ? onUnlock() : setErr(true);
+  const [user, setUser] = useState("");
+  const [pw,   setPw]   = useState("");
+  const [err,  setErr]  = useState(false);
+  const attempt = () => {
+    if (ADMIN_USERS[user] && ADMIN_USERS[user] === pw) {
+      onUnlock();
+    } else {
+      setErr(true);
+    }
+  };
   return (
     <div style={{
       minHeight: "100vh", background: "#06060f", display: "flex",
@@ -224,19 +234,32 @@ function PasswordGate({ onUnlock }) {
         <div style={{ color: "#c8a84b", fontSize: 16, marginBottom: 4 }}>Admin Access</div>
         <div style={{ color: "#333", fontSize: 10, letterSpacing: "0.15em", marginBottom: 24 }}>TBC RAID ASSIGNMENTS</div>
         <input
-          type="password" value={pw} autoFocus
-          onChange={e => { setPw(e.target.value); setErr(false); }}
+          type="text" value={user} autoFocus
+          onChange={e => { setUser(e.target.value); setErr(false); }}
           onKeyDown={e => e.key === "Enter" && attempt()}
-          placeholder="Enter password"
+          placeholder="Username"
           style={{
             width: "100%", background: "#080810",
             border: `1px solid ${err ? "#ef4444" : "#2a2a4a"}`,
             borderRadius: 6, color: "#c8a84b", padding: "10px 14px",
             fontFamily: "'Cinzel', serif", fontSize: 13, textAlign: "center",
-            outline: "none", marginBottom: 12,
+            outline: "none", marginBottom: 10, boxSizing: "border-box",
           }}
         />
-        {err && <div style={{ color: "#ef4444", fontSize: 11, marginBottom: 8 }}>Incorrect password</div>}
+        <input
+          type="password" value={pw}
+          onChange={e => { setPw(e.target.value); setErr(false); }}
+          onKeyDown={e => e.key === "Enter" && attempt()}
+          placeholder="Password"
+          style={{
+            width: "100%", background: "#080810",
+            border: `1px solid ${err ? "#ef4444" : "#2a2a4a"}`,
+            borderRadius: 6, color: "#c8a84b", padding: "10px 14px",
+            fontFamily: "'Cinzel', serif", fontSize: 13, textAlign: "center",
+            outline: "none", marginBottom: 12, boxSizing: "border-box",
+          }}
+        />
+        {err && <div style={{ color: "#ef4444", fontSize: 11, marginBottom: 8 }}>Incorrect username or password</div>}
         <button onClick={attempt} style={{
           width: "100%", padding: "10px", background: "#1a0800",
           border: "1px solid #c8a84b55", borderRadius: 6,
@@ -652,8 +675,9 @@ export default function AdminView({ teamId, teamName }) {
     });
   };
 
+  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />;
+
   return (
-    <div style={{ height: "100vh", overflow: "hidden", background: "#06060f", display: "flex", flexDirection: "column" }}>
       <FontImport />
 
       {/* ── Top bar ── */}
