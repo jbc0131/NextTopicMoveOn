@@ -587,7 +587,37 @@ export default function AdminView({ teamId, teamName }) {
       .flatMap(([, ids]) => Array.isArray(ids) ? ids : [ids])
   );
 
-  const [discordCopied, setDiscordCopied] = useState(false);
+  const [mrtCopied, setMrtCopied] = useState(false);
+
+  const handleCopyMRT = () => {
+    // All 6 kara groups in order: T1G1, T1G2, T2G1, T2G2, T3G1, T3G2
+    const groups = [
+      KARA_TEAM_1.g1, KARA_TEAM_1.g2,
+      KARA_TEAM_2.g1, KARA_TEAM_2.g2,
+      KARA_TEAM_3.g1, KARA_TEAM_3.g2,
+    ];
+
+    // Build 5 rows (one per slot position), each with one name per group
+    const rows = [];
+    for (let slot = 0; slot < 5; slot++) {
+      const rowNames = groups.map(group => {
+        const key = group[slot].key;
+        const ids = assignments[key];
+        if (!ids) return "-";
+        const id = Array.isArray(ids) ? ids[0] : ids;
+        const player = roster.find(s => s.id === id);
+        return player ? player.name : "-";
+      });
+      // Trim trailing dashes
+      while (rowNames.length > 1 && rowNames[rowNames.length - 1] === "-") rowNames.pop();
+      rows.push(rowNames.join(" "));
+    }
+
+    navigator.clipboard.writeText(rows.join("\n")).then(() => {
+      setMrtCopied(true);
+      setTimeout(() => setMrtCopied(false), 2000);
+    });
+  };
 
   const handleCopyDiscord = () => {
     const lines = [];
@@ -661,6 +691,11 @@ export default function AdminView({ teamId, teamName }) {
           {activeTab === "kara" && (
             <button onClick={handleCopyDiscord} style={btn("#000820", "#5865f244", discordCopied ? "#4ade80" : "#5865f2")}>
               {discordCopied ? "✓ Copied!" : "💬 Copy Discord"}
+            </button>
+          )}
+          {activeTab === "kara" && (
+            <button onClick={handleCopyMRT} style={btn("#001a10", "#22c55e44", mrtCopied ? "#4ade80" : "#22c55e")}>
+              {mrtCopied ? "✓ Copied!" : "⚔ Export MRT"}
             </button>
           )}
         </div>
