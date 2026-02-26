@@ -312,7 +312,6 @@ export default function PublicView({ teamId, teamName }) {
     );
     const newData = { ...data, roster: updatedRoster };
     setData(newData);
-    sessionStorage.removeItem("wcl_scores_v1"); // bust cache so re-fetch picks up new name
     if (FIREBASE_OK) {
       try { await saveToFirebase(newData, teamId); } catch (e) { console.warn("WCL name save failed", e); }
     } else {

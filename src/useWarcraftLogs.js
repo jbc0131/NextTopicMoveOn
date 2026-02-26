@@ -1,8 +1,9 @@
 // src/useWarcraftLogs.js
 // Hook that fetches Median Performance Average scores for all roster players.
 // Scores are cached in sessionStorage so we don't re-fetch on every tab switch.
+// Players can have a `wclName` override — used for fetch + lookup in place of display name.
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const CACHE_KEY = "wcl_scores_v1";
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
@@ -25,21 +26,41 @@ function saveCache(scores) {
   } catch {}
 }
 
+// Build a stable key from the names list so we only re-fetch when names actually change
+function buildNamesKey(roster) {
+  return roster
+    .filter(p => p.name && !p.isDivider)
+    .map(p => p.wclName?.trim() || p.name)
+    .sort()
+    .join("|");
+}
+
 export function useWarcraftLogs(roster) {
   const [scores,    setScores]    = useState(() => loadCache() || {});
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
 
+  // Track the last names key we successfully fetched — avoids re-fetching
+  // when Firebase delivers a new array reference with the same players
+  const lastFetchedKey = useRef(null);
+
   const fetchScores = useCallback(async (forceRefresh = false) => {
     if (!roster || roster.length === 0) return;
 
+    const namesKey = buildNamesKey(roster);
+
     if (!forceRefresh) {
       const cached = loadCache();
-      if (cached) { setScores(cached); return; }
+      if (cached) {
+        setScores(cached);
+        lastFetchedKey.current = namesKey;
+        return;
+      }
+      // Same names as last fetch and no force-refresh — don't hit API again
+      if (namesKey === lastFetchedKey.current) return;
     }
 
-    // Use wclName override if set, otherwise fall back to display name
     const names = roster
       .filter(p => p.name && !p.isDivider)
       .map(p => p.wclName?.trim() || p.name);
@@ -64,6 +85,7 @@ export function useWarcraftLogs(roster) {
       saveCache(data);
       setScores(data);
       setLastFetch(new Date());
+      lastFetchedKey.current = namesKey;
     } catch (err) {
       console.error("WCL fetch error:", err);
       setError(err.message);
@@ -73,11 +95,19 @@ export function useWarcraftLogs(roster) {
   }, [roster]);
 
   useEffect(() => {
-    if (!roster || roster.length === 0) return; // wait until roster is actually loaded
+    if (!roster || roster.length === 0) return;
+    const namesKey = buildNamesKey(roster);
     const cached = loadCache();
-    if (cached) { setScores(cached); }
-    else { fetchScores(); }
-  }, [fetchScores, roster.length]); // re-run if roster goes from 0 → populated
+    if (cached) {
+      setScores(cached);
+      lastFetchedKey.current = namesKey;
+      return;
+    }
+    // Only fetch if names have actually changed since last fetch
+    if (namesKey !== lastFetchedKey.current) {
+      fetchScores();
+    }
+  }, [fetchScores]);
 
   return { scores, loading, error, lastFetch, refetch: () => fetchScores(true) };
 }
@@ -85,7 +115,6 @@ export function useWarcraftLogs(roster) {
 // ── Score helpers ─────────────────────────────────────────────────────────────
 
 // Returns the correct score for a player, respecting wclName override.
-// Prefer this over getScoreForTab when you have the full player object.
 export function getScoreForPlayer(scores, player, activeTab) {
   const lookupName = player?.wclName?.trim() || player?.name;
   if (!lookupName) return null;
@@ -96,7 +125,7 @@ export function getScoreForPlayer(scores, player, activeTab) {
   return null;
 }
 
-// Legacy helper — looks up by plain name string (used where we don't have full player obj)
+// Legacy helper — looks up by plain name string
 export function getScoreForTab(scores, playerName, activeTab) {
   const p = scores?.[playerName];
   if (!p) return null;
@@ -107,7 +136,7 @@ export function getScoreForTab(scores, playerName, activeTab) {
 
 // WarcraftLogs official parse color breakdown
 export function getScoreColor(score) {
-  if (score == null)  return null;        // no data — don't show anything
+  if (score == null)  return null;
   if (score === 100)  return "#e5cc80";   // Gold   — rank 1
   if (score >= 99)    return "#e268a8";   // Pink   — 99
   if (score >= 95)    return "#ff8000";   // Orange — 95-98
