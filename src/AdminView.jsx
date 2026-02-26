@@ -504,7 +504,21 @@ export default function AdminView({ teamId, teamName }) {
     try {
       const data = JSON.parse(text);
       if (!data.slots) throw new Error("No 'slots' array found");
-      setRoster(data.slots);
+
+      // Build a lookup of existing wclName overrides keyed by player name (lowercased)
+      // so re-importing preserves any overrides set in the public view or admin
+      const existingOverrides = {};
+      roster.forEach(p => {
+        if (p.wclName) existingOverrides[p.name.toLowerCase()] = p.wclName;
+      });
+
+      // Merge overrides into new slots — match by name
+      const mergedSlots = data.slots.map(slot => {
+        const override = existingOverrides[slot.name?.toLowerCase()];
+        return override ? { ...slot, wclName: override } : slot;
+      });
+
+      setRoster(mergedSlots);
       setDividers(data.dividers || []);
       setAssignments({});
       setJsonError("");

@@ -219,7 +219,7 @@ function Meta({ label, value }) {
 }
 
 // ── WCL name override editor ──────────────────────────────────────────────────
-function WclNameEditor({ player, onChange }) {
+function WclNameEditor({ player, onChange, locked }) {
   const [editing, setEditing] = useState(false);
   const [value,   setValue]   = useState(player.wclName || "");
 
@@ -232,11 +232,20 @@ function WclNameEditor({ player, onChange }) {
     setEditing(false);
   };
 
+  // Already matched — show name plainly, no edit affordance
+  if (locked) {
+    return (
+      <span style={{ fontFamily: "'Cinzel', serif", cursor: "default" }} title="Parse found — name is already matched">
+        {player.wclName?.trim() || player.name}
+      </span>
+    );
+  }
+
   if (!editing) {
     return (
       <span
         onClick={() => setEditing(true)}
-        style={{ cursor: "pointer", fontFamily: "'Cinzel', serif" }}
+        style={{ cursor: "pointer", fontFamily: "'Cinzel', serif", textDecoration: "underline dotted", textUnderlineOffset: 3 }}
         title="Click to set WCL character name"
       >
         {player.wclName?.trim() || player.name}
@@ -446,6 +455,8 @@ export default function PublicView({ teamId, teamName }) {
                     const karaColor = getScoreColor(p.kara);
                     const gmColor   = getScoreColor(p.gruulMags);
                     const pColor    = getColor(p);
+                    const lookupKey = p.wclName?.trim() || p.name;
+                    const isLocked  = !!(wclScores[lookupKey]?.found);
                     return (
                       <div key={p.id} style={{
                         display: "flex", alignItems: "center",
@@ -456,7 +467,7 @@ export default function PublicView({ teamId, teamName }) {
                           fontFamily: "'Cinzel', serif",
                           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                         }}>
-                          <WclNameEditor player={p} onChange={wclName => handleWclNameChange(p.id, wclName)} />
+                          <WclNameEditor player={p} onChange={wclName => handleWclNameChange(p.id, wclName)} locked={isLocked} />
                         </span>
                         <span style={{ width: 28, textAlign: "center", fontSize: 11, fontWeight: 700, fontFamily: "monospace", color: karaColor || "#333" }}>
                           {p.kara != null ? Math.round(p.kara) : "—"}
@@ -556,10 +567,12 @@ export default function PublicView({ teamId, teamName }) {
                     const karaColor = getScoreColor(p.kara);
                     const gmColor   = getScoreColor(p.gruulMags);
                     const pColor    = getColor(p);
+                    const lookupKey = p.wclName?.trim() || p.name;
+                    const isLocked  = !!(wclScores[lookupKey]?.found);
                     return (
                       <div key={p.id} style={{ display: "flex", alignItems: "center", padding: "4px 12px", borderBottom: "1px solid #ffffff05" }}>
                         <span style={{ flex: 1, fontSize: 12, color: pColor, fontFamily: "'Cinzel', serif", overflow: "hidden" }}>
-                          <WclNameEditor player={p} onChange={wclName => handleWclNameChange(p.id, wclName)} />
+                          <WclNameEditor player={p} onChange={wclName => handleWclNameChange(p.id, wclName)} locked={isLocked} />
                         </span>
                         <span style={{ width: 40, textAlign: "center", fontSize: 12, fontWeight: 700, fontFamily: "monospace", color: karaColor || "#333" }}>
                           {p.kara != null ? Math.round(p.kara) : "—"}
