@@ -71,10 +71,11 @@ export function useWarcraftLogs(roster) {
   }, [roster]);
 
   useEffect(() => {
+    if (!roster || roster.length === 0) return; // wait until roster is actually loaded
     const cached = loadCache();
     if (cached) { setScores(cached); }
     else { fetchScores(); }
-  }, [fetchScores]);
+  }, [fetchScores, roster.length]); // re-run if roster goes from 0 → populated
 
   return { scores, loading, error, lastFetch, refetch: () => fetchScores(true) };
 }
