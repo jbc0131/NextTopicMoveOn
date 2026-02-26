@@ -232,12 +232,20 @@ function WclNameEditor({ player, onChange, locked }) {
     setEditing(false);
   };
 
-  // Already matched — show name plainly, no edit affordance
+  // Already matched — clicking opens their WCL profile
   if (locked) {
+    const charName = player.wclName?.trim() || player.name;
+    const wclUrl = `https://fresh.warcraftlogs.com/character/us/dreamscythe/${charName.toLowerCase()}`;
     return (
-      <span style={{ fontFamily: "'Cinzel', serif", cursor: "default" }} title="Parse found — name is already matched">
-        {player.wclName?.trim() || player.name}
-      </span>
+      <a
+        href={wclUrl}
+        target="_blank"
+        rel="noreferrer"
+        style={{ fontFamily: "'Cinzel', serif", color: "inherit", textDecoration: "none", cursor: "pointer" }}
+        title={`View ${charName} on WarcraftLogs`}
+      >
+        {charName}
+      </a>
     );
   }
 
