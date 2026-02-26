@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ROLE_COLORS, getColor, getSpecDisplay, getClass,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
   KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3, KARA_ALL_ROWS,
-  loadState,
+  loadState, saveState,
 } from "./constants";
 import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader } from "./components";
-import { fetchFromFirebase, subscribeToFirebase, isFirebaseConfigured } from "./firebase";
+import { fetchFromFirebase, subscribeToFirebase, saveToFirebase, isFirebaseConfigured } from "./firebase";
 import { useWarcraftLogs, getScoreForTab, getScoreForPlayer, getScoreColor } from "./useWarcraftLogs";
 
 const FIREBASE_OK = isFirebaseConfigured();
@@ -218,6 +218,58 @@ function Meta({ label, value }) {
   );
 }
 
+// ── WCL name override editor ──────────────────────────────────────────────────
+function WclNameEditor({ player, onChange }) {
+  const [editing, setEditing] = useState(false);
+  const [value,   setValue]   = useState(player.wclName || "");
+
+  const commit = () => {
+    onChange(value.trim());
+    setEditing(false);
+  };
+  const cancel = () => {
+    setValue(player.wclName || "");
+    setEditing(false);
+  };
+
+  if (!editing) {
+    return (
+      <span
+        onClick={() => setEditing(true)}
+        style={{ cursor: "pointer", fontFamily: "'Cinzel', serif" }}
+        title="Click to set WCL character name"
+      >
+        {player.wclName?.trim() || player.name}
+      </span>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 3, alignItems: "center", flex: 1 }}>
+      <input
+        autoFocus
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") cancel(); }}
+        placeholder="WCL char name…"
+        style={{
+          flex: 1, minWidth: 0, background: "#080810", border: "1px solid #2a2a4a",
+          borderRadius: 3, color: "#ccc", padding: "2px 5px",
+          fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none",
+        }}
+      />
+      <button onClick={commit} style={{
+        background: "#0a200a", border: "1px solid #4ade8055", borderRadius: 3,
+        color: "#4ade80", padding: "2px 5px", cursor: "pointer", fontSize: 11, flexShrink: 0,
+      }}>✓</button>
+      <button onClick={cancel} style={{
+        background: "#1a0a0a", border: "1px solid #ef444455", borderRadius: 3,
+        color: "#ef4444", padding: "2px 5px", cursor: "pointer", fontSize: 11, flexShrink: 0,
+      }}>✗</button>
+    </div>
+  );
+}
+
 // ── Main Public View ──────────────────────────────────────────────────────────
 export default function PublicView({ teamId, teamName }) {
   const [data,       setData]      = useState(null);
@@ -232,9 +284,24 @@ export default function PublicView({ teamId, teamName }) {
   const isNarrow = width < 1100;
 
   // ── WarcraftLogs scores ─────────────────────────────────────────────────────
-  const { scores: wclScores, loading: wclLoading, lastFetch: wclLastFetch } = useWarcraftLogs(
+  const { scores: wclScores, loading: wclLoading, lastFetch: wclLastFetch, refetch: wclRefetch } = useWarcraftLogs(
     data?.roster ?? []
   );
+
+  // Save wclName override directly from the public view
+  const handleWclNameChange = useCallback(async (playerId, wclName) => {
+    const updatedRoster = (data?.roster ?? []).map(p =>
+      p.id === playerId ? { ...p, wclName: wclName || undefined } : p
+    );
+    const newData = { ...data, roster: updatedRoster };
+    setData(newData);
+    sessionStorage.removeItem("wcl_scores_v1"); // bust cache so re-fetch picks up new name
+    if (FIREBASE_OK) {
+      try { await saveToFirebase(newData, teamId); } catch (e) { console.warn("WCL name save failed", e); }
+    } else {
+      saveState(newData, teamId);
+    }
+  }, [data, teamId]);
 
   useEffect(() => {
     if (FIREBASE_OK) {
@@ -388,7 +455,9 @@ export default function PublicView({ teamId, teamName }) {
                           flex: 1, fontSize: 11, color: pColor,
                           fontFamily: "'Cinzel', serif",
                           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        }}>{p.name}</span>
+                        }}>
+                          <WclNameEditor player={p} onChange={wclName => handleWclNameChange(p.id, wclName)} />
+                        </span>
                         <span style={{ width: 28, textAlign: "center", fontSize: 11, fontWeight: 700, fontFamily: "monospace", color: karaColor || "#333" }}>
                           {p.kara != null ? Math.round(p.kara) : "—"}
                         </span>
@@ -489,8 +558,8 @@ export default function PublicView({ teamId, teamName }) {
                     const pColor    = getColor(p);
                     return (
                       <div key={p.id} style={{ display: "flex", alignItems: "center", padding: "4px 12px", borderBottom: "1px solid #ffffff05" }}>
-                        <span style={{ flex: 1, fontSize: 12, color: pColor, fontFamily: "'Cinzel', serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {p.name}
+                        <span style={{ flex: 1, fontSize: 12, color: pColor, fontFamily: "'Cinzel', serif", overflow: "hidden" }}>
+                          <WclNameEditor player={p} onChange={wclName => handleWclNameChange(p.id, wclName)} />
                         </span>
                         <span style={{ width: 40, textAlign: "center", fontSize: 12, fontWeight: 700, fontFamily: "monospace", color: karaColor || "#333" }}>
                           {p.kara != null ? Math.round(p.kara) : "—"}
