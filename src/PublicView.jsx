@@ -33,7 +33,7 @@ function useWindowWidth() {
 // ── Live sync badge ───────────────────────────────────────────────────────────
 function SyncBadge({ live }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: live ? "#4ade80" : "#444", fontFamily: "'Cinzel', serif" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: live ? "#4ade80" : "#888", fontFamily: "'Cinzel', serif" }}>
       <span style={{
         width: 6, height: 6, borderRadius: "50%",
         background: live ? "#4ade80" : "#333",
@@ -93,20 +93,21 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile }) {
       display: "flex", flexDirection: isMobile ? "column" : "row",
       alignItems: isMobile ? "flex-start" : "center",
       gap: isMobile ? 6 : 10,
-      padding: "8px 12px", borderRadius: 5, minHeight: 44,
-      background: isHighlighted ? "#2a2000" : rc.bg,
-      border: `1px solid ${isHighlighted ? "#c8a84b" : rc.border}`,
+      padding: "6px 14px 6px 12px", minHeight: 40,
+      background: isHighlighted ? "#2a200888" : "transparent",
+      borderLeft: `3px solid ${isHighlighted ? "#c8a84b" : rc.border + "88"}`,
+      borderTop: "none", borderRight: "none", borderBottom: "1px solid #ffffff08",
+      boxShadow: isHighlighted ? "0 0 12px #c8a84b22" : "none",
       transition: "all 0.2s",
-      boxShadow: isHighlighted ? "0 0 12px #c8a84b44, inset 0 0 20px #c8a84b0a" : "none",
     }}>
       <span style={{
-        fontSize: isMobile ? 12 : 14, color: "#ffffff",
+        fontSize: isMobile ? 12 : 13, color: "#ccc",
         fontFamily: "'Cinzel', serif",
         flexShrink: 0,
         ...(isMobile ? {} : { minWidth: 180, maxWidth: 220 }),
       }}>
         {rowCfg.label}
-        {rowCfg.hint && <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
+        {rowCfg.hint && <span style={{ color: "#666", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
       </span>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, width: isMobile ? "100%" : undefined, flex: isMobile ? undefined : 1 }}>
         {slots && slots.length > 0 && slots.map(slot => {
@@ -117,15 +118,15 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile }) {
               display: "inline-flex", alignItems: "center", gap: 5,
               background: nameMatch ? `${color}35` : `${color}18`,
               border: `1px solid ${nameMatch ? color : color + "44"}`,
-              borderRadius: 4, padding: "4px 10px",
-              color: color, fontFamily: "'Cinzel', serif", fontSize: isMobile ? 13 : 14,
+              borderRadius: 4, padding: "3px 10px",
+              color: color, fontFamily: "'Cinzel', serif", fontSize: isMobile ? 12 : 13,
               boxShadow: nameMatch ? `0 0 8px ${color}66` : "none",
               transition: "all 0.2s", maxWidth: "100%",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
               <span style={{ fontWeight: nameMatch ? 700 : 600 }}>{slot.name}</span>
               {!isMobile && (
-                <span style={{ color: `${color}77`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
+                <span style={{ color: `${color}bb`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
               )}
               {nameMatch && <span style={{ color: color, fontSize: 9 }}>◄</span>}
             </span>
@@ -188,10 +189,10 @@ function EmptyState({ loading }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
       <div style={{ fontSize: 56 }}>{loading ? "⏳" : "⚔"}</div>
-      <div style={{ fontFamily: "'Cinzel', serif", color: "#2a2a4a", fontSize: 14 }}>
+      <div style={{ fontFamily: "'Cinzel', serif", color: "#6a6a8a", fontSize: 14 }}>
         {loading ? "Loading assignments…" : "No assignments published yet"}
       </div>
-      {!loading && <div style={{ color: "#1a1a2a", fontSize: 11 }}>The raid leader hasn't saved assignments yet — check back soon.</div>}
+      {!loading && <div style={{ color: "#5a5a7a", fontSize: 11 }}>The raid leader hasn't saved assignments yet — check back soon.</div>}
     </div>
   );
 }
@@ -342,8 +343,8 @@ export default function PublicView({ teamId, teamName }) {
                   roster={roster}
                   specOverrides={specOverrides}
                 />
-                <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", border: "1px solid #9b72cf33", borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
-                  <div style={{ flex: 1, borderRight: isNarrow ? "none" : "1px solid #9b72cf22", borderBottom: isNarrow ? "1px solid #9b72cf22" : "none" }}>
+                <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row" }}>
+                  <div style={{ flex: 1, borderRight: isNarrow ? "none" : "1px solid #9b72cf18", borderBottom: isNarrow ? "1px solid #9b72cf18" : "none" }}>
                     <PublicPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
                       rows={team.g1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} />
                   </div>
