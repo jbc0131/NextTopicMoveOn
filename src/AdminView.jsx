@@ -678,6 +678,7 @@ export default function AdminView({ teamId, teamName }) {
   if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />;
 
   return (
+    <div style={{ height: "100vh", overflow: "hidden", background: "#06060f", display: "flex", flexDirection: "column" }}>
       <FontImport />
 
       {/* ── Top bar ── */}
