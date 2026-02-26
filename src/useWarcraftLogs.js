@@ -39,11 +39,13 @@ export function useWarcraftLogs(roster) {
       if (cached) { setScores(cached); return; }
     }
 
+    // Use wclName override if set, otherwise fall back to display name
     const names = roster
       .filter(p => p.name && !p.isDivider)
-      .map(p => p.name);
+      .map(p => p.wclName?.trim() || p.name);
 
-    if (names.length === 0) return;
+    const uniqueNames = [...new Set(names)];
+    if (uniqueNames.length === 0) return;
 
     setLoading(true);
     setError(null);
@@ -52,7 +54,7 @@ export function useWarcraftLogs(roster) {
       const res = await fetch("/api/warcraftlogs", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ names }),
+        body:    JSON.stringify({ names: uniqueNames }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -82,7 +84,19 @@ export function useWarcraftLogs(roster) {
 
 // ── Score helpers ─────────────────────────────────────────────────────────────
 
-// Returns the correct score key based on the active raid tab
+// Returns the correct score for a player, respecting wclName override.
+// Prefer this over getScoreForTab when you have the full player object.
+export function getScoreForPlayer(scores, player, activeTab) {
+  const lookupName = player?.wclName?.trim() || player?.name;
+  if (!lookupName) return null;
+  const p = scores?.[lookupName];
+  if (!p) return null;
+  if (activeTab === "kara") return p.kara;
+  if (activeTab === "gruul" || activeTab === "mags") return p.gruulMags;
+  return null;
+}
+
+// Legacy helper — looks up by plain name string (used where we don't have full player obj)
 export function getScoreForTab(scores, playerName, activeTab) {
   const p = scores?.[playerName];
   if (!p) return null;

@@ -11,7 +11,7 @@ import {
   FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader, KaraPlayerBadge,
 } from "./components";
 import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured } from "./firebase";
-import { useWarcraftLogs, getScoreForTab, getScoreColor } from "./useWarcraftLogs";
+import { useWarcraftLogs, getScoreForTab, getScoreForPlayer, getScoreColor } from "./useWarcraftLogs";
 
 const ADMIN_USERS = {
   "Admin": "JordanJackson123!",
@@ -41,7 +41,56 @@ function RosterToken({ slot, onDragStart, compact, parseScore, parseColor }) {
   return <PlayerBadge slot={slot} compact={compact} draggable onDragStart={onDragStart} parseScore={parseScore} parseColor={parseColor} />;
 }
 
-// ── Cube conflict checker ─────────────────────────────────────────────────────
+// ── WCL name override editor ──────────────────────────────────────────────────
+function WclNameEditor({ player, noScores, onChange }) {
+  const [open,  setOpen]  = useState(noScores); // auto-open for players with no scores
+  const [value, setValue] = useState(player.wclName || "");
+
+  const commit = () => {
+    const trimmed = value.trim();
+    onChange(trimmed);
+    if (!trimmed) setOpen(false);
+  };
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} style={{
+        display: "block", width: "100%", background: "none", border: "none",
+        textAlign: "left", padding: "0 4px 3px", cursor: "pointer",
+        fontSize: 8, color: "#444", fontFamily: "'Cinzel', serif",
+      }}>
+        ✎ set WCL name
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 3, padding: "2px 4px 4px", alignItems: "center" }}>
+      <input
+        autoFocus
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setOpen(false); }}
+        placeholder={`WCL char name…`}
+        style={{
+          flex: 1, background: "#080810", border: "1px solid #2a2a4a",
+          borderRadius: 3, color: "#ccc", padding: "2px 5px",
+          fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none",
+        }}
+      />
+      <button onClick={commit} style={{
+        background: "#0a200a", border: "1px solid #4ade8055", borderRadius: 3,
+        color: "#4ade80", padding: "2px 5px", cursor: "pointer", fontSize: 9,
+      }}>✓</button>
+      <button onClick={() => { setValue(player.wclName || ""); setOpen(false); }} style={{
+        background: "#1a0a0a", border: "1px solid #ef444455", borderRadius: 3,
+        color: "#ef4444", padding: "2px 5px", cursor: "pointer", fontSize: 9,
+      }}>✗</button>
+    </div>
+  );
+}
+
+
 // Returns which cube group (1, 2, 3) a player is currently assigned to, or null
 function getCubeGroupOf(playerId, assignments) {
   for (const [k, ids] of Object.entries(assignments)) {
@@ -591,6 +640,9 @@ export default function AdminView({ teamId, teamName }) {
   const handleClearAll  = () => { if (confirm("Clear all assignments?")) { setAssignments({}); setTextInputs({}); } };
   const handleAddManual  = slot => setRoster(prev => [...prev, slot]);
   const handleTextChange = (key, val) => setTextInputs(prev => ({ ...prev, [key]: val }));
+  const handleWclNameChange = (playerId, wclName) => {
+    setRoster(prev => prev.map(p => p.id === playerId ? { ...p, wclName: wclName || undefined } : p));
+  };
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   // All players always visible in sidebar — same player can fill multiple roles
@@ -830,8 +882,8 @@ export default function AdminView({ teamId, teamName }) {
                         <div key={s.id} style={{ position: "relative", opacity: placed ? 0.4 : 1, transition: "opacity 0.2s" }}
                           title={placed ? `${s.name} is already in a Kara team` : undefined}>
                           <RosterToken slot={s} onDragStart={placed ? () => {} : handleDragStart} compact={false}
-                            parseScore={getScoreForTab(wclScores, s.name, activeTab)}
-                            parseColor={getScoreColor(getScoreForTab(wclScores, s.name, activeTab))} />
+                            parseScore={getScoreForPlayer(wclScores, s, activeTab)}
+                            parseColor={getScoreColor(getScoreForPlayer(wclScores, s, activeTab))} />
                           {placed && (
                             <span style={{
                               position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
@@ -860,8 +912,8 @@ export default function AdminView({ teamId, teamName }) {
                         }
                       });
                       items.push(<RosterToken key={s.id} slot={s} onDragStart={handleDragStart} compact={false}
-                        parseScore={getScoreForTab(wclScores, s.name, activeTab)}
-                        parseColor={getScoreColor(getScoreForTab(wclScores, s.name, activeTab))} />);
+                        parseScore={getScoreForPlayer(wclScores, s, activeTab)}
+                        parseColor={getScoreColor(getScoreForPlayer(wclScores, s, activeTab))} />);
                     });
                     return items;
                   })()
@@ -886,14 +938,17 @@ export default function AdminView({ teamId, teamName }) {
               {parsesOpen && (() => {
                 // Build sortable rows — one per real player, with all 3 scores
                 const players = roster.filter(p => !p.isDivider && p.name);
-                const rows = players.map(p => ({
-                  ...p,
-                  kara:      wclScores[p.name]?.kara      ?? null,
-                  gruulMags: wclScores[p.name]?.gruulMags ?? null,
-                }));
+                const rows = players.map(p => {
+                  const lookupName = p.wclName?.trim() || p.name;
+                  return {
+                    ...p,
+                    kara:      wclScores[lookupName]?.kara      ?? null,
+                    gruulMags: wclScores[lookupName]?.gruulMags ?? null,
+                  };
+                });
 
                 // Sort by the context-aware tab score, then by name
-                const sortScore = r => getScoreForTab(wclScores, r.name, activeTab) ?? -1;
+                const sortScore = r => getScoreForPlayer(wclScores, r, activeTab) ?? -1;
                 rows.sort((a, b) => sortScore(b) - sortScore(a));
 
                 return (
@@ -911,7 +966,7 @@ export default function AdminView({ teamId, teamName }) {
                     </div>
                     {/* Column headers */}
                     <div style={{ display: "flex", alignItems: "center", padding: "2px 4px", marginBottom: 2 }}>
-                      <span style={{ flex: 1, fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>PLAYER</span>
+                      <span style={{ flex: 1, fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>PLAYER · WCL NAME</span>
                       <span style={{ width: 32, fontSize: 8, color: "#9b72cf", textAlign: "center", fontFamily: "'Cinzel', serif" }}>KARA</span>
                       <span style={{ width: 36, fontSize: 8, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>G/M</span>
                     </div>
@@ -920,23 +975,41 @@ export default function AdminView({ teamId, teamName }) {
                       const karaColor = getScoreColor(p.kara);
                       const gmColor   = getScoreColor(p.gruulMags);
                       const pColor    = getColor(p);
+                      const hasOverride = !!p.wclName?.trim();
+                      const noScores = p.kara == null && p.gruulMags == null;
                       return (
                         <div key={p.id} style={{
-                          display: "flex", alignItems: "center",
-                          padding: "3px 4px", borderBottom: "1px solid #ffffff06",
+                          borderBottom: "1px solid #ffffff06",
+                          background: noScores ? "#0d0005" : "transparent",
                         }}>
-                          <span style={{ flex: 1, fontSize: 11, color: pColor, fontFamily: "'Cinzel', serif",
-                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {p.name}
-                          </span>
-                          <span style={{ width: 32, textAlign: "center", fontSize: 11, fontWeight: 700,
-                            fontFamily: "monospace", color: karaColor || "#333" }}>
-                            {p.kara != null ? Math.round(p.kara) : "—"}
-                          </span>
-                          <span style={{ width: 36, textAlign: "center", fontSize: 11, fontWeight: 700,
-                            fontFamily: "monospace", color: gmColor || "#333" }}>
-                            {p.gruulMags != null ? Math.round(p.gruulMags) : "—"}
-                          </span>
+                          {/* Main row */}
+                          <div style={{ display: "flex", alignItems: "center", padding: "3px 4px" }}>
+                            <span style={{ flex: 1, fontSize: 11, color: pColor, fontFamily: "'Cinzel', serif",
+                              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {p.name}
+                              {hasOverride && (
+                                <span style={{ color: "#555", fontSize: 9, marginLeft: 3 }}>→ {p.wclName}</span>
+                              )}
+                            </span>
+                            <span style={{ width: 32, textAlign: "center", fontSize: 11, fontWeight: 700,
+                              fontFamily: "monospace", color: karaColor || "#444" }}>
+                              {p.kara != null ? Math.round(p.kara) : "—"}
+                            </span>
+                            <span style={{ width: 36, textAlign: "center", fontSize: 11, fontWeight: 700,
+                              fontFamily: "monospace", color: gmColor || "#444" }}>
+                              {p.gruulMags != null ? Math.round(p.gruulMags) : "—"}
+                            </span>
+                          </div>
+                          {/* WCL name override input — always shown for no-score players, pencil reveals for others */}
+                          <WclNameEditor
+                            player={p}
+                            noScores={noScores}
+                            onChange={wclName => {
+                              handleWclNameChange(p.id, wclName);
+                              // Clear cache so next refresh picks up new name
+                              sessionStorage.removeItem("wcl_scores_v1");
+                            }}
+                          />
                         </div>
                       );
                     })}

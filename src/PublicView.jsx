@@ -8,7 +8,7 @@ import {
 } from "./constants";
 import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader } from "./components";
 import { fetchFromFirebase, subscribeToFirebase, isFirebaseConfigured } from "./firebase";
-import { useWarcraftLogs, getScoreForTab, getScoreColor } from "./useWarcraftLogs";
+import { useWarcraftLogs, getScoreForTab, getScoreForPlayer, getScoreColor } from "./useWarcraftLogs";
 
 const FIREBASE_OK = isFirebaseConfigured();
 
@@ -130,14 +130,14 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile, wclScores, 
                 <span style={{ color: `${color}bb`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
               )}
               {(() => {
-                const score = getScoreForTab(wclScores, slot.name, activeTab);
-                const scoreColor = getScoreColor(score);
-                return score != null ? (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: scoreColor, fontFamily: "monospace" }}>
-                    {Math.round(score)}
-                  </span>
-                ) : null;
-              })()}
+                  const score = getScoreForPlayer(wclScores, slot, activeTab);
+                  const scoreColor = getScoreColor(score);
+                  return score != null ? (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: scoreColor, fontFamily: "monospace" }}>
+                      {Math.round(score)}
+                    </span>
+                  ) : null;
+                })()}
               {nameMatch && <span style={{ color: color, fontSize: 9 }}>◄</span>}
             </span>
           );
@@ -362,14 +362,17 @@ export default function PublicView({ teamId, teamName }) {
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
                 {(() => {
                   const players = roster.filter(p => !p.isDivider && p.name);
-                  const rows = players.map(p => ({
-                    ...p,
-                    kara:      wclScores[p.name]?.kara      ?? null,
-                    gruulMags: wclScores[p.name]?.gruulMags ?? null,
-                  }));
+                  const rows = players.map(p => {
+                    const lookupName = p.wclName?.trim() || p.name;
+                    return {
+                      ...p,
+                      kara:      wclScores[lookupName]?.kara      ?? null,
+                      gruulMags: wclScores[lookupName]?.gruulMags ?? null,
+                    };
+                  });
                   rows.sort((a, b) => {
-                    const sa = getScoreForTab(wclScores, a.name, activeTab) ?? -1;
-                    const sb = getScoreForTab(wclScores, b.name, activeTab) ?? -1;
+                    const sa = getScoreForPlayer(wclScores, a, activeTab) ?? -1;
+                    const sb = getScoreForPlayer(wclScores, b, activeTab) ?? -1;
                     return sb - sa;
                   });
                   return rows.map(p => {
@@ -452,14 +455,17 @@ export default function PublicView({ teamId, teamName }) {
           {/* ── Mobile Parse Scores (bottom, only on mobile) ── */}
           {isMobile && roster.length > 0 && (() => {
             const players = roster.filter(p => !p.isDivider && p.name);
-            const rows = players.map(p => ({
-              ...p,
-              kara:      wclScores[p.name]?.kara      ?? null,
-              gruulMags: wclScores[p.name]?.gruulMags ?? null,
-            }));
+            const rows = players.map(p => {
+              const lookupName = p.wclName?.trim() || p.name;
+              return {
+                ...p,
+                kara:      wclScores[lookupName]?.kara      ?? null,
+                gruulMags: wclScores[lookupName]?.gruulMags ?? null,
+              };
+            });
             rows.sort((a, b) => {
-              const sa = getScoreForTab(wclScores, a.name, activeTab) ?? -1;
-              const sb = getScoreForTab(wclScores, b.name, activeTab) ?? -1;
+              const sa = getScoreForPlayer(wclScores, a, activeTab) ?? -1;
+              const sb = getScoreForPlayer(wclScores, b, activeTab) ?? -1;
               return sb - sa;
             });
             return (
