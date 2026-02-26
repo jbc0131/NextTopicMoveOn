@@ -108,7 +108,7 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
             return (
               <div key={slot.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                 {onSpecCycle ? (
-                  <KaraPlayerBadge slot={slot} onSpecCycle={onSpecCycle} />
+                  <KaraPlayerBadge slot={slot} onSpecCycle={onSpecCycle} onDragStart={onDragStart ? (e, s) => onDragStart(e, s, rowCfg.key) : undefined} />
                 ) : (
                   <span
                     draggable
