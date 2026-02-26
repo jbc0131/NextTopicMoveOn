@@ -653,8 +653,15 @@ export default function AdminView({ teamId, teamName }) {
   const handleClearAll  = () => { if (confirm("Clear all assignments?")) { setAssignments({}); setTextInputs({}); } };
   const handleAddManual  = slot => setRoster(prev => [...prev, slot]);
   const handleTextChange = (key, val) => setTextInputs(prev => ({ ...prev, [key]: val }));
-  const handleWclNameChange = (playerId, wclName) =>
-    setRoster(prev => prev.map(p => p.id === playerId ? { ...p, wclName: wclName || undefined } : p));
+  const handleWclNameChange = async (playerId, wclName) => {
+    const updatedRoster = roster.map(p => p.id === playerId ? { ...p, wclName: wclName || undefined } : p);
+    setRoster(updatedRoster);
+    const state = { roster: updatedRoster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
+    saveState(state, teamId);
+    if (FIREBASE_OK) {
+      try { await saveToFirebase(state, teamId); } catch (e) { console.warn("WCL name save failed", e); }
+    }
+  };
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   // All players always visible in sidebar — same player can fill multiple roles
