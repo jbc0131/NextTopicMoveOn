@@ -407,6 +407,8 @@ export default function AdminView({ teamId, teamName }) {
   const [showImport,  setShowImport]  = useState(false);
   const [jsonError,   setJsonError]   = useState("");
   const [saveStatus,  setSaveStatus]  = useState(FIREBASE_OK ? "idle" : "offline");
+  const [discordCopied, setDiscordCopied] = useState(false);
+  const [mrtCopied,   setMrtCopied]   = useState(false);
   const fileRef  = useRef();
   const navigate = useNavigate();
 
@@ -586,8 +588,6 @@ export default function AdminView({ teamId, teamName }) {
       .filter(([k]) => karaKeys.has(k))
       .flatMap(([, ids]) => Array.isArray(ids) ? ids : [ids])
   );
-
-  const [mrtCopied, setMrtCopied] = useState(false);
 
   const handleCopyMRT = () => {
     // All 6 kara groups in order: T1G1, T1G2, T2G1, T2G2, T3G1, T3G2
