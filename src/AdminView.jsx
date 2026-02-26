@@ -21,7 +21,7 @@ const FIREBASE_OK = isFirebaseConfigured();
 // ── Save status indicator ─────────────────────────────────────────────────────
 function SaveStatus({ status }) {
   const map = {
-    idle:    { color: "#2a2a3a", text: "" },
+    idle:    { color: "#666677", text: "" },
     saving:  { color: "#c8a84b", text: "⏳ Saving…" },
     saved:   { color: "#4ade80", text: "✓ Saved & published" },
     error:   { color: "#ef4444", text: "✗ Save failed" },
@@ -232,7 +232,7 @@ function PasswordGate({ onUnlock }) {
       }}>
         <div style={{ fontSize: 32, marginBottom: 8 }}>⚔</div>
         <div style={{ color: "#c8a84b", fontSize: 16, marginBottom: 4 }}>Admin Access</div>
-        <div style={{ color: "#333", fontSize: 10, letterSpacing: "0.15em", marginBottom: 24 }}>TBC RAID ASSIGNMENTS</div>
+        <div style={{ color: "#666", fontSize: 10, letterSpacing: "0.15em", marginBottom: 24 }}>TBC RAID ASSIGNMENTS</div>
         <input
           type="text" value={user} autoFocus
           onChange={e => { setUser(e.target.value); setErr(false); }}
@@ -691,7 +691,7 @@ export default function AdminView({ teamId, teamName }) {
           <div style={{ fontSize: 15, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif" }}>
             ⚔ NEXT TOPIC MOVE ON — ADMIN
           </div>
-          <div style={{ fontSize: 9, color: "#3a2000", letterSpacing: "0.2em" }}>{teamName}</div>
+          <div style={{ fontSize: 9, color: "#c8a84b", letterSpacing: "0.2em" }}>{teamName}</div>
         </div>
 
         <div style={{ display: "flex", gap: 8, marginLeft: 16, alignItems: "center" }}>
@@ -763,7 +763,7 @@ export default function AdminView({ teamId, teamName }) {
       {/* ── Empty state ── */}
       {roster.length === 0 ? (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ textAlign: "center", color: "#2a2a4a" }}>
+          <div style={{ textAlign: "center", color: "#4a4a6a" }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>⚔</div>
             <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13 }}>Import your roster JSON to get started</div>
             <button onClick={() => setShowImport(true)} style={{ ...btn("#1a0800", "#c8a84b44", "#c8a84b"), marginTop: 16, padding: "10px 24px" }}>
@@ -781,7 +781,7 @@ export default function AdminView({ teamId, teamName }) {
             height: "100%", overflow: "hidden",
             zIndex: 10,
           }}>
-            <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#3a3a5a", letterSpacing: "0.15em" }}>
+            <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#9999bb", letterSpacing: "0.15em" }}>
               ROSTER · {roster.length} PLAYERS
               {activeTab === "kara" && <span style={{ color: "#9b72cf", marginLeft: 6 }}>· KARA MODE</span>}
             </div>
@@ -793,7 +793,7 @@ export default function AdminView({ teamId, teamName }) {
                   border: "1px solid", borderRadius: 3, fontFamily: "'Cinzel', serif",
                   background: roleFilter === r ? (r==="Tank"?"#1d4ed8":r==="Healer"?"#15803d":r==="DPS"?"#b91c1c":"#1a1a3a") : "#0d0d1a",
                   borderColor: roleFilter === r ? "#fff3" : "#1a1a2a",
-                  color: roleFilter === r ? "#fff" : "#444",
+                  color: roleFilter === r ? "#fff" : "#888",
                 }}>{r}</button>
               ))}
             </div>

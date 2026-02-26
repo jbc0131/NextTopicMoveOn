@@ -78,7 +78,7 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
         {slot.name}
       </span>
       {!compact && (
-        <span style={{ color: `${color}88`, fontSize: 10, whiteSpace: "nowrap", flexShrink: 0, marginLeft: 2 }}>
+        <span style={{ color: `${color}bb`, fontSize: 10, whiteSpace: "nowrap", flexShrink: 0, marginLeft: 2 }}>
           {specShort}
         </span>
       )}
@@ -132,7 +132,7 @@ export function BossPanel({ title, icon, subtitle, bossImage, children, compact 
         {banner && (
           <div style={{
             position: "absolute", top: 8, right: 12,
-            fontSize: 8, color: banner.accent + "66",
+            fontSize: 8, color: banner.accent + "bb",
             fontFamily: "'Cinzel', serif", letterSpacing: "0.15em",
           }}>
             {banner.label}
@@ -170,7 +170,7 @@ export function BossPanel({ title, icon, subtitle, bossImage, children, compact 
             </div>
             {subtitle && !compact && (
               <div style={{
-                fontSize: 9, color: banner ? banner.accent + "66" : "#3a3a2a",
+                fontSize: 9, color: banner ? banner.accent + "bb" : "#888",
                 letterSpacing: "0.12em", marginTop: 2,
               }}>
                 {subtitle}
@@ -277,7 +277,7 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOver
         borderRadius: 16, padding: "3px 10px",
       }}>
         <span style={{ fontSize: 12 }}>{icon}</span>
-        <span style={{ fontSize: 10, color: count > 0 ? color : "#444", fontFamily: "'Cinzel', serif" }}>{label}</span>
+        <span style={{ fontSize: 10, color: count > 0 ? color : "#777", fontFamily: "'Cinzel', serif" }}>{label}</span>
         <span style={{
           background: count > 0 ? color : "#222", color: count > 0 ? "#000" : "#555",
           borderRadius: 10, fontSize: 10, fontWeight: 700,
@@ -312,7 +312,7 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOver
         </div>
         <div style={{
           position: "absolute", right: 16, top: 16,
-          fontSize: 11, color: total === 10 ? "#4ade80" : "#9b72cf55",
+          fontSize: 11, color: total === 10 ? "#4ade80" : "#b09ad0",
           fontFamily: "'Cinzel', serif", letterSpacing: "0.1em",
           fontWeight: total === 10 ? 700 : 400,
         }}>
@@ -322,7 +322,7 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOver
 
       {/* Row 2: Utility pills */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", alignItems: "center" }}>
-        <span style={{ fontSize: 9, color: "#9b72cf88", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", marginRight: 2 }}>RAID UTILITY</span>
+        <span style={{ fontSize: 9, color: "#9b72cf", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", marginRight: 2 }}>RAID UTILITY</span>
         {Object.keys(UTILITY).map(k => utilPill(k))}
       </div>
     </div>
@@ -394,13 +394,13 @@ export function RaidTabs({ activeTab, onTab, raidDate, raidLeader }) {
           fontFamily: "'Cinzel', serif", fontSize: 15, letterSpacing: "0.05em",
           background: activeTab === t.id ? "#1a1000" : "#0a0a14",
           border: `1px solid ${activeTab === t.id ? "#c8a84b" : "#2a2a3a"}`,
-          color: activeTab === t.id ? "#c8a84b" : "#444",
+          color: activeTab === t.id ? "#c8a84b" : "#888",
           transition: "all 0.15s",
         }}>
           {t.icon} {t.label}
         </button>
       ))}
-      <div style={{ marginLeft: "auto", fontSize: 10, color: "#444", display: "flex", gap: 16 }}>
+      <div style={{ marginLeft: "auto", fontSize: 10, color: "#888", display: "flex", gap: 16 }}>
         {raidDate   && <span>📅 {raidDate}</span>}
         {raidLeader && <span>👑 {raidLeader}</span>}
       </div>
