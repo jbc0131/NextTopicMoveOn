@@ -8,6 +8,7 @@ import {
 } from "./constants";
 import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader } from "./components";
 import { fetchFromFirebase, subscribeToFirebase, isFirebaseConfigured } from "./firebase";
+import { useWarcraftLogs, getScoreForTab, getScoreColor } from "./useWarcraftLogs";
 
 const FIREBASE_OK = isFirebaseConfigured();
 
@@ -81,7 +82,7 @@ function SearchBox({ value, onChange }) {
 }
 
 // ── Read-only assignment row — with highlight support ─────────────────────────
-function PublicRow({ rowCfg, slots, textValue, searchName, isMobile }) {
+function PublicRow({ rowCfg, slots, textValue, searchName, isMobile, wclScores, activeTab }) {
   const rc = ROLE_COLORS[rowCfg.role];
 
   const isHighlighted = searchName && slots.some(
@@ -128,6 +129,15 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile }) {
               {!isMobile && (
                 <span style={{ color: `${color}bb`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
               )}
+              {(() => {
+                const score = getScoreForTab(wclScores, slot.name, activeTab);
+                const scoreColor = getScoreColor(score);
+                return score != null ? (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: scoreColor, fontFamily: "monospace" }}>
+                    {Math.round(score)}
+                  </span>
+                ) : null;
+              })()}
               {nameMatch && <span style={{ color: color, fontSize: 9 }}>◄</span>}
             </span>
           );
@@ -147,7 +157,7 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile }) {
 }
 
 // ── Public read-only panel ────────────────────────────────────────────────────
-function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, searchName, isMobile, specOverrides, compact }) {
+function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, textValues, roster, searchName, isMobile, specOverrides, compact, wclScores, activeTab }) {
   const items = [];
   let lastSectionKey = null;
   rows.forEach(r => {
@@ -164,7 +174,6 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, text
     return ids.map(id => {
       const p = roster.find(s => s.id === id);
       if (!p) return null;
-      // Apply any spec override for this player
       const overriddenSpec = specOverrides?.[id];
       return overriddenSpec ? { ...p, specName: overriddenSpec, className: overriddenSpec } : p;
     }).filter(Boolean);
@@ -178,7 +187,9 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, text
               slots={resolve(item.row.key)}
               textValue={textValues?.[item.row.key] || ""}
               searchName={searchName}
-              isMobile={isMobile} />
+              isMobile={isMobile}
+              wclScores={wclScores}
+              activeTab={activeTab} />
       )}
     </BossPanel>
   );
@@ -215,10 +226,16 @@ export default function PublicView({ teamId, teamName }) {
   const [activeTab,  setActiveTab] = useState("gruul");
   const [lastUpdate, setLastUpdate]= useState(null);
   const [searchName, setSearchName]= useState("");
+  const [parsesOpen, setParsesOpen]= useState(false);
   const navigate = useNavigate();
   const width = useWindowWidth();
   const isMobile = width < 768;
   const isNarrow = width < 1100;
+
+  // ── WarcraftLogs scores ─────────────────────────────────────────────────────
+  const { scores: wclScores, loading: wclLoading, lastFetch: wclLastFetch } = useWarcraftLogs(
+    data?.roster ?? []
+  );
 
   useEffect(() => {
     if (FIREBASE_OK) {
@@ -327,30 +344,24 @@ export default function PublicView({ teamId, teamName }) {
             <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
             <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
-                rows={GRUUL_MAULGAR} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+                rows={GRUUL_MAULGAR} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
               <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul}
-                rows={GRUUL_BOSS} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+                rows={GRUUL_BOSS} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
             </div>
           </>}
 
           {activeTab === "kara" && <>
             {[KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].map((team, i) => (
               <div key={i} style={{ marginBottom: 20 }}>
-                <KaraTeamHeader
-                  teamNum={i + 1}
-                  assignments={assignments}
-                  allRows={[...team.g1, ...team.g2]}
-                  roster={roster}
-                  specOverrides={specOverrides}
-                />
+                <KaraTeamHeader teamNum={i + 1} assignments={assignments} allRows={[...team.g1, ...team.g2]} roster={roster} specOverrides={specOverrides} />
                 <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row" }}>
                   <div style={{ flex: 1, borderRight: isNarrow ? "none" : "1px solid #9b72cf18", borderBottom: isNarrow ? "1px solid #9b72cf18" : "none" }}>
                     <PublicPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                      rows={team.g1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} />
+                      rows={team.g1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} wclScores={wclScores} activeTab={activeTab} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <PublicPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                      rows={team.g2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} />
+                      rows={team.g2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} wclScores={wclScores} activeTab={activeTab} />
                   </div>
                 </div>
               </div>
@@ -361,11 +372,76 @@ export default function PublicView({ teamId, teamName }) {
             <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
             <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
-                rows={MAGS_P1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+                rows={MAGS_P1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
               <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags}
-                rows={MAGS_P2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} />
+                rows={MAGS_P2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
             </div>
           </>}
+
+          {/* ── Parse Scores Panel ── */}
+          {roster.length > 0 && (
+            <div style={{ marginTop: 20, border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden" }}>
+              <button onClick={() => setParsesOpen(o => !o)} style={{
+                width: "100%", background: "#0a0a14", border: "none", cursor: "pointer",
+                padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                <span style={{ fontSize: 10, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>
+                  📊 PARSE SCORES
+                  {wclLoading && <span style={{ color: "#888", marginLeft: 8 }}>loading…</span>}
+                  {wclLastFetch && !wclLoading && <span style={{ color: "#555", marginLeft: 8, fontSize: 8 }}>Updated {wclLastFetch.toLocaleTimeString()}</span>}
+                </span>
+                <span style={{ fontSize: 10, color: "#555" }}>{parsesOpen ? "▲" : "▼"}</span>
+              </button>
+
+              {parsesOpen && (() => {
+                const players = roster.filter(p => !p.isDivider && p.name);
+                const rows = players.map(p => ({
+                  ...p,
+                  kara:      wclScores[p.name]?.kara      ?? null,
+                  gruulMags: wclScores[p.name]?.gruulMags ?? null,
+                }));
+                rows.sort((a, b) => {
+                  const scoreA = getScoreForTab(wclScores, a.name, activeTab) ?? -1;
+                  const scoreB = getScoreForTab(wclScores, b.name, activeTab) ?? -1;
+                  return scoreB - scoreA;
+                });
+                return (
+                  <div style={{ background: "#07070f", padding: "8px 16px 12px" }}>
+                    {/* Header row */}
+                    <div style={{ display: "flex", padding: "4px 0 6px", borderBottom: "1px solid #1a1a2a", marginBottom: 4 }}>
+                      <span style={{ flex: 1, fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>PLAYER</span>
+                      <span style={{ width: 52, fontSize: 8, color: "#9b72cf", textAlign: "center", fontFamily: "'Cinzel', serif" }}>KARA</span>
+                      <span style={{ width: 60, fontSize: 8, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>GRUUL/MAGS</span>
+                    </div>
+                    {rows.map(p => {
+                      const karaColor = getScoreColor(p.kara);
+                      const gmColor   = getScoreColor(p.gruulMags);
+                      const pColor    = getColor(p);
+                      return (
+                        <div key={p.id} style={{
+                          display: "flex", alignItems: "center",
+                          padding: "4px 0", borderBottom: "1px solid #ffffff05",
+                        }}>
+                          <span style={{ flex: 1, fontSize: 12, color: pColor, fontFamily: "'Cinzel', serif",
+                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {p.name}
+                          </span>
+                          <span style={{ width: 52, textAlign: "center", fontSize: 12, fontWeight: 700,
+                            fontFamily: "monospace", color: karaColor || "#333" }}>
+                            {p.kara != null ? Math.round(p.kara) : "—"}
+                          </span>
+                          <span style={{ width: 60, textAlign: "center", fontSize: 12, fontWeight: 700,
+                            fontFamily: "monospace", color: gmColor || "#333" }}>
+                            {p.gruulMags != null ? Math.round(p.gruulMags) : "—"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -51,11 +51,10 @@ const BOSS_BANNERS = {
 };
 
 // ── Player badge ──────────────────────────────────────────────────────────────
-export function PlayerBadge({ slot, compact = false, draggable: isDraggable = false, onDragStart }) {
+export function PlayerBadge({ slot, compact = false, draggable: isDraggable = false, onDragStart, parseScore, parseColor }) {
   const color = getColor(slot);
   const cls   = getClass(slot);
   const specFull = getSpecDisplay(slot);
-  // Abbreviated spec+class for sidebar: "Fury War", "BM Hunt", "Resto Sham" etc.
   const specShort = specFull.slice(0, 4) + " " + cls.slice(0, 4);
   return (
     <div
@@ -71,7 +70,7 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
         width: "100%", minWidth: 0, overflow: "hidden", boxSizing: "border-box",
         transition: "background 0.15s, border-color 0.15s",
       }}
-      title={`${slot.name} — ${specFull} ${cls}`}
+      title={`${slot.name} — ${specFull} ${cls}${parseScore != null ? ` · Parse: ${Math.round(parseScore)}` : ""}`}
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
       <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, flex: 1 }}>
@@ -80,6 +79,15 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
       {!compact && (
         <span style={{ color: `${color}bb`, fontSize: 10, whiteSpace: "nowrap", flexShrink: 0, marginLeft: 2 }}>
           {specShort}
+        </span>
+      )}
+      {parseScore != null && parseColor && (
+        <span style={{
+          fontSize: 10, fontWeight: 700, flexShrink: 0,
+          color: parseColor, marginLeft: 2,
+          fontFamily: "monospace", letterSpacing: 0,
+        }}>
+          {Math.round(parseScore)}
         </span>
       )}
     </div>

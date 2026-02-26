@@ -11,6 +11,7 @@ import {
   FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader, KaraPlayerBadge,
 } from "./components";
 import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured } from "./firebase";
+import { useWarcraftLogs, getScoreForTab, getScoreColor } from "./useWarcraftLogs";
 
 const ADMIN_USERS = {
   "Admin": "JordanJackson123!",
@@ -36,8 +37,8 @@ function SaveStatus({ status }) {
 }
 
 // ── Draggable roster token ────────────────────────────────────────────────────
-function RosterToken({ slot, onDragStart, compact }) {
-  return <PlayerBadge slot={slot} compact={compact} draggable onDragStart={onDragStart} />;
+function RosterToken({ slot, onDragStart, compact, parseScore, parseColor }) {
+  return <PlayerBadge slot={slot} compact={compact} draggable onDragStart={onDragStart} parseScore={parseScore} parseColor={parseColor} />;
 }
 
 // ── Cube conflict checker ─────────────────────────────────────────────────────
@@ -431,8 +432,12 @@ export default function AdminView({ teamId, teamName }) {
   const [saveStatus,  setSaveStatus]  = useState(FIREBASE_OK ? "idle" : "offline");
   const [discordCopied, setDiscordCopied] = useState(false);
   const [mrtCopied,   setMrtCopied]   = useState(false);
+  const [parsesOpen,  setParsesOpen]  = useState(false);
   const fileRef  = useRef();
   const navigate = useNavigate();
+
+  // ── WarcraftLogs parse scores ───────────────────────────────────────────────
+  const { scores: wclScores, loading: wclLoading, error: wclError, lastFetch: wclLastFetch, refetch: wclRefetch } = useWarcraftLogs(roster);
 
   // ── Load initial state ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -824,7 +829,9 @@ export default function AdminView({ teamId, teamName }) {
                       items.push(
                         <div key={s.id} style={{ position: "relative", opacity: placed ? 0.4 : 1, transition: "opacity 0.2s" }}
                           title={placed ? `${s.name} is already in a Kara team` : undefined}>
-                          <RosterToken slot={s} onDragStart={placed ? () => {} : handleDragStart} compact={false} />
+                          <RosterToken slot={s} onDragStart={placed ? () => {} : handleDragStart} compact={false}
+                            parseScore={getScoreForTab(wclScores, s.name, activeTab)}
+                            parseColor={getScoreColor(getScoreForTab(wclScores, s.name, activeTab))} />
                           {placed && (
                             <span style={{
                               position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
@@ -852,13 +859,91 @@ export default function AdminView({ teamId, teamName }) {
                           );
                         }
                       });
-                      items.push(<RosterToken key={s.id} slot={s} onDragStart={handleDragStart} compact={false} />);
+                      items.push(<RosterToken key={s.id} slot={s} onDragStart={handleDragStart} compact={false}
+                        parseScore={getScoreForTab(wclScores, s.name, activeTab)}
+                        parseColor={getScoreColor(getScoreForTab(wclScores, s.name, activeTab))} />);
                     });
                     return items;
                   })()
               }
             </div>
             <div style={{ padding: "0 8px 8px" }}><ManualAddPlayer onAdd={handleAddManual} /></div>
+
+            {/* ── WCL Parses Panel ── */}
+            <div style={{ borderTop: "1px solid #1a1a2a", flexShrink: 0 }}>
+              <button onClick={() => setParsesOpen(o => !o)} style={{
+                width: "100%", background: "none", border: "none", cursor: "pointer",
+                padding: "7px 12px", display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                <span style={{ fontSize: 9, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>
+                  📊 PARSE SCORES
+                  {wclLoading && <span style={{ color: "#888", marginLeft: 6 }}>loading…</span>}
+                  {wclError   && <span style={{ color: "#ef4444", marginLeft: 6 }}>error</span>}
+                </span>
+                <span style={{ fontSize: 9, color: "#555" }}>{parsesOpen ? "▲" : "▼"}</span>
+              </button>
+
+              {parsesOpen && (() => {
+                // Build sortable rows — one per real player, with all 3 scores
+                const players = roster.filter(p => !p.isDivider && p.name);
+                const rows = players.map(p => ({
+                  ...p,
+                  kara:      wclScores[p.name]?.kara      ?? null,
+                  gruulMags: wclScores[p.name]?.gruulMags ?? null,
+                }));
+
+                // Sort by the context-aware tab score, then by name
+                const sortScore = r => getScoreForTab(wclScores, r.name, activeTab) ?? -1;
+                rows.sort((a, b) => sortScore(b) - sortScore(a));
+
+                return (
+                  <div style={{ padding: "0 8px 8px" }}>
+                    {/* Refresh button + last updated */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif" }}>
+                        {wclLastFetch ? `Updated ${wclLastFetch.toLocaleTimeString()}` : "Not yet fetched"}
+                      </span>
+                      <button onClick={wclRefetch} disabled={wclLoading} style={{
+                        background: "none", border: "1px solid #333", borderRadius: 3,
+                        color: "#888", fontSize: 8, cursor: "pointer", padding: "2px 6px",
+                        fontFamily: "'Cinzel', serif",
+                      }}>↺ Refresh</button>
+                    </div>
+                    {/* Column headers */}
+                    <div style={{ display: "flex", alignItems: "center", padding: "2px 4px", marginBottom: 2 }}>
+                      <span style={{ flex: 1, fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>PLAYER</span>
+                      <span style={{ width: 32, fontSize: 8, color: "#9b72cf", textAlign: "center", fontFamily: "'Cinzel', serif" }}>KARA</span>
+                      <span style={{ width: 36, fontSize: 8, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>G/M</span>
+                    </div>
+                    {/* Player rows */}
+                    {rows.map(p => {
+                      const karaColor = getScoreColor(p.kara);
+                      const gmColor   = getScoreColor(p.gruulMags);
+                      const pColor    = getColor(p);
+                      return (
+                        <div key={p.id} style={{
+                          display: "flex", alignItems: "center",
+                          padding: "3px 4px", borderBottom: "1px solid #ffffff06",
+                        }}>
+                          <span style={{ flex: 1, fontSize: 11, color: pColor, fontFamily: "'Cinzel', serif",
+                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {p.name}
+                          </span>
+                          <span style={{ width: 32, textAlign: "center", fontSize: 11, fontWeight: 700,
+                            fontFamily: "monospace", color: karaColor || "#333" }}>
+                            {p.kara != null ? Math.round(p.kara) : "—"}
+                          </span>
+                          <span style={{ width: 36, textAlign: "center", fontSize: 11, fontWeight: 700,
+                            fontFamily: "monospace", color: gmColor || "#333" }}>
+                            {p.gruulMags != null ? Math.round(p.gruulMags) : "—"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
 
           </div>
 
