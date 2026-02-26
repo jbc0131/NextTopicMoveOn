@@ -449,8 +449,8 @@ export default function PublicView({ teamId, teamName }) {
             </div>
           </>}
 
-          </div>{/* end main content */}
-        </div>{/* end flex row */}
+          </div>
+        </div>
       )}
     </div>
   );
