@@ -449,6 +449,57 @@ export default function PublicView({ teamId, teamName }) {
             </div>
           </>}
 
+          {/* ── Mobile Parse Scores (bottom, only on mobile) ── */}
+          {isMobile && roster.length > 0 && (() => {
+            const players = roster.filter(p => !p.isDivider && p.name);
+            const rows = players.map(p => ({
+              ...p,
+              kara:      wclScores[p.name]?.kara      ?? null,
+              gruulMags: wclScores[p.name]?.gruulMags ?? null,
+            }));
+            rows.sort((a, b) => {
+              const sa = getScoreForTab(wclScores, a.name, activeTab) ?? -1;
+              const sb = getScoreForTab(wclScores, b.name, activeTab) ?? -1;
+              return sb - sa;
+            });
+            return (
+              <div style={{ marginTop: 20, border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden" }}>
+                <div style={{ padding: "8px 12px", background: "#0a0a14", borderBottom: "1px solid #1a1a2a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 10, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>
+                    📊 PARSE SCORES
+                    {wclLoading && <span style={{ color: "#888", marginLeft: 8 }}>loading…</span>}
+                  </span>
+                  {wclLastFetch && <span style={{ fontSize: 7, color: "#555", fontFamily: "'Cinzel', serif" }}>Updated {wclLastFetch.toLocaleTimeString()}</span>}
+                </div>
+                <div style={{ background: "#07070f" }}>
+                  <div style={{ display: "flex", padding: "5px 12px 4px", borderBottom: "1px solid #1a1a2a" }}>
+                    <span style={{ flex: 1, fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>PLAYER</span>
+                    <span style={{ width: 40, fontSize: 8, color: "#9b72cf", textAlign: "center", fontFamily: "'Cinzel', serif" }}>KARA</span>
+                    <span style={{ width: 48, fontSize: 8, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>G/M</span>
+                  </div>
+                  {rows.map(p => {
+                    const karaColor = getScoreColor(p.kara);
+                    const gmColor   = getScoreColor(p.gruulMags);
+                    const pColor    = getColor(p);
+                    return (
+                      <div key={p.id} style={{ display: "flex", alignItems: "center", padding: "4px 12px", borderBottom: "1px solid #ffffff05" }}>
+                        <span style={{ flex: 1, fontSize: 12, color: pColor, fontFamily: "'Cinzel', serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {p.name}
+                        </span>
+                        <span style={{ width: 40, textAlign: "center", fontSize: 12, fontWeight: 700, fontFamily: "monospace", color: karaColor || "#333" }}>
+                          {p.kara != null ? Math.round(p.kara) : "—"}
+                        </span>
+                        <span style={{ width: 48, textAlign: "center", fontSize: 12, fontWeight: 700, fontFamily: "monospace", color: gmColor || "#333" }}>
+                          {p.gruulMags != null ? Math.round(p.gruulMags) : "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           </div>
         </div>
       )}
