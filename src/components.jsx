@@ -330,7 +330,7 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOver
 }
 
 // ── Kara player badge — with click-to-cycle spec ──────────────────────────────
-export function KaraPlayerBadge({ slot, onSpecCycle, compact = false }) {
+export function KaraPlayerBadge({ slot, onSpecCycle, onDragStart, compact = false }) {
   const color   = getColor(slot);
   const cls     = getClass(slot);
   const specs   = CLASS_SPECS[cls] || [];
@@ -340,12 +340,18 @@ export function KaraPlayerBadge({ slot, onSpecCycle, compact = false }) {
   const roleColor = role === "Tank" ? "#60a5fa" : role === "Healer" ? "#4ade80" : "#f87171";
 
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 6,
-      background: `${color}18`, border: `1px solid ${color}44`,
-      borderRadius: 4, padding: "4px 8px 4px 10px",
-      color, fontFamily: "'Cinzel', serif",
-    }}>
+    <div
+      draggable={!!onDragStart}
+      onDragStart={onDragStart ? e => { e.stopPropagation(); onDragStart(e, slot); } : undefined}
+      style={{
+        display: "flex", alignItems: "center", gap: 6,
+        background: `${color}18`, border: `1px solid ${color}44`,
+        borderRadius: 4, padding: "4px 8px 4px 10px",
+        color, fontFamily: "'Cinzel', serif",
+        cursor: onDragStart ? "grab" : "default",
+      }}
+      title={onDragStart ? "Drag to move to another slot" : undefined}
+    >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
       <span style={{ fontWeight: 600, fontSize: 13 }}>{slot.name}</span>
 
