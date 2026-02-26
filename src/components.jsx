@@ -249,15 +249,15 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOver
 
   const pill = (label, count, color, bg) => (
     <div style={{
-      display: "flex", alignItems: "center", gap: 6,
+      display: "flex", alignItems: "center", gap: 8,
       background: bg, border: `1px solid ${color}44`,
-      borderRadius: 20, padding: "4px 12px",
+      borderRadius: 20, padding: "6px 16px",
     }}>
-      <span style={{ fontSize: 11, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{label}</span>
+      <span style={{ fontSize: 13, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{label}</span>
       <span style={{
         background: count > 0 ? color : "#333", color: count > 0 ? "#000" : "#666",
-        borderRadius: 10, fontSize: 11, fontWeight: 700,
-        padding: "1px 7px", fontFamily: "'Cinzel', serif", minWidth: 20, textAlign: "center",
+        borderRadius: 10, fontSize: 13, fontWeight: 700,
+        padding: "2px 9px", fontFamily: "'Cinzel', serif", minWidth: 24, textAlign: "center",
       }}>{count}</span>
     </div>
   );
@@ -293,27 +293,28 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOver
       borderBottom: "2px solid #9b72cf55",
       position: "relative",
     }}>
-      {/* Row 1: Title + role pills + counter */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexWrap: "wrap", width: "100%" }}>
-        <div style={{
-          fontSize: 30, color: "#d4b8f0", fontFamily: "'Cinzel Decorative', serif",
-          letterSpacing: "0.1em", textAlign: "center", textShadow: "0 0 20px #9b72cf66",
-        }}>
-          🏰 TEAM {teamNum}
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {pill("TANK",   tanks,   "#60a5fa", "#001828")}
-          {pill("HEALER", healers, "#4ade80", "#001808")}
-          {pill("DPS",    dps,     "#f87171", "#180808")}
-        </div>
-        <div style={{
-          position: "absolute", right: 16, top: 16,
-          fontSize: 11, color: total === 10 ? "#4ade80" : "#b09ad0",
-          fontFamily: "'Cinzel', serif", letterSpacing: "0.1em",
-          fontWeight: total === 10 ? 700 : 400,
-        }}>
-          {total}/10 {total === 10 ? "✓ FULL" : ""}
-        </div>
+      {/* Row 1: Title */}
+      <div style={{
+        fontSize: 34, color: "#d4b8f0", fontFamily: "'Cinzel Decorative', serif",
+        letterSpacing: "0.1em", textAlign: "center", textShadow: "0 0 20px #9b72cf66",
+      }}>
+        🏰 TEAM {teamNum}
+      </div>
+
+      {/* Row 2: Role pills */}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "center" }}>
+        {pill("TANK",   tanks,   "#60a5fa", "#001828")}
+        {pill("HEALER", healers, "#4ade80", "#001808")}
+        {pill("DPS",    dps,     "#f87171", "#180808")}
+      </div>
+
+      <div style={{
+        position: "absolute", right: 16, top: 16,
+        fontSize: 11, color: total === 10 ? "#4ade80" : "#b09ad0",
+        fontFamily: "'Cinzel', serif", letterSpacing: "0.1em",
+        fontWeight: total === 10 ? 700 : 400,
+      }}>
+        {total}/10 {total === 10 ? "✓ FULL" : ""}
       </div>
 
       {/* Row 2: Utility pills */}
