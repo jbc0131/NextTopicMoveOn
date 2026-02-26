@@ -6,8 +6,8 @@
 // Body:  { "names": ["Bloodfang", "Jipal", ...] }
 // Returns: { "Bloodfang": { kara: 87.3, gruulMags: 72.1 }, ... }
 
-const WCL_TOKEN_URL = "https://www.warcraftlogs.com/oauth/token";
-const WCL_API_URL   = "https://www.warcraftlogs.com/api/v2/client";
+const WCL_TOKEN_URL = "https://fresh.warcraftlogs.com/oauth/token";
+const WCL_API_URL   = "https://fresh.warcraftlogs.com/api/v2/client";
 const SERVER_SLUG   = "dreamscythe";
 const SERVER_REGION = "us";
 
