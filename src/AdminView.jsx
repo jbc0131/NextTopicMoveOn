@@ -855,87 +855,87 @@ export default function AdminView({ teamId, teamName }) {
       <div style={{
         background: "linear-gradient(180deg, #1a0a00 0%, #0a0608 100%)",
         borderBottom: "1px solid #3a1800",
-        padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0,
+        padding: "10px 20px", display: "flex", flexDirection: "column", gap: 6, flexShrink: 0,
       }}>
-        <div>
-          <div style={{ fontSize: 15, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif" }}>
-            ⚔ NEXT TOPIC MOVE ON — ADMIN
+        {/* Row 1: title + buttons */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif" }}>
+              ⚔ NEXT TOPIC MOVE ON — ADMIN
+            </div>
+            <div style={{ fontSize: 9, color: "#c8a84b", letterSpacing: "0.2em" }}>{teamName}</div>
           </div>
-          <div style={{ fontSize: 9, color: "#c8a84b", letterSpacing: "0.2em" }}>{teamName}</div>
-        </div>
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-          <SaveStatus status={saveStatus} />
-          <button onClick={() => setShowImport(v => !v)} style={btn("#1a0000", "#ef444488", "#ef4444")}>
-            📂 {roster.length ? `Roster (${roster.length})` : "Import JSON"}
-          </button>
-          <button onClick={handleClearAll} style={btn("#100010", "#878800", "#8788EE")}>
-            🗑 Clear All
-          </button>
-          <button onClick={handleSave} style={btn("#0a1a00", "#4ade8044", "#4ade80")}>
-            {FIREBASE_OK ? "☁️ Save & Publish" : "💾 Save"}
-          </button>
-          {FIREBASE_OK && (
-            <button onClick={handleSaveSnapshot} disabled={snapshotStatus === "saving"} style={btn(
-              "#0a0a1a",
-              snapshotStatus === "saved" ? "#4ade8044" : "#a78bfa44",
-              snapshotStatus === "saved" ? "#4ade80" : "#a78bfa"
-            )}>
-              {snapshotStatus === "saving" ? "📸 Saving…" : snapshotStatus === "saved" ? "✓ Snapshot Saved!" : "📸 Save Snapshot"}
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            <SaveStatus status={saveStatus} />
+            <button onClick={() => setShowImport(v => !v)} style={btn("#1a0000", "#ef444488", "#ef4444")}>
+              📂 {roster.length ? `Roster (${roster.length})` : "Import JSON"}
             </button>
-          )}
-          <button onClick={() => navigate(`/${teamId}`)} style={btn("#001020", "#60a5fa44", "#60a5fa")}>
-            👁 Public View →
-          </button>
-          {activeTab === "kara" && (
-            <button onClick={handleCopyDiscord} style={btn("#000820", "#5865f244", discordCopied ? "#4ade80" : "#5865f2")}>
-              {discordCopied ? "✓ Copied!" : "💬 Copy Discord"}
+            <button onClick={handleClearAll} style={btn("#100010", "#878800", "#8788EE")}>
+              🗑 Clear All
             </button>
-          )}
-          {activeTab === "kara" && (
-            <button onClick={handleCopyMRT} style={btn("#001a10", "#22c55e44", mrtCopied ? "#4ade80" : "#22c55e")}>
-              {mrtCopied ? "✓ Copied!" : "⚔ Export MRT"}
+            <button onClick={handleSave} style={btn("#0a1a00", "#4ade8044", "#4ade80")}>
+              {FIREBASE_OK ? "☁️ Save & Publish" : "💾 Save"}
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── Week slider bar ── */}
-      {FIREBASE_OK && snapshots.length > 0 && (
-        <div style={{
-          background: "#08080f", borderBottom: "1px solid #1a1a2a",
-          padding: "5px 20px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
-        }}>
-          <button
-            onClick={() => {
-              const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-              const nextIdx = idx + 1;
-              setViewingSnap(nextIdx < snapshots.length ? snapshots[nextIdx].id : null);
-            }}
-            disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
-            style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 10px", cursor: "pointer", fontSize: 14, lineHeight: 1.4 }}
-          >‹</button>
-          <div style={{ flex: 1, textAlign: "center" }}>
-            {viewSnap ? (
-              <span style={{ fontSize: 10, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
-                {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
-                {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
-                {viewSnap.locked && <span style={{ color: "#555", marginLeft: 6, fontSize: 9 }}>LOCKED</span>}
-              </span>
-            ) : (
-              <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
+            {FIREBASE_OK && (
+              <button onClick={handleSaveSnapshot} disabled={snapshotStatus === "saving"} style={btn(
+                "#0a0a1a",
+                snapshotStatus === "saved" ? "#4ade8044" : "#a78bfa44",
+                snapshotStatus === "saved" ? "#4ade80" : "#a78bfa"
+              )}>
+                {snapshotStatus === "saving" ? "📸 Saving…" : snapshotStatus === "saved" ? "✓ Snapshot Saved!" : "📸 Save Snapshot"}
+              </button>
+            )}
+            <button onClick={() => navigate(`/${teamId}`)} style={btn("#001020", "#60a5fa44", "#60a5fa")}>
+              👁 Public View →
+            </button>
+            {activeTab === "kara" && (
+              <button onClick={handleCopyDiscord} style={btn("#000820", "#5865f244", discordCopied ? "#4ade80" : "#5865f2")}>
+                {discordCopied ? "✓ Copied!" : "💬 Copy Discord"}
+              </button>
+            )}
+            {activeTab === "kara" && (
+              <button onClick={handleCopyMRT} style={btn("#001a10", "#22c55e44", mrtCopied ? "#4ade80" : "#22c55e")}>
+                {mrtCopied ? "✓ Copied!" : "⚔ Export MRT"}
+              </button>
             )}
           </div>
-          <button
-            onClick={() => {
-              const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-              setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
-            }}
-            disabled={!viewingSnap}
-            style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 10px", cursor: "pointer", fontSize: 14, lineHeight: 1.4 }}
-          >›</button>
         </div>
-      )}
+
+        {/* Row 2: week slider — aligned under the right-side buttons */}
+        {FIREBASE_OK && snapshots.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", width: "fit-content", minWidth: 320 }}>
+            <button
+              onClick={() => {
+                const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                const nextIdx = idx + 1;
+                setViewingSnap(nextIdx < snapshots.length ? snapshots[nextIdx].id : null);
+              }}
+              disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
+              style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}
+            >‹</button>
+            <div style={{ flex: 1, textAlign: "center", whiteSpace: "nowrap" }}>
+              {viewSnap ? (
+                <span style={{ fontSize: 10, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
+                  {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
+                  {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
+                  {viewSnap.locked && <span style={{ color: "#555", marginLeft: 6, fontSize: 9 }}>LOCKED</span>}
+                </span>
+              ) : (
+                <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
+              }}
+              disabled={!viewingSnap}
+              style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: !viewingSnap ? 0.3 : 1 }}
+            >›</button>
+          </div>
+        )}
+      </div>
 
       {/* ── Import panel ── */}
       {showImport && (

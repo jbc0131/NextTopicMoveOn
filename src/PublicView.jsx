@@ -463,39 +463,41 @@ export default function PublicView({ teamId, teamName }) {
         </div>
       </div>
 
-      {/* ── Week slider bar ── */}
+      {/* ── Week slider bar — right-aligned to sit under the header buttons ── */}
       {FIREBASE_OK && snapshots.length > 0 && (
         <div style={{
           background: "#08080f", borderBottom: "1px solid #1a1a2a",
-          padding: "5px 20px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+          padding: "4px 20px", display: "flex", alignItems: "center", justifyContent: "flex-end", flexShrink: 0,
         }}>
-          <button
-            onClick={() => {
-              const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-              setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null);
-            }}
-            disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
-            style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 10px", cursor: "pointer", fontSize: 14, lineHeight: 1.4 }}
-          >‹</button>
-          <div style={{ flex: 1, textAlign: "center" }}>
-            {viewSnap ? (
-              <span style={{ fontSize: 10, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
-                {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
-                {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
-                {viewSnap.locked && <span style={{ color: "#555", marginLeft: 6, fontSize: 9 }}>LOCKED</span>}
-              </span>
-            ) : (
-              <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
-            )}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 280 }}>
+            <button
+              onClick={() => {
+                const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null);
+              }}
+              disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
+              style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}
+            >‹</button>
+            <div style={{ flex: 1, textAlign: "center", whiteSpace: "nowrap" }}>
+              {viewSnap ? (
+                <span style={{ fontSize: 10, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
+                  {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
+                  {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
+                  {viewSnap.locked && <span style={{ color: "#555", marginLeft: 6, fontSize: 9 }}>LOCKED</span>}
+                </span>
+              ) : (
+                <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
+              }}
+              disabled={!viewingSnap}
+              style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: !viewingSnap ? 0.3 : 1 }}
+            >›</button>
           </div>
-          <button
-            onClick={() => {
-              const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-              setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
-            }}
-            disabled={!viewingSnap}
-            style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 10px", cursor: "pointer", fontSize: 14, lineHeight: 1.4 }}
-          >›</button>
         </div>
       )}
 
