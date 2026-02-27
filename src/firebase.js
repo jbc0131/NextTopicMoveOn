@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, onSnapshot, getDoc, collection, addDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  STEP 1: Paste your Firebase config here.
@@ -61,4 +61,42 @@ export function subscribeToFirebase(callback, teamId) {
  */
 export function isFirebaseConfigured() {
   return firebaseConfig.apiKey !== "REPLACE_WITH_YOUR_API_KEY";
+}
+
+/**
+ * Save a point-in-time snapshot of the current raid to history.
+ * Stored as a sub-collection under each team's document.
+ */
+export async function saveSnapshot(state, teamId, extra = {}) {
+  const snapshotsCol = collection(db, "raid", teamId, "snapshots");
+  return await addDoc(snapshotsCol, {
+    raidDate:    state.raidDate    ?? "",
+    raidLeader:  state.raidLeader  ?? "",
+    roster:      state.roster      ?? [],
+    assignments: state.assignments ?? {},
+    textInputs:  state.textInputs  ?? {},
+    savedAt:     new Date().toISOString(),
+    wclReportUrl: null,
+    locked:      false,
+    ...extra,
+  });
+}
+
+/**
+ * Submit a WCL report URL for a snapshot, locking it permanently.
+ */
+export async function submitWclLog(teamId, snapshotId, wclReportUrl) {
+  const { updateDoc } = await import("firebase/firestore");
+  const snapDoc = doc(db, "raid", teamId, "snapshots", snapshotId);
+  await updateDoc(snapDoc, { wclReportUrl, locked: true });
+}
+
+/**
+ * Fetch the most recent snapshots for a team (newest first, max 20).
+ */
+export async function fetchSnapshots(teamId) {
+  const snapshotsCol = collection(db, "raid", teamId, "snapshots");
+  const q = query(snapshotsCol, orderBy("savedAt", "desc"), limit(20));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }

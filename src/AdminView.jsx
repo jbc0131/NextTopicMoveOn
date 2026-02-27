@@ -10,7 +10,7 @@ import {
 import {
   FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader, KaraPlayerBadge,
 } from "./components";
-import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured } from "./firebase";
+import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured, saveSnapshot, fetchSnapshots, submitWclLog } from "./firebase";
 import { useWarcraftLogs, getScoreForTab, getScoreForPlayer, getScoreColor } from "./useWarcraftLogs";
 
 const ADMIN_USERS = {
@@ -477,7 +477,17 @@ export default function AdminView({ teamId, teamName }) {
   const [roleFilter,  setRoleFilter]  = useState("All");
   const [showImport,  setShowImport]  = useState(false);
   const [jsonError,   setJsonError]   = useState("");
-  const [saveStatus,  setSaveStatus]  = useState(FIREBASE_OK ? "idle" : "offline");
+  const [saveStatus,    setSaveStatus]    = useState(FIREBASE_OK ? "idle" : "offline");
+  const [snapshotStatus, setSnapshotStatus] = useState("idle");
+  const [historyOpen,   setHistoryOpen]   = useState(false);
+  const [snapshots,     setSnapshots]     = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedSnap,  setExpandedSnap]  = useState(null);
+  // Week slider — null means "current week (live)", otherwise a snapshot id
+  const [viewingSnap,   setViewingSnap]   = useState(null);
+  // WCL log submission
+  const [wclSubmitUrl,  setWclSubmitUrl]  = useState("");
+  const [wclSubmitStatus, setWclSubmitStatus] = useState("idle"); // idle | saving | saved | error
   const [discordCopied, setDiscordCopied] = useState(false);
   const [mrtCopied,   setMrtCopied]   = useState(false);
   const [parsesOpen,  setParsesOpen]  = useState(false);
@@ -530,7 +540,83 @@ export default function AdminView({ teamId, teamName }) {
     }
   }, [roster, assignments, textInputs, raidDate, raidLeader, specOverrides, teamId]);
 
-  // ── Spec cycling (Kara only) ─────────────────────────────────────────────────
+  // ── Snapshot handler ─────────────────────────────────────────────────────────
+  const handleSaveSnapshot = useCallback(async () => {
+    if (!FIREBASE_OK) return alert("Firebase required to save snapshots.");
+    setSnapshotStatus("saving");
+    try {
+      const state = { roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
+      await saveSnapshot(state, teamId);
+      setSnapshotStatus("saved");
+      // Refresh history list if panel is open
+      if (historyOpen) {
+        const snaps = await fetchSnapshots(teamId);
+        setSnapshots(snaps);
+      }
+      setTimeout(() => setSnapshotStatus("idle"), 3000);
+    } catch (e) {
+      console.error("Snapshot save failed", e);
+      setSnapshotStatus("error");
+      setTimeout(() => setSnapshotStatus("idle"), 4000);
+    }
+  }, [roster, assignments, textInputs, raidDate, raidLeader, specOverrides, teamId, historyOpen]);
+
+  // Load snapshots when history panel opens
+  const handleToggleHistory = useCallback(async () => {
+    const opening = !historyOpen;
+    setHistoryOpen(opening);
+    if (opening && FIREBASE_OK && snapshots.length === 0) {
+      setHistoryLoading(true);
+      try {
+        const snaps = await fetchSnapshots(teamId);
+        setSnapshots(snaps);
+      } finally {
+        setHistoryLoading(false);
+      }
+    }
+  }, [historyOpen, snapshots.length, teamId]);
+
+  // Load snapshots on mount for the week slider
+  useEffect(() => {
+    if (!FIREBASE_OK) return;
+    fetchSnapshots(teamId).then(setSnapshots).catch(console.warn);
+  }, [teamId]);
+
+  // Submit a WCL report URL — saves snapshot if current week, locks it
+  const handleWclSubmit = useCallback(async () => {
+    const url = wclSubmitUrl.trim();
+    if (!url) return;
+    // Normalize: extract just the URL regardless of whether they pasted a code or full URL
+    const match = url.match(/reports\/([A-Za-z0-9]+)/);
+    const reportCode = match ? match[1] : null;
+    const finalUrl = reportCode
+      ? `https://fresh.warcraftlogs.com/reports/${reportCode}`
+      : url;
+
+    setWclSubmitStatus("saving");
+    try {
+      if (viewingSnap) {
+        // Locking an existing snapshot
+        await submitWclLog(teamId, viewingSnap, finalUrl);
+        setSnapshots(prev => prev.map(s => s.id === viewingSnap ? { ...s, wclReportUrl: finalUrl, locked: true } : s));
+      } else {
+        // Current week — save as new snapshot with WCL URL and lock it
+        const state = { roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
+        await saveSnapshot(state, teamId, { wclReportUrl: finalUrl, locked: true });
+        const snaps = await fetchSnapshots(teamId);
+        setSnapshots(snaps);
+      }
+      setWclSubmitStatus("saved");
+      setWclSubmitUrl("");
+      setTimeout(() => setWclSubmitStatus("idle"), 3000);
+    } catch (e) {
+      console.error("WCL submit failed", e);
+      setWclSubmitStatus("error");
+      setTimeout(() => setWclSubmitStatus("idle"), 4000);
+    }
+  }, [wclSubmitUrl, viewingSnap, teamId, roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers]);
+
+
   const handleSpecCycle = (playerId) => {
     setRoster(prev => prev.map(s => {
       if (s.id !== playerId) return s;
@@ -664,6 +750,15 @@ export default function AdminView({ teamId, teamName }) {
   };
 
   // ── Derived ─────────────────────────────────────────────────────────────────
+  // When viewing a past snapshot, use its data; otherwise use live state
+  const viewSnap     = viewingSnap ? snapshots.find(s => s.id === viewingSnap) : null;
+  const isLocked     = viewSnap?.locked ?? false;
+  const viewAssignments = viewSnap ? (viewSnap.assignments ?? {}) : assignments;
+  const viewRoster      = viewSnap ? (viewSnap.roster      ?? []) : roster;
+  const viewTextInputs  = viewSnap ? (viewSnap.textInputs  ?? {}) : textInputs;
+  const viewRaidDate    = viewSnap ? viewSnap.raidDate   : raidDate;
+  const viewRaidLeader  = viewSnap ? viewSnap.raidLeader : raidLeader;
+
   // All players always visible in sidebar — same player can fill multiple roles
   const assignedIds  = new Set(Object.values(assignments).flat());
   const filtered     = roster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
@@ -785,6 +880,15 @@ export default function AdminView({ teamId, teamName }) {
           <button onClick={handleSave} style={btn("#0a1a00", "#4ade8044", "#4ade80")}>
             {FIREBASE_OK ? "☁️ Save & Publish" : "💾 Save"}
           </button>
+          {FIREBASE_OK && (
+            <button onClick={handleSaveSnapshot} disabled={snapshotStatus === "saving"} style={btn(
+              "#0a0a1a",
+              snapshotStatus === "saved" ? "#4ade8044" : "#a78bfa44",
+              snapshotStatus === "saved" ? "#4ade80" : "#a78bfa"
+            )}>
+              {snapshotStatus === "saving" ? "📸 Saving…" : snapshotStatus === "saved" ? "✓ Snapshot Saved!" : "📸 Save Snapshot"}
+            </button>
+          )}
           <button onClick={() => navigate(`/${teamId}`)} style={btn("#001020", "#60a5fa44", "#60a5fa")}>
             👁 Public View →
           </button>
@@ -1022,40 +1126,205 @@ export default function AdminView({ teamId, teamName }) {
               })()}
             </div>
 
+            {/* ── History Panel ── */}
+            {FIREBASE_OK && (
+              <div style={{ borderTop: "1px solid #1a1a2a", flexShrink: 0 }}>
+                <button onClick={handleToggleHistory} style={{
+                  width: "100%", background: "none", border: "none", cursor: "pointer",
+                  padding: "7px 12px", display: "flex", alignItems: "center", justifyContent: "space-between",
+                }}>
+                  <span style={{ fontSize: 9, color: "#a78bfa", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>
+                    📜 RAID HISTORY
+                    {historyLoading && <span style={{ color: "#888", marginLeft: 6 }}>loading…</span>}
+                  </span>
+                  <span style={{ fontSize: 9, color: "#555" }}>{historyOpen ? "▲" : "▼"}</span>
+                </button>
+
+                {historyOpen && (
+                  <div style={{ padding: "0 8px 8px", maxHeight: 400, overflowY: "auto" }}>
+                    {snapshots.length === 0 && !historyLoading && (
+                      <div style={{ fontSize: 9, color: "#444", fontFamily: "'Cinzel', serif", padding: "8px 4px" }}>
+                        No snapshots yet. Use 📸 Save Snapshot after a raid.
+                      </div>
+                    )}
+                    {snapshots.map(snap => {
+                      const isExpanded = expandedSnap === snap.id;
+                      const snapRoster = snap.roster ?? [];
+
+                      // Roster diff vs current
+                      const currentNames = new Set(roster.filter(p => !p.isDivider && p.name).map(p => p.name.toLowerCase()));
+                      const snapNames    = new Set(snapRoster.filter(p => !p.isDivider && p.name).map(p => p.name.toLowerCase()));
+                      const newPlayers     = roster.filter(p => !p.isDivider && p.name && !snapNames.has(p.name.toLowerCase()));
+                      const missingPlayers = snapRoster.filter(p => !p.isDivider && p.name && !currentNames.has(p.name.toLowerCase()));
+
+                      const label = snap.raidDate
+                        ? `${snap.raidDate}${snap.raidLeader ? ` · ${snap.raidLeader}` : ""}`
+                        : new Date(snap.savedAt).toLocaleDateString();
+
+                      return (
+                        <div key={snap.id} style={{ marginBottom: 6, border: "1px solid #1a1a2a", borderRadius: 4, overflow: "hidden" }}>
+                          {/* Snapshot header */}
+                          <button onClick={() => setExpandedSnap(isExpanded ? null : snap.id)} style={{
+                            width: "100%", background: "#080810", border: "none", cursor: "pointer",
+                            padding: "5px 8px", display: "flex", alignItems: "center", justifyContent: "space-between",
+                          }}>
+                            <span style={{ fontSize: 10, color: "#c8a84b", fontFamily: "'Cinzel', serif" }}>{label}</span>
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              {newPlayers.length > 0     && <span style={{ fontSize: 8, color: "#4ade80" }}>+{newPlayers.length} new</span>}
+                              {missingPlayers.length > 0 && <span style={{ fontSize: 8, color: "#ef4444" }}>−{missingPlayers.length} missing</span>}
+                              <span style={{ fontSize: 9, color: "#555" }}>{isExpanded ? "▲" : "▼"}</span>
+                            </div>
+                          </button>
+
+                          {isExpanded && (
+                            <div style={{ background: "#06060f", padding: "6px 8px" }}>
+                              {/* Roster diff */}
+                              {(newPlayers.length > 0 || missingPlayers.length > 0) ? (
+                                <div style={{ marginBottom: 8 }}>
+                                  <div style={{ fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", marginBottom: 4 }}>ROSTER CHANGES</div>
+                                  {newPlayers.map(p => (
+                                    <div key={p.id} style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif", padding: "1px 0" }}>
+                                      + {p.name} <span style={{ color: "#555", fontSize: 9 }}>{p.specName}</span>
+                                    </div>
+                                  ))}
+                                  {missingPlayers.map(p => (
+                                    <div key={p.id} style={{ fontSize: 10, color: "#ef4444", fontFamily: "'Cinzel', serif", padding: "1px 0" }}>
+                                      − {p.name} <span style={{ color: "#555", fontSize: 9 }}>{p.specName}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: 9, color: "#4ade80", fontFamily: "'Cinzel', serif", marginBottom: 8 }}>✓ Same roster</div>
+                              )}
+
+                              {/* Snapshot roster list */}
+                              <div style={{ fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", marginBottom: 4 }}>
+                                SNAPSHOT ROSTER ({snapRoster.filter(p => !p.isDivider && p.name).length})
+                              </div>
+                              {snapRoster.filter(p => !p.isDivider && p.name).map(p => (
+                                <div key={p.id} style={{ fontSize: 10, fontFamily: "'Cinzel', serif", padding: "1px 0",
+                                  color: !currentNames.has(p.name.toLowerCase()) ? "#ef444488" : "#666" }}>
+                                  {p.name} <span style={{ fontSize: 9, color: "#444" }}>{p.specName}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
 
           {/* ── Assignment area ── */}
           <div style={{ flex: 1, padding: "14px 16px", minWidth: 0, overflowY: "auto", height: "100%" }}>
             {!FIREBASE_OK && <SetupBanner />}
-            <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={raidDate} raidLeader={raidLeader} />
+
+            {/* ── Week slider ── */}
+            {FIREBASE_OK && snapshots.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "6px 10px", background: "#08080f", border: "1px solid #1a1a2a", borderRadius: 6 }}>
+                <button
+                  onClick={() => {
+                    const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                    const nextIdx = idx + 1;
+                    setViewingSnap(nextIdx < snapshots.length ? snapshots[nextIdx].id : null);
+                  }}
+                  disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
+                  style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "2px 8px", cursor: "pointer", fontSize: 13 }}
+                >‹</button>
+
+                <div style={{ flex: 1, textAlign: "center" }}>
+                  {viewSnap ? (
+                    <span style={{ fontSize: 10, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
+                      {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
+                      {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
+                      {viewSnap.locked && <span style={{ color: "#555", marginLeft: 6, fontSize: 9 }}>LOCKED</span>}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => {
+                    const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                    setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
+                  }}
+                  disabled={!viewingSnap}
+                  style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "2px 8px", cursor: "pointer", fontSize: 13 }}
+                >›</button>
+              </div>
+            )}
+
+            {/* ── WCL log submission (only on current week or unlocked snapshots) ── */}
+            {FIREBASE_OK && !isLocked && (
+              <div style={{ display: "flex", gap: 6, marginBottom: 12, alignItems: "center" }}>
+                <input
+                  value={wclSubmitUrl}
+                  onChange={e => setWclSubmitUrl(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleWclSubmit()}
+                  placeholder="🔗 Paste WCL report URL to lock this week…"
+                  style={{ flex: 1, background: "#080810", border: "1px solid #2a2a4a", borderRadius: 4, color: "#ccc", padding: "5px 10px", fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none" }}
+                />
+                <button
+                  onClick={handleWclSubmit}
+                  disabled={!wclSubmitUrl.trim() || wclSubmitStatus === "saving"}
+                  style={btn(
+                    wclSubmitStatus === "saved" ? "#0a200a" : "#0a0a1a",
+                    wclSubmitStatus === "saved" ? "#4ade8066" : "#a78bfa66",
+                    wclSubmitStatus === "saved" ? "#4ade80" : "#a78bfa"
+                  )}
+                >
+                  {wclSubmitStatus === "saving" ? "Locking…" : wclSubmitStatus === "saved" ? "✓ Locked!" : "🔒 Submit & Lock"}
+                </button>
+              </div>
+            )}
+
+            {/* ── Locked banner ── */}
+            {isLocked && viewSnap && (
+              <div style={{ marginBottom: 12, padding: "8px 12px", background: "#0a0820", border: "1px solid #a78bfa44", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 10, color: "#a78bfa", fontFamily: "'Cinzel', serif" }}>
+                  🔒 This week is locked
+                </span>
+                {viewSnap.wclReportUrl && (
+                  <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#60a5fa", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
+                    📊 View WarcraftLogs Report →
+                  </a>
+                )}
+              </div>
+            )}
+
+            <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />
 
             {activeTab === "gruul" && <>
               <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
               <div style={{ display: "flex", gap: 12 }}>
                 <AdminPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
-                  rows={GRUUL_MAULGAR} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onDragStart={handleDragStart} />
+                  rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster}
+                  onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={isLocked ? null : handleTextChange} onDragStart={isLocked ? null : handleDragStart} />
                 <AdminPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul}
-                  rows={GRUUL_BOSS} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onDragStart={handleDragStart} />
+                  rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster}
+                  onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={isLocked ? null : handleTextChange} onDragStart={isLocked ? null : handleDragStart} />
               </div>
             </>}
 
             {activeTab === "kara" && <>
               {[KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].map((team, i) => (
                 <div key={i} style={{ marginBottom: 20 }}>
-                  <KaraTeamHeader
-                    teamNum={i + 1}
-                    assignments={assignments}
-                    allRows={[...team.g1, ...team.g2]}
-                    roster={roster}
-                  />
+                  <KaraTeamHeader teamNum={i + 1} assignments={viewAssignments} allRows={[...team.g1, ...team.g2]} roster={viewRoster} />
                   <div style={{ display: "flex", gap: 0, borderTop: "none" }}>
                     <div style={{ flex: 1, borderRight: "1px solid #9b72cf18" }}>
                       <AdminPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                        rows={team.g1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onSpecCycle={handleSpecCycle} onDragStart={handleDragStart} />
+                        rows={team.g1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster}
+                        onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={isLocked ? null : handleTextChange} onSpecCycle={isLocked ? null : handleSpecCycle} onDragStart={isLocked ? null : handleDragStart} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <AdminPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                        rows={team.g2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onSpecCycle={handleSpecCycle} onDragStart={handleDragStart} />
+                        rows={team.g2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster}
+                        onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={isLocked ? null : handleTextChange} onSpecCycle={isLocked ? null : handleSpecCycle} onDragStart={isLocked ? null : handleDragStart} />
                     </div>
                   </div>
                 </div>
@@ -1066,9 +1335,11 @@ export default function AdminView({ teamId, teamName }) {
               <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
               <div style={{ display: "flex", gap: 12 }}>
                 <AdminPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
-                  rows={MAGS_P1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onDragStart={handleDragStart} />
+                  rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster}
+                  onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={isLocked ? null : handleTextChange} onDragStart={isLocked ? null : handleDragStart} />
                 <AdminPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags}
-                  rows={MAGS_P2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={handleTextChange} onDragStart={handleDragStart} />
+                  rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster}
+                  onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={isLocked ? null : handleTextChange} onDragStart={isLocked ? null : handleDragStart} />
               </div>
             </>}
           </div>

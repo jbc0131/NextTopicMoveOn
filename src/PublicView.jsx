@@ -7,7 +7,7 @@ import {
   loadState, saveState,
 } from "./constants";
 import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader } from "./components";
-import { fetchFromFirebase, subscribeToFirebase, saveToFirebase, isFirebaseConfigured } from "./firebase";
+import { fetchFromFirebase, subscribeToFirebase, saveToFirebase, isFirebaseConfigured, fetchSnapshots } from "./firebase";
 import { useWarcraftLogs, getScoreForTab, getScoreForPlayer, getScoreColor } from "./useWarcraftLogs";
 
 const FIREBASE_OK = isFirebaseConfigured();
@@ -338,6 +338,8 @@ export default function PublicView({ teamId, teamName }) {
   const [activeTab,  setActiveTab] = useState("gruul");
   const [lastUpdate, setLastUpdate]= useState(null);
   const [searchName, setSearchName]= useState("");
+  const [snapshots,  setSnapshots] = useState([]);
+  const [viewingSnap, setViewingSnap] = useState(null);
   const navigate = useNavigate();
   const width = useWindowWidth();
   const isMobile = width < 768;
@@ -373,6 +375,7 @@ export default function PublicView({ teamId, teamName }) {
       fetchFromFirebase(teamId)
         .then(d => { if (d) { setData(d); setLoading(false); } })
         .catch(() => {});
+      fetchSnapshots(teamId).then(setSnapshots).catch(console.warn);
       return () => unsub();
     } else {
       const s = loadState(teamId);
@@ -387,6 +390,15 @@ export default function PublicView({ teamId, teamName }) {
   const specOverrides = data?.specOverrides ?? {};
   const raidDate      = data?.raidDate      ?? "";
   const raidLeader    = data?.raidLeader    ?? "";
+
+  // When viewing a past snapshot, use its data
+  const viewSnap        = viewingSnap ? snapshots.find(s => s.id === viewingSnap) : null;
+  const isLocked        = viewSnap?.locked ?? false;
+  const viewAssignments = viewSnap ? (viewSnap.assignments ?? {}) : assignments;
+  const viewRoster      = viewSnap ? (viewSnap.roster      ?? []) : roster;
+  const viewTextInputs  = viewSnap ? (viewSnap.textInputs  ?? {}) : (data?.textInputs ?? {});
+  const viewRaidDate    = viewSnap ? viewSnap.raidDate   : raidDate;
+  const viewRaidLeader  = viewSnap ? viewSnap.raidLeader : raidLeader;
 
   const totalSlots  = [...GRUUL_MAULGAR, ...GRUUL_BOSS, ...MAGS_P1, ...MAGS_P2, ...KARA_ALL_ROWS].length;
   const filledSlots = Object.keys(assignments).length;
@@ -487,7 +499,7 @@ export default function PublicView({ teamId, teamName }) {
               {/* Player rows — sorted by active tab score */}
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
                 <ParseScoresList
-                  roster={roster} wclScores={wclScores} wclLoading={wclLoading}
+                  roster={viewRoster} wclScores={wclScores} wclLoading={wclLoading}
                   activeTab={activeTab} onWclNameChange={handleWclNameChange}
                   rowPadding="3px 8px" fontSize={11} scoreWidth={28}
                 />
@@ -504,30 +516,74 @@ export default function PublicView({ teamId, teamName }) {
 
           {/* ── Main assignment content ── */}
           <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "10px 10px" : "16px 24px" }}>
-          <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={raidDate} raidLeader={raidLeader} />
+
+          {/* ── Week slider ── */}
+          {FIREBASE_OK && snapshots.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "6px 10px", background: "#08080f", border: "1px solid #1a1a2a", borderRadius: 6 }}>
+              <button
+                onClick={() => {
+                  const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                  setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null);
+                }}
+                disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
+                style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "2px 10px", cursor: "pointer", fontSize: 16 }}
+              >‹</button>
+              <div style={{ flex: 1, textAlign: "center" }}>
+                {viewSnap ? (
+                  <span style={{ fontSize: 11, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
+                    {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
+                    {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 11, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week</span>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                  setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
+                }}
+                disabled={!viewingSnap}
+                style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "2px 10px", cursor: "pointer", fontSize: 16 }}
+              >›</button>
+            </div>
+          )}
+
+          {/* ── Locked week WCL banner ── */}
+          {isLocked && viewSnap?.wclReportUrl && (
+            <div style={{ marginBottom: 12, padding: "8px 14px", background: "#0a0820", border: "1px solid #a78bfa44", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11, color: "#a78bfa", fontFamily: "'Cinzel', serif" }}>🔒 Raid Completed</span>
+              <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer"
+                style={{ fontSize: 11, color: "#60a5fa", fontFamily: "'Cinzel', serif", textDecoration: "none", fontWeight: 600 }}>
+                📊 View WarcraftLogs Report →
+              </a>
+            </div>
+          )}
+
+          <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />
 
           {activeTab === "gruul" && <>
             <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
             <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
-                rows={GRUUL_MAULGAR} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
               <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul}
-                rows={GRUUL_BOSS} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
             </div>
           </>}
 
           {activeTab === "kara" && <>
             {[KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].map((team, i) => (
               <div key={i} style={{ marginBottom: 20 }}>
-                <KaraTeamHeader teamNum={i + 1} assignments={assignments} allRows={[...team.g1, ...team.g2]} roster={roster} specOverrides={specOverrides} />
+                <KaraTeamHeader teamNum={i + 1} assignments={viewAssignments} allRows={[...team.g1, ...team.g2]} roster={viewRoster} specOverrides={specOverrides} />
                 <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row" }}>
                   <div style={{ flex: 1, borderRight: isNarrow ? "none" : "1px solid #9b72cf18", borderBottom: isNarrow ? "1px solid #9b72cf18" : "none" }}>
                     <PublicPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                      rows={team.g1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} wclScores={wclScores} activeTab={activeTab} />
+                      rows={team.g1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} wclScores={wclScores} activeTab={activeTab} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <PublicPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                      rows={team.g2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} wclScores={wclScores} activeTab={activeTab} />
+                      rows={team.g2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} wclScores={wclScores} activeTab={activeTab} />
                   </div>
                 </div>
               </div>
@@ -538,14 +594,14 @@ export default function PublicView({ teamId, teamName }) {
             <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
             <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
-                rows={MAGS_P1} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
               <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags}
-                rows={MAGS_P2} assignments={assignments} textValues={data?.textInputs} roster={roster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
             </div>
           </>}
 
           {/* ── Mobile Parse Scores (bottom, only on mobile) ── */}
-          {isMobile && roster.length > 0 && (
+          {isMobile && viewRoster.length > 0 && (
             <div style={{ marginTop: 20, border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden" }}>
               <div style={{ padding: "8px 12px", background: "#0a0a14", borderBottom: "1px solid #1a1a2a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 10, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>
@@ -561,7 +617,7 @@ export default function PublicView({ teamId, teamName }) {
                   <span style={{ width: 40, fontSize: 8, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>G/M</span>
                 </div>
                 <ParseScoresList
-                  roster={roster} wclScores={wclScores} wclLoading={wclLoading}
+                  roster={viewRoster} wclScores={wclScores} wclLoading={wclLoading}
                   activeTab={activeTab} onWclNameChange={handleWclNameChange}
                   rowPadding="4px 12px" fontSize={12} scoreWidth={40}
                 />
