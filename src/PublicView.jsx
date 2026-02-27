@@ -454,6 +454,12 @@ export default function PublicView({ teamId, teamName }) {
               onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
             >← Teams</button>
             <button
+              onClick={() => navigate(`/${teamId}/analysis`)}
+              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
+              onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+              onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
+            >📊 Analysis</button>
+            <button
               onClick={() => navigate(`/${teamId}/admin`)}
               style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
               onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}

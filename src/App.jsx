@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import LandingPage from "./LandingPage";
-import PublicView  from "./PublicView";
-import AdminView   from "./AdminView";
+import LandingPage    from "./LandingPage";
+import PublicView     from "./PublicView";
+import AdminView      from "./AdminView";
+import AnalysisView   from "./AnalysisView";
 
 const TEAMS = {
   "team-dick":  { name: "TEAM DICK  ·  Tuesday"  },
@@ -17,15 +18,19 @@ export default function App() {
 
         {/* Team Dick */}
         <Route path="/team-dick"
-          element={<PublicView teamId="team-dick" teamName={TEAMS["team-dick"].name} />} />
+          element={<PublicView   teamId="team-dick" teamName={TEAMS["team-dick"].name} />} />
         <Route path="/team-dick/admin"
-          element={<AdminView  teamId="team-dick" teamName={TEAMS["team-dick"].name} />} />
+          element={<AdminView    teamId="team-dick" teamName={TEAMS["team-dick"].name} />} />
+        <Route path="/team-dick/analysis"
+          element={<AnalysisView teamId="team-dick" teamName={TEAMS["team-dick"].name} />} />
 
         {/* Team Balls */}
         <Route path="/team-balls"
-          element={<PublicView teamId="team-balls" teamName={TEAMS["team-balls"].name} />} />
+          element={<PublicView   teamId="team-balls" teamName={TEAMS["team-balls"].name} />} />
         <Route path="/team-balls/admin"
-          element={<AdminView  teamId="team-balls" teamName={TEAMS["team-balls"].name} />} />
+          element={<AdminView    teamId="team-balls" teamName={TEAMS["team-balls"].name} />} />
+        <Route path="/team-balls/analysis"
+          element={<AnalysisView teamId="team-balls" teamName={TEAMS["team-balls"].name} />} />
 
         {/* Legacy /admin redirect → landing */}
         <Route path="/admin" element={<Navigate to="/" replace />} />

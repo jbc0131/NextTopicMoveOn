@@ -889,6 +889,9 @@ export default function AdminView({ teamId, teamName }) {
             <button onClick={() => navigate(`/${teamId}`)} style={btn("#001020", "#60a5fa44", "#60a5fa")}>
               👁 Public View →
             </button>
+            <button onClick={() => navigate(`/${teamId}/analysis`)} style={btn("#0a1000", "#c8a84b44", "#c8a84b")}>
+              📊 Analysis
+            </button>
             {activeTab === "kara" && (
               <button onClick={handleCopyDiscord} style={btn("#000820", "#5865f244", discordCopied ? "#4ade80" : "#5865f2")}>
                 {discordCopied ? "✓ Copied!" : "💬 Copy Discord"}
