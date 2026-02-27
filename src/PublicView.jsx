@@ -433,13 +433,6 @@ export default function PublicView({ teamId, teamName }) {
           position: "absolute", inset: 0,
           display: "flex", alignItems: "center", padding: "0 20px", gap: 12, flexWrap: "wrap",
         }}>
-          {hasData && !isMobile && (
-            <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-              {raidDate   && <Meta label="Date"   value={raidDate} />}
-              {raidLeader && <Meta label="Leader" value={raidLeader} />}
-            </div>
-          )}
-
           {/* 🔍 Search box */}
           {hasData && (
             <div style={{ marginLeft: "auto", width: isMobile ? 160 : 240 }}>
@@ -469,6 +462,42 @@ export default function PublicView({ teamId, teamName }) {
           </div>
         </div>
       </div>
+
+      {/* ── Week slider bar ── */}
+      {FIREBASE_OK && snapshots.length > 0 && (
+        <div style={{
+          background: "#08080f", borderBottom: "1px solid #1a1a2a",
+          padding: "5px 20px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+        }}>
+          <button
+            onClick={() => {
+              const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+              setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null);
+            }}
+            disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
+            style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 10px", cursor: "pointer", fontSize: 14, lineHeight: 1.4 }}
+          >‹</button>
+          <div style={{ flex: 1, textAlign: "center" }}>
+            {viewSnap ? (
+              <span style={{ fontSize: 10, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
+                {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
+                {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
+                {viewSnap.locked && <span style={{ color: "#555", marginLeft: 6, fontSize: 9 }}>LOCKED</span>}
+              </span>
+            ) : (
+              <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+              setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
+            }}
+            disabled={!viewingSnap}
+            style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 10px", cursor: "pointer", fontSize: 14, lineHeight: 1.4 }}
+          >›</button>
+        </div>
+      )}
 
       {/* ── Content ── */}
       {(!hasData) ? (
@@ -516,38 +545,6 @@ export default function PublicView({ teamId, teamName }) {
 
           {/* ── Main assignment content ── */}
           <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "10px 10px" : "16px 24px" }}>
-
-          {/* ── Week slider ── */}
-          {FIREBASE_OK && snapshots.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "6px 10px", background: "#08080f", border: "1px solid #1a1a2a", borderRadius: 6 }}>
-              <button
-                onClick={() => {
-                  const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-                  setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null);
-                }}
-                disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
-                style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "2px 10px", cursor: "pointer", fontSize: 16 }}
-              >‹</button>
-              <div style={{ flex: 1, textAlign: "center" }}>
-                {viewSnap ? (
-                  <span style={{ fontSize: 11, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
-                    {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
-                    {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
-                  </span>
-                ) : (
-                  <span style={{ fontSize: 11, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week</span>
-                )}
-              </div>
-              <button
-                onClick={() => {
-                  const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-                  setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
-                }}
-                disabled={!viewingSnap}
-                style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "2px 10px", cursor: "pointer", fontSize: 16 }}
-              >›</button>
-            </div>
-          )}
 
           {/* ── Locked week WCL banner ── */}
           {isLocked && viewSnap?.wclReportUrl && (

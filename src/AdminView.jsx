@@ -864,11 +864,6 @@ export default function AdminView({ teamId, teamName }) {
           <div style={{ fontSize: 9, color: "#c8a84b", letterSpacing: "0.2em" }}>{teamName}</div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, marginLeft: 16, alignItems: "center" }}>
-          <input value={raidDate}   onChange={e => setRaidDate(e.target.value)}   placeholder="📅 Raid Date"   style={inputSty} />
-          <input value={raidLeader} onChange={e => setRaidLeader(e.target.value)} placeholder="👑 Raid Leader" style={inputSty} />
-        </div>
-
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           <SaveStatus status={saveStatus} />
           <button onClick={() => setShowImport(v => !v)} style={btn("#1a0000", "#ef444488", "#ef4444")}>
@@ -904,6 +899,43 @@ export default function AdminView({ teamId, teamName }) {
           )}
         </div>
       </div>
+
+      {/* ── Week slider bar ── */}
+      {FIREBASE_OK && snapshots.length > 0 && (
+        <div style={{
+          background: "#08080f", borderBottom: "1px solid #1a1a2a",
+          padding: "5px 20px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+        }}>
+          <button
+            onClick={() => {
+              const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+              const nextIdx = idx + 1;
+              setViewingSnap(nextIdx < snapshots.length ? snapshots[nextIdx].id : null);
+            }}
+            disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
+            style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 10px", cursor: "pointer", fontSize: 14, lineHeight: 1.4 }}
+          >‹</button>
+          <div style={{ flex: 1, textAlign: "center" }}>
+            {viewSnap ? (
+              <span style={{ fontSize: 10, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
+                {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
+                {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
+                {viewSnap.locked && <span style={{ color: "#555", marginLeft: 6, fontSize: 9 }}>LOCKED</span>}
+              </span>
+            ) : (
+              <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+              setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
+            }}
+            disabled={!viewingSnap}
+            style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 10px", cursor: "pointer", fontSize: 14, lineHeight: 1.4 }}
+          >›</button>
+        </div>
+      )}
 
       {/* ── Import panel ── */}
       {showImport && (
@@ -1222,42 +1254,6 @@ export default function AdminView({ teamId, teamName }) {
           {/* ── Assignment area ── */}
           <div style={{ flex: 1, padding: "14px 16px", minWidth: 0, overflowY: "auto", height: "100%" }}>
             {!FIREBASE_OK && <SetupBanner />}
-
-            {/* ── Week slider ── */}
-            {FIREBASE_OK && snapshots.length > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "6px 10px", background: "#08080f", border: "1px solid #1a1a2a", borderRadius: 6 }}>
-                <button
-                  onClick={() => {
-                    const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-                    const nextIdx = idx + 1;
-                    setViewingSnap(nextIdx < snapshots.length ? snapshots[nextIdx].id : null);
-                  }}
-                  disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
-                  style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "2px 8px", cursor: "pointer", fontSize: 13 }}
-                >‹</button>
-
-                <div style={{ flex: 1, textAlign: "center" }}>
-                  {viewSnap ? (
-                    <span style={{ fontSize: 10, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
-                      {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
-                      {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
-                      {viewSnap.locked && <span style={{ color: "#555", marginLeft: 6, fontSize: 9 }}>LOCKED</span>}
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => {
-                    const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-                    setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
-                  }}
-                  disabled={!viewingSnap}
-                  style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "2px 8px", cursor: "pointer", fontSize: 13 }}
-                >›</button>
-              </div>
-            )}
 
             {/* ── WCL log submission (only on current week or unlocked snapshots) ── */}
             {FIREBASE_OK && !isLocked && (
