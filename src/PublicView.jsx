@@ -287,6 +287,49 @@ function WclNameEditor({ player, onChange, locked }) {
   );
 }
 
+// ── Shared parse scores list — used by both desktop sidebar and mobile panel ──
+function ParseScoresList({ roster, wclScores, wclLoading, activeTab, onWclNameChange, rowPadding = "3px 8px", fontSize = 11, scoreWidth = 28 }) {
+  const players = roster.filter(p => !p.isDivider && p.name);
+  const rows = players.map(p => {
+    const lookupName = p.wclName?.trim() || p.name;
+    return {
+      ...p,
+      kara:      wclScores[lookupName]?.kara      ?? null,
+      gruulMags: wclScores[lookupName]?.gruulMags ?? null,
+    };
+  });
+  rows.sort((a, b) => {
+    const sa = getScoreForPlayer(wclScores, a, activeTab) ?? -1;
+    const sb = getScoreForPlayer(wclScores, b, activeTab) ?? -1;
+    return sb - sa;
+  });
+
+  if (wclLoading && rows.every(r => r.kara == null && r.gruulMags == null)) {
+    return <div style={{ padding: "12px 8px", fontSize: 9, color: "#555", fontFamily: "'Cinzel', serif", textAlign: "center" }}>Loading…</div>;
+  }
+
+  return rows.map(p => {
+    const karaColor = getScoreColor(p.kara);
+    const gmColor   = getScoreColor(p.gruulMags);
+    const pColor    = getColor(p);
+    const lookupKey = p.wclName?.trim() || p.name;
+    const isLocked  = !!(wclScores[lookupKey]?.found);
+    return (
+      <div key={p.id} style={{ display: "flex", alignItems: "center", padding: rowPadding, borderBottom: "1px solid #ffffff05" }}>
+        <span style={{ flex: 1, fontSize, color: pColor, fontFamily: "'Cinzel', serif", overflow: "hidden", minWidth: 0 }}>
+          <WclNameEditor player={p} onChange={wclName => onWclNameChange(p.id, wclName)} locked={isLocked} />
+        </span>
+        <span style={{ width: scoreWidth, textAlign: "center", fontSize, fontWeight: 700, fontFamily: "monospace", color: karaColor || "#333" }}>
+          {p.kara != null ? Math.round(p.kara) : "—"}
+        </span>
+        <span style={{ width: scoreWidth, textAlign: "center", fontSize, fontWeight: 700, fontFamily: "monospace", color: gmColor || "#333" }}>
+          {p.gruulMags != null ? Math.round(p.gruulMags) : "—"}
+        </span>
+      </div>
+    );
+  });
+}
+
 // ── Main Public View ──────────────────────────────────────────────────────────
 export default function PublicView({ teamId, teamName }) {
   const [data,       setData]      = useState(null);
@@ -443,49 +486,11 @@ export default function PublicView({ teamId, teamName }) {
 
               {/* Player rows — sorted by active tab score */}
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
-                {(() => {
-                  const players = roster.filter(p => !p.isDivider && p.name);
-                  const rows = players.map(p => {
-                    const lookupName = p.wclName?.trim() || p.name;
-                    return {
-                      ...p,
-                      kara:      wclScores[lookupName]?.kara      ?? null,
-                      gruulMags: wclScores[lookupName]?.gruulMags ?? null,
-                    };
-                  });
-                  rows.sort((a, b) => {
-                    const sa = getScoreForPlayer(wclScores, a, activeTab) ?? -1;
-                    const sb = getScoreForPlayer(wclScores, b, activeTab) ?? -1;
-                    return sb - sa;
-                  });
-                  return rows.map(p => {
-                    const karaColor = getScoreColor(p.kara);
-                    const gmColor   = getScoreColor(p.gruulMags);
-                    const pColor    = getColor(p);
-                    const lookupKey = p.wclName?.trim() || p.name;
-                    const isLocked  = !!(wclScores[lookupKey]?.found);
-                    return (
-                      <div key={p.id} style={{
-                        display: "flex", alignItems: "center",
-                        padding: "3px 8px", borderBottom: "1px solid #ffffff05",
-                      }}>
-                        <span style={{
-                          flex: 1, fontSize: 11, color: pColor,
-                          fontFamily: "'Cinzel', serif",
-                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        }}>
-                          <WclNameEditor player={p} onChange={wclName => handleWclNameChange(p.id, wclName)} locked={isLocked} />
-                        </span>
-                        <span style={{ width: 28, textAlign: "center", fontSize: 11, fontWeight: 700, fontFamily: "monospace", color: karaColor || "#333" }}>
-                          {p.kara != null ? Math.round(p.kara) : "—"}
-                        </span>
-                        <span style={{ width: 28, textAlign: "center", fontSize: 11, fontWeight: 700, fontFamily: "monospace", color: gmColor || "#333" }}>
-                          {p.gruulMags != null ? Math.round(p.gruulMags) : "—"}
-                        </span>
-                      </div>
-                    );
-                  });
-                })()}
+                <ParseScoresList
+                  roster={roster} wclScores={wclScores} wclLoading={wclLoading}
+                  activeTab={activeTab} onWclNameChange={handleWclNameChange}
+                  rowPadding="3px 8px" fontSize={11} scoreWidth={28}
+                />
               </div>
 
               {/* Last updated footer */}
@@ -540,60 +545,29 @@ export default function PublicView({ teamId, teamName }) {
           </>}
 
           {/* ── Mobile Parse Scores (bottom, only on mobile) ── */}
-          {isMobile && roster.length > 0 && (() => {
-            const players = roster.filter(p => !p.isDivider && p.name);
-            const rows = players.map(p => {
-              const lookupName = p.wclName?.trim() || p.name;
-              return {
-                ...p,
-                kara:      wclScores[lookupName]?.kara      ?? null,
-                gruulMags: wclScores[lookupName]?.gruulMags ?? null,
-              };
-            });
-            rows.sort((a, b) => {
-              const sa = getScoreForPlayer(wclScores, a, activeTab) ?? -1;
-              const sb = getScoreForPlayer(wclScores, b, activeTab) ?? -1;
-              return sb - sa;
-            });
-            return (
-              <div style={{ marginTop: 20, border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden" }}>
-                <div style={{ padding: "8px 12px", background: "#0a0a14", borderBottom: "1px solid #1a1a2a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 10, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>
-                    📊 PARSE SCORES
-                    {wclLoading && <span style={{ color: "#888", marginLeft: 8 }}>loading…</span>}
-                  </span>
-                  {wclLastFetch && <span style={{ fontSize: 7, color: "#555", fontFamily: "'Cinzel', serif" }}>Updated {wclLastFetch.toLocaleTimeString()}</span>}
-                </div>
-                <div style={{ background: "#07070f" }}>
-                  <div style={{ display: "flex", padding: "5px 12px 4px", borderBottom: "1px solid #1a1a2a" }}>
-                    <span style={{ flex: 1, fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>PLAYER</span>
-                    <span style={{ width: 40, fontSize: 8, color: "#9b72cf", textAlign: "center", fontFamily: "'Cinzel', serif" }}>KARA</span>
-                    <span style={{ width: 48, fontSize: 8, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>G/M</span>
-                  </div>
-                  {rows.map(p => {
-                    const karaColor = getScoreColor(p.kara);
-                    const gmColor   = getScoreColor(p.gruulMags);
-                    const pColor    = getColor(p);
-                    const lookupKey = p.wclName?.trim() || p.name;
-                    const isLocked  = !!(wclScores[lookupKey]?.found);
-                    return (
-                      <div key={p.id} style={{ display: "flex", alignItems: "center", padding: "4px 12px", borderBottom: "1px solid #ffffff05" }}>
-                        <span style={{ flex: 1, fontSize: 12, color: pColor, fontFamily: "'Cinzel', serif", overflow: "hidden" }}>
-                          <WclNameEditor player={p} onChange={wclName => handleWclNameChange(p.id, wclName)} locked={isLocked} />
-                        </span>
-                        <span style={{ width: 40, textAlign: "center", fontSize: 12, fontWeight: 700, fontFamily: "monospace", color: karaColor || "#333" }}>
-                          {p.kara != null ? Math.round(p.kara) : "—"}
-                        </span>
-                        <span style={{ width: 48, textAlign: "center", fontSize: 12, fontWeight: 700, fontFamily: "monospace", color: gmColor || "#333" }}>
-                          {p.gruulMags != null ? Math.round(p.gruulMags) : "—"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+          {isMobile && roster.length > 0 && (
+            <div style={{ marginTop: 20, border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden" }}>
+              <div style={{ padding: "8px 12px", background: "#0a0a14", borderBottom: "1px solid #1a1a2a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 10, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>
+                  📊 PARSE SCORES
+                  {wclLoading && <span style={{ color: "#888", marginLeft: 8 }}>loading…</span>}
+                </span>
+                {wclLastFetch && <span style={{ fontSize: 7, color: "#555", fontFamily: "'Cinzel', serif" }}>Updated {wclLastFetch.toLocaleTimeString()}</span>}
               </div>
-            );
-          })()}
+              <div style={{ background: "#07070f" }}>
+                <div style={{ display: "flex", padding: "5px 12px 4px", borderBottom: "1px solid #1a1a2a" }}>
+                  <span style={{ flex: 1, fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>PLAYER</span>
+                  <span style={{ width: 40, fontSize: 8, color: "#9b72cf", textAlign: "center", fontFamily: "'Cinzel', serif" }}>KARA</span>
+                  <span style={{ width: 40, fontSize: 8, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>G/M</span>
+                </div>
+                <ParseScoresList
+                  roster={roster} wclScores={wclScores} wclLoading={wclLoading}
+                  activeTab={activeTab} onWclNameChange={handleWclNameChange}
+                  rowPadding="4px 12px" fontSize={12} scoreWidth={40}
+                />
+              </div>
+            </div>
+          )}
 
           </div>
         </div>
