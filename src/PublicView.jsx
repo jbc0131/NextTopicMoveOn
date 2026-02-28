@@ -410,22 +410,23 @@ export default function PublicView({ teamId, teamName }) {
 
       {/* ── Header ── */}
       <div style={{
-        position: "relative", height: isMobile ? 64 : 80,
-        flexShrink: 0, overflow: "hidden",
+        height: isMobile ? 72 : 90,
+        flexShrink: 0,
         borderBottom: "1px solid #1a1a2a",
         background: "#06060f",
         display: "flex", alignItems: "center", padding: "0 16px", gap: 12,
       }}>
-        {/* Team image as small square logo */}
+        {/* Team image as square logo */}
         <img
           src={TEAM_IMAGES[teamId]}
           alt={teamName}
           style={{
-            width: isMobile ? 48 : 64,
-            height: isMobile ? 48 : 64,
+            width: isMobile ? 56 : 72,
+            height: isMobile ? 56 : 72,
             objectFit: "contain",
             borderRadius: 6,
             flexShrink: 0,
+            display: "block",
           }}
         />
           {/* 🔍 Search box */}
