@@ -423,7 +423,7 @@ export default function PublicView({ teamId, teamName }) {
           style={{
             width: isMobile ? 56 : 72,
             height: isMobile ? 56 : 72,
-            objectFit: "contain",
+            objectFit: "cover",
             borderRadius: 6,
             flexShrink: 0,
             display: "block",
