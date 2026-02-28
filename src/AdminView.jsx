@@ -1336,6 +1336,10 @@ export default function AdminView({ teamId, teamName }) {
                     onClick={async () => {
                       const raw = sheetEditUrl.trim();
                       if (!raw) return;
+                      if (!raw.includes("docs.google.com/spreadsheets")) {
+                        alert("Please paste a Google Sheets URL (should contain docs.google.com/spreadsheets)");
+                        return;
+                      }
                       const sheetUrl = raw.replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview");
                       setSheetEditStatus("saving");
                       try {

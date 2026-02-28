@@ -7,6 +7,7 @@ const FIREBASE_OK = isFirebaseConfigured();
 
 function toEmbedUrl(url) {
   if (!url) return null;
+  if (!url.includes("docs.google.com/spreadsheets")) return null;
   return url.replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview");
 }
 
