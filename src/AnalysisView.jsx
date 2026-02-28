@@ -2,8 +2,15 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchSnapshots, isFirebaseConfigured } from "./firebase";
 import { FontImport } from "./components";
+import teamDickImg  from "./teamdick.png";
+import teamBallsImg from "./teamballs.png";
 
 const FIREBASE_OK = isFirebaseConfigured();
+
+const TEAM_IMAGES = {
+  "team-dick":  teamDickImg,
+  "team-balls": teamBallsImg,
+};
 
 function toEmbedUrl(url) {
   if (!url) return null;
@@ -44,22 +51,30 @@ export default function AnalysisView({ teamId, teamName }) {
 
       {/* Header */}
       <div style={{
-        background: "linear-gradient(180deg, #14100a, #0d0d20)",
-        borderBottom: "1px solid #2a2030",
-        padding: "10px 20px", display: "flex", alignItems: "center", gap: 14, flexShrink: 0,
+        background: "#06060f",
+        borderBottom: "1px solid #1a1a2a",
+        height: 110, display: "flex", alignItems: "center", padding: "0 16px", gap: 14, flexShrink: 0,
       }}>
+        {/* Team logo — clickable */}
+        <img
+          src={TEAM_IMAGES[teamId]}
+          alt={teamName}
+          onClick={() => navigate(`/${teamId}`)}
+          style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 8, flexShrink: 0, cursor: "pointer" }}
+        />
+
         <div>
           <div style={{ fontSize: 13, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif" }}>
             📊 ROLE PERFORMANCE BREAKDOWN
           </div>
-          <div style={{ fontSize: 9, color: "#555", letterSpacing: "0.2em", marginTop: 2, fontFamily: "'Cinzel', serif" }}>
+          <div style={{ fontSize: 11, color: "#aaa", letterSpacing: "0.1em", marginTop: 3, fontFamily: "'Cinzel', serif" }}>
             {teamName}
           </div>
         </div>
 
         {snapshots.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 12 }}>
-            <span style={{ fontSize: 9, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}>WEEK</span>
+            <span style={{ fontSize: 9, color: "#666", fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}>WEEK</span>
             <select
               value={selectedSnap?.id || ""}
               onChange={e => setSelectedSnap(snapshots.find(s => s.id === e.target.value) || null)}
