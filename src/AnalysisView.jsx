@@ -20,7 +20,7 @@ export default function AnalysisView({ teamId, teamName }) {
     if (!FIREBASE_OK) { setLoading(false); return; }
     fetchSnapshots(teamId)
       .then(snaps => {
-        const locked = snaps.filter(s => s.locked && s.sheetUrl);
+        const locked = snaps.filter(s => s.locked);
         setSnapshots(locked);
         if (locked.length) setSelectedSnap(locked[0]);
       })
@@ -94,10 +94,24 @@ export default function AnalysisView({ teamId, teamName }) {
 
       {!loading && snapshots.length === 0 && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-          <div style={{ fontSize: 32 }}>📊</div>
-          <div style={{ fontSize: 13, color: "#666", fontFamily: "'Cinzel', serif" }}>No analysis sheets found</div>
+          <div style={{ fontSize: 32 }}>🔒</div>
+          <div style={{ fontSize: 13, color: "#666", fontFamily: "'Cinzel', serif" }}>No locked raid weeks found</div>
           <div style={{ fontSize: 10, color: "#444", fontFamily: "'Cinzel', serif", textAlign: "center", maxWidth: 340 }}>
-            When locking a raid week in the admin view, paste a Google Sheet URL alongside the WarcraftLogs URL to enable this page.
+            Lock a raid week in the admin view to enable analysis.
+          </div>
+          <button onClick={() => navigate(`/${teamId}/admin`)}
+            style={{ ...headerBtn, color: "#c8a84b", border: "1px solid #c8a84b44", marginTop: 8, padding: "6px 16px" }}>
+            → Go to Admin
+          </button>
+        </div>
+      )}
+
+      {!loading && snapshots.length > 0 && !embedUrl && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <div style={{ fontSize: 32 }}>📊</div>
+          <div style={{ fontSize: 13, color: "#666", fontFamily: "'Cinzel', serif" }}>No sheet linked for this week</div>
+          <div style={{ fontSize: 10, color: "#444", fontFamily: "'Cinzel', serif", textAlign: "center", maxWidth: 380 }}>
+            To add one: go to Admin, view this locked week, and paste a Google Sheet URL into the second field before re-locking — or ask an admin to update it.
           </div>
           <button onClick={() => navigate(`/${teamId}/admin`)}
             style={{ ...headerBtn, color: "#c8a84b", border: "1px solid #c8a84b44", marginTop: 8, padding: "6px 16px" }}>
