@@ -486,7 +486,8 @@ export default function AdminView({ teamId, teamName }) {
   // Week slider — null means "current week (live)", otherwise a snapshot id
   const [viewingSnap,   setViewingSnap]   = useState(null);
   // WCL log submission
-  const [wclSubmitUrl,  setWclSubmitUrl]  = useState("");
+  const [wclSubmitUrl,    setWclSubmitUrl]    = useState("");
+  const [sheetSubmitUrl,  setSheetSubmitUrl]  = useState("");
   const [wclSubmitStatus, setWclSubmitStatus] = useState("idle"); // idle | saving | saved | error
   const [discordCopied, setDiscordCopied] = useState(false);
   const [mrtCopied,   setMrtCopied]   = useState(false);
@@ -586,35 +587,46 @@ export default function AdminView({ teamId, teamName }) {
   const handleWclSubmit = useCallback(async () => {
     const url = wclSubmitUrl.trim();
     if (!url) return;
-    // Normalize: extract just the URL regardless of whether they pasted a code or full URL
+    // Normalize WCL URL
     const match = url.match(/reports\/([A-Za-z0-9]+)/);
     const reportCode = match ? match[1] : null;
     const finalUrl = reportCode
       ? `https://fresh.warcraftlogs.com/reports/${reportCode}`
       : url;
 
+    // Normalize sheet URL — convert /edit or /view links to embeddable URL
+    const rawSheet = sheetSubmitUrl.trim();
+    const sheetUrl = rawSheet
+      ? rawSheet.replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview")
+      : null;
+
     setWclSubmitStatus("saving");
     try {
+      const extra = { wclReportUrl: finalUrl, locked: true, ...(sheetUrl ? { sheetUrl } : {}) };
       if (viewingSnap) {
-        // Locking an existing snapshot
         await submitWclLog(teamId, viewingSnap, finalUrl);
-        setSnapshots(prev => prev.map(s => s.id === viewingSnap ? { ...s, wclReportUrl: finalUrl, locked: true } : s));
+        // Also update sheetUrl if provided
+        if (sheetUrl) {
+          const { updateSnapshot } = await import("./firebase");
+          await updateSnapshot(teamId, viewingSnap, { sheetUrl });
+        }
+        setSnapshots(prev => prev.map(s => s.id === viewingSnap ? { ...s, ...extra } : s));
       } else {
-        // Current week — save as new snapshot with WCL URL and lock it
         const state = { roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
-        await saveSnapshot(state, teamId, { wclReportUrl: finalUrl, locked: true });
+        await saveSnapshot(state, teamId, extra);
         const snaps = await fetchSnapshots(teamId);
         setSnapshots(snaps);
       }
       setWclSubmitStatus("saved");
       setWclSubmitUrl("");
+      setSheetSubmitUrl("");
       setTimeout(() => setWclSubmitStatus("idle"), 3000);
     } catch (e) {
       console.error("WCL submit failed", e);
       setWclSubmitStatus("error");
       setTimeout(() => setWclSubmitStatus("idle"), 4000);
     }
-  }, [wclSubmitUrl, viewingSnap, teamId, roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers]);
+  }, [wclSubmitUrl, sheetSubmitUrl, viewingSnap, teamId, roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers]);
 
 
   const handleSpecCycle = (playerId) => {
@@ -1260,37 +1272,52 @@ export default function AdminView({ teamId, teamName }) {
 
             {/* ── WCL log submission (only on current week or unlocked snapshots) ── */}
             {FIREBASE_OK && !isLocked && (
-              <div style={{ display: "flex", gap: 6, marginBottom: 12, alignItems: "center" }}>
-                <input
-                  value={wclSubmitUrl}
-                  onChange={e => setWclSubmitUrl(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleWclSubmit()}
-                  placeholder="🔗 Paste WCL report URL to lock this week…"
-                  style={{ flex: 1, background: "#080810", border: "1px solid #2a2a4a", borderRadius: 4, color: "#ccc", padding: "5px 10px", fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none" }}
-                />
-                <button
-                  onClick={handleWclSubmit}
-                  disabled={!wclSubmitUrl.trim() || wclSubmitStatus === "saving"}
-                  style={btn(
-                    wclSubmitStatus === "saved" ? "#0a200a" : "#0a0a1a",
-                    wclSubmitStatus === "saved" ? "#4ade8066" : "#a78bfa66",
-                    wclSubmitStatus === "saved" ? "#4ade80" : "#a78bfa"
-                  )}
-                >
-                  {wclSubmitStatus === "saving" ? "Locking…" : wclSubmitStatus === "saved" ? "✓ Locked!" : "🔒 Submit & Lock"}
-                </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    value={wclSubmitUrl}
+                    onChange={e => setWclSubmitUrl(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleWclSubmit()}
+                    placeholder="🔗 WarcraftLogs report URL (required to lock)…"
+                    style={{ flex: 1, background: "#080810", border: "1px solid #2a2a4a", borderRadius: 4, color: "#ccc", padding: "5px 10px", fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none" }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    value={sheetSubmitUrl}
+                    onChange={e => setSheetSubmitUrl(e.target.value)}
+                    placeholder="📊 Google Sheet URL (optional — enables Analysis page)…"
+                    style={{ flex: 1, background: "#080810", border: "1px solid #2a2a4a", borderRadius: 4, color: "#ccc", padding: "5px 10px", fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none" }}
+                  />
+                  <button
+                    onClick={handleWclSubmit}
+                    disabled={!wclSubmitUrl.trim() || wclSubmitStatus === "saving"}
+                    style={btn(
+                      wclSubmitStatus === "saved" ? "#0a200a" : "#0a0a1a",
+                      wclSubmitStatus === "saved" ? "#4ade8066" : "#a78bfa66",
+                      wclSubmitStatus === "saved" ? "#4ade80" : "#a78bfa"
+                    )}
+                  >
+                    {wclSubmitStatus === "saving" ? "Locking…" : wclSubmitStatus === "saved" ? "✓ Locked!" : "🔒 Submit & Lock"}
+                  </button>
+                </div>
               </div>
             )}
 
             {/* ── Locked banner ── */}
             {isLocked && viewSnap && (
-              <div style={{ marginBottom: 12, padding: "8px 12px", background: "#0a0820", border: "1px solid #a78bfa44", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ marginBottom: 12, padding: "8px 12px", background: "#0a0820", border: "1px solid #a78bfa44", borderRadius: 6, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 10, color: "#a78bfa", fontFamily: "'Cinzel', serif" }}>
                   🔒 This week is locked
                 </span>
                 {viewSnap.wclReportUrl && (
                   <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#60a5fa", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
-                    📊 View WarcraftLogs Report →
+                    📋 WarcraftLogs →
+                  </a>
+                )}
+                {viewSnap.sheetUrl && (
+                  <a href={viewSnap.sheetUrl} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
+                    📊 RPB Sheet →
                   </a>
                 )}
               </div>
