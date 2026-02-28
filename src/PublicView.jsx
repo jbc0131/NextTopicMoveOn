@@ -410,29 +410,24 @@ export default function PublicView({ teamId, teamName }) {
 
       {/* ── Header ── */}
       <div style={{
-        position: "relative", height: isMobile ? 80 : 120,
+        position: "relative", height: isMobile ? 50 : 60,
         flexShrink: 0, overflow: "hidden",
-        borderBottom: "2px solid #1a1a2a",
+        borderBottom: "1px solid #1a1a2a",
+        background: "#06060f",
+        display: "flex", alignItems: "center", padding: "0 16px", gap: 12,
       }}>
-        {/* Team image as background */}
+        {/* Team image as small square logo */}
         <img
           src={TEAM_IMAGES[teamId]}
           alt={teamName}
           style={{
-            position: "absolute", inset: 0,
-            width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: "top center",
-            opacity: 0.85,
+            width: isMobile ? 36 : 44,
+            height: isMobile ? 36 : 44,
+            objectFit: "contain",
+            borderRadius: 4,
+            flexShrink: 0,
           }}
         />
-        {/* Overlay for readability */}
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, #000000aa 0%, #00000044 50%, #000000aa 100%)" }} />
-
-        {/* Overlaid controls */}
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", padding: "0 20px", gap: 12, flexWrap: "wrap",
-        }}>
           {/* 🔍 Search box */}
           {hasData && (
             <div style={{ marginLeft: "auto", width: isMobile ? 160 : 240 }}>
@@ -466,7 +461,6 @@ export default function PublicView({ teamId, teamName }) {
               onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
             >Admin</button>
           </div>
-        </div>
       </div>
 
       {/* ── Week slider bar — right-aligned to sit under the header buttons ── */}
