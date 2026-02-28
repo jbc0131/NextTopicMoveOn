@@ -52,15 +52,16 @@ async function getAccessToken() {
   return cachedToken;
 }
 
-// Build a single GraphQL query that fetches all 3 zones for one character
-function buildQuery(name) {
-  // GraphQL aliases let us fetch multiple zones in one round-trip
+// Build a single GraphQL query that fetches all zones for one character, filtered by role
+function buildQuery({ name, role }) {
+  // Map our role strings to WCL's expected values
+  const wclRole = role === "Healer" ? "Healer" : role === "Tank" ? "Tank" : "DPS";
   return `
     ${sanitizeName(name)}: characterData {
       character(name: "${name}", serverSlug: "${SERVER_SLUG}", serverRegion: "${SERVER_REGION}") {
         name
-        kara: zoneRankings(zoneID: ${ZONE_KARA})
-        gruulMags: zoneRankings(zoneID: ${ZONE_GRUULMAGS})
+        kara: zoneRankings(zoneID: ${ZONE_KARA}, role: ${wclRole})
+        gruulMags: zoneRankings(zoneID: ${ZONE_GRUULMAGS}, role: ${wclRole})
       }
     }
   `;
@@ -110,13 +111,19 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { names } = req.body;
-  if (!Array.isArray(names) || names.length === 0) {
-    return res.status(400).json({ error: "names array required" });
+  const { names, players: playersInput } = req.body;
+
+  // Support both old { names: [] } and new { players: [{name, role}] } formats
+  const players = playersInput
+    ? playersInput.slice(0, 50)
+    : (Array.isArray(names) ? names.map(n => ({ name: n, role: "DPS" })) : null);
+
+  if (!players || players.length === 0) {
+    return res.status(400).json({ error: "players array required" });
   }
 
-  // Cap at 30 names per request to avoid huge queries
-  const batch = names.slice(0, 30);
+  // Cap at 50 names per request to avoid huge queries
+  const batch = players.slice(0, 50);
 
   try {
     const token  = await getAccessToken();
@@ -128,7 +135,8 @@ export default async function handler(req, res) {
 
     // Transform the aliased response back into { characterName: { kara, gruulMags } }
     const result = {};
-    for (const name of batch) {
+    for (const player of batch) {
+      const name      = player.name;
       const alias     = sanitizeName(name);
       const charData  = data?.data?.[alias]?.character;
 
