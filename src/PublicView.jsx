@@ -410,7 +410,7 @@ export default function PublicView({ teamId, teamName }) {
 
       {/* ── Header ── */}
       <div style={{
-        position: "relative", height: isMobile ? 50 : 60,
+        position: "relative", height: isMobile ? 64 : 80,
         flexShrink: 0, overflow: "hidden",
         borderBottom: "1px solid #1a1a2a",
         background: "#06060f",
@@ -421,10 +421,10 @@ export default function PublicView({ teamId, teamName }) {
           src={TEAM_IMAGES[teamId]}
           alt={teamName}
           style={{
-            width: isMobile ? 36 : 44,
-            height: isMobile ? 36 : 44,
+            width: isMobile ? 48 : 64,
+            height: isMobile ? 48 : 64,
             objectFit: "contain",
-            borderRadius: 4,
+            borderRadius: 6,
             flexShrink: 0,
           }}
         />
