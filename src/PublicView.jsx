@@ -410,23 +410,25 @@ export default function PublicView({ teamId, teamName }) {
 
       {/* ── Header ── */}
       <div style={{
-        height: isMobile ? 72 : 90,
+        height: isMobile ? 90 : 110,
         flexShrink: 0,
         borderBottom: "1px solid #1a1a2a",
         background: "#06060f",
         display: "flex", alignItems: "center", padding: "0 16px", gap: 12,
       }}>
-        {/* Team image as square logo */}
+        {/* Team image as clickable square logo */}
         <img
           src={TEAM_IMAGES[teamId]}
           alt={teamName}
+          onClick={() => navigate(`/${teamId}`)}
           style={{
-            width: isMobile ? 56 : 72,
-            height: isMobile ? 56 : 72,
+            width: isMobile ? 72 : 96,
+            height: isMobile ? 72 : 96,
             objectFit: "cover",
-            borderRadius: 6,
+            borderRadius: 8,
             flexShrink: 0,
             display: "block",
+            cursor: "pointer",
           }}
         />
           {/* 🔍 Search box */}
