@@ -10,7 +10,7 @@ import {
 import {
   FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader, KaraPlayerBadge,
 } from "./components";
-import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured, saveSnapshot, fetchSnapshots, submitWclLog } from "./firebase";
+import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured, saveSnapshot, fetchSnapshots, submitWclLog, updateSnapshot } from "./firebase";
 import { useWarcraftLogs, getScoreForTab, getScoreForPlayer, getScoreColor } from "./useWarcraftLogs";
 
 const ADMIN_USERS = {
@@ -489,6 +489,8 @@ export default function AdminView({ teamId, teamName }) {
   const [wclSubmitUrl,    setWclSubmitUrl]    = useState("");
   const [sheetSubmitUrl,  setSheetSubmitUrl]  = useState("");
   const [wclSubmitStatus, setWclSubmitStatus] = useState("idle"); // idle | saving | saved | error
+  const [sheetEditUrl,    setSheetEditUrl]    = useState("");
+  const [sheetEditStatus, setSheetEditStatus] = useState("idle"); // idle | saving | saved
   const [discordCopied, setDiscordCopied] = useState(false);
   const [mrtCopied,   setMrtCopied]   = useState(false);
   const [parsesOpen,  setParsesOpen]  = useState(false);
@@ -1306,20 +1308,57 @@ export default function AdminView({ teamId, teamName }) {
 
             {/* ── Locked banner ── */}
             {isLocked && viewSnap && (
-              <div style={{ marginBottom: 12, padding: "8px 12px", background: "#0a0820", border: "1px solid #a78bfa44", borderRadius: 6, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 10, color: "#a78bfa", fontFamily: "'Cinzel', serif" }}>
-                  🔒 This week is locked
-                </span>
-                {viewSnap.wclReportUrl && (
-                  <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#60a5fa", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
-                    📋 WarcraftLogs →
-                  </a>
-                )}
-                {viewSnap.sheetUrl && (
-                  <a href={viewSnap.sheetUrl} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
-                    📊 RPB Sheet →
-                  </a>
-                )}
+              <div style={{ marginBottom: 12, padding: "10px 12px", background: "#0a0820", border: "1px solid #a78bfa44", borderRadius: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: viewSnap.sheetUrl ? 0 : 8 }}>
+                  <span style={{ fontSize: 10, color: "#a78bfa", fontFamily: "'Cinzel', serif" }}>
+                    🔒 This week is locked
+                  </span>
+                  {viewSnap.wclReportUrl && (
+                    <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#60a5fa", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
+                      📋 WarcraftLogs →
+                    </a>
+                  )}
+                  {viewSnap.sheetUrl && (
+                    <a href={viewSnap.sheetUrl} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
+                      📊 RPB Sheet →
+                    </a>
+                  )}
+                </div>
+                {/* Inline sheet URL input — always visible so it can be added/updated */}
+                <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
+                  <input
+                    value={sheetEditUrl}
+                    onChange={e => setSheetEditUrl(e.target.value)}
+                    placeholder={viewSnap.sheetUrl ? "📊 Update Google Sheet URL…" : "📊 Paste Google Sheet URL to link analysis…"}
+                    style={{ flex: 1, background: "#080810", border: "1px solid #2a2a4a", borderRadius: 4, color: "#ccc", padding: "4px 10px", fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none" }}
+                  />
+                  <button
+                    onClick={async () => {
+                      const raw = sheetEditUrl.trim();
+                      if (!raw) return;
+                      const sheetUrl = raw.replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview");
+                      setSheetEditStatus("saving");
+                      try {
+                        await updateSnapshot(teamId, viewSnap.id, { sheetUrl });
+                        setSnapshots(prev => prev.map(s => s.id === viewSnap.id ? { ...s, sheetUrl } : s));
+                        setSheetEditUrl("");
+                        setSheetEditStatus("saved");
+                        setTimeout(() => setSheetEditStatus("idle"), 3000);
+                      } catch (e) {
+                        console.error("Sheet URL save failed", e);
+                        setSheetEditStatus("idle");
+                      }
+                    }}
+                    disabled={!sheetEditUrl.trim() || sheetEditStatus === "saving"}
+                    style={btn(
+                      sheetEditStatus === "saved" ? "#0a200a" : "#0a1a10",
+                      sheetEditStatus === "saved" ? "#4ade8066" : "#4ade8033",
+                      sheetEditStatus === "saved" ? "#4ade80" : "#4ade80"
+                    )}
+                  >
+                    {sheetEditStatus === "saving" ? "Saving…" : sheetEditStatus === "saved" ? "✓ Saved!" : "💾 Save Sheet"}
+                  </button>
+                </div>
               </div>
             )}
 

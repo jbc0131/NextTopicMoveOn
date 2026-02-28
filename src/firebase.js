@@ -100,3 +100,12 @@ export async function fetchSnapshots(teamId) {
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
+
+/**
+ * Update arbitrary fields on an existing snapshot.
+ */
+export async function updateSnapshot(teamId, snapshotId, fields) {
+  const { updateDoc } = await import("firebase/firestore");
+  const snapDoc = doc(db, "raid", teamId, "snapshots", snapshotId);
+  await updateDoc(snapDoc, fields);
+}
