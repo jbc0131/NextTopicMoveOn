@@ -1,4 +1,4 @@
-import { ROLE_COLORS, getClass, getSpecDisplay, getColor } from "./constants";
+import { ROLE_COLORS, getClass, getSpecDisplay, getColor, MARKER_SVG } from "./constants";
 
 // ── Shared font import ────────────────────────────────────────────────────────
 export function FontImport() {
@@ -195,6 +195,28 @@ export function RaidTabs({ activeTab, onTab, raidDate, raidLeader }) {
         {raidLeader && <span>👑 {raidLeader}</span>}
       </div>
     </div>
+  );
+}
+
+// ── Raid target marker icon ───────────────────────────────────────────────────
+export function MarkerIcon({ markerKey, size = 16 }) {
+  if (!markerKey || !MARKER_SVG[markerKey]) return null;
+  // Clone the SVG with the requested size
+  const svg = MARKER_SVG[markerKey];
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0, width: size, height: size }}>
+      {svg}
+    </span>
+  );
+}
+
+// ── Row label with optional marker icon ──────────────────────────────────────
+export function RowLabel({ label, markerKey, fontSize = 13, color = "#fff", minWidth = 220 }) {
+  return (
+    <span style={{ fontSize, color, fontFamily: "'Cinzel', serif", minWidth, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {markerKey && <MarkerIcon markerKey={markerKey} size={fontSize + 2} />}
+      {label}
+    </span>
   );
 }
 

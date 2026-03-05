@@ -9,7 +9,7 @@ import {
   saveState, loadState,
 } from "./constants";
 import {
-  FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader, KaraPlayerBadge,
+  FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader, KaraPlayerBadge, MarkerIcon, RowLabel,
 } from "./components";
 import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured, saveSnapshot, fetchSnapshots, submitWclLog, updateSnapshot } from "./firebase";
 import { useWarcraftLogs, getScoreForTab, getScoreForPlayer, getScoreColor } from "./useWarcraftLogs";
@@ -114,7 +114,7 @@ function isInCube1(playerId, assignments) { return getCubeGroupOf(playerId, assi
 function isOnAnyCube(playerId, assignments) { return getCubeGroupOf(playerId, assignments) !== null; }
 
 // ── Assignment row (drop target) — supports multiple players + text input ─────
-function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClear, onTextChange, onSpecCycle, onDragStart, assignments, conflictError }) {
+function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClear, onTextChange, onSpecCycle, onDragStart, assignments, conflictError, compact }) {
   const [over, setOver] = useState(false);
   const dropRef = useRef(null);
   const rc    = ROLE_COLORS[rowCfg.role];
@@ -132,8 +132,9 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
         }}
         onDrop={e => { e.preventDefault(); setOver(false); onDrop(rowCfg.key); }}
         style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "6px 14px 6px 12px", minHeight: 40,
+          display: "flex", alignItems: "center", gap: compact ? 6 : 10,
+          padding: compact ? "3px 10px" : "6px 14px 6px 12px",
+          minHeight: compact ? 0 : 40,
           background: over ? `${rc.border}22` : "transparent",
           borderLeft: `3px solid ${conflictError ? "#ef4444" : over ? rc.label : rc.border + "88"}`,
           borderTop: "none", borderRight: "none", borderBottom: `1px solid #ffffff08`,
@@ -142,7 +143,8 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
       >
         {/* Label — hidden for blank kara slots */}
         {rowCfg.label && (
-          <span style={{ fontSize: 14, color: "#ffffff", fontFamily: "'Cinzel', serif", minWidth: 220, flexShrink: 0 }}>
+          <span style={{ fontSize: compact ? 11 : 14, color: compact ? "#ccc" : "#ffffff", fontFamily: "'Cinzel', serif", minWidth: compact ? 140 : 220, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
+            {rowCfg.markerKey && <MarkerIcon markerKey={rowCfg.markerKey} size={compact ? 13 : 16} />}
             {rowCfg.label}
             {rowCfg.hint && (
               <span style={{ color: "#888", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>
@@ -1386,7 +1388,8 @@ export default function AdminView({ teamId, teamName }) {
                     onClear={isLocked ? null : handleClear}
                     onTextChange={isLocked ? null : handleTextChange}
                     onDragStart={isLocked ? null : handleDragStart}
-                    assignments={viewAssignments} />
+                    assignments={viewAssignments}
+                    compact />
                 ))}
               </div>
               {/* Trash Interrupts */}
@@ -1403,7 +1406,8 @@ export default function AdminView({ teamId, teamName }) {
                     onClear={isLocked ? null : handleClear}
                     onTextChange={isLocked ? null : handleTextChange}
                     onDragStart={isLocked ? null : handleDragStart}
-                    assignments={viewAssignments} />
+                    assignments={viewAssignments}
+                    compact />
                 ))}
               </div>
             </div>

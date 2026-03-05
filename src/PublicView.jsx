@@ -7,7 +7,7 @@ import {
   GENERAL_CURSES, GENERAL_INTERRUPTS,
   loadState, saveState,
 } from "./constants";
-import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader } from "./components";
+import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader, MarkerIcon } from "./components";
 import { fetchFromFirebase, subscribeToFirebase, saveToFirebase, isFirebaseConfigured, fetchSnapshots } from "./firebase";
 import { useWarcraftLogs, getScoreForTab, getScoreForPlayer, getScoreColor } from "./useWarcraftLogs";
 
@@ -83,7 +83,7 @@ function SearchBox({ value, onChange }) {
 }
 
 // ── Read-only assignment row — with highlight support ─────────────────────────
-function PublicRow({ rowCfg, slots, textValue, searchName, isMobile, wclScores, activeTab }) {
+function PublicRow({ rowCfg, slots, textValue, searchName, isMobile, wclScores, activeTab, compact }) {
   const rc = ROLE_COLORS[rowCfg.role];
 
   const isHighlighted = searchName && slots.some(
@@ -94,8 +94,9 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile, wclScores, 
     <div style={{
       display: "flex", flexDirection: isMobile ? "column" : "row",
       alignItems: isMobile ? "flex-start" : "center",
-      gap: isMobile ? 6 : 10,
-      padding: "6px 14px 6px 12px", minHeight: 40,
+      gap: isMobile ? 4 : 8,
+      padding: compact ? "3px 10px" : "6px 14px 6px 12px",
+      minHeight: compact ? 0 : 40,
       background: isHighlighted ? "#2a200888" : "transparent",
       borderLeft: `3px solid ${isHighlighted ? "#c8a84b" : rc.border + "88"}`,
       borderTop: "none", borderRight: "none", borderBottom: "1px solid #ffffff08",
@@ -103,31 +104,33 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile, wclScores, 
       transition: "all 0.2s",
     }}>
       <span style={{
-        fontSize: isMobile ? 12 : 13, color: "#ccc",
+        fontSize: compact ? 11 : (isMobile ? 12 : 13), color: "#ccc",
         fontFamily: "'Cinzel', serif",
         flexShrink: 0,
-        ...(isMobile ? {} : { minWidth: 180, maxWidth: 220 }),
+        display: "inline-flex", alignItems: "center", gap: 6,
+        ...(isMobile ? {} : { minWidth: compact ? 140 : 180, maxWidth: compact ? 180 : 220 }),
       }}>
+        {rowCfg.markerKey && <MarkerIcon markerKey={rowCfg.markerKey} size={compact ? 13 : 15} />}
         {rowCfg.label}
         {rowCfg.hint && <span style={{ color: "#666", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
       </span>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, width: isMobile ? "100%" : undefined, flex: isMobile ? undefined : 1 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 3, width: isMobile ? "100%" : undefined, flex: isMobile ? undefined : 1 }}>
         {slots && slots.length > 0 && slots.map(slot => {
           const color = getColor(slot);
           const nameMatch = searchName && slot.name.toLowerCase().includes(searchName.toLowerCase());
           return (
             <span key={slot.id} style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
+              display: "inline-flex", alignItems: "center", gap: 4,
               background: nameMatch ? `${color}35` : `${color}18`,
               border: `1px solid ${nameMatch ? color : color + "44"}`,
-              borderRadius: 4, padding: "3px 10px",
-              color: color, fontFamily: "'Cinzel', serif", fontSize: isMobile ? 12 : 13,
+              borderRadius: 4, padding: compact ? "1px 7px" : "3px 10px",
+              color: color, fontFamily: "'Cinzel', serif", fontSize: compact ? 11 : (isMobile ? 12 : 13),
               boxShadow: nameMatch ? `0 0 8px ${color}66` : "none",
               transition: "all 0.2s", maxWidth: "100%",
             }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
               <span style={{ fontWeight: nameMatch ? 700 : 600 }}>{slot.name}</span>
-              {!isMobile && (
+              {!isMobile && !compact && (
                 <span style={{ color: `${color}bb`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
               )}
               {(() => {
@@ -576,7 +579,7 @@ export default function PublicView({ teamId, teamName }) {
               {GENERAL_CURSES.map(row => {
                 const ids = viewAssignments[row.key] ? (Array.isArray(viewAssignments[row.key]) ? viewAssignments[row.key] : [viewAssignments[row.key]]) : [];
                 const slots = ids.map(id => viewRoster.find(s => s.id === id)).filter(Boolean);
-                return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />;
+                return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact />;
               })}
             </div>
             {/* Trash Interrupts */}
@@ -587,7 +590,7 @@ export default function PublicView({ teamId, teamName }) {
               {GENERAL_INTERRUPTS.map(row => {
                 const ids = viewAssignments[row.key] ? (Array.isArray(viewAssignments[row.key]) ? viewAssignments[row.key] : [viewAssignments[row.key]]) : [];
                 const slots = ids.map(id => viewRoster.find(s => s.id === id)).filter(Boolean);
-                return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />;
+                return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact />;
               })}
             </div>
           </div>

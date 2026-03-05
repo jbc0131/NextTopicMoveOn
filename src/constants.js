@@ -167,29 +167,29 @@ export const GRUUL_BOSS = [
 
 export const MAGS_P1 = [
   // Tank Assignments
-  { key: "m_ch1",    label: "Channeler Tank (Skull)",    role: "Tank",   hint: "" },
-  { key: "m_ch2",    label: "Channeler Tank (Cross)",    role: "Tank",   hint: "" },
-  { key: "m_ch3",    label: "Channeler Tank (Square)",   role: "Tank",   hint: "" },
-  { key: "m_ch4",    label: "Channeler Tank (Moon)",     role: "Tank",   hint: "" },
-  { key: "m_ch5",    label: "Channeler Tank (Triangle)", role: "Tank",   hint: "" },
+  { key: "m_ch1",    label: "Channeler Tank",    markerKey: "skull",    role: "Tank",   hint: "" },
+  { key: "m_ch2",    label: "Channeler Tank",    markerKey: "cross",    role: "Tank",   hint: "" },
+  { key: "m_ch3",    label: "Channeler Tank",    markerKey: "square",   role: "Tank",   hint: "" },
+  { key: "m_ch4",    label: "Channeler Tank",    markerKey: "moon",     role: "Tank",   hint: "" },
+  { key: "m_ch5",    label: "Channeler Tank",    markerKey: "triangle", role: "Tank",   hint: "" },
   // Healer Assignments
-  { key: "m_ph1h1",  label: "Channeler Tank (Skull)",    role: "Healer", hint: "" },
-  { key: "m_ph1h2",  label: "Channeler Tank (Cross)",    role: "Healer", hint: "" },
-  { key: "m_ph1h3",  label: "Channeler Tank (Square)",   role: "Healer", hint: "" },
-  { key: "m_ph1h4",  label: "Channeler Tank (Moon)",     role: "Healer", hint: "" },
-  { key: "m_ph1h5",  label: "Channeler Tank (Triangle)", role: "Healer", hint: "" },
+  { key: "m_ph1h1",  label: "Channeler Tank",    markerKey: "skull",    role: "Healer", hint: "" },
+  { key: "m_ph1h2",  label: "Channeler Tank",    markerKey: "cross",    role: "Healer", hint: "" },
+  { key: "m_ph1h3",  label: "Channeler Tank",    markerKey: "square",   role: "Healer", hint: "" },
+  { key: "m_ph1h4",  label: "Channeler Tank",    markerKey: "moon",     role: "Healer", hint: "" },
+  { key: "m_ph1h5",  label: "Channeler Tank",    markerKey: "triangle", role: "Healer", hint: "" },
   // Interrupt Assignments
-  { key: "m_int1",   label: "Interrupt (Skull)",         role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
-  { key: "m_int2",   label: "Interrupt (Cross)",         role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
-  { key: "m_int3",   label: "Interrupt (Square)",        role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
-  { key: "m_int4",   label: "Interrupt (Moon)",          role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
-  { key: "m_int5",   label: "Interrupt (Triangle)",      role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "m_int1",   label: "Interrupt",         markerKey: "skull",    role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "m_int2",   label: "Interrupt",         markerKey: "cross",    role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "m_int3",   label: "Interrupt",         markerKey: "square",   role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "m_int4",   label: "Interrupt",         markerKey: "moon",     role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "m_int5",   label: "Interrupt",         markerKey: "triangle", role: "DPS",    roleLabel: "Interrupt Assignments", hint: "" },
   // Misdirect Assignments
-  { key: "m_md1",    label: "Misdirect (Skull)",         role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "m_md2",    label: "Misdirect (Cross)",         role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "m_md3",    label: "Misdirect (Square)",        role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "m_md4",    label: "Misdirect (Moon)",          role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "m_md5",    label: "Misdirect (Triangle)",      role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "m_md1",    label: "Misdirect",         markerKey: "skull",    role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "m_md2",    label: "Misdirect",         markerKey: "cross",    role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "m_md3",    label: "Misdirect",         markerKey: "square",   role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "m_md4",    label: "Misdirect",         markerKey: "moon",     role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "m_md5",    label: "Misdirect",         markerKey: "triangle", role: "DPS",    roleLabel: "Misdirect Assignments", hint: "" },
 ];
 
 // Cube clicker key groups — used for conflict validation
@@ -203,17 +203,17 @@ export const MAGS_P2 = [
   { key: "m_p2mt",   label: "Main Tank",                  role: "Tank",   hint: "" },
   // Healer Assignments
   { key: "m_p2h1",   label: "Main Tank",                  role: "Healer", hint: "" },
-  { key: "m_p2h2",   label: "Cube Clicker (Skull)",       role: "Healer", hint: "" },
-  { key: "m_p2h3",   label: "Cube Clicker (Cross)",       role: "Healer", hint: "" },
-  { key: "m_p2h4",   label: "Cube Clicker (Square)",      role: "Healer", hint: "" },
-  { key: "m_p2h5",   label: "Cube Clicker (Moon)",        role: "Healer", hint: "" },
-  { key: "m_p2h6",   label: "Cube Clicker (Triangle)",    role: "Healer", hint: "" },
+  { key: "m_p2h2",   label: "Cube Clicker",       markerKey: "skull",    role: "Healer", hint: "" },
+  { key: "m_p2h3",   label: "Cube Clicker",       markerKey: "cross",    role: "Healer", hint: "" },
+  { key: "m_p2h4",   label: "Cube Clicker",       markerKey: "square",   role: "Healer", hint: "" },
+  { key: "m_p2h5",   label: "Cube Clicker",       markerKey: "moon",     role: "Healer", hint: "" },
+  { key: "m_p2h6",   label: "Cube Clicker",       markerKey: "triangle", role: "Healer", hint: "" },
   // Cube Clickers
-  { key: "m_p2c1a",  label: "Cube Clicker (Skull)",       role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
-  { key: "m_p2c1b",  label: "Cube Clicker (Cross)",       role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
-  { key: "m_p2c1c",  label: "Cube Clicker (Square)",      role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
-  { key: "m_p2c1d",  label: "Cube Clicker (Moon)",        role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
-  { key: "m_p2c1e",  label: "Cube Clicker (Triangle)",    role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
+  { key: "m_p2c1a",  label: "Cube Clicker",       markerKey: "skull",    role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
+  { key: "m_p2c1b",  label: "Cube Clicker",       markerKey: "cross",    role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
+  { key: "m_p2c1c",  label: "Cube Clicker",       markerKey: "square",   role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
+  { key: "m_p2c1d",  label: "Cube Clicker",       markerKey: "moon",     role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
+  { key: "m_p2c1e",  label: "Cube Clicker",       markerKey: "triangle", role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
 ];
 
 // ── Karazhan — 10-man team templates (2 groups of 5) ─────────────────────────
@@ -240,16 +240,46 @@ export const KARA_ALL_ROWS = [
   ...KARA_TEAM_3.g1, ...KARA_TEAM_3.g2,
 ];
 
+// ── Raid marker icons (WoW target markers) ────────────────────────────────────
+export const MARKER_ICONS = {
+  skull:    "https://wow.zamimg.com/images/wow/icons/large/inv_misc_bone_skull_01.jpg",
+  cross:    "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_markedfordeath.jpg",
+  square:   "https://wow.zamimg.com/images/wow/icons/large/inv_ammo_box_02.jpg",
+  moon:     "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_snipershot.jpg",
+  triangle: "https://wow.zamimg.com/images/wow/icons/large/ability_marksmanship.jpg",
+  diamond:  "https://wow.zamimg.com/images/wow/icons/large/inv_jewelry_ring_03.jpg",
+  circle:   "https://wow.zamimg.com/images/wow/icons/large/inv_misc_orb_05.jpg",
+  star:     "https://wow.zamimg.com/images/wow/icons/large/alliance_icon.jpg",
+};
+
+// Inline SVG markers — pixel-perfect WoW raid target icons
+export const MARKER_SVG = {
+  star:     <svg viewBox="0 0 64 64" width="16" height="16"><polygon points="32,4 39,24 60,24 44,37 50,58 32,46 14,58 20,37 4,24 25,24" fill="#FFD700" stroke="#B8860B" strokeWidth="2"/></svg>,
+  circle:   <svg viewBox="0 0 64 64" width="16" height="16"><circle cx="32" cy="32" r="26" fill="none" stroke="#FF6600" strokeWidth="8"/></svg>,
+  diamond:  <svg viewBox="0 0 64 64" width="16" height="16"><polygon points="32,4 58,32 32,60 6,32" fill="#9932CC" stroke="#6A0DAD" strokeWidth="2"/></svg>,
+  triangle: <svg viewBox="0 0 64 64" width="16" height="16"><polygon points="32,6 60,58 4,58" fill="#00CC00" stroke="#006600" strokeWidth="2"/></svg>,
+  moon:     <svg viewBox="0 0 64 64" width="16" height="16"><path d="M44,12 A24,24 0 1,0 44,52 A16,16 0 1,1 44,12Z" fill="#87CEEB" stroke="#4682B4" strokeWidth="2"/></svg>,
+  square:   <svg viewBox="0 0 64 64" width="16" height="16"><rect x="10" y="10" width="44" height="44" fill="#1E90FF" stroke="#00008B" strokeWidth="2"/></svg>,
+  cross:    <svg viewBox="0 0 64 64" width="16" height="16"><line x1="8" y1="8" x2="56" y2="56" stroke="#FF0000" strokeWidth="10" strokeLinecap="round"/><line x1="56" y1="8" x2="8" y2="56" stroke="#FF0000" strokeWidth="10" strokeLinecap="round"/></svg>,
+  skull:    <svg viewBox="0 0 64 64" width="16" height="16"><ellipse cx="32" cy="28" rx="22" ry="20" fill="#F5F5F5" stroke="#999" strokeWidth="2"/><rect x="18" y="44" width="10" height="12" rx="2" fill="#F5F5F5" stroke="#999" strokeWidth="1.5"/><rect x="36" y="44" width="10" height="12" rx="2" fill="#F5F5F5" stroke="#999" strokeWidth="1.5"/><circle cx="24" cy="27" r="6" fill="#333"/><circle cx="40" cy="27" r="6" fill="#333"/></svg>,
+};
+
+// Returns just the marker key from a label like "Channeler Tank (Skull)" → "skull"
+export function markerKeyFromLabel(label) {
+  const m = label.match(/\((Skull|Cross|Square|Moon|Triangle|Diamond|Circle|Star)\)/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
 // ── General Raid Assignments ──────────────────────────────────────────────────
 const MARKERS = [
-  { key: "skull",    label: "💀 Skull"    },
-  { key: "cross",    label: "❌ Cross"    },
-  { key: "square",   label: "🟧 Square"   },
-  { key: "moon",     label: "🌙 Moon"     },
-  { key: "triangle", label: "🔺 Triangle" },
-  { key: "diamond",  label: "💎 Diamond"  },
-  { key: "circle",   label: "⭕ Circle"   },
-  { key: "star",     label: "⭐ Star"     },
+  { key: "skull",    label: "Skull"    },
+  { key: "cross",    label: "Cross"    },
+  { key: "square",   label: "Square"   },
+  { key: "moon",     label: "Moon"     },
+  { key: "triangle", label: "Triangle" },
+  { key: "diamond",  label: "Diamond"  },
+  { key: "circle",   label: "Circle"   },
+  { key: "star",     label: "Star"     },
 ];
 
 export const GENERAL_CURSES = [
@@ -262,6 +292,7 @@ export const GENERAL_CURSES = [
 export const GENERAL_INTERRUPTS = MARKERS.map(m => ({
   key:       `gen_int_${m.key}`,
   label:     m.label,
+  markerKey: m.key,
   role:      "DPS",
   roleLabel: "Trash Interrupts",
   hint:      "",
