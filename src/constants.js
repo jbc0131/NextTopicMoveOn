@@ -216,29 +216,35 @@ export const MAGS_P2 = [
   { key: "m_p2c1e",  label: "Cube Clicker",       markerKey: "triangle", role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
 ];
 
-// ── Karazhan — 10-man team templates (2 groups of 5) ─────────────────────────
-function karaGroup(teamNum, groupNum) {
-  const p = `k${teamNum}g${groupNum}`;
-  return [
-    { key: `${p}_p1`, label: "", role: "DPS", roleLabel: " ", hint: "" },
-    { key: `${p}_p2`, label: "", role: "DPS", roleLabel: " ", hint: "" },
-    { key: `${p}_p3`, label: "", role: "DPS", roleLabel: " ", hint: "" },
-    { key: `${p}_p4`, label: "", role: "DPS", roleLabel: " ", hint: "" },
-    { key: `${p}_p5`, label: "", role: "DPS", roleLabel: " ", hint: "" },
-  ];
+// ── Karazhan — 10-man team templates ─────────────────────────────────────────
+// Two nights (Tue / Thu), 3 teams each, 10 slots per team
+function karaTeam(night, teamNum) {
+  const p = `k${night}t${teamNum}`;
+  return Array.from({ length: 10 }, (_, i) => ({
+    key:       `${p}_p${i + 1}`,
+    label:     "",
+    role:      "DPS",
+    roleLabel: " ",
+    hint:      "",
+  }));
 }
 
-// Each team exposes both groups so panels can render them side by side
-export const KARA_TEAM_1 = { g1: karaGroup(1,1), g2: karaGroup(1,2) };
-export const KARA_TEAM_2 = { g1: karaGroup(2,1), g2: karaGroup(2,2) };
-export const KARA_TEAM_3 = { g1: karaGroup(3,1), g2: karaGroup(3,2) };
+export const KARA_TUE_1 = karaTeam("tue", 1);
+export const KARA_TUE_2 = karaTeam("tue", 2);
+export const KARA_TUE_3 = karaTeam("tue", 3);
+export const KARA_THU_1 = karaTeam("thu", 1);
+export const KARA_THU_2 = karaTeam("thu", 2);
+export const KARA_THU_3 = karaTeam("thu", 3);
 
 // Flat list for ALL_ROWS (used for key lookups)
 export const KARA_ALL_ROWS = [
-  ...KARA_TEAM_1.g1, ...KARA_TEAM_1.g2,
-  ...KARA_TEAM_2.g1, ...KARA_TEAM_2.g2,
-  ...KARA_TEAM_3.g1, ...KARA_TEAM_3.g2,
+  ...KARA_TUE_1, ...KARA_TUE_2, ...KARA_TUE_3,
+  ...KARA_THU_1, ...KARA_THU_2, ...KARA_THU_3,
 ];
+
+// Grouped for rendering
+export const KARA_TUE_TEAMS = [KARA_TUE_1, KARA_TUE_2, KARA_TUE_3];
+export const KARA_THU_TEAMS = [KARA_THU_1, KARA_THU_2, KARA_THU_3];
 
 // ── Raid marker icons (WoW target markers) ────────────────────────────────────
 export const MARKER_ICONS = {

@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import {
   ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor, getSpecDisplay, cycleSpec,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
-  KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3, KARA_ALL_ROWS,
+  KARA_TUE_1, KARA_TUE_2, KARA_TUE_3, KARA_THU_1, KARA_THU_2, KARA_THU_3,
+  KARA_TUE_TEAMS, KARA_THU_TEAMS, KARA_ALL_ROWS,
   CUBE1_KEYS, CUBE2_KEYS, CUBEBU_KEYS, ALL_CUBE_KEYS,
   GENERAL_CURSES, GENERAL_INTERRUPTS,
   saveState, loadState,
@@ -468,6 +469,9 @@ function ManualAddPlayer({ onAdd }) {
 export default function AdminView({ teamId, teamName }) {
   const [unlocked,    setUnlocked]    = useState(false);
   const [roster,      setRoster]      = useState([]);
+  const [rosterTue,   setRosterTue]   = useState([]);
+  const [rosterThu,   setRosterThu]   = useState([]);
+  const [karaNight,   setKaraNight]   = useState("tue"); // "tue" | "thu"
   const [assignments,  setAssignments]  = useState({});
   const [textInputs,   setTextInputs]   = useState({});
   const [specOverrides, setSpecOverrides] = useState({}); // { [playerId]: specName }
@@ -513,6 +517,8 @@ export default function AdminView({ teamId, teamName }) {
       if (!s) s = loadState(teamId);
       if (s) {
         if (s.roster)        setRoster(s.roster);
+        if (s.rosterTue)     setRosterTue(s.rosterTue);
+        if (s.rosterThu)     setRosterThu(s.rosterThu);
         if (s.assignments)   setAssignments(s.assignments);
         if (s.raidDate)      setRaidDate(s.raidDate);
         if (s.raidLeader)    setRaidLeader(s.raidLeader);
@@ -526,7 +532,7 @@ export default function AdminView({ teamId, teamName }) {
 
   // ── Save handler ────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    const state = { roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
+    const state = { roster, rosterTue, rosterThu, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
     saveState(state, teamId);
 
     if (!FIREBASE_OK) {
@@ -551,7 +557,7 @@ export default function AdminView({ teamId, teamName }) {
     if (!FIREBASE_OK) return alert("Firebase required to save snapshots.");
     setSnapshotStatus("saving");
     try {
-      const state = { roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
+      const state = { roster, rosterTue, rosterThu, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
       await saveSnapshot(state, teamId);
       setSnapshotStatus("saved");
       // Refresh history list if panel is open
@@ -617,7 +623,7 @@ export default function AdminView({ teamId, teamName }) {
         }
         setSnapshots(prev => prev.map(s => s.id === viewingSnap ? { ...s, ...extra } : s));
       } else {
-        const state = { roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
+        const state = { roster, rosterTue, rosterThu, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
         await saveSnapshot(state, teamId, extra);
         const snaps = await fetchSnapshots(teamId);
         setSnapshots(snaps);
@@ -783,9 +789,10 @@ export default function AdminView({ teamId, teamName }) {
   const assignedList = [];       // no separate assigned section needed
 
   // ── Karazhan-specific sidebar logic ─────────────────────────────────────────
-  // Deduplicate roster by name (keep first occurrence)
+  // Active night roster for the sidebar
+  const karaActiveRoster = karaNight === "tue" ? rosterTue : rosterThu;
   const seenNames = new Set();
-  const karaFiltered = roster.filter(s => {
+  const karaFiltered = karaActiveRoster.filter(s => {
     if (roleFilter !== "All" && getRole(s) !== roleFilter) return false;
     if (seenNames.has(s.name.toLowerCase())) return false;
     seenNames.add(s.name.toLowerCase());
@@ -800,29 +807,22 @@ export default function AdminView({ teamId, teamName }) {
   );
 
   const handleCopyMRT = () => {
-    // All 6 kara groups in order: T1G1, T1G2, T2G1, T2G2, T3G1, T3G2
-    const groups = [
-      KARA_TEAM_1.g1, KARA_TEAM_1.g2,
-      KARA_TEAM_2.g1, KARA_TEAM_2.g2,
-      KARA_TEAM_3.g1, KARA_TEAM_3.g2,
-    ];
-
-    // Build 5 rows (one per slot position), each with one name per group
+    const allRosters = [...rosterTue, ...rosterThu];
+    const allTeams = [...KARA_TUE_TEAMS, ...KARA_THU_TEAMS];
     const rows = [];
-    for (let slot = 0; slot < 5; slot++) {
-      const rowNames = groups.map(group => {
-        const key = group[slot].key;
-        const ids = assignments[key];
+    for (let slot = 0; slot < 10; slot++) {
+      const rowNames = allTeams.map(team => {
+        const row = team[slot];
+        if (!row) return "-";
+        const ids = assignments[row.key];
         if (!ids) return "-";
         const id = Array.isArray(ids) ? ids[0] : ids;
-        const player = roster.find(s => s.id === id);
+        const player = allRosters.find(s => s.id === id);
         return player ? player.name : "-";
       });
-      // Trim trailing dashes
       while (rowNames.length > 1 && rowNames[rowNames.length - 1] === "-") rowNames.pop();
       rows.push(rowNames.join(" "));
     }
-
     navigator.clipboard.writeText(rows.join("\n")).then(() => {
       setMrtCopied(true);
       setTimeout(() => setMrtCopied(false), 2000);
@@ -830,30 +830,30 @@ export default function AdminView({ teamId, teamName }) {
   };
 
   const handleCopyDiscord = () => {
+    const allRosters = [...rosterTue, ...rosterThu];
     const lines = [];
     const raidInfo = [raidDate, raidLeader].filter(Boolean).join(" · ");
     lines.push(`📅 **Karazhan Raid${raidInfo ? " — " + raidInfo : ""}**`);
     lines.push("");
 
-    [KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].forEach((team, i) => {
-      const allRows = [...team.g1, ...team.g2];
-      const placedIds = allRows
-        .flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
-      if (placedIds.length === 0) return;
-
-      lines.push(`🏰 **TEAM ${i + 1}**`);
-
-      [team.g1, team.g2].forEach((group, gi) => {
-        const groupIds = group
-          .flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
-        if (groupIds.length === 0) return;
-        lines.push(`> **Group ${gi + 1}**`);
-        groupIds.forEach(id => {
-          const player = roster.find(s => s.id === id);
-          if (player) lines.push(`> <@${player.id}>`);
+    [["📅 TUESDAY", KARA_TUE_TEAMS], ["📅 THURSDAY", KARA_THU_TEAMS]].forEach(([nightLabel, teams]) => {
+      const nightHasAny = teams.some(team =>
+        team.some(r => assignments[r.key])
+      );
+      if (!nightHasAny) return;
+      lines.push(`**${nightLabel}**`);
+      teams.forEach((team, i) => {
+        const placedIds = team.flatMap(r =>
+          assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []
+        );
+        if (placedIds.length === 0) return;
+        lines.push(`🏰 **Team ${i + 1}**`);
+        placedIds.forEach(id => {
+          const player = allRosters.find(s => s.id === id);
+          if (player) lines.push(`> • ${player.name}`);
         });
+        lines.push("");
       });
-      lines.push("");
     });
 
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
@@ -1013,9 +1013,26 @@ export default function AdminView({ teamId, teamName }) {
             zIndex: 10,
           }}>
             <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#9999bb", letterSpacing: "0.15em" }}>
-              ROSTER · {roster.length} PLAYERS
+              {activeTab === "kara"
+                ? `KARA ROSTER · ${karaNight === "tue" ? rosterTue.length : rosterThu.length} PLAYERS`
+                : `ROSTER · ${roster.length} PLAYERS`}
               {activeTab === "kara" && <span style={{ color: "#9b72cf", marginLeft: 6 }}>· KARA MODE</span>}
             </div>
+            {/* Night toggle for Kara */}
+            {activeTab === "kara" && (
+              <div style={{ display: "flex", borderBottom: "1px solid #1a1a2a" }}>
+                {[["tue", "📅 Tuesday"], ["thu", "📅 Thursday"]].map(([night, label]) => (
+                  <button key={night} onClick={() => setKaraNight(night)} style={{
+                    flex: 1, padding: "5px 4px", fontSize: 9, cursor: "pointer",
+                    border: "none", fontFamily: "'Cinzel', serif",
+                    background: karaNight === night ? "#1a0a2a" : "#080810",
+                    color: karaNight === night ? "#9b72cf" : "#555",
+                    borderBottom: karaNight === night ? "2px solid #9b72cf" : "2px solid transparent",
+                    transition: "all 0.15s",
+                  }}>{label}</button>
+                ))}
+              </div>
+            )}
             {/* Role filter */}
             <div style={{ display: "flex", gap: 3, padding: "6px 8px", borderBottom: "1px solid #1a1a2a" }}>
               {["All","Tank","Healer","DPS"].map(r => (
@@ -1094,7 +1111,18 @@ export default function AdminView({ teamId, teamName }) {
                   })()
               }
             </div>
-            <div style={{ padding: "0 8px 8px" }}><ManualAddPlayer onAdd={handleAddManual} /></div>
+            {activeTab === "kara"
+              ? (
+                <div style={{ padding: "0 8px 8px" }}>
+                  <ManualAddPlayer onAdd={p => {
+                    const newPlayer = { ...p, id: `${karaNight}_${Date.now()}` };
+                    if (karaNight === "tue") setRosterTue(r => [...r, newPlayer]);
+                    else setRosterThu(r => [...r, newPlayer]);
+                  }} />
+                </div>
+              )
+              : <div style={{ padding: "0 8px 8px" }}><ManualAddPlayer onAdd={handleAddManual} /></div>
+            }
 
             {/* ── WCL Parses Panel ── */}
             <div style={{ borderTop: "1px solid #1a1a2a", flexShrink: 0 }}>
@@ -1426,25 +1454,65 @@ export default function AdminView({ teamId, teamName }) {
               </div>
             </>}
 
-            {activeTab === "kara" && <>
-              {[KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].map((team, i) => (
-                <div key={i} style={{ marginBottom: 20 }}>
-                  <KaraTeamHeader teamNum={i + 1} assignments={viewAssignments} allRows={[...team.g1, ...team.g2]} roster={viewRoster} />
-                  <div style={{ display: "flex", gap: 0, borderTop: "none" }}>
-                    <div style={{ flex: 1, borderRight: "1px solid #9b72cf18" }}>
-                      <AdminPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                        rows={team.g1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster}
-                        onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={isLocked ? null : handleTextChange} onSpecCycle={isLocked ? null : handleSpecCycle} onDragStart={isLocked ? null : handleDragStart} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <AdminPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                        rows={team.g2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster}
-                        onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={isLocked ? null : handleTextChange} onSpecCycle={isLocked ? null : handleSpecCycle} onDragStart={isLocked ? null : handleDragStart} />
-                    </div>
+            {activeTab === "kara" && (() => {
+              const allRosters = [...rosterTue, ...rosterThu];
+              const nightSections = [
+                { label: "📅 TUESDAY", teams: KARA_TUE_TEAMS, color: "#4ade80" },
+                { label: "📅 THURSDAY", teams: KARA_THU_TEAMS, color: "#60a5fa" },
+              ];
+              return nightSections.map(({ label, teams, color }) => (
+                <div key={label} style={{ marginBottom: 24 }}>
+                  {/* Night header */}
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
+                    padding: "6px 14px",
+                    background: "#0a0a14", border: "1px solid #1e1e3a", borderRadius: 6,
+                  }}>
+                    <div style={{ width: 3, height: 20, borderRadius: 2, background: color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>
+                      {label}
+                    </span>
+                    <span style={{ fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif", marginLeft: 4 }}>
+                      3 TEAMS · 10 PLAYERS EACH
+                    </span>
+                  </div>
+                  {/* 3 teams side by side */}
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {teams.map((team, i) => (
+                      <div key={i} style={{ flex: 1, background: "#0a0a12", border: `1px solid ${color}22`, borderRadius: 8, overflow: "hidden" }}>
+                        <div style={{ padding: "6px 12px", borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 12, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+                            🏰 TEAM {i + 1}
+                          </span>
+                          <span style={{ fontSize: 9, color: "#555", marginLeft: "auto" }}>
+                            {team.filter(r => viewAssignments[r.key]).length}/10 filled
+                          </span>
+                        </div>
+                        <div style={{ padding: "6px 8px", display: "flex", flexDirection: "column", gap: 2 }}>
+                          {team.map((row, si) => (
+                            <AssignmentRow
+                              key={row.key}
+                              rowKey={row.key}
+                              rowCfg={row}
+                              slots={(viewAssignments[row.key] ? (Array.isArray(viewAssignments[row.key]) ? viewAssignments[row.key] : [viewAssignments[row.key]]) : [])
+                                .map(id => allRosters.find(p => p.id === id)).filter(Boolean)}
+                              onDrop={isLocked ? null : handleDrop}
+                              onClear={isLocked ? null : handleClear}
+                              onDragStart={isLocked ? null : handleDragStart}
+                              dragSlot={dragSlot}
+                              wclScores={wclScores}
+                              activeTab={activeTab}
+                              compact={true}
+                              slotNum={si + 1}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </>}
+              ));
+            })()}
 
             {activeTab === "mags" && <>
               <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />

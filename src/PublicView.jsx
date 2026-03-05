@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ROLE_COLORS, getColor, getSpecDisplay, getClass,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
-  KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3, KARA_ALL_ROWS,
+  KARA_TUE_TEAMS, KARA_THU_TEAMS, KARA_ALL_ROWS,
   GENERAL_CURSES, GENERAL_INTERRUPTS,
   loadState, saveState,
 } from "./constants";
@@ -391,6 +391,8 @@ export default function PublicView({ teamId, teamName }) {
   }, [teamId]);
 
   const roster        = data?.roster        ?? [];
+  const rosterTue     = data?.rosterTue     ?? [];
+  const rosterThu     = data?.rosterThu     ?? [];
   const assignments   = data?.assignments   ?? {};
   const specOverrides = data?.specOverrides ?? {};
   const raidDate      = data?.raidDate      ?? "";
@@ -401,6 +403,8 @@ export default function PublicView({ teamId, teamName }) {
   const isLocked        = viewSnap?.locked ?? false;
   const viewAssignments = viewSnap ? (viewSnap.assignments ?? {}) : assignments;
   const viewRoster      = viewSnap ? (viewSnap.roster      ?? []) : roster;
+  const viewRosterTue   = viewSnap ? (viewSnap.rosterTue   ?? []) : rosterTue;
+  const viewRosterThu   = viewSnap ? (viewSnap.rosterThu   ?? []) : rosterThu;
   const viewTextInputs  = viewSnap ? (viewSnap.textInputs  ?? {}) : (data?.textInputs ?? {});
   const viewRaidDate    = viewSnap ? viewSnap.raidDate   : raidDate;
   const viewRaidLeader  = viewSnap ? viewSnap.raidLeader : raidLeader;
@@ -617,23 +621,58 @@ export default function PublicView({ teamId, teamName }) {
             </div>
           </>}
 
-          {activeTab === "kara" && <>
-            {[KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3].map((team, i) => (
-              <div key={i} style={{ marginBottom: 20 }}>
-                <KaraTeamHeader teamNum={i + 1} assignments={viewAssignments} allRows={[...team.g1, ...team.g2]} roster={viewRoster} specOverrides={specOverrides} />
-                <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row" }}>
-                  <div style={{ flex: 1, borderRight: isNarrow ? "none" : "1px solid #9b72cf18", borderBottom: isNarrow ? "1px solid #9b72cf18" : "none" }}>
-                    <PublicPanel title="GROUP 1" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                      rows={team.g1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} wclScores={wclScores} activeTab={activeTab} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <PublicPanel title="GROUP 2" icon="🏰" subtitle="5-Man Group" bossImage="kara" compact={true}
-                      rows={team.g2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} specOverrides={specOverrides} wclScores={wclScores} activeTab={activeTab} />
-                  </div>
+          {activeTab === "kara" && (() => {
+            const allRosters = [...viewRosterTue, ...viewRosterThu];
+            const nightSections = [
+              { label: "📅 TUESDAY", teams: KARA_TUE_TEAMS, color: "#4ade80" },
+              { label: "📅 THURSDAY", teams: KARA_THU_TEAMS, color: "#60a5fa" },
+            ];
+            return nightSections.map(({ label, teams, color }) => (
+              <div key={label} style={{ marginBottom: 24 }}>
+                {/* Night header */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
+                  padding: "6px 14px",
+                  background: "#0a0a14", border: "1px solid #1e1e3a", borderRadius: 6,
+                }}>
+                  <div style={{ width: 3, height: 20, borderRadius: 2, background: color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>
+                    {label}
+                  </span>
+                  <span style={{ fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif", marginLeft: 4 }}>
+                    3 TEAMS · 10 PLAYERS EACH
+                  </span>
+                </div>
+                {/* 3 teams side by side (stack on mobile) */}
+                <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 10 }}>
+                  {teams.map((team, i) => (
+                    <div key={i} style={{ flex: 1, background: "#0a0a12", border: `1px solid ${color}22`, borderRadius: 8, overflow: "hidden" }}>
+                      <div style={{ padding: "6px 12px", borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 12, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+                          🏰 TEAM {i + 1}
+                        </span>
+                        <span style={{ fontSize: 9, color: "#555", marginLeft: "auto" }}>
+                          {team.filter(r => viewAssignments[r.key]).length}/10
+                        </span>
+                      </div>
+                      <div style={{ padding: "4px 6px", display: "flex", flexDirection: "column", gap: 1 }}>
+                        {team.map(row => {
+                          const ids = viewAssignments[row.key];
+                          const slots = ids
+                            ? (Array.isArray(ids) ? ids : [ids]).map(id => allRosters.find(p => p.id === id)).filter(Boolean)
+                            : [];
+                          return (
+                            <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName}
+                              isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact={true} />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </>}
+            ));
+          })()}
 
           {activeTab === "mags" && <>
             <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
