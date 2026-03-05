@@ -1,4 +1,4 @@
-import { ROLE_COLORS, getClass, getSpecDisplay, getColor, MARKER_SVG } from "./constants";
+import { ROLE_COLORS, getClass, getSpecDisplay, getColor } from "./constants";
 
 // ── Shared font import ────────────────────────────────────────────────────────
 export function FontImport() {
@@ -199,23 +199,23 @@ export function RaidTabs({ activeTab, onTab, raidDate, raidLeader }) {
 }
 
 // ── Raid target marker icon ───────────────────────────────────────────────────
-export function MarkerIcon({ markerKey, size = 16 }) {
-  if (!markerKey || !MARKER_SVG[markerKey]) return null;
-  // Clone the SVG with the requested size
-  const svg = MARKER_SVG[markerKey];
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0, width: size, height: size }}>
-      {svg}
-    </span>
-  );
-}
+const MARKER_SVGS = {
+  star:     (s) => <svg viewBox="0 0 64 64" width={s} height={s}><polygon points="32,4 39,24 60,24 44,37 50,58 32,46 14,58 20,37 4,24 25,24" fill="#FFD700" stroke="#B8860B" strokeWidth="2"/></svg>,
+  circle:   (s) => <svg viewBox="0 0 64 64" width={s} height={s}><circle cx="32" cy="32" r="26" fill="none" stroke="#FF6600" strokeWidth="8"/></svg>,
+  diamond:  (s) => <svg viewBox="0 0 64 64" width={s} height={s}><polygon points="32,4 58,32 32,60 6,32" fill="#9932CC" stroke="#6A0DAD" strokeWidth="2"/></svg>,
+  triangle: (s) => <svg viewBox="0 0 64 64" width={s} height={s}><polygon points="32,6 60,58 4,58" fill="#00CC00" stroke="#006600" strokeWidth="2"/></svg>,
+  moon:     (s) => <svg viewBox="0 0 64 64" width={s} height={s}><path d="M44,12 A24,24 0 1,0 44,52 A16,16 0 1,1 44,12Z" fill="#87CEEB" stroke="#4682B4" strokeWidth="2"/></svg>,
+  square:   (s) => <svg viewBox="0 0 64 64" width={s} height={s}><rect x="10" y="10" width="44" height="44" fill="#1E90FF" stroke="#00008B" strokeWidth="2"/></svg>,
+  cross:    (s) => <svg viewBox="0 0 64 64" width={s} height={s}><line x1="8" y1="8" x2="56" y2="56" stroke="#FF0000" strokeWidth="10" strokeLinecap="round"/><line x1="56" y1="8" x2="8" y2="56" stroke="#FF0000" strokeWidth="10" strokeLinecap="round"/></svg>,
+  skull:    (s) => <svg viewBox="0 0 64 64" width={s} height={s}><ellipse cx="32" cy="28" rx="22" ry="20" fill="#F5F5F5" stroke="#999" strokeWidth="2"/><rect x="18" y="44" width="10" height="12" rx="2" fill="#F5F5F5" stroke="#999" strokeWidth="1.5"/><rect x="36" y="44" width="10" height="12" rx="2" fill="#F5F5F5" stroke="#999" strokeWidth="1.5"/><circle cx="24" cy="27" r="6" fill="#333"/><circle cx="40" cy="27" r="6" fill="#333"/></svg>,
+};
 
-// ── Row label with optional marker icon ──────────────────────────────────────
-export function RowLabel({ label, markerKey, fontSize = 13, color = "#fff", minWidth = 220 }) {
+export function MarkerIcon({ markerKey, size = 16 }) {
+  const fn = MARKER_SVGS[markerKey];
+  if (!fn) return null;
   return (
-    <span style={{ fontSize, color, fontFamily: "'Cinzel', serif", minWidth, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
-      {markerKey && <MarkerIcon markerKey={markerKey} size={fontSize + 2} />}
-      {label}
+    <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+      {fn(size)}
     </span>
   );
 }

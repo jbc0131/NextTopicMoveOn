@@ -252,24 +252,6 @@ export const MARKER_ICONS = {
   star:     "https://wow.zamimg.com/images/wow/icons/large/alliance_icon.jpg",
 };
 
-// Inline SVG markers — pixel-perfect WoW raid target icons
-export const MARKER_SVG = {
-  star:     <svg viewBox="0 0 64 64" width="16" height="16"><polygon points="32,4 39,24 60,24 44,37 50,58 32,46 14,58 20,37 4,24 25,24" fill="#FFD700" stroke="#B8860B" strokeWidth="2"/></svg>,
-  circle:   <svg viewBox="0 0 64 64" width="16" height="16"><circle cx="32" cy="32" r="26" fill="none" stroke="#FF6600" strokeWidth="8"/></svg>,
-  diamond:  <svg viewBox="0 0 64 64" width="16" height="16"><polygon points="32,4 58,32 32,60 6,32" fill="#9932CC" stroke="#6A0DAD" strokeWidth="2"/></svg>,
-  triangle: <svg viewBox="0 0 64 64" width="16" height="16"><polygon points="32,6 60,58 4,58" fill="#00CC00" stroke="#006600" strokeWidth="2"/></svg>,
-  moon:     <svg viewBox="0 0 64 64" width="16" height="16"><path d="M44,12 A24,24 0 1,0 44,52 A16,16 0 1,1 44,12Z" fill="#87CEEB" stroke="#4682B4" strokeWidth="2"/></svg>,
-  square:   <svg viewBox="0 0 64 64" width="16" height="16"><rect x="10" y="10" width="44" height="44" fill="#1E90FF" stroke="#00008B" strokeWidth="2"/></svg>,
-  cross:    <svg viewBox="0 0 64 64" width="16" height="16"><line x1="8" y1="8" x2="56" y2="56" stroke="#FF0000" strokeWidth="10" strokeLinecap="round"/><line x1="56" y1="8" x2="8" y2="56" stroke="#FF0000" strokeWidth="10" strokeLinecap="round"/></svg>,
-  skull:    <svg viewBox="0 0 64 64" width="16" height="16"><ellipse cx="32" cy="28" rx="22" ry="20" fill="#F5F5F5" stroke="#999" strokeWidth="2"/><rect x="18" y="44" width="10" height="12" rx="2" fill="#F5F5F5" stroke="#999" strokeWidth="1.5"/><rect x="36" y="44" width="10" height="12" rx="2" fill="#F5F5F5" stroke="#999" strokeWidth="1.5"/><circle cx="24" cy="27" r="6" fill="#333"/><circle cx="40" cy="27" r="6" fill="#333"/></svg>,
-};
-
-// Returns just the marker key from a label like "Channeler Tank (Skull)" → "skull"
-export function markerKeyFromLabel(label) {
-  const m = label.match(/\((Skull|Cross|Square|Moon|Triangle|Diamond|Circle|Star)\)/i);
-  return m ? m[1].toLowerCase() : null;
-}
-
 // ── General Raid Assignments ──────────────────────────────────────────────────
 const MARKERS = [
   { key: "skull",    label: "Skull"    },
