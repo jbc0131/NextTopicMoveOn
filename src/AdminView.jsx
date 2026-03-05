@@ -141,8 +141,8 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
           transition: "all 0.12s",
         }}
       >
-        {/* Label — hidden for blank kara slots */}
-        {rowCfg.label && (
+        {/* Label — hidden for blank kara slots, shown if markerKey present */}
+        {(rowCfg.label || rowCfg.markerKey) && (
           <span style={{ fontSize: compact ? 11 : 14, color: compact ? "#ccc" : "#ffffff", fontFamily: "'Cinzel', serif", minWidth: compact ? 140 : 220, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
             {rowCfg.markerKey && <MarkerIcon markerKey={rowCfg.markerKey} size={compact ? 13 : 16} />}
             {rowCfg.label}

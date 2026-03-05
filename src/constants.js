@@ -273,7 +273,7 @@ export const GENERAL_CURSES = [
 
 export const GENERAL_INTERRUPTS = MARKERS.map(m => ({
   key:       `gen_int_${m.key}`,
-  label:     m.label,
+  label:     "",
   markerKey: m.key,
   role:      "DPS",
   roleLabel: "Trash Interrupts",

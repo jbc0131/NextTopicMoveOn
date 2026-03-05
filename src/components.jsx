@@ -110,17 +110,6 @@ export function BossPanel({ title, icon, subtitle, bossImage, children }) {
 
 
 
-        {/* Top-right metadata label */}
-        {banner && (
-          <div style={{
-            position: "absolute", top: 8, right: 12,
-            fontSize: 8, color: banner.accent + "66",
-            fontFamily: "'Cinzel', serif", letterSpacing: "0.15em",
-          }}>
-            {banner.label}
-          </div>
-        )}
-
         {/* Large decorative rune watermark */}
         {banner && (
           <div style={{
@@ -142,22 +131,12 @@ export function BossPanel({ title, icon, subtitle, bossImage, children }) {
             background: banner ? banner.accent : "#c8a84b",
             flexShrink: 0,
           }} />
-          <div>
-            <div style={{
-              fontFamily: "'Cinzel', serif", fontSize: 14, fontWeight: 700,
-              color: banner ? banner.accent : "#c8a84b",
-              letterSpacing: "0.05em", lineHeight: 1.2,
-            }}>
-              {icon} {title}
-            </div>
-            {subtitle && (
-              <div style={{
-                fontSize: 9, color: banner ? banner.accent + "66" : "#3a3a2a",
-                letterSpacing: "0.12em", marginTop: 2,
-              }}>
-                {subtitle}
-              </div>
-            )}
+          <div style={{
+            fontFamily: "'Cinzel', serif", fontSize: 14, fontWeight: 700,
+            color: banner ? banner.accent : "#c8a84b",
+            letterSpacing: "0.05em", lineHeight: 1.2,
+          }}>
+            {icon} {title}
           </div>
         </div>
       </div>

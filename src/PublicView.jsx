@@ -108,7 +108,7 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile, wclScores, 
         fontFamily: "'Cinzel', serif",
         flexShrink: 0,
         display: "inline-flex", alignItems: "center", gap: 6,
-        ...(isMobile ? {} : { minWidth: compact ? 140 : 180, maxWidth: compact ? 180 : 220 }),
+        ...(isMobile ? {} : { minWidth: compact ? (rowCfg.markerKey && !rowCfg.label ? 24 : 140) : 180, maxWidth: compact ? 180 : 220 }),
       }}>
         {rowCfg.markerKey && <MarkerIcon markerKey={rowCfg.markerKey} size={compact ? 13 : 15} />}
         {rowCfg.label}
