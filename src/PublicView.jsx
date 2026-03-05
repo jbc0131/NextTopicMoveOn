@@ -658,6 +658,14 @@ export default function PublicView({ teamId, teamName }) {
                             {filledG1 + filledG2}/10
                           </span>
                         </div>
+                        {/* Composition summary */}
+                        <KaraTeamHeader
+                          teamNum={i + 1}
+                          assignments={viewAssignments}
+                          allRows={[...team.g1, ...team.g2]}
+                          roster={allRosters}
+                          hideTitle
+                        />
                         {/* Two groups */}
                         <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row" }}>
                           {[team.g1, team.g2].map((group, gi) => (

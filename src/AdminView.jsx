@@ -1408,7 +1408,8 @@ export default function AdminView({ teamId, teamName }) {
               </div>
             )}
 
-            {/* ── General Raid Assignments — compact inline ── */}
+            {/* ── General Raid Assignments — hidden on Kara tab ── */}
+            {activeTab !== "kara" && (
             <div style={{
               marginBottom: 12, display: "flex", gap: 0,
               background: "#0a0a12", border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden",
@@ -1450,6 +1451,7 @@ export default function AdminView({ teamId, teamName }) {
                 ))}
               </div>
             </div>
+            )}
 
             <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />
 
@@ -1492,6 +1494,7 @@ export default function AdminView({ teamId, teamName }) {
                     {teams.map((team, i) => {
                       const filledG1 = team.g1.filter(r => viewAssignments[r.key]).length;
                       const filledG2 = team.g2.filter(r => viewAssignments[r.key]).length;
+                      const allRows = [...team.g1, ...team.g2];
                       return (
                         <div key={i} style={{ flex: 1, background: "#0a0a12", border: `1px solid ${color}33`, borderRadius: 8, overflow: "hidden" }}>
                           {/* Team header */}
@@ -1503,6 +1506,14 @@ export default function AdminView({ teamId, teamName }) {
                               {filledG1 + filledG2}/10
                             </span>
                           </div>
+                          {/* Composition summary */}
+                          <KaraTeamHeader
+                            teamNum={i + 1}
+                            assignments={viewAssignments}
+                            allRows={allRows}
+                            roster={[...rosterTue, ...rosterThu]}
+                            hideTitle
+                          />
                           {/* Two groups side by side */}
                           <div style={{ display: "flex" }}>
                             {[team.g1, team.g2].map((group, gi) => (

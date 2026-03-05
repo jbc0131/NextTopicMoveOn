@@ -250,7 +250,7 @@ export function KaraPlayerBadge({ slot, onSpecCycle, onDragStart }) {
 }
 
 // ── Kara team header — shows team composition summary ────────────────────────
-export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOverrides }) {
+export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOverrides, hideTitle }) {
   const placedIds = allRows
     .flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
   const uniqueIds = [...new Set(placedIds)];
@@ -258,37 +258,34 @@ export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOver
 
   return (
     <div style={{
-      display: "flex", alignItems: "center", gap: 10,
-      padding: "8px 14px", marginBottom: 6,
-      background: "#0d0a1a", border: "1px solid #9b72cf33",
-      borderRadius: 6,
+      display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4,
+      padding: "6px 10px",
+      background: "#0a0a10", borderBottom: "1px solid #1a1a2a",
+      minHeight: 32,
     }}>
-      <span style={{ fontSize: 13, color: "#9b72cf", fontFamily: "'Cinzel', serif", fontWeight: 700, flexShrink: 0 }}>
-        🏰 TEAM {teamNum}
-      </span>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, flex: 1 }}>
-        {players.map(p => {
-          const color = getColor(p);
-          const spec  = specOverrides?.[p.id]
-            ? (p.specName || "").replace(/\d+$/, "")
-            : getSpecDisplay(p);
-          return (
-            <span key={p.id} style={{
-              fontSize: 11, color, fontFamily: "'Cinzel', serif",
-              background: `${color}15`, border: `1px solid ${color}33`,
-              borderRadius: 3, padding: "1px 7px",
-            }}>
-              {p.name} <span style={{ color: `${color}77`, fontSize: 9 }}>{spec}</span>
-            </span>
-          );
-        })}
-        {players.length === 0 && (
-          <span style={{ fontSize: 10, color: "#444", fontFamily: "'Cinzel', serif", fontStyle: "italic" }}>No players assigned</span>
-        )}
-      </div>
-      <span style={{ fontSize: 10, color: players.length === 10 ? "#4ade80" : "#c8a84b", fontFamily: "'Cinzel', serif", flexShrink: 0 }}>
-        {players.length}/10
-      </span>
+      {!hideTitle && (
+        <span style={{ fontSize: 13, color: "#9b72cf", fontFamily: "'Cinzel', serif", fontWeight: 700, flexShrink: 0, marginRight: 4 }}>
+          🏰 TEAM {teamNum}
+        </span>
+      )}
+      {players.map(p => {
+        const color = getColor(p);
+        const spec  = specOverrides?.[p.id]
+          ? (p.specName || "").replace(/\d+$/, "")
+          : getSpecDisplay(p);
+        return (
+          <span key={p.id} style={{
+            fontSize: 10, color, fontFamily: "'Cinzel', serif",
+            background: `${color}15`, border: `1px solid ${color}33`,
+            borderRadius: 3, padding: "1px 6px",
+          }}>
+            {p.name} <span style={{ color: `${color}77`, fontSize: 8 }}>{spec}</span>
+          </span>
+        );
+      })}
+      {players.length === 0 && (
+        <span style={{ fontSize: 9, color: "#333", fontFamily: "'Cinzel', serif", fontStyle: "italic" }}>No players assigned yet</span>
+      )}
     </div>
   );
 }
