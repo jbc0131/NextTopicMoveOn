@@ -1065,37 +1065,38 @@ export default function AdminView({ teamId, teamName }) {
             <div style={{ flex: 1, overflowY: "auto", padding: "6px 8px", display: "flex", flexDirection: "column", gap: 4, alignItems: "stretch" }}>
               {activeTab === "kara"
                 ? (() => {
+                    // Split into unplaced (top) and placed (bottom, greyed)
+                    const unplaced = karaFiltered.filter(s => !karaAssignedIds.has(s.id));
+                    const placed   = karaFiltered.filter(s =>  karaAssignedIds.has(s.id));
+                    const sorted   = [...unplaced, ...placed];
                     const items = [];
-                    const shownDividers = new Set();
-                    karaFiltered.forEach((s, idx) => {
-                      dividers.forEach(d => {
-                        if (!shownDividers.has(d.name) && s.groupNumber >= d.position) {
-                          shownDividers.add(d.name);
-                          items.push(
-                            <div key={`divider-${d.name}`} style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 0 2px" }}>
-                              <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
-                              <span style={{ fontSize: 8, color: "#ff7755", fontFamily: "'Cinzel', serif", letterSpacing: "0.2em", whiteSpace: "nowrap" }}>— {d.name} —</span>
-                              <div style={{ flex: 1, height: 1, background: "#ff444455" }} />
-                            </div>
-                          );
-                        }
-                      });
-                      const placed = karaAssignedIds.has(s.id);
+                    sorted.forEach((s) => {
+                      const isPlaced = karaAssignedIds.has(s.id);
                       items.push(
-                        <div key={s.id} style={{ position: "relative", opacity: placed ? 0.4 : 1, transition: "opacity 0.2s" }}
-                          title={placed ? `${s.name} is already in a Kara team` : undefined}>
-                          <RosterToken slot={s} onDragStart={placed ? () => {} : handleDragStart} compact={false}
+                        <div key={s.id} style={{ position: "relative", opacity: isPlaced ? 0.35 : 1, transition: "opacity 0.2s" }}
+                          title={isPlaced ? `${s.name} is already in a Kara team` : undefined}>
+                          <RosterToken slot={s} onDragStart={isPlaced ? () => {} : handleDragStart} compact={false}
                             parseScore={getScoreForPlayer(wclScores, s, activeTab)}
                             parseColor={getScoreColor(getScoreForPlayer(wclScores, s, activeTab))} />
-                          {placed && (
+                          {isPlaced && (
                             <span style={{
                               position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
                               fontSize: 9, color: "#9b72cf", fontFamily: "'Cinzel', serif", pointerEvents: "none",
-                            }}>✓ placed</span>
+                            }}>✓</span>
                           )}
                         </div>
                       );
                     });
+                    // Divider between unplaced and placed
+                    if (unplaced.length > 0 && placed.length > 0) {
+                      items.splice(unplaced.length, 0,
+                        <div key="placed-divider" style={{ display: "flex", alignItems: "center", gap: 6, margin: "4px 0 2px" }}>
+                          <div style={{ flex: 1, height: 1, background: "#9b72cf22" }} />
+                          <span style={{ fontSize: 7, color: "#9b72cf55", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", whiteSpace: "nowrap" }}>PLACED</span>
+                          <div style={{ flex: 1, height: 1, background: "#9b72cf22" }} />
+                        </div>
+                      );
+                    }
                     return items;
                   })()
                 : (() => {
@@ -1484,9 +1485,6 @@ export default function AdminView({ teamId, teamName }) {
                     <div style={{ width: 3, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
                     <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>
                       {label}
-                    </span>
-                    <span style={{ fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif", marginLeft: 4 }}>
-                      3 TEAMS · 2 GROUPS OF 5
                     </span>
                   </div>
                   {/* 3 teams side by side */}
