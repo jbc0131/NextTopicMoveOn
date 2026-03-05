@@ -61,7 +61,7 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
       <span>{slot.name}</span>
       {!compact && (
-        <span style={{ color: `${color}88`, fontSize: 11, marginLeft: 2 }}>
+        <span style={{ color: `${color}88`, fontSize: 9, marginLeft: 2 }}>
           {getSpecDisplay(slot)} {cls}
         </span>
       )}
@@ -174,6 +174,7 @@ export function RaidTabs({ activeTab, onTab, raidDate, raidLeader }) {
   const tabs = [
     { id: "gruul", label: "Gruul's Lair", icon: "⚔" },
     { id: "mags",  label: "Magtheridon",  icon: "🔥" },
+    { id: "kara",  label: "Karazhan",     icon: "🏰" },
   ];
   return (
     <div style={{ display: "flex", gap: 4, marginBottom: 12, alignItems: "center" }}>
@@ -206,6 +207,87 @@ export function WarningBar({ text }) {
       background: "#200a0a", border: "1px solid #3a1010", borderRadius: 4,
     }}>
       ⚠ {text}
+    </div>
+  );
+}
+
+// ── Kara player badge (with spec cycle button) ────────────────────────────────
+export function KaraPlayerBadge({ slot, onSpecCycle, onDragStart }) {
+  const color = getColor(slot);
+  const cls   = getClass(slot);
+  return (
+    <div
+      draggable={!!onDragStart}
+      onDragStart={onDragStart ? (e) => onDragStart(e, slot) : undefined}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        background: `${color}18`, border: `1px solid ${color}44`,
+        borderRadius: 4, padding: "2px 4px 2px 8px",
+        cursor: onDragStart ? "grab" : "default",
+        userSelect: "none", fontSize: 12,
+        color: color, fontFamily: "'Cinzel', serif", whiteSpace: "nowrap",
+      }}
+      title={`${slot.name} — ${getSpecDisplay(slot)} ${cls}`}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+      <span>{slot.name}</span>
+      <span style={{ color: `${color}88`, fontSize: 10 }}>{getSpecDisplay(slot)}</span>
+      {onSpecCycle && (
+        <button
+          onClick={e => { e.stopPropagation(); onSpecCycle(slot.id); }}
+          style={{
+            background: `${color}22`, border: `1px solid ${color}44`,
+            borderRadius: 3, color: color, cursor: "pointer",
+            fontSize: 9, padding: "1px 4px", marginLeft: 2, lineHeight: 1.4,
+            fontFamily: "'Cinzel', serif",
+          }}
+          title="Cycle spec"
+        >⟳</button>
+      )}
+    </div>
+  );
+}
+
+// ── Kara team header — shows team composition summary ────────────────────────
+export function KaraTeamHeader({ teamNum, assignments, allRows, roster, specOverrides }) {
+  const placedIds = allRows
+    .flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
+  const uniqueIds = [...new Set(placedIds)];
+  const players   = uniqueIds.map(id => roster.find(s => s.id === id)).filter(Boolean);
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10,
+      padding: "8px 14px", marginBottom: 6,
+      background: "#0d0a1a", border: "1px solid #9b72cf33",
+      borderRadius: 6,
+    }}>
+      <span style={{ fontSize: 13, color: "#9b72cf", fontFamily: "'Cinzel', serif", fontWeight: 700, flexShrink: 0 }}>
+        🏰 TEAM {teamNum}
+      </span>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, flex: 1 }}>
+        {players.map(p => {
+          const color = getColor(p);
+          const spec  = specOverrides?.[p.id]
+            ? (p.specName || "").replace(/\d+$/, "")
+            : getSpecDisplay(p);
+          return (
+            <span key={p.id} style={{
+              fontSize: 11, color, fontFamily: "'Cinzel', serif",
+              background: `${color}15`, border: `1px solid ${color}33`,
+              borderRadius: 3, padding: "1px 7px",
+            }}>
+              {p.name} <span style={{ color: `${color}77`, fontSize: 9 }}>{spec}</span>
+            </span>
+          );
+        })}
+        {players.length === 0 && (
+          <span style={{ fontSize: 10, color: "#444", fontFamily: "'Cinzel', serif", fontStyle: "italic" }}>No players assigned</span>
+        )}
+      </div>
+      <span style={{ fontSize: 10, color: players.length === 10 ? "#4ade80" : "#c8a84b", fontFamily: "'Cinzel', serif", flexShrink: 0 }}>
+        {players.length}/10
+      </span>
     </div>
   );
 }
