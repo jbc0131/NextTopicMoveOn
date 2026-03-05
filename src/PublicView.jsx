@@ -35,7 +35,7 @@ function useWindowWidth() {
 // ── Live sync badge ───────────────────────────────────────────────────────────
 function SyncBadge({ live }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: live ? "#4ade80" : "#888", fontFamily: "'Cinzel', serif" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: live ? "#4ade80" : "#888", fontFamily: "'Cinzel', serif" }}>
       <span style={{
         width: 6, height: 6, borderRadius: "50%",
         background: live ? "#4ade80" : "#333",
@@ -442,25 +442,25 @@ export default function PublicView({ teamId, teamName }) {
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: hasData ? 12 : "auto" }}>
             {FIREBASE_OK && <SyncBadge live={liveSync} />}
             {lastUpdate && !isMobile && (
-              <span style={{ fontSize: 9, color: "#aaa", fontFamily: "'Cinzel', serif" }}>
+              <span style={{ fontSize: 11, color: "#aaa", fontFamily: "'Cinzel', serif" }}>
                 Updated {lastUpdate.toLocaleTimeString()}
               </span>
             )}
             <button
               onClick={() => navigate("/")}
-              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
+              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "6px 14px", fontSize: 12, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
               onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
               onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
             >← Teams</button>
             <button
               onClick={() => navigate(`/${teamId}/analysis`)}
-              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
+              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "6px 14px", fontSize: 12, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
               onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
               onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
             >📊 Analysis</button>
             <button
               onClick={() => navigate(`/${teamId}/admin`)}
-              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "5px 12px", fontSize: 10, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
+              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "6px 14px", fontSize: 12, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
               onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
               onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
             >Admin</button>
@@ -484,13 +484,13 @@ export default function PublicView({ teamId, teamName }) {
             >‹</button>
             <div style={{ flex: 1, textAlign: "center", whiteSpace: "nowrap" }}>
               {viewSnap ? (
-                <span style={{ fontSize: 10, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
+                <span style={{ fontSize: 13, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
                   {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
                   {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
-                  {viewSnap.locked && <span style={{ color: "#555", marginLeft: 6, fontSize: 9 }}>LOCKED</span>}
+                  {viewSnap.locked && <span style={{ color: "#888", marginLeft: 6, fontSize: 11 }}>LOCKED</span>}
                 </span>
               ) : (
-                <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
+                <span style={{ fontSize: 13, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
               )}
             </div>
             <button
@@ -519,16 +519,16 @@ export default function PublicView({ teamId, teamName }) {
               background: "#06060f",
             }}>
               {/* Header */}
-              <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>
+              <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 11, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>
                 📊 PARSE SCORES
                 {wclLoading && <span style={{ color: "#888", marginLeft: 6 }}>…</span>}
               </div>
 
               {/* Column headers */}
               <div style={{ display: "flex", padding: "5px 8px 3px", borderBottom: "1px solid #1a1a2a" }}>
-                <span style={{ flex: 1, fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}>PLAYER</span>
-                <span style={{ width: 28, fontSize: 8, color: "#9b72cf", textAlign: "center", fontFamily: "'Cinzel', serif" }}>KR</span>
-                <span style={{ width: 28, fontSize: 8, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>GM</span>
+                <span style={{ flex: 1, fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}>PLAYER</span>
+                <span style={{ width: 28, fontSize: 10, color: "#9b72cf", textAlign: "center", fontFamily: "'Cinzel', serif" }}>KR</span>
+                <span style={{ width: 28, fontSize: 10, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>GM</span>
               </div>
 
               {/* Player rows — sorted by active tab score */}
@@ -542,7 +542,7 @@ export default function PublicView({ teamId, teamName }) {
 
               {/* Last updated footer */}
               {wclLastFetch && (
-                <div style={{ padding: "5px 8px", borderTop: "1px solid #1a1a2a", fontSize: 7, color: "#444", fontFamily: "'Cinzel', serif" }}>
+                <div style={{ padding: "5px 8px", borderTop: "1px solid #1a1a2a", fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif" }}>
                   Updated {wclLastFetch.toLocaleTimeString()}
                 </div>
               )}
