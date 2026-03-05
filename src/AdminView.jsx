@@ -1367,34 +1367,45 @@ export default function AdminView({ teamId, teamName }) {
               </div>
             )}
 
-            {/* ── General Raid Assignments ── */}
-            <div style={{ marginBottom: 12, display: "flex", gap: 12 }}>
-              <AdminPanel
-                title="WARLOCK CURSES"
-                icon="🟣"
-                subtitle="Active curse assignments"
-                rows={GENERAL_CURSES}
-                assignments={viewAssignments}
-                textValues={viewTextInputs}
-                roster={viewRoster}
-                onDrop={isLocked ? null : handleDrop}
-                onClear={isLocked ? null : handleClear}
-                onTextChange={isLocked ? null : handleTextChange}
-                onDragStart={isLocked ? null : handleDragStart}
-              />
-              <AdminPanel
-                title="TRASH INTERRUPTS"
-                icon="⚡"
-                subtitle="Interrupt assignments by marker"
-                rows={GENERAL_INTERRUPTS}
-                assignments={viewAssignments}
-                textValues={viewTextInputs}
-                roster={viewRoster}
-                onDrop={isLocked ? null : handleDrop}
-                onClear={isLocked ? null : handleClear}
-                onTextChange={isLocked ? null : handleTextChange}
-                onDragStart={isLocked ? null : handleDragStart}
-              />
+            {/* ── General Raid Assignments — compact inline ── */}
+            <div style={{
+              marginBottom: 12, display: "flex", gap: 0,
+              background: "#0a0a12", border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden",
+            }}>
+              {/* Warlock Curses */}
+              <div style={{ flex: 1, borderRight: "1px solid #1e1e3a" }}>
+                <div style={{ padding: "6px 12px", borderBottom: "1px solid #1e1e3a", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11, color: "#8788EE", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", fontWeight: 700 }}>🟣 WARLOCK CURSES</span>
+                </div>
+                {GENERAL_CURSES.map(row => (
+                  <AssignmentRow key={row.key} rowCfg={row}
+                    assignedIds={viewAssignments[row.key]}
+                    textValues={viewTextInputs}
+                    roster={viewRoster}
+                    onDrop={isLocked ? null : handleDrop}
+                    onClear={isLocked ? null : handleClear}
+                    onTextChange={isLocked ? null : handleTextChange}
+                    onDragStart={isLocked ? null : handleDragStart}
+                    assignments={viewAssignments} />
+                ))}
+              </div>
+              {/* Trash Interrupts */}
+              <div style={{ flex: 1 }}>
+                <div style={{ padding: "6px 12px", borderBottom: "1px solid #1e1e3a", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", fontWeight: 700 }}>⚡ TRASH INTERRUPTS</span>
+                </div>
+                {GENERAL_INTERRUPTS.map(row => (
+                  <AssignmentRow key={row.key} rowCfg={row}
+                    assignedIds={viewAssignments[row.key]}
+                    textValues={viewTextInputs}
+                    roster={viewRoster}
+                    onDrop={isLocked ? null : handleDrop}
+                    onClear={isLocked ? null : handleClear}
+                    onTextChange={isLocked ? null : handleTextChange}
+                    onDragStart={isLocked ? null : handleDragStart}
+                    assignments={viewAssignments} />
+                ))}
+              </div>
             </div>
 
             <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />

@@ -563,34 +563,33 @@ export default function PublicView({ teamId, teamName }) {
             </div>
           )}
 
-          {/* ── General Raid Assignments ── */}
-          <div style={{ marginBottom: 12, display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
-            <PublicPanel
-              title="WARLOCK CURSES"
-              icon="🟣"
-              subtitle="Active curse assignments"
-              rows={GENERAL_CURSES}
-              assignments={viewAssignments}
-              textValues={viewTextInputs}
-              roster={viewRoster}
-              searchName={searchName}
-              isMobile={isMobile}
-              wclScores={wclScores}
-              activeTab={activeTab}
-            />
-            <PublicPanel
-              title="TRASH INTERRUPTS"
-              icon="⚡"
-              subtitle="Interrupt assignments by marker"
-              rows={GENERAL_INTERRUPTS}
-              assignments={viewAssignments}
-              textValues={viewTextInputs}
-              roster={viewRoster}
-              searchName={searchName}
-              isMobile={isMobile}
-              wclScores={wclScores}
-              activeTab={activeTab}
-            />
+          {/* ── General Raid Assignments — compact inline ── */}
+          <div style={{
+            marginBottom: 12, display: "flex", flexDirection: isMobile ? "column" : "row", gap: 0,
+            background: "#0a0a12", border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden",
+          }}>
+            {/* Warlock Curses */}
+            <div style={{ flex: 1, borderRight: isMobile ? "none" : "1px solid #1e1e3a", borderBottom: isMobile ? "1px solid #1e1e3a" : "none" }}>
+              <div style={{ padding: "6px 12px", borderBottom: "1px solid #1e1e3a" }}>
+                <span style={{ fontSize: 11, color: "#8788EE", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", fontWeight: 700 }}>🟣 WARLOCK CURSES</span>
+              </div>
+              {GENERAL_CURSES.map(row => {
+                const ids = viewAssignments[row.key] ? (Array.isArray(viewAssignments[row.key]) ? viewAssignments[row.key] : [viewAssignments[row.key]]) : [];
+                const slots = ids.map(id => viewRoster.find(s => s.id === id)).filter(Boolean);
+                return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />;
+              })}
+            </div>
+            {/* Trash Interrupts */}
+            <div style={{ flex: 1 }}>
+              <div style={{ padding: "6px 12px", borderBottom: "1px solid #1e1e3a" }}>
+                <span style={{ fontSize: 11, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", fontWeight: 700 }}>⚡ TRASH INTERRUPTS</span>
+              </div>
+              {GENERAL_INTERRUPTS.map(row => {
+                const ids = viewAssignments[row.key] ? (Array.isArray(viewAssignments[row.key]) ? viewAssignments[row.key] : [viewAssignments[row.key]]) : [];
+                const slots = ids.map(id => viewRoster.find(s => s.id === id)).filter(Boolean);
+                return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />;
+              })}
+            </div>
           </div>
 
           <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />
