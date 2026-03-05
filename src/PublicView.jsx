@@ -336,6 +336,7 @@ function ParseScoresList({ roster, wclScores, wclLoading, activeTab, onWclNameCh
 
 // ── Main Public View ──────────────────────────────────────────────────────────
 export default function PublicView({ teamId, teamName }) {
+  const navBtn = { background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "6px 14px", fontSize: 12, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" };
   const [data,       setData]      = useState(null);
   const [loading,    setLoading]   = useState(true);
   const [liveSync,   setLiveSync]  = useState(false);
@@ -435,76 +436,82 @@ export default function PublicView({ teamId, teamName }) {
             cursor: "pointer",
           }}
         />
-          {/* 🔍 Search box */}
-          {hasData && (
-            <div style={{ marginLeft: "auto", width: isMobile ? 160 : 240 }}>
-              <SearchBox value={searchName} onChange={setSearchName} />
+
+        {/* ── Left cluster: Search + nav + sync + week slider ── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" }}>
+          {FIREBASE_OK && <SyncBadge live={liveSync} />}
+          {lastUpdate && !isMobile && (
+            <span style={{ fontSize: 11, color: "#aaa", fontFamily: "'Cinzel', serif" }}>
+              Updated {lastUpdate.toLocaleTimeString()}
+            </span>
+          )}
+          <button
+            onClick={() => navigate("/")}
+            style={navBtn}
+            onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+            onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
+          >← Teams</button>
+          <button
+            onClick={() => navigate(`/${teamId}/analysis`)}
+            style={navBtn}
+            onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+            onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
+          >📊 Analysis</button>
+
+          {/* Week slider inline */}
+          {FIREBASE_OK && snapshots.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                onClick={() => {
+                  const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                  setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null);
+                }}
+                disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
+                style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}
+              >‹</button>
+              <div style={{ textAlign: "center", whiteSpace: "nowrap", minWidth: 180 }}>
+                {viewSnap ? (
+                  <span style={{ fontSize: 13, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
+                    {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
+                    {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
+                    {viewSnap.locked && <span style={{ color: "#888", marginLeft: 6, fontSize: 11 }}>LOCKED</span>}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 13, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                  setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
+                }}
+                disabled={!viewingSnap}
+                style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: !viewingSnap ? 0.3 : 1 }}
+              >›</button>
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: hasData ? 12 : "auto" }}>
-            {FIREBASE_OK && <SyncBadge live={liveSync} />}
-            {lastUpdate && !isMobile && (
-              <span style={{ fontSize: 11, color: "#aaa", fontFamily: "'Cinzel', serif" }}>
-                Updated {lastUpdate.toLocaleTimeString()}
-              </span>
-            )}
-            <button
-              onClick={() => navigate("/")}
-              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "6px 14px", fontSize: 12, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
-              onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
-              onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
-            >← Teams</button>
-            <button
-              onClick={() => navigate(`/${teamId}/analysis`)}
-              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "6px 14px", fontSize: 12, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
-              onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
-              onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
-            >📊 Analysis</button>
-            <button
-              onClick={() => navigate(`/${teamId}/admin`)}
-              style={{ background: "#0d0d1a", border: "1px solid #444", borderRadius: 4, color: "#aaa", cursor: "pointer", padding: "6px 14px", fontSize: 12, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em" }}
-              onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
-              onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
-            >Admin</button>
-          </div>
+          {/* Search box */}
+          {hasData && !isMobile && (
+            <div style={{ width: 200 }}>
+              <SearchBox value={searchName} onChange={setSearchName} />
+            </div>
+          )}
+        </div>
+
+        {/* ── Right: Admin only ── */}
+        <button
+          onClick={() => navigate(`/${teamId}/admin`)}
+          style={navBtn}
+          onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+          onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
+        >Admin</button>
       </div>
 
-      {/* ── Week slider bar — right-aligned to sit under the header buttons ── */}
-      {FIREBASE_OK && snapshots.length > 0 && (
-        <div style={{
-          background: "#08080f", borderBottom: "1px solid #1a1a2a",
-          padding: "4px 20px", display: "flex", alignItems: "center", justifyContent: "flex-end", flexShrink: 0,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 280 }}>
-            <button
-              onClick={() => {
-                const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-                setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null);
-              }}
-              disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
-              style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}
-            >‹</button>
-            <div style={{ flex: 1, textAlign: "center", whiteSpace: "nowrap" }}>
-              {viewSnap ? (
-                <span style={{ fontSize: 13, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
-                  {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
-                  {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
-                  {viewSnap.locked && <span style={{ color: "#888", marginLeft: 6, fontSize: 11 }}>LOCKED</span>}
-                </span>
-              ) : (
-                <span style={{ fontSize: 13, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
-              )}
-            </div>
-            <button
-              onClick={() => {
-                const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-                setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
-              }}
-              disabled={!viewingSnap}
-              style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: !viewingSnap ? 0.3 : 1 }}
-            >›</button>
-          </div>
+      {/* Mobile search row */}
+      {hasData && isMobile && (
+        <div style={{ padding: "6px 16px", borderBottom: "1px solid #1a1a2a" }}>
+          <SearchBox value={searchName} onChange={setSearchName} />
         </div>
       )}
 
@@ -598,7 +605,6 @@ export default function PublicView({ teamId, teamName }) {
           <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />
 
           {activeTab === "gruul" && <>
-            <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
             <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar}
                 rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
@@ -626,7 +632,6 @@ export default function PublicView({ teamId, teamName }) {
           </>}
 
           {activeTab === "mags" && <>
-            <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
             <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
               <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags}
                 rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
