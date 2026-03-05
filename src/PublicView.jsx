@@ -4,6 +4,7 @@ import {
   ROLE_COLORS, getColor, getSpecDisplay, getClass,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
   KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3, KARA_ALL_ROWS,
+  GENERAL_CURSES, GENERAL_INTERRUPTS,
   loadState, saveState,
 } from "./constants";
 import { FontImport, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader } from "./components";
@@ -561,6 +562,23 @@ export default function PublicView({ teamId, teamName }) {
               </a>
             </div>
           )}
+
+          {/* ── General Raid Assignments ── */}
+          <div style={{ marginBottom: 12 }}>
+            <PublicPanel
+              title="GENERAL RAID ASSIGNMENTS"
+              icon="⚔️"
+              subtitle="Warlock curses & trash interrupts"
+              rows={[...GENERAL_CURSES, ...GENERAL_INTERRUPTS]}
+              assignments={viewAssignments}
+              textValues={viewTextInputs}
+              roster={viewRoster}
+              searchName={searchName}
+              isMobile={isMobile}
+              wclScores={wclScores}
+              activeTab={activeTab}
+            />
+          </div>
 
           <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />
 

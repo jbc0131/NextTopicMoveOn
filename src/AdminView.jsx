@@ -5,6 +5,7 @@ import {
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
   KARA_TEAM_1, KARA_TEAM_2, KARA_TEAM_3, KARA_ALL_ROWS,
   CUBE1_KEYS, CUBE2_KEYS, CUBEBU_KEYS, ALL_CUBE_KEYS,
+  GENERAL_CURSES, GENERAL_INTERRUPTS,
   saveState, loadState,
 } from "./constants";
 import {
@@ -1365,6 +1366,23 @@ export default function AdminView({ teamId, teamName }) {
                 </div>
               </div>
             )}
+
+            {/* ── General Raid Assignments ── */}
+            <div style={{ marginBottom: 12 }}>
+              <AdminPanel
+                title="GENERAL RAID ASSIGNMENTS"
+                icon="⚔️"
+                subtitle="Warlock curses & trash interrupts — applies to all raids"
+                rows={[...GENERAL_CURSES, ...GENERAL_INTERRUPTS]}
+                assignments={viewAssignments}
+                textValues={viewTextInputs}
+                roster={viewRoster}
+                onDrop={isLocked ? null : handleDrop}
+                onClear={isLocked ? null : handleClear}
+                onTextChange={isLocked ? null : handleTextChange}
+                onDragStart={isLocked ? null : handleDragStart}
+              />
+            </div>
 
             <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />
 

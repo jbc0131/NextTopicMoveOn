@@ -242,8 +242,38 @@ export const KARA_ALL_ROWS = [
 
 export const ALL_ROWS = [
   ...GRUUL_MAULGAR, ...GRUUL_BOSS, ...MAGS_P1, ...MAGS_P2,
-  ...KARA_ALL_ROWS,
+  ...KARA_ALL_ROWS, ...GENERAL_ALL_ROWS,
 ];
+
+// ── General Raid Assignments ──────────────────────────────────────────────────
+// Raid target icons for trash interrupts
+const MARKERS = [
+  { key: "skull",    label: "💀 Skull"    },
+  { key: "cross",    label: "❌ Cross"    },
+  { key: "square",   label: "🟧 Square"   },
+  { key: "moon",     label: "🌙 Moon"     },
+  { key: "triangle", label: "🔺 Triangle" },
+  { key: "diamond",  label: "💎 Diamond"  },
+  { key: "circle",   label: "⭕ Circle"   },
+  { key: "star",     label: "⭐ Star"     },
+];
+
+export const GENERAL_CURSES = [
+  { key: "gen_coe",  label: "Curse of Elements",      role: "DPS", roleLabel: "Warlock Curses", hint: "" },
+  { key: "gen_cor",  label: "Curse of Recklessness",  role: "DPS", roleLabel: "Warlock Curses", hint: "" },
+  { key: "gen_cot",  label: "Curse of Tongues",       role: "DPS", roleLabel: "Warlock Curses", hint: "" },
+  { key: "gen_cow",  label: "Curse of Weakness",      role: "DPS", roleLabel: "Warlock Curses", hint: "" },
+];
+
+export const GENERAL_INTERRUPTS = MARKERS.map(m => ({
+  key:       `gen_int_${m.key}`,
+  label:     m.label,
+  role:      "DPS",
+  roleLabel: "Trash Interrupts",
+  hint:      "",
+}));
+
+export const GENERAL_ALL_ROWS = [...GENERAL_CURSES, ...GENERAL_INTERRUPTS];
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
 function storageKey(teamId) {
