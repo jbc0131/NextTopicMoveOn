@@ -640,35 +640,54 @@ export default function PublicView({ teamId, teamName }) {
                     {label}
                   </span>
                   <span style={{ fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif", marginLeft: 4 }}>
-                    3 TEAMS · 10 PLAYERS EACH
+                    3 TEAMS · 2 GROUPS OF 5
                   </span>
                 </div>
-                {/* 3 teams side by side (stack on mobile) */}
+                {/* 3 teams — stack on mobile */}
                 <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 10 }}>
-                  {teams.map((team, i) => (
-                    <div key={i} style={{ flex: 1, background: "#0a0a12", border: `1px solid ${color}22`, borderRadius: 8, overflow: "hidden" }}>
-                      <div style={{ padding: "6px 12px", borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 12, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
-                          🏰 TEAM {i + 1}
-                        </span>
-                        <span style={{ fontSize: 9, color: "#555", marginLeft: "auto" }}>
-                          {team.filter(r => viewAssignments[r.key]).length}/10
-                        </span>
+                  {teams.map((team, i) => {
+                    const filledG1 = team.g1.filter(r => viewAssignments[r.key]).length;
+                    const filledG2 = team.g2.filter(r => viewAssignments[r.key]).length;
+                    return (
+                      <div key={i} style={{ flex: 1, background: "#0a0a12", border: `1px solid ${color}22`, borderRadius: 8, overflow: "hidden" }}>
+                        <div style={{ padding: "6px 12px", borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: 6, background: `${color}08` }}>
+                          <span style={{ fontSize: 12, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+                            🏰 TEAM {i + 1}
+                          </span>
+                          <span style={{ fontSize: 9, color: "#555", marginLeft: "auto" }}>
+                            {filledG1 + filledG2}/10
+                          </span>
+                        </div>
+                        {/* Two groups */}
+                        <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row" }}>
+                          {[team.g1, team.g2].map((group, gi) => (
+                            <div key={gi} style={{
+                              flex: 1,
+                              borderRight: !isNarrow && gi === 0 ? `1px solid ${color}18` : "none",
+                              borderBottom: isNarrow && gi === 0 ? `1px solid ${color}18` : "none",
+                            }}>
+                              <div style={{ padding: "3px 10px", borderBottom: `1px solid ${color}11`, display: "flex", justifyContent: "space-between" }}>
+                                <span style={{ fontSize: 9, color: `${color}88`, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>GROUP {gi + 1}</span>
+                                <span style={{ fontSize: 9, color: "#444" }}>{gi === 0 ? filledG1 : filledG2}/5</span>
+                              </div>
+                              <div style={{ padding: "3px 6px", display: "flex", flexDirection: "column", gap: 1 }}>
+                                {group.map(row => {
+                                  const ids = viewAssignments[row.key];
+                                  const slots = ids
+                                    ? (Array.isArray(ids) ? ids : [ids]).map(id => allRosters.find(p => p.id === id)).filter(Boolean)
+                                    : [];
+                                  return (
+                                    <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName}
+                                      isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact={true} />
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div style={{ padding: "4px 6px", display: "flex", flexDirection: "column", gap: 1 }}>
-                        {team.map(row => {
-                          const ids = viewAssignments[row.key];
-                          const slots = ids
-                            ? (Array.isArray(ids) ? ids : [ids]).map(id => allRosters.find(p => p.id === id)).filter(Boolean)
-                            : [];
-                          return (
-                            <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName}
-                              isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact={true} />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ));

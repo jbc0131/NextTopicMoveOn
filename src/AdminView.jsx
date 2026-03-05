@@ -4,7 +4,7 @@ import {
   ROLE_COLORS, CLASS_COLORS, getRole, getClass, getColor, getSpecDisplay, cycleSpec,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
   KARA_TUE_1, KARA_TUE_2, KARA_TUE_3, KARA_THU_1, KARA_THU_2, KARA_THU_3,
-  KARA_TUE_TEAMS, KARA_THU_TEAMS, KARA_ALL_ROWS,
+  KARA_TUE_TEAMS, KARA_THU_TEAMS, KARA_ALL_ROWS, RAID_TEAMS,
   CUBE1_KEYS, CUBE2_KEYS, CUBEBU_KEYS, ALL_CUBE_KEYS,
   GENERAL_CURSES, GENERAL_INTERRUPTS,
   saveState, loadState,
@@ -880,7 +880,18 @@ export default function AdminView({ teamId, teamName }) {
             <div style={{ fontSize: 15, color: "#c8a84b", fontFamily: "'Cinzel Decorative', serif" }}>
               ⚔ NEXT TOPIC MOVE ON — ADMIN
             </div>
-            <div style={{ fontSize: 9, color: "#c8a84b", letterSpacing: "0.2em" }}>{teamName}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+              {RAID_TEAMS.map(t => (
+                <button key={t.id} onClick={() => navigate(`/${t.id}/admin`)} style={{
+                  fontSize: 9, padding: "2px 10px", cursor: "pointer",
+                  border: "1px solid", borderRadius: 3, fontFamily: "'Cinzel', serif",
+                  background: teamId === t.id ? "#1a1000" : "#0a0a0a",
+                  borderColor: teamId === t.id ? "#c8a84b" : "#333",
+                  color: teamId === t.id ? "#c8a84b" : "#555",
+                  fontWeight: teamId === t.id ? 700 : 400,
+                }}>{t.name}</button>
+              ))}
+            </div>
           </div>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
@@ -1461,54 +1472,73 @@ export default function AdminView({ teamId, teamName }) {
                 { label: "📅 THURSDAY", teams: KARA_THU_TEAMS, color: "#60a5fa" },
               ];
               return nightSections.map(({ label, teams, color }) => (
-                <div key={label} style={{ marginBottom: 24 }}>
+                <div key={label} style={{ marginBottom: 28 }}>
                   {/* Night header */}
                   <div style={{
-                    display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
-                    padding: "6px 14px",
+                    display: "flex", alignItems: "center", gap: 10, marginBottom: 12,
+                    padding: "7px 14px",
                     background: "#0a0a14", border: "1px solid #1e1e3a", borderRadius: 6,
                   }}>
-                    <div style={{ width: 3, height: 20, borderRadius: 2, background: color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>
+                    <div style={{ width: 3, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>
                       {label}
                     </span>
                     <span style={{ fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif", marginLeft: 4 }}>
-                      3 TEAMS · 10 PLAYERS EACH
+                      3 TEAMS · 2 GROUPS OF 5
                     </span>
                   </div>
                   {/* 3 teams side by side */}
-                  <div style={{ display: "flex", gap: 10 }}>
-                    {teams.map((team, i) => (
-                      <div key={i} style={{ flex: 1, background: "#0a0a12", border: `1px solid ${color}22`, borderRadius: 8, overflow: "hidden" }}>
-                        <div style={{ padding: "6px 12px", borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 12, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
-                            🏰 TEAM {i + 1}
-                          </span>
-                          <span style={{ fontSize: 9, color: "#555", marginLeft: "auto" }}>
-                            {team.filter(r => viewAssignments[r.key]).length}/10 filled
-                          </span>
+                  <div style={{ display: "flex", gap: 12 }}>
+                    {teams.map((team, i) => {
+                      const filledG1 = team.g1.filter(r => viewAssignments[r.key]).length;
+                      const filledG2 = team.g2.filter(r => viewAssignments[r.key]).length;
+                      return (
+                        <div key={i} style={{ flex: 1, background: "#0a0a12", border: `1px solid ${color}33`, borderRadius: 8, overflow: "hidden" }}>
+                          {/* Team header */}
+                          <div style={{ padding: "8px 14px", borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: 6, background: `${color}08` }}>
+                            <span style={{ fontSize: 13, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+                              🏰 TEAM {i + 1}
+                            </span>
+                            <span style={{ fontSize: 9, color: "#555", marginLeft: "auto", fontFamily: "'Cinzel', serif" }}>
+                              {filledG1 + filledG2}/10
+                            </span>
+                          </div>
+                          {/* Two groups side by side */}
+                          <div style={{ display: "flex" }}>
+                            {[team.g1, team.g2].map((group, gi) => (
+                              <div key={gi} style={{
+                                flex: 1,
+                                borderRight: gi === 0 ? `1px solid ${color}18` : "none",
+                              }}>
+                                <div style={{ padding: "4px 10px", borderBottom: `1px solid ${color}11`, display: "flex", justifyContent: "space-between" }}>
+                                  <span style={{ fontSize: 9, color: `${color}88`, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>GROUP {gi + 1}</span>
+                                  <span style={{ fontSize: 9, color: "#444", fontFamily: "'Cinzel', serif" }}>{gi === 0 ? filledG1 : filledG2}/5</span>
+                                </div>
+                                <div style={{ padding: "4px 6px", display: "flex", flexDirection: "column", gap: 3 }}>
+                                  {group.map((row, si) => (
+                                    <AssignmentRow
+                                      key={row.key}
+                                      rowKey={row.key}
+                                      rowCfg={row}
+                                      slots={(viewAssignments[row.key] ? (Array.isArray(viewAssignments[row.key]) ? viewAssignments[row.key] : [viewAssignments[row.key]]) : [])
+                                        .map(id => allRosters.find(p => p.id === id)).filter(Boolean)}
+                                      onDrop={isLocked ? null : handleDrop}
+                                      onClear={isLocked ? null : handleClear}
+                                      onDragStart={isLocked ? null : handleDragStart}
+                                      dragSlot={dragSlot}
+                                      wclScores={wclScores}
+                                      activeTab={activeTab}
+                                      compact={false}
+                                      slotNum={si + 1}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div style={{ padding: "6px 8px", display: "flex", flexDirection: "column", gap: 2 }}>
-                          {team.map((row, si) => (
-                            <AssignmentRow
-                              key={row.key}
-                              rowKey={row.key}
-                              rowCfg={row}
-                              slots={(viewAssignments[row.key] ? (Array.isArray(viewAssignments[row.key]) ? viewAssignments[row.key] : [viewAssignments[row.key]]) : [])
-                                .map(id => allRosters.find(p => p.id === id)).filter(Boolean)}
-                              onDrop={isLocked ? null : handleDrop}
-                              onClear={isLocked ? null : handleClear}
-                              onDragStart={isLocked ? null : handleDragStart}
-                              dragSlot={dragSlot}
-                              wclScores={wclScores}
-                              activeTab={activeTab}
-                              compact={true}
-                              slotNum={si + 1}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ));

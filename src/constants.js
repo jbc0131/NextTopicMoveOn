@@ -216,17 +216,30 @@ export const MAGS_P2 = [
   { key: "m_p2c1e",  label: "Cube Clicker",       markerKey: "triangle", role: "DPS",    roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
 ];
 
-// ── Karazhan — 10-man team templates ─────────────────────────────────────────
-// Two nights (Tue / Thu), 3 teams each, 10 slots per team
-function karaTeam(night, teamNum) {
-  const p = `k${night}t${teamNum}`;
-  return Array.from({ length: 10 }, (_, i) => ({
+// ── Team registry (used for switcher in Admin) ────────────────────────────────
+export const RAID_TEAMS = [
+  { id: "team-dick",  name: "Team Dick"  },
+  { id: "team-balls", name: "Team Balls" },
+];
+
+// ── Karazhan — 10-man teams, 2 groups of 5 ───────────────────────────────────
+// Two nights (Tue / Thu), 3 teams each, 2 groups of 5 per team
+function karaGroup(night, teamNum, groupNum) {
+  const p = `k${night}t${teamNum}g${groupNum}`;
+  return Array.from({ length: 5 }, (_, i) => ({
     key:       `${p}_p${i + 1}`,
     label:     "",
     role:      "DPS",
     roleLabel: " ",
     hint:      "",
   }));
+}
+
+function karaTeam(night, teamNum) {
+  return {
+    g1: karaGroup(night, teamNum, 1),
+    g2: karaGroup(night, teamNum, 2),
+  };
 }
 
 export const KARA_TUE_1 = karaTeam("tue", 1);
@@ -238,8 +251,12 @@ export const KARA_THU_3 = karaTeam("thu", 3);
 
 // Flat list for ALL_ROWS (used for key lookups)
 export const KARA_ALL_ROWS = [
-  ...KARA_TUE_1, ...KARA_TUE_2, ...KARA_TUE_3,
-  ...KARA_THU_1, ...KARA_THU_2, ...KARA_THU_3,
+  ...KARA_TUE_1.g1, ...KARA_TUE_1.g2,
+  ...KARA_TUE_2.g1, ...KARA_TUE_2.g2,
+  ...KARA_TUE_3.g1, ...KARA_TUE_3.g2,
+  ...KARA_THU_1.g1, ...KARA_THU_1.g2,
+  ...KARA_THU_2.g1, ...KARA_THU_2.g2,
+  ...KARA_THU_3.g1, ...KARA_THU_3.g2,
 ];
 
 // Grouped for rendering
