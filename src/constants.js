@@ -240,13 +240,7 @@ export const KARA_ALL_ROWS = [
   ...KARA_TEAM_3.g1, ...KARA_TEAM_3.g2,
 ];
 
-export const ALL_ROWS = [
-  ...GRUUL_MAULGAR, ...GRUUL_BOSS, ...MAGS_P1, ...MAGS_P2,
-  ...KARA_ALL_ROWS, ...GENERAL_ALL_ROWS,
-];
-
 // ── General Raid Assignments ──────────────────────────────────────────────────
-// Raid target icons for trash interrupts
 const MARKERS = [
   { key: "skull",    label: "💀 Skull"    },
   { key: "cross",    label: "❌ Cross"    },
@@ -274,6 +268,11 @@ export const GENERAL_INTERRUPTS = MARKERS.map(m => ({
 }));
 
 export const GENERAL_ALL_ROWS = [...GENERAL_CURSES, ...GENERAL_INTERRUPTS];
+
+export const ALL_ROWS = [
+  ...GRUUL_MAULGAR, ...GRUUL_BOSS, ...MAGS_P1, ...MAGS_P2,
+  ...KARA_ALL_ROWS, ...GENERAL_ALL_ROWS,
+];
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
 function storageKey(teamId) {
