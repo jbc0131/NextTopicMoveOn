@@ -415,13 +415,13 @@ export default function PublicView({ teamId, teamName }) {
 
       {/* ── Header ── */}
       <div style={{
-        height: isMobile ? 90 : 110,
         flexShrink: 0,
         borderBottom: "1px solid #1a1a2a",
         background: "#06060f",
         display: "flex", alignItems: "center", padding: "0 16px", gap: 12,
+        height: isMobile ? 90 : 110,
       }}>
-        {/* Team image as clickable square logo */}
+        {/* Team logo */}
         <img
           src={TEAM_IMAGES[teamId]}
           alt={teamName}
@@ -437,76 +437,81 @@ export default function PublicView({ teamId, teamName }) {
           }}
         />
 
-        {/* ── Left cluster: Search + nav + sync + week slider ── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" }}>
-          {FIREBASE_OK && <SyncBadge live={liveSync} />}
-          {lastUpdate && !isMobile && (
-            <span style={{ fontSize: 11, color: "#aaa", fontFamily: "'Cinzel', serif" }}>
-              Updated {lastUpdate.toLocaleTimeString()}
-            </span>
-          )}
-          <button
-            onClick={() => navigate("/")}
-            style={navBtn}
-            onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
-            onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
-          >← Teams</button>
-          <button
-            onClick={() => navigate(`/${teamId}/analysis`)}
-            style={navBtn}
-            onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
-            onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
-          >📊 Analysis</button>
+        {/* ── Two-row column ── */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
 
-          {/* Week slider inline */}
-          {FIREBASE_OK && snapshots.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <button
-                onClick={() => {
-                  const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-                  setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null);
-                }}
-                disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
-                style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}
-              >‹</button>
-              <div style={{ textAlign: "center", whiteSpace: "nowrap", minWidth: 180 }}>
-                {viewSnap ? (
-                  <span style={{ fontSize: 13, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
-                    {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
-                    {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
-                    {viewSnap.locked && <span style={{ color: "#888", marginLeft: 6, fontSize: 11 }}>LOCKED</span>}
-                  </span>
-                ) : (
-                  <span style={{ fontSize: 13, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
-                )}
+          {/* Row 1: LIVE + Updated */}
+          {!isMobile && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {FIREBASE_OK && <SyncBadge live={liveSync} />}
+              {lastUpdate && (
+                <span style={{ fontSize: 11, color: "#aaa", fontFamily: "'Cinzel', serif" }}>
+                  Updated {lastUpdate.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Row 2: Teams · Analysis · Week Slider · Search + Admin right */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={() => navigate("/")} style={navBtn}
+              onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+              onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
+            >← Teams</button>
+            <button onClick={() => navigate(`/${teamId}/analysis`)} style={navBtn}
+              onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+              onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
+            >📊 Analysis</button>
+
+            {/* Week slider */}
+            {FIREBASE_OK && snapshots.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button
+                  onClick={() => {
+                    const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                    setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null);
+                  }}
+                  disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
+                  style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}
+                >‹</button>
+                <div style={{ textAlign: "center", whiteSpace: "nowrap", minWidth: 160 }}>
+                  {viewSnap ? (
+                    <span style={{ fontSize: 13, color: viewSnap.locked ? "#a78bfa" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
+                      {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
+                      {viewSnap.raidLeader ? ` · ${viewSnap.raidLeader}` : ""}
+                      {viewSnap.locked && <span style={{ color: "#888", marginLeft: 6, fontSize: 11 }}>LOCKED</span>}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 13, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>⚡ Current Week (Live)</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
+                    setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
+                  }}
+                  disabled={!viewingSnap}
+                  style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: !viewingSnap ? 0.3 : 1 }}
+                >›</button>
               </div>
-              <button
-                onClick={() => {
-                  const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-                  setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
-                }}
-                disabled={!viewingSnap}
-                style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: !viewingSnap ? 0.3 : 1 }}
-              >›</button>
-            </div>
-          )}
+            )}
 
-          {/* Search box */}
-          {hasData && !isMobile && (
-            <div style={{ width: 200 }}>
-              <SearchBox value={searchName} onChange={setSearchName} />
-            </div>
-          )}
+            {/* Search */}
+            {hasData && !isMobile && (
+              <div style={{ width: 200 }}>
+                <SearchBox value={searchName} onChange={setSearchName} />
+              </div>
+            )}
+
+            {/* Admin pushed to far right */}
+            <button onClick={() => navigate(`/${teamId}/admin`)} style={{ ...navBtn, marginLeft: "auto" }}
+              onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
+              onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
+            >Admin</button>
+          </div>
         </div>
-
-        {/* ── Right: Admin only ── */}
-        <button
-          onClick={() => navigate(`/${teamId}/admin`)}
-          style={navBtn}
-          onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
-          onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
-        >Admin</button>
       </div>
+
 
       {/* Mobile search row */}
       {hasData && isMobile && (
