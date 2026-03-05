@@ -345,6 +345,7 @@ export default function PublicView({ teamId, teamName }) {
   const [searchName, setSearchName]= useState("");
   const [snapshots,  setSnapshots] = useState([]);
   const [viewingSnap, setViewingSnap] = useState(null);
+  const [assignmentsOpen, setAssignmentsOpen] = useState(false);
   const navigate = useNavigate();
   const width = useWindowWidth();
   const isMobile = width < 768;
@@ -459,7 +460,7 @@ export default function PublicView({ teamId, teamName }) {
                   <button
                     onClick={() => {
                       const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-                      setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null);
+                      setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null); setAssignmentsOpen(false);
                     }}
                     disabled={viewingSnap === snapshots[snapshots.length - 1]?.id}
                     style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}
@@ -478,7 +479,7 @@ export default function PublicView({ teamId, teamName }) {
                   <button
                     onClick={() => {
                       const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1;
-                      setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null);
+                      setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null); setAssignmentsOpen(false);
                     }}
                     disabled={!viewingSnap}
                     style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: !viewingSnap ? 0.3 : 1 }}
@@ -570,10 +571,169 @@ export default function PublicView({ teamId, teamName }) {
           {/* ── Main assignment content ── */}
           <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "10px 10px" : "16px 24px" }}>
 
+          {/* ── LOCKED SNAPSHOT: RPB analysis first, assignments collapsible ── */}
+          {isLocked && (() => {
+            const embedUrl = viewSnap?.sheetUrl
+              ? (() => {
+                  const url = viewSnap.sheetUrl;
+                  if (!url.includes("docs.google.com/spreadsheets")) return null;
+                  const base = url.replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview");
+                  return `${base}?rm=minimal#gid=548293748`;
+                })()
+              : null;
+
+            return (
+              <>
+                {/* RPB iframe — primary view */}
+                <div style={{ marginBottom: 14 }}>
+                  {embedUrl ? (
+                    <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #a78bfa33" }}>
+                      <div style={{ padding: "8px 14px", background: "#0a0820", borderBottom: "1px solid #a78bfa22", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: 12, color: "#a78bfa", fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+                          🔒 {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()} — Role Performance Breakdown
+                        </span>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          {viewSnap.wclReportUrl && (
+                            <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer"
+                              style={{ fontSize: 10, color: "#60a5fa", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
+                              📊 WarcraftLogs →
+                            </a>
+                          )}
+                          <a href={viewSnap.sheetUrl} target="_blank" rel="noreferrer"
+                            style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
+                            ↗ Google Sheets →
+                          </a>
+                        </div>
+                      </div>
+                      <iframe
+                        key={embedUrl}
+                        src={embedUrl}
+                        style={{ width: "100%", height: isMobile ? 420 : 600, border: "none", display: "block" }}
+                        title="RPB Analysis Sheet"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ padding: "14px 18px", background: "#0a0820", border: "1px solid #a78bfa33", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 11, color: "#a78bfa", fontFamily: "'Cinzel', serif" }}>
+                        🔒 {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()} — Locked Raid Week
+                      </span>
+                      {viewSnap.wclReportUrl && (
+                        <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer"
+                          style={{ fontSize: 11, color: "#60a5fa", fontFamily: "'Cinzel', serif", textDecoration: "none", fontWeight: 600 }}>
+                          📊 View WarcraftLogs Report →
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Collapsible assignments section */}
+                <div style={{ border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden", marginBottom: 14 }}>
+                  <button
+                    onClick={() => setAssignmentsOpen(o => !o)}
+                    style={{
+                      width: "100%", background: "#0a0a14", border: "none", cursor: "pointer",
+                      padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}
+                  >
+                    <span style={{ fontSize: 11, color: "#666", fontFamily: "'Cinzel', serif", letterSpacing: "0.12em" }}>
+                      📋 RAID ASSIGNMENTS
+                    </span>
+                    <span style={{ fontSize: 11, color: "#444" }}>{assignmentsOpen ? "▲ collapse" : "▼ expand"}</span>
+                  </button>
+
+                  {assignmentsOpen && (
+                    <div style={{ padding: isMobile ? "10px 8px" : "14px 16px", borderTop: "1px solid #1a1a2a" }}>
+                      {/* General assignments */}
+                      <div style={{
+                        marginBottom: 12, display: "flex", flexDirection: isMobile ? "column" : "row", gap: 0,
+                        background: "#0a0a12", border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden",
+                      }}>
+                        <div style={{ flex: 1, borderRight: isMobile ? "none" : "1px solid #1e1e3a", borderBottom: isMobile ? "1px solid #1e1e3a" : "none" }}>
+                          <div style={{ padding: "6px 12px", borderBottom: "1px solid #1e1e3a" }}>
+                            <span style={{ fontSize: 11, color: "#8788EE", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", fontWeight: 700 }}>🟣 WARLOCK CURSES</span>
+                          </div>
+                          {GENERAL_CURSES.map(row => {
+                            const ids = viewAssignments[row.key] ? (Array.isArray(viewAssignments[row.key]) ? viewAssignments[row.key] : [viewAssignments[row.key]]) : [];
+                            const slots = ids.map(id => viewRoster.find(s => s.id === id)).filter(Boolean);
+                            return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact />;
+                          })}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ padding: "6px 12px", borderBottom: "1px solid #1e1e3a" }}>
+                            <span style={{ fontSize: 11, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", fontWeight: 700 }}>⚡ TRASH INTERRUPTS</span>
+                          </div>
+                          {GENERAL_INTERRUPTS.map(row => {
+                            const ids = viewAssignments[row.key] ? (Array.isArray(viewAssignments[row.key]) ? viewAssignments[row.key] : [viewAssignments[row.key]]) : [];
+                            const slots = ids.map(id => viewRoster.find(s => s.id === id)).filter(Boolean);
+                            return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact />;
+                          })}
+                        </div>
+                      </div>
+
+                      <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />
+
+                      {activeTab === "gruul" && (
+                        <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14, marginTop: 12 }}>
+                          <PublicPanel title="HIGH KING MAULGAR" icon="👑" bossImage={BOSS_KEYS.maulgar}
+                            rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                          <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" bossImage={BOSS_KEYS.gruul}
+                            rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                        </div>
+                      )}
+                      {activeTab === "mags" && (
+                        <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14, marginTop: 12 }}>
+                          <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" bossImage={BOSS_KEYS.mags}
+                            rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                          <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" bossImage={BOSS_KEYS.mags}
+                            rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                        </div>
+                      )}
+                      {activeTab === "kara" && (() => {
+                        const allRosters = [...viewRosterTue, ...viewRosterThu];
+                        return KARA_TUE_TEAMS.concat(KARA_THU_TEAMS).map((team, i) => {
+                          const isThursday = i >= 3;
+                          const teamNum = (i % 3) + 1;
+                          return (
+                            <div key={i} style={{ marginBottom: 12, marginTop: i === 0 || i === 3 ? 12 : 0 }}>
+                              {(i === 0 || i === 3) && (
+                                <div style={{ fontSize: 11, color: isThursday ? "#60a5fa" : "#4ade80", fontFamily: "'Cinzel', serif", fontWeight: 700, marginBottom: 6 }}>
+                                  {isThursday ? "📅 THURSDAY" : "📅 TUESDAY"}
+                                </div>
+                              )}
+                              <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 6 }}>
+                                {[team.g1, team.g2].map((group, gi) => (
+                                  <div key={gi} style={{ flex: 1, background: "#0a0a12", border: "1px solid #1e1e3a", borderRadius: 6, overflow: "hidden" }}>
+                                    <div style={{ padding: "4px 10px", borderBottom: "1px solid #1e1e3a", fontSize: 9, color: "#666", fontFamily: "'Cinzel', serif" }}>
+                                      🏰 TEAM {teamNum} · GROUP {gi + 1}
+                                    </div>
+                                    {group.map(row => {
+                                      const ids = viewAssignments[row.key];
+                                      const slots = ids ? (Array.isArray(ids) ? ids : [ids]).map(id => allRosters.find(p => p.id === id)).filter(Boolean) : [];
+                                      return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact />;
+                                    })}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+
+          {/* ── CURRENT WEEK: normal view ── */}
+          {!isLocked && (<>
+
           {/* ── Locked week WCL banner ── */}
-          {isLocked && viewSnap?.wclReportUrl && (
+          {viewSnap?.wclReportUrl && (
             <div style={{ marginBottom: 12, padding: "8px 14px", background: "#0a0820", border: "1px solid #a78bfa44", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11, color: "#a78bfa", fontFamily: "'Cinzel', serif" }}>🔒 Raid Completed</span>
+              <span style={{ fontSize: 11, color: "#a78bfa", fontFamily: "'Cinzel', serif" }}>📸 Snapshot</span>
               <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer"
                 style={{ fontSize: 11, color: "#60a5fa", fontFamily: "'Cinzel', serif", textDecoration: "none", fontWeight: 600 }}>
                 📊 View WarcraftLogs Report →
@@ -711,7 +871,7 @@ export default function PublicView({ teamId, teamName }) {
           </>}
 
           {/* ── Mobile Parse Scores (bottom, only on mobile) ── */}
-          {isMobile && viewRoster.length > 0 && (
+          {!isLocked && isMobile && viewRoster.length > 0 && (
             <div style={{ marginTop: 20, border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden" }}>
               <div style={{ padding: "8px 12px", background: "#0a0a14", borderBottom: "1px solid #1a1a2a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 10, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>
@@ -734,6 +894,8 @@ export default function PublicView({ teamId, teamName }) {
               </div>
             </div>
           )}
+
+          </>)}
 
           </div>
         </div>
