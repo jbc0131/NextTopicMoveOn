@@ -1368,12 +1368,25 @@ export default function AdminView({ teamId, teamName }) {
             )}
 
             {/* ── General Raid Assignments ── */}
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 12, display: "flex", gap: 12 }}>
               <AdminPanel
-                title="GENERAL RAID ASSIGNMENTS"
-                icon="⚔️"
-                subtitle="Warlock curses & trash interrupts — applies to all raids"
-                rows={[...GENERAL_CURSES, ...GENERAL_INTERRUPTS]}
+                title="WARLOCK CURSES"
+                icon="🟣"
+                subtitle="Active curse assignments"
+                rows={GENERAL_CURSES}
+                assignments={viewAssignments}
+                textValues={viewTextInputs}
+                roster={viewRoster}
+                onDrop={isLocked ? null : handleDrop}
+                onClear={isLocked ? null : handleClear}
+                onTextChange={isLocked ? null : handleTextChange}
+                onDragStart={isLocked ? null : handleDragStart}
+              />
+              <AdminPanel
+                title="TRASH INTERRUPTS"
+                icon="⚡"
+                subtitle="Interrupt assignments by marker"
+                rows={GENERAL_INTERRUPTS}
                 assignments={viewAssignments}
                 textValues={viewTextInputs}
                 roster={viewRoster}

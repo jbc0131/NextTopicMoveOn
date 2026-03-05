@@ -564,12 +564,25 @@ export default function PublicView({ teamId, teamName }) {
           )}
 
           {/* ── General Raid Assignments ── */}
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: 12, display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
             <PublicPanel
-              title="GENERAL RAID ASSIGNMENTS"
-              icon="⚔️"
-              subtitle="Warlock curses & trash interrupts"
-              rows={[...GENERAL_CURSES, ...GENERAL_INTERRUPTS]}
+              title="WARLOCK CURSES"
+              icon="🟣"
+              subtitle="Active curse assignments"
+              rows={GENERAL_CURSES}
+              assignments={viewAssignments}
+              textValues={viewTextInputs}
+              roster={viewRoster}
+              searchName={searchName}
+              isMobile={isMobile}
+              wclScores={wclScores}
+              activeTab={activeTab}
+            />
+            <PublicPanel
+              title="TRASH INTERRUPTS"
+              icon="⚡"
+              subtitle="Interrupt assignments by marker"
+              rows={GENERAL_INTERRUPTS}
               assignments={viewAssignments}
               textValues={viewTextInputs}
               roster={viewRoster}
