@@ -489,16 +489,12 @@ export default function PublicView({ teamId, teamName }) {
             </div>
           )}
 
-          {/* Row 2: Teams · Analysis · Search + Admin right */}
+          {/* Row 2: Teams · Search + Admin right */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <button onClick={() => navigate("/")} style={navBtn}
               onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
               onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
             >← Teams</button>
-            <button onClick={() => navigate(`/${teamId}/analysis`)} style={navBtn}
-              onMouseEnter={e => { e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#888"; }}
-              onMouseLeave={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="#444"; }}
-            >📊 Analysis</button>
 
             {/* Search */}
             {hasData && !isMobile && (
