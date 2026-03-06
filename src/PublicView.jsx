@@ -582,6 +582,15 @@ export default function PublicView({ teamId, teamName }) {
                 })()
               : null;
 
+            const combatLogEmbedUrl = viewSnap?.combatLogUrl
+              ? (() => {
+                  const url = viewSnap.combatLogUrl;
+                  if (!url.includes("docs.google.com/spreadsheets")) return null;
+                  const base = url.replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview");
+                  return `${base}?rm=minimal`;
+                })()
+              : null;
+
             return (
               <>
                 {/* RPB iframe — primary view */}
@@ -627,6 +636,28 @@ export default function PublicView({ teamId, teamName }) {
                     </div>
                   )}
                 </div>
+
+                {/* Combat Log Analytics iframe */}
+                {combatLogEmbedUrl && (
+                  <div style={{ marginBottom: 14, borderRadius: 8, overflow: "hidden", border: "1px solid #f59e0b33" }}>
+                    <div style={{ padding: "8px 14px", background: "#0f0800", borderBottom: "1px solid #f59e0b22", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 12, color: "#f59e0b", fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+                        ⚔ Combat Log Analytics
+                      </span>
+                      <a href={viewSnap.combatLogUrl} target="_blank" rel="noreferrer"
+                        style={{ fontSize: 10, color: "#f59e0b", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
+                        ↗ Google Sheets →
+                      </a>
+                    </div>
+                    <iframe
+                      key={combatLogEmbedUrl}
+                      src={combatLogEmbedUrl}
+                      style={{ width: "100%", height: isMobile ? 420 : 600, border: "none", display: "block" }}
+                      title="Combat Log Analytics"
+                      allowFullScreen
+                    />
+                  </div>
+                )}
 
                 {/* Collapsible assignments section */}
                 <div style={{ border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden", marginBottom: 14 }}>

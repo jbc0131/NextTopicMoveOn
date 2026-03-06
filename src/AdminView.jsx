@@ -495,9 +495,12 @@ export default function AdminView({ teamId, teamName }) {
   // WCL log submission
   const [wclSubmitUrl,    setWclSubmitUrl]    = useState("");
   const [sheetSubmitUrl,  setSheetSubmitUrl]  = useState("");
+  const [combatLogSubmitUrl, setCombatLogSubmitUrl] = useState("");
   const [wclSubmitStatus, setWclSubmitStatus] = useState("idle"); // idle | saving | saved | error
   const [sheetEditUrl,    setSheetEditUrl]    = useState("");
   const [sheetEditStatus, setSheetEditStatus] = useState("idle"); // idle | saving | saved
+  const [combatLogEditUrl,    setCombatLogEditUrl]    = useState("");
+  const [combatLogEditStatus, setCombatLogEditStatus] = useState("idle"); // idle | saving | saved
   const [discordCopied, setDiscordCopied] = useState(false);
   const [mrtCopied,   setMrtCopied]   = useState(false);
   const [parsesOpen,  setParsesOpen]  = useState(false);
@@ -611,15 +614,26 @@ export default function AdminView({ teamId, teamName }) {
       ? rawSheet.replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview")
       : null;
 
+    const rawCombatLog = combatLogSubmitUrl.trim();
+    const combatLogUrl = rawCombatLog
+      ? rawCombatLog.replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview")
+      : null;
+
     setWclSubmitStatus("saving");
     try {
-      const extra = { wclReportUrl: finalUrl, locked: true, ...(sheetUrl ? { sheetUrl } : {}) };
+      const extra = {
+        wclReportUrl: finalUrl, locked: true,
+        ...(sheetUrl     ? { sheetUrl }     : {}),
+        ...(combatLogUrl ? { combatLogUrl } : {}),
+      };
       if (viewingSnap) {
         await submitWclLog(teamId, viewingSnap, finalUrl);
-        // Also update sheetUrl if provided
-        if (sheetUrl) {
+        const updates = {};
+        if (sheetUrl)     updates.sheetUrl     = sheetUrl;
+        if (combatLogUrl) updates.combatLogUrl = combatLogUrl;
+        if (Object.keys(updates).length) {
           const { updateSnapshot } = await import("./firebase");
-          await updateSnapshot(teamId, viewingSnap, { sheetUrl });
+          await updateSnapshot(teamId, viewingSnap, updates);
         }
         setSnapshots(prev => prev.map(s => s.id === viewingSnap ? { ...s, ...extra } : s));
       } else {
@@ -631,13 +645,14 @@ export default function AdminView({ teamId, teamName }) {
       setWclSubmitStatus("saved");
       setWclSubmitUrl("");
       setSheetSubmitUrl("");
+      setCombatLogSubmitUrl("");
       setTimeout(() => setWclSubmitStatus("idle"), 3000);
     } catch (e) {
       console.error("WCL submit failed", e);
       setWclSubmitStatus("error");
       setTimeout(() => setWclSubmitStatus("idle"), 4000);
     }
-  }, [wclSubmitUrl, sheetSubmitUrl, viewingSnap, teamId, roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers]);
+  }, [wclSubmitUrl, sheetSubmitUrl, combatLogSubmitUrl, viewingSnap, teamId, roster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers]);
 
 
   const handleSpecCycle = (playerId) => {
@@ -1331,7 +1346,15 @@ export default function AdminView({ teamId, teamName }) {
                   <input
                     value={sheetSubmitUrl}
                     onChange={e => setSheetSubmitUrl(e.target.value)}
-                    placeholder="📊 Google Sheet URL (optional — enables Analysis page)…"
+                    placeholder="📊 Google Sheet URL (optional — RPB Analysis)…"
+                    style={{ flex: 1, background: "#080810", border: "1px solid #2a2a4a", borderRadius: 4, color: "#ccc", padding: "5px 10px", fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none" }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    value={combatLogSubmitUrl}
+                    onChange={e => setCombatLogSubmitUrl(e.target.value)}
+                    placeholder="⚔ Combat Log Analytics URL (optional)…"
                     style={{ flex: 1, background: "#080810", border: "1px solid #2a2a4a", borderRadius: 4, color: "#ccc", padding: "5px 10px", fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none" }}
                   />
                   <button
@@ -1366,13 +1389,18 @@ export default function AdminView({ teamId, teamName }) {
                       📊 RPB Sheet →
                     </a>
                   )}
+                  {viewSnap.combatLogUrl && (
+                    <a href={viewSnap.combatLogUrl} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#f59e0b", fontFamily: "'Cinzel', serif", textDecoration: "none" }}>
+                      ⚔ Combat Log →
+                    </a>
+                  )}
                 </div>
-                {/* Inline sheet URL input — always visible so it can be added/updated */}
+                {/* RPB Sheet URL edit */}
                 <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
                   <input
                     value={sheetEditUrl}
                     onChange={e => setSheetEditUrl(e.target.value)}
-                    placeholder={viewSnap.sheetUrl ? "📊 Update Google Sheet URL…" : "📊 Paste Google Sheet URL to link analysis…"}
+                    placeholder={viewSnap.sheetUrl ? "📊 Update RPB Sheet URL…" : "📊 Paste RPB Sheet URL…"}
                     style={{ flex: 1, background: "#080810", border: "1px solid #2a2a4a", borderRadius: 4, color: "#ccc", padding: "4px 10px", fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none" }}
                   />
                   <button
@@ -1403,7 +1431,46 @@ export default function AdminView({ teamId, teamName }) {
                       sheetEditStatus === "saved" ? "#4ade80" : "#4ade80"
                     )}
                   >
-                    {sheetEditStatus === "saving" ? "Saving…" : sheetEditStatus === "saved" ? "✓ Saved!" : "💾 Save Sheet"}
+                    {sheetEditStatus === "saving" ? "Saving…" : sheetEditStatus === "saved" ? "✓ Saved!" : "💾 Save RPB"}
+                  </button>
+                </div>
+                {/* Combat Log URL edit */}
+                <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }}>
+                  <input
+                    value={combatLogEditUrl}
+                    onChange={e => setCombatLogEditUrl(e.target.value)}
+                    placeholder={viewSnap.combatLogUrl ? "⚔ Update Combat Log Analytics URL…" : "⚔ Paste Combat Log Analytics URL…"}
+                    style={{ flex: 1, background: "#080810", border: "1px solid #2a2a4a", borderRadius: 4, color: "#ccc", padding: "4px 10px", fontFamily: "'Cinzel', serif", fontSize: 10, outline: "none" }}
+                  />
+                  <button
+                    onClick={async () => {
+                      const raw = combatLogEditUrl.trim();
+                      if (!raw) return;
+                      if (!raw.includes("docs.google.com/spreadsheets")) {
+                        alert("Please paste a Google Sheets URL (should contain docs.google.com/spreadsheets)");
+                        return;
+                      }
+                      const combatLogUrl = raw.replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview");
+                      setCombatLogEditStatus("saving");
+                      try {
+                        await updateSnapshot(teamId, viewSnap.id, { combatLogUrl });
+                        setSnapshots(prev => prev.map(s => s.id === viewSnap.id ? { ...s, combatLogUrl } : s));
+                        setCombatLogEditUrl("");
+                        setCombatLogEditStatus("saved");
+                        setTimeout(() => setCombatLogEditStatus("idle"), 3000);
+                      } catch (e) {
+                        console.error("Combat log URL save failed", e);
+                        setCombatLogEditStatus("idle");
+                      }
+                    }}
+                    disabled={!combatLogEditUrl.trim() || combatLogEditStatus === "saving"}
+                    style={btn(
+                      combatLogEditStatus === "saved" ? "#1a0a00" : "#100800",
+                      combatLogEditStatus === "saved" ? "#f59e0b66" : "#f59e0b33",
+                      combatLogEditStatus === "saved" ? "#f59e0b" : "#f59e0b"
+                    )}
+                  >
+                    {combatLogEditStatus === "saving" ? "Saving…" : combatLogEditStatus === "saved" ? "✓ Saved!" : "💾 Save Combat Log"}
                   </button>
                 </div>
               </div>
