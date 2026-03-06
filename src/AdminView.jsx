@@ -597,6 +597,25 @@ export default function AdminView({ teamId, teamName }) {
     fetchSnapshots(teamId).then(setSnapshots).catch(console.warn);
   }, [teamId]);
 
+  // ── Auto-fetch raid date from WCL report ─────────────────────────────────
+  async function fetchRaidDateFromReport(reportCode) {
+    try {
+      const res = await fetch("/api/warcraftlogs-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fights", reportId: reportCode }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data.start) return null;
+      const d = new Date(data.start);
+      return `${d.getMonth() + 1}-${d.getDate()}-${String(d.getFullYear()).slice(2)}`;
+    } catch (e) {
+      console.warn("Could not auto-fetch raid date from WCL", e);
+      return null;
+    }
+  }
+
   // Submit a WCL report URL — saves snapshot if current week, locks it
   const handleWclSubmit = useCallback(async () => {
     const url = wclSubmitUrl.trim();
@@ -607,6 +626,17 @@ export default function AdminView({ teamId, teamName }) {
     const finalUrl = reportCode
       ? `https://fresh.warcraftlogs.com/reports/${reportCode}`
       : url;
+
+    // ── Auto-fetch raid date from the WCL report ──────────────────────────
+    let autoDate = raidDate;
+    if (reportCode) {
+      const fetched = await fetchRaidDateFromReport(reportCode);
+      if (fetched) {
+        autoDate = fetched;
+        setRaidDate(fetched);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
 
     // Normalize sheet URL — convert /edit or /view links to embeddable URL
     const rawSheet = sheetSubmitUrl.trim();
@@ -637,7 +667,8 @@ export default function AdminView({ teamId, teamName }) {
         }
         setSnapshots(prev => prev.map(s => s.id === viewingSnap ? { ...s, ...extra } : s));
       } else {
-        const state = { roster, rosterTue, rosterThu, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
+        // Use autoDate (fetched from WCL) instead of potentially stale raidDate state
+        const state = { roster, rosterTue, rosterThu, assignments, textInputs, raidDate: autoDate, raidLeader, specOverrides, dividers };
         await saveSnapshot(state, teamId, extra);
         const snaps = await fetchSnapshots(teamId);
         setSnapshots(snaps);
