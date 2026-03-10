@@ -969,11 +969,15 @@ export default function AdminView({ teamId, teamName }) {
       const otherNightSlots = roster.filter(p => p.karaNight === otherNight);
 
       if (otherNightSlots.length > 0) {
-        // Other night exists — stage both nights together and run conflict detection
-        const tueSlots  = night === "tue" ? slots          : otherNightSlots;
-        const thuSlots  = night === "thu" ? slots          : otherNightSlots;
-        const tueDividers = night === "tue" ? dividers     : [];
-        const thuDividers = night === "thu" ? dividers     : [];
+        // Other night exists — normalize their IDs back to original Discord IDs for conflict detection
+        const normalizedOther = otherNightSlots.map(p => ({
+          ...p,
+          id: p._discordId || p.id.replace(/_tue$|_thu$/, ""),
+        }));
+        const tueSlots    = night === "tue" ? slots         : normalizedOther;
+        const thuSlots    = night === "thu" ? slots         : normalizedOther;
+        const tueDividers = night === "tue" ? dividers      : [];
+        const thuDividers = night === "thu" ? dividers      : [];
         setPendingImportQueue({ tueSlots, thuSlots, tueDividers, thuDividers });
       } else {
         // No other night data — commit this night directly, no conflict possible
@@ -999,17 +1003,18 @@ export default function AdminView({ teamId, teamName }) {
     // Build final slot lists, splitting conflicting players into two entries
     const buildSlots = (slots, night) => slots.flatMap(slot => {
       if (conflictIds.has(slot.id)) {
-        // Split into night-specific entry with its own id and wclName
+        // Split into night-specific entry with its own id and name
         const resolved = resolvedConflicts.find(c => c.discordId === slot.id);
-        const wclName = night === "tue"
+        const resolvedName = night === "tue"
           ? resolved?.resolvedNames?.tueName
           : resolved?.resolvedNames?.thuName;
         return [{
           ...slot,
           id: `${slot.id}_${night}`,
           karaNight: night,
-          wclName: wclName || undefined,
-          _discordId: slot.id, // preserve original for reference
+          name: resolvedName || slot.name,
+          wclName: resolvedName || undefined,
+          _discordId: slot.id,
         }];
       }
       return [{ ...slot, karaNight: night }];
