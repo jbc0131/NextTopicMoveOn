@@ -4,8 +4,9 @@
 // Players can have a `wclName` override — used for fetch + lookup in place of display name.
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { getRole } from "./constants";
 
-const CACHE_KEY = "wcl_scores_v1";
+const CACHE_KEY = "wcl_scores_v5";
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 function loadCache() {
@@ -61,12 +62,19 @@ export function useWarcraftLogs(roster) {
       if (namesKey === lastFetchedKey.current) return;
     }
 
-    const names = roster
+    const seen = new Set();
+    const players = roster
       .filter(p => p.name && !p.isDivider)
-      .map(p => p.wclName?.trim() || p.name);
+      .reduce((acc, p) => {
+        const name = p.wclName?.trim() || p.name;
+        if (!seen.has(name)) {
+          seen.add(name);
+          acc.push({ name, role: getRole(p) });
+        }
+        return acc;
+      }, []);
 
-    const uniqueNames = [...new Set(names)];
-    if (uniqueNames.length === 0) return;
+    if (players.length === 0) return;
 
     setLoading(true);
     setError(null);
@@ -75,7 +83,7 @@ export function useWarcraftLogs(roster) {
       const res = await fetch("/api/warcraftlogs", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ names: uniqueNames }),
+        body:    JSON.stringify({ players }),
       });
       if (!res.ok) {
         const err = await res.json();
