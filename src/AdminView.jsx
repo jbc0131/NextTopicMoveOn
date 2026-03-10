@@ -1031,8 +1031,8 @@ export default function AdminView({ teamId, teamName }) {
       const g2Ids = team.g2.flatMap(r => viewAssignments[r.key] ? (Array.isArray(viewAssignments[r.key]) ? viewAssignments[r.key] : [viewAssignments[r.key]]) : []);
       if (!g1Ids.length && !g2Ids.length) return;
       lines.push(`🏰 **Team ${i + 1}**`);
-      if (g1Ids.length) { lines.push(`> **Group 1**`); g1Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • ${p.name}`); }); }
-      if (g2Ids.length) { lines.push(`> **Group 2**`); g2Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • ${p.name}`); }); }
+      if (g1Ids.length) { lines.push(`> **Group 1**`); g1Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • <@${p.id}>`); }); }
+      if (g2Ids.length) { lines.push(`> **Group 2**`); g2Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • <@${p.id}>`); }); }
       lines.push("");
     });
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
@@ -1059,8 +1059,8 @@ export default function AdminView({ teamId, teamName }) {
         const g2Ids = team.g2.flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
         if (!g1Ids.length && !g2Ids.length) return;
         lines.push(`🏰 **Team ${i + 1}**`);
-        if (g1Ids.length) { lines.push(`> **Group 1**`); g1Ids.forEach(id => { const player = allRosters.find(s => s.id === id); if (player) lines.push(`> • ${player.name}`); }); }
-        if (g2Ids.length) { lines.push(`> **Group 2**`); g2Ids.forEach(id => { const player = allRosters.find(s => s.id === id); if (player) lines.push(`> • ${player.name}`); }); }
+        if (g1Ids.length) { lines.push(`> **Group 1**`); g1Ids.forEach(id => { const player = allRosters.find(s => s.id === id); if (player) lines.push(`> • <@${player.id}>`); }); }
+        if (g2Ids.length) { lines.push(`> **Group 2**`); g2Ids.forEach(id => { const player = allRosters.find(s => s.id === id); if (player) lines.push(`> • <@${player.id}>`); }); }
         lines.push("");
       });
     });
