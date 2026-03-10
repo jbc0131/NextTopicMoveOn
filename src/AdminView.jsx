@@ -466,6 +466,102 @@ function ManualAddPlayer({ onAdd }) {
 }
 
 // ── Main Admin App ────────────────────────────────────────────────────────────
+// ── Admin Kara Section ────────────────────────────────────────────────────────
+function AdminKaraSection({ rosterTue, rosterThu, viewAssignments, isLocked, handleDrop, handleClear, handleDragStart, handleSpecCycle, discordCopiedTue, discordCopiedThu, setDiscordCopiedTue, setDiscordCopiedThu, copyNightDiscord }) {
+  const allRosters = [...rosterTue, ...rosterThu];
+  const nightSections = [
+    { label: "📅 TUESDAY",  teams: KARA_TUE_TEAMS, color: "#4ade80", copied: discordCopiedTue, setCopied: setDiscordCopiedTue },
+    { label: "📅 THURSDAY", teams: KARA_THU_TEAMS, color: "#60a5fa", copied: discordCopiedThu, setCopied: setDiscordCopiedThu },
+  ];
+  const UTILITY = {
+    removeCurse: { label: "Remove Curse", icon: "🧹", specs: new Set(["Balance","Restoration","Feral","Guardian","Arcane","Fire","Frost"]) },
+    dispelMagic: { label: "Dispel Magic", icon: "✨", specs: new Set(["Holy","Holy1","Discipline","Shadow"]) },
+    curePoison:  { label: "Cure Poison",  icon: "🧪", specs: new Set(["Balance","Restoration","Feral","Guardian","Restoration1"]) },
+    cureDisease: { label: "Cure Disease", icon: "💊", specs: new Set(["Holy","Holy1","Discipline","Shadow","Protection1","Retribution"]) },
+    interrupt:   { label: "Interrupt",    icon: "⚡", specs: new Set(["Arms","Fury","Protection","Assassination","Combat","Subtlety","Enhancement","Retribution","Protection1","Feral","Guardian"]) },
+    deenrage:    { label: "De-Enrage",    icon: "😤", specs: new Set(["BeastMastery","Beastmastery","Marksmanship","Survival","Feral","Guardian","Balance","Restoration"]) },
+    bloodlust:   { label: "Bloodlust",    icon: "🥁", specs: new Set(["Elemental","Enhancement","Restoration1"]) },
+  };
+  return (
+    <>
+      {nightSections.map(({ label, teams, color, copied, setCopied }) => (
+        <div key={label} style={{ marginBottom: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, padding: "7px 14px", background: "#0a0a14", border: "1px solid #1e1e3a", borderRadius: 6 }}>
+            <div style={{ width: 3, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
+            <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>{label}</span>
+            <button
+              onClick={() => copyNightDiscord(label, teams, setCopied)}
+              style={{ ...btn("#000820", "#5865f244", copied ? "#4ade80" : "#5865f2"), marginLeft: "auto", fontSize: 10, padding: "3px 10px" }}
+            >
+              {copied ? "✓ Copied!" : "💬 Copy Discord"}
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            {teams.map((team, i) => {
+              const filledG1 = team.g1.filter(r => viewAssignments[r.key]).length;
+              const filledG2 = team.g2.filter(r => viewAssignments[r.key]).length;
+              const filledCount = filledG1 + filledG2;
+              const teamPlayers = [...team.g1, ...team.g2]
+                .flatMap(r => viewAssignments[r.key] ? (Array.isArray(viewAssignments[r.key]) ? viewAssignments[r.key] : [viewAssignments[r.key]]) : [])
+                .map(id => allRosters.find(p => p.id === id)).filter(Boolean);
+              const tankCount   = teamPlayers.filter(p => getRole(p) === "Tank").length;
+              const healerCount = teamPlayers.filter(p => getRole(p) === "Healer").length;
+              const has = {};
+              Object.keys(UTILITY).forEach(k => { has[k] = teamPlayers.some(p => UTILITY[k].specs.has(p.specName)); });
+              return (
+                <div key={i} style={{ flex: 1, background: "#0a0a12", border: `1px solid ${color}33`, borderRadius: 8, overflow: "hidden" }}>
+                  <div style={{ padding: "8px 14px", borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: 6, background: `${color}08` }}>
+                    <span style={{ fontSize: 13, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>🏰 TEAM {i + 1}</span>
+                    <div style={{ display: "flex", gap: 8, marginLeft: 10, alignItems: "center" }}>
+                      <span style={{ fontSize: 10, color: "#60a5fa", fontFamily: "'Cinzel', serif" }}>🛡 {tankCount}</span>
+                      <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>💚 {healerCount}</span>
+                    </div>
+                    <span style={{ fontSize: 9, color: "#555", marginLeft: "auto", fontFamily: "'Cinzel', serif" }}>{filledCount}/10</span>
+                  </div>
+                  {filledCount > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "5px 10px", borderBottom: `1px solid ${color}11`, background: "#06060e" }}>
+                      {Object.entries(UTILITY).map(([k, u]) => (
+                        <span key={k} style={{ fontSize: 9, fontFamily: "'Cinzel', serif", padding: "1px 6px", borderRadius: 3, background: has[k] ? "#0a1a0a" : "#1a0a0a", border: `1px solid ${has[k] ? "#4ade8033" : "#ef444433"}`, color: has[k] ? "#4ade80" : "#ef444488", opacity: has[k] ? 1 : 0.7 }}>
+                          {u.icon} {u.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ display: "flex" }}>
+                    {[team.g1, team.g2].map((group, gi) => (
+                      <div key={gi} style={{ flex: 1, borderRight: gi === 0 ? `1px solid ${color}18` : "none" }}>
+                        <div style={{ padding: "4px 10px", borderBottom: `1px solid ${color}11`, display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ fontSize: 9, color: `${color}88`, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>GROUP {gi + 1}</span>
+                          <span style={{ fontSize: 9, color: "#444", fontFamily: "'Cinzel', serif" }}>{gi === 0 ? filledG1 : filledG2}/5</span>
+                        </div>
+                        <div style={{ padding: "4px 6px", display: "flex", flexDirection: "column", gap: 3 }}>
+                          {group.map(row => (
+                            <AssignmentRow
+                              key={row.key} rowCfg={row}
+                              assignedIds={viewAssignments[row.key]}
+                              roster={allRosters}
+                              onDrop={isLocked ? null : handleDrop}
+                              onClear={isLocked ? null : handleClear}
+                              onDragStart={isLocked ? null : handleDragStart}
+                              onSpecCycle={handleSpecCycle}
+                              assignments={viewAssignments}
+                              compact={false}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export default function AdminView({ teamId, teamName }) {
   const [unlocked,    setUnlocked]    = useState(false);
   const [roster,      setRoster]      = useState([]);
@@ -1783,153 +1879,23 @@ export default function AdminView({ teamId, teamName }) {
               </div>
             </>}
 
-            {activeTab === "kara" && (() => {
-              const allRosters = [...rosterTue, ...rosterThu];
-              const nightSections = [
-                { label: "📅 TUESDAY", teams: KARA_TUE_TEAMS, color: "#4ade80" },
-                { label: "📅 THURSDAY", teams: KARA_THU_TEAMS, color: "#60a5fa" },
-              ];
-
-              return nightSections.map(({ label, teams, color }) => {
-                const isTue = label.includes("TUESDAY");
-                const copied = isTue ? discordCopiedTue : discordCopiedThu;
-                const setCopied = isTue ? setDiscordCopiedTue : setDiscordCopiedThu;
-                return (
-                <div key={label} style={{ marginBottom: 28 }}>
-                  {/* Night header */}
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 10, marginBottom: 12,
-                    padding: "7px 14px",
-                    background: "#0a0a14", border: "1px solid #1e1e3a", borderRadius: 6,
-                  }}>
-                    <div style={{ width: 3, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>
-                      {label}
-                    </span>
-                    <button
-                      onClick={() => copyNightDiscord(label, teams, setCopied)}
-                      style={{ ...btn("#000820", "#5865f244", copied ? "#4ade80" : "#5865f2"), marginLeft: "auto", fontSize: 10, padding: "3px 10px" }}
-                    >
-                      {copied ? "✓ Copied!" : "💬 Copy Discord"}
-                    </button>                  </div>
-                  {/* 3 teams side by side */}
-                  <div style={{ display: "flex", gap: 12 }}>
-                    {teams.map((team, i) => {
-                      const filledG1 = team.g1.filter(r => viewAssignments[r.key]).length;
-                      const filledG2 = team.g2.filter(r => viewAssignments[r.key]).length;
-                      const allRows = [...team.g1, ...team.g2];
-
-                      // Resolve all assigned players for this team
-                      const teamPlayers = allRows
-                        .flatMap(r => viewAssignments[r.key]
-                          ? (Array.isArray(viewAssignments[r.key]) ? viewAssignments[r.key] : [viewAssignments[r.key]])
-                          : [])
-                        .map(id => allRosters.find(p => p.id === id))
-                        .filter(Boolean);
-
-                      const tankCount   = teamPlayers.filter(p => getRole(p) === "Tank").length;
-                      const healerCount = teamPlayers.filter(p => getRole(p) === "Healer").length;
-
-                      // Comp utility tracker — keyed by spec or class
-                      const UTILITY = {
-                        removeCurse:  { label: "Remove Curse", icon: "🧹", specs: new Set(["Balance","Restoration","Feral","Guardian","Arcane","Fire","Frost"]) },
-                        dispelMagic:  { label: "Dispel Magic", icon: "✨", specs: new Set(["Holy","Holy1","Discipline","Shadow"]) },
-                        curePoison:   { label: "Cure Poison",  icon: "🧪", specs: new Set(["Balance","Restoration","Feral","Guardian","Restoration1"]) },
-                        cureDisease:  { label: "Cure Disease", icon: "💊", specs: new Set(["Holy","Holy1","Discipline","Shadow","Protection1","Retribution"]) },
-                        interrupt:    { label: "Interrupt",    icon: "⚡", specs: new Set(["Arms","Fury","Protection","Assassination","Combat","Subtlety","Enhancement","Elemental","Restoration1","BeastMastery","Beastmastery","Marksmanship","Survival","Retribution","Protection1","Balance","Feral","Guardian","Restoration","Arcane","Fire","Frost","Affliction","Demonology","Destruction"]) },
-                        deenrage:     { label: "De-Enrage",    icon: "😤", specs: new Set(["BeastMastery","Beastmastery","Marksmanship","Survival","Feral","Guardian","Balance","Restoration"]) },
-                        bloodlust:    { label: "Bloodlust",    icon: "🥁", specs: new Set(["Elemental","Enhancement","Restoration1"]) },
-                      };
-
-                      // Interrupts: only melee/physical classes can really interrupt in TBC
-                      // Override interrupt to only real interrupters
-                      const REAL_INTERRUPTERS = new Set(["Arms","Fury","Protection","Assassination","Combat","Subtlety","Enhancement","Retribution","Protection1","Feral","Guardian"]);
-
-                      const has = {};
-                      Object.keys(UTILITY).forEach(k => {
-                        const checkSet = k === "interrupt" ? REAL_INTERRUPTERS : UTILITY[k].specs;
-                        has[k] = teamPlayers.some(p => checkSet.has(p.specName));
-                      });
-
-                      const filledCount = filledG1 + filledG2;
-
-                      return (
-                        <div key={i} style={{ flex: 1, background: "#0a0a12", border: `1px solid ${color}33`, borderRadius: 8, overflow: "hidden" }}>
-                          {/* Team header */}
-                          <div style={{ padding: "8px 14px", borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: 6, background: `${color}08` }}>
-                            <span style={{ fontSize: 13, color, fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
-                              🏰 TEAM {i + 1}
-                            </span>
-                            {/* Tank / Healer / filled counts */}
-                            <div style={{ display: "flex", gap: 8, marginLeft: 10, alignItems: "center" }}>
-                              <span style={{ fontSize: 10, color: "#60a5fa", fontFamily: "'Cinzel', serif" }}>
-                                🛡 {tankCount}
-                              </span>
-                              <span style={{ fontSize: 10, color: "#4ade80", fontFamily: "'Cinzel', serif" }}>
-                                💚 {healerCount}
-                              </span>
-                            </div>
-                            <span style={{ fontSize: 9, color: "#555", marginLeft: "auto", fontFamily: "'Cinzel', serif" }}>
-                              {filledCount}/10
-                            </span>
-                          </div>
-
-                          {/* Comp utility tracker */}
-                          {filledCount > 0 && (
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "5px 10px", borderBottom: `1px solid ${color}11`, background: "#06060e" }}>
-                              {Object.entries(UTILITY).map(([k, u]) => (
-                                <span key={k} style={{
-                                  fontSize: 9, fontFamily: "'Cinzel', serif",
-                                  padding: "1px 6px", borderRadius: 3,
-                                  background: has[k] ? "#0a1a0a" : "#1a0a0a",
-                                  border: `1px solid ${has[k] ? "#4ade8033" : "#ef444433"}`,
-                                  color: has[k] ? "#4ade80" : "#ef444488",
-                                  opacity: has[k] ? 1 : 0.7,
-                                }}>
-                                  {u.icon} {u.label}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Two groups side by side */}
-                          <div style={{ display: "flex" }}>
-                            {[team.g1, team.g2].map((group, gi) => (
-                              <div key={gi} style={{
-                                flex: 1,
-                                borderRight: gi === 0 ? `1px solid ${color}18` : "none",
-                              }}>
-                                <div style={{ padding: "4px 10px", borderBottom: `1px solid ${color}11`, display: "flex", justifyContent: "space-between" }}>
-                                  <span style={{ fontSize: 9, color: `${color}88`, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>GROUP {gi + 1}</span>
-                                  <span style={{ fontSize: 9, color: "#444", fontFamily: "'Cinzel', serif" }}>{gi === 0 ? filledG1 : filledG2}/5</span>
-                                </div>
-                                <div style={{ padding: "4px 6px", display: "flex", flexDirection: "column", gap: 3 }}>
-                                  {group.map((row, si) => (
-                                    <AssignmentRow
-                                      key={row.key}
-                                      rowCfg={row}
-                                      assignedIds={viewAssignments[row.key]}
-                                      roster={allRosters}
-                                      onDrop={isLocked ? null : handleDrop}
-                                      onClear={isLocked ? null : handleClear}
-                                      onDragStart={isLocked ? null : handleDragStart}
-                                      onSpecCycle={handleSpecCycle}
-                                      assignments={viewAssignments}
-                                      compact={false}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                );
-              })}
-            })()}
+            {activeTab === "kara" && (
+              <AdminKaraSection
+                rosterTue={rosterTue}
+                rosterThu={rosterThu}
+                viewAssignments={viewAssignments}
+                isLocked={isLocked}
+                handleDrop={handleDrop}
+                handleClear={handleClear}
+                handleDragStart={handleDragStart}
+                handleSpecCycle={handleSpecCycle}
+                discordCopiedTue={discordCopiedTue}
+                discordCopiedThu={discordCopiedThu}
+                setDiscordCopiedTue={setDiscordCopiedTue}
+                setDiscordCopiedThu={setDiscordCopiedThu}
+                copyNightDiscord={copyNightDiscord}
+              />
+            )}
 
             {activeTab === "mags" && <>
               <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
