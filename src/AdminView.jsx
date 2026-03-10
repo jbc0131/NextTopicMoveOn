@@ -1285,8 +1285,6 @@ export default function AdminView({ teamId, teamName }) {
     });
   };
 
-  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />;
-
   // Handler for conflict modal name input changes
   const handleConflictNameChange = (discordId, field, value) => {
     setPendingResolved(prev => ({
@@ -1294,6 +1292,8 @@ export default function AdminView({ teamId, teamName }) {
       [discordId]: { ...(prev[discordId] || {}), [field]: value },
     }));
   };
+
+  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />;
 
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: "#06060f", display: "flex", flexDirection: "column" }}>
