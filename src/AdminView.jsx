@@ -484,6 +484,8 @@ export default function AdminView({ teamId, teamName }) {
   const [roleFilter,  setRoleFilter]  = useState("All");
   const [showImport,  setShowImport]  = useState(false);
   const [jsonError,    setJsonError]    = useState("");
+  const [jsonErrorTue, setJsonErrorTue] = useState("");
+  const [jsonErrorThu, setJsonErrorThu] = useState("");
   const [saveStatus,    setSaveStatus]    = useState(FIREBASE_OK ? "idle" : "offline");
   const [snapshotStatus, setSnapshotStatus] = useState("idle");
   const [historyOpen,   setHistoryOpen]   = useState(false);
@@ -507,6 +509,8 @@ export default function AdminView({ teamId, teamName }) {
   const [deleteMode,   setDeleteMode]   = useState(false);
   const [deleteSelected, setDeleteSelected] = useState(new Set());
   const fileRef    = useRef();
+  const fileRefTue = useRef();
+  const fileRefThu = useRef();
   const navigate = useNavigate();
 
   // ── WarcraftLogs parse scores ───────────────────────────────────────────────
@@ -708,39 +712,44 @@ export default function AdminView({ teamId, teamName }) {
   // Each JSON import MERGES into the combined roster (so importing both JSONs gives all 50).
   // rosterTue and rosterThu always equal the full combined roster — Kara assignments are
   // what determine which night a player appears on.
-  const handleImportJSON = text => {
+  // Import a JSON and tag all its players with the given night ("tue" or "thu").
+  // Players are merged into the main roster by id. rosterTue/Thu are derived views.
+  const handleImportJSON = (text, night) => {
     try {
       const data = JSON.parse(text);
       if (!data.slots) throw new Error("No 'slots' array found");
 
       setRoster(prev => {
-        // Preserve existing wclName overrides by id, then merge new slots in
         const byId = new Map(prev.map(p => [p.id, p]));
         data.slots.forEach(slot => {
           const existing = byId.get(slot.id);
-          byId.set(slot.id, existing
-            ? { ...slot, wclName: existing.wclName }   // keep wclName override
-            : slot
-          );
+          byId.set(slot.id, {
+            ...(existing || {}),
+            ...slot,
+            wclName:   existing?.wclName,    // preserve any existing wclName override
+            karaNight: night,                // tag which night this player belongs to
+          });
         });
         const merged = [...byId.values()];
-        // Both Kara nights always reflect the full combined pool
-        setRosterTue(merged);
-        setRosterThu(merged);
+        setRosterTue(merged.filter(p => p.karaNight === "tue"));
+        setRosterThu(merged.filter(p => p.karaNight === "thu"));
         return merged;
       });
 
-      // Only update dividers if this import has them
       if (data.dividers?.length) setDividers(data.dividers);
-      setJsonError("");
-    } catch (e) { setJsonError(e.message); }
+      if (night === "tue") setJsonErrorTue("");
+      else setJsonErrorThu("");
+    } catch (e) {
+      if (night === "tue") setJsonErrorTue(e.message);
+      else setJsonErrorThu(e.message);
+    }
   };
 
-  const handleFile = e => {
+  const handleFile = (e, night) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => handleImportJSON(ev.target.result.trim());
+    reader.onload = ev => handleImportJSON(ev.target.result.trim(), night);
     reader.readAsText(file);
     e.target.value = "";
   };
@@ -1021,40 +1030,69 @@ export default function AdminView({ teamId, teamName }) {
       {showImport && (
         <div style={{
           background: "#0c0c1a", borderBottom: "1px solid #1a1a3a",
-          padding: "14px 20px", display: "flex", gap: 12, alignItems: "flex-start",
+          padding: "14px 20px", display: "flex", gap: 16, alignItems: "flex-start",
         }}>
+          {/* Tuesday */}
           <div style={{ flex: 1 }}>
-            <div style={{ color: "#c8a84b", fontSize: 11, marginBottom: 4, fontFamily: "'Cinzel', serif" }}>
-              Import Raid Roster JSON
-            </div>
-            <div style={{ color: "#666", fontSize: 10, marginBottom: 8, fontFamily: "'Cinzel', serif" }}>
-              Paste or upload each group's JSON — both imports merge into one combined roster used for Gruul, Mags, and Kara.
+            <div style={{ color: "#4ade80", fontSize: 10, marginBottom: 5, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>
+              📅 TUESDAY RAID JSON
             </div>
             <textarea
-              placeholder='Paste JSON export here…'
-              onChange={e => { if (e.target.value.trim()) handleImportJSON(e.target.value.trim()); }}
+              key="tue-import"
+              placeholder='Paste Tuesday JSON…'
+              onChange={e => { if (e.target.value.trim()) handleImportJSON(e.target.value.trim(), "tue"); }}
               style={{
-                width: "100%", height: 80, background: "#080810",
-                border: `1px solid ${jsonError ? "#ef4444" : "#2a2a4a"}`,
-                borderRadius: 6, color: "#aaa", padding: 10,
-                fontFamily: "monospace", fontSize: 11, resize: "vertical",
+                width: "100%", height: 75, background: "#080810",
+                border: `1px solid ${jsonErrorTue ? "#ef4444" : "#1a3a1a"}`,
+                borderRadius: 6, color: "#aaa", padding: 8,
+                fontFamily: "monospace", fontSize: 10, resize: "vertical",
               }}
             />
-            {jsonError && <div style={{ color: "#ef4444", fontSize: 11, marginTop: 4 }}>⚠ {jsonError}</div>}
-            {roster.length > 0 && !jsonError && (
-              <div style={{ color: "#4ade80", fontSize: 11, marginTop: 4 }}>
-                ✓ {roster.length} players loaded — paste or upload the second JSON to add more
-              </div>
+            {jsonErrorTue && <div style={{ color: "#ef4444", fontSize: 10, marginTop: 3 }}>⚠ {jsonErrorTue}</div>}
+            {rosterTue.length > 0 && !jsonErrorTue && (
+              <div style={{ color: "#4ade80", fontSize: 10, marginTop: 3 }}>✓ {rosterTue.length} Tuesday players</div>
             )}
+            <button onClick={() => fileRefTue.current.click()} style={{ ...btn("#0a1a0a", "#4ade8033", "#4ade80"), marginTop: 5, fontSize: 10, padding: "3px 10px" }}>
+              📁 Upload Tuesday .json
+            </button>
+            <input ref={fileRefTue} type="file" accept=".json" onChange={e => handleFile(e, "tue")} style={{ display: "none" }} />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 28 }}>
-            <button onClick={() => fileRef.current.click()} style={btn("#111a2a", "#60a5fa44", "#60a5fa")}>
-              📁 Upload JSON
+
+          {/* Thursday */}
+          <div style={{ flex: 1 }}>
+            <div style={{ color: "#60a5fa", fontSize: 10, marginBottom: 5, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>
+              📅 THURSDAY RAID JSON
+            </div>
+            <textarea
+              key="thu-import"
+              placeholder='Paste Thursday JSON…'
+              onChange={e => { if (e.target.value.trim()) handleImportJSON(e.target.value.trim(), "thu"); }}
+              style={{
+                width: "100%", height: 75, background: "#080810",
+                border: `1px solid ${jsonErrorThu ? "#ef4444" : "#1a2a3a"}`,
+                borderRadius: 6, color: "#aaa", padding: 8,
+                fontFamily: "monospace", fontSize: 10, resize: "vertical",
+              }}
+            />
+            {jsonErrorThu && <div style={{ color: "#ef4444", fontSize: 10, marginTop: 3 }}>⚠ {jsonErrorThu}</div>}
+            {rosterThu.length > 0 && !jsonErrorThu && (
+              <div style={{ color: "#60a5fa", fontSize: 10, marginTop: 3 }}>✓ {rosterThu.length} Thursday players</div>
+            )}
+            <button onClick={() => fileRefThu.current.click()} style={{ ...btn("#0a101a", "#60a5fa33", "#60a5fa"), marginTop: 5, fontSize: 10, padding: "3px 10px" }}>
+              📁 Upload Thursday .json
             </button>
-            <button onClick={() => { setRoster([]); setRosterTue([]); setRosterThu([]); setAssignments({}); setDividers([]); }} style={btn("#1a0808", "#ef444433", "#ef4444")}>
-              🗑 Clear All
+            <input ref={fileRefThu} type="file" accept=".json" onChange={e => handleFile(e, "thu")} style={{ display: "none" }} />
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 22 }}>
+            <div style={{ color: "#555", fontSize: 9, fontFamily: "'Cinzel', serif", textAlign: "center" }}>
+              {roster.length > 0 ? `${roster.length} total` : ""}
+            </div>
+            <button onClick={() => { setRoster([]); setRosterTue([]); setRosterThu([]); setAssignments({}); setDividers([]); setJsonErrorTue(""); setJsonErrorThu(""); }} style={btn("#1a0808", "#ef444433", "#ef4444")}>
+              🗑 Clear
             </button>
-            <input ref={fileRef} type="file" accept=".json" onChange={handleFile} style={{ display: "none" }} />
+            <input ref={fileRef} type="file" accept=".json" style={{ display: "none" }} />
           </div>
         </div>
       )}
