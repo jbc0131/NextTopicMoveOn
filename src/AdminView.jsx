@@ -508,6 +508,8 @@ export default function AdminView({ teamId, teamName }) {
   const [parsesOpen,  setParsesOpen]  = useState(false);
   const [deleteMode,   setDeleteMode]   = useState(false);
   const [deleteSelected, setDeleteSelected] = useState(new Set());
+  const [hasUnsaved,   setHasUnsaved]   = useState(false);
+  const autoSaveTimer = useRef(null);
   const fileRef    = useRef();
   const fileRefTue = useRef();
   const fileRefThu = useRef();
@@ -539,6 +541,29 @@ export default function AdminView({ teamId, teamName }) {
     load();
   }, [teamId]);
 
+  // ── Auto-save: debounce 4s after any meaningful state change ────────────────
+  const isFirstLoad = useRef(true);
+  useEffect(() => {
+    if (isFirstLoad.current) { isFirstLoad.current = false; return; }
+    setHasUnsaved(true);
+    if (!FIREBASE_OK) return;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      const state = { roster, rosterTue, rosterThu, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
+      saveState(state, teamId);
+      try {
+        setSaveStatus("saving");
+        await saveToFirebase(state, teamId);
+        setSaveStatus("saved");
+        setHasUnsaved(false);
+        setTimeout(() => setSaveStatus("idle"), 2000);
+      } catch (e) {
+        setSaveStatus("error");
+        setTimeout(() => setSaveStatus("idle"), 3000);
+      }
+    }, 4000);
+  }, [roster, rosterTue, rosterThu, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers]);
+
   // ── Save handler ────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     const state = { roster, rosterTue, rosterThu, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
@@ -553,13 +578,14 @@ export default function AdminView({ teamId, teamName }) {
     try {
       await saveToFirebase(state, teamId);
       setSaveStatus("saved");
+      setHasUnsaved(false);
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (e) {
       console.error("Firebase save failed", e);
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 4000);
     }
-  }, [roster, assignments, textInputs, raidDate, raidLeader, specOverrides, teamId]);
+  }, [roster, rosterTue, rosterThu, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers, teamId]);
 
   // ── Snapshot handler ─────────────────────────────────────────────────────────
   const handleSaveSnapshot = useCallback(async () => {
@@ -580,7 +606,7 @@ export default function AdminView({ teamId, teamName }) {
       setSnapshotStatus("error");
       setTimeout(() => setSnapshotStatus("idle"), 4000);
     }
-  }, [roster, assignments, textInputs, raidDate, raidLeader, specOverrides, teamId, historyOpen]);
+  }, [roster, rosterTue, rosterThu, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers, teamId, historyOpen]);
 
   // Load snapshots when history panel opens
   const handleToggleHistory = useCallback(async () => {
@@ -970,8 +996,8 @@ export default function AdminView({ teamId, teamName }) {
             <button onClick={handleClearAll} style={btn("#100010", "#878800", "#8788EE")}>
               🗑 Clear All
             </button>
-            <button onClick={handleSave} style={btn("#0a1a00", "#4ade8044", "#4ade80")}>
-              {FIREBASE_OK ? "☁️ Save & Publish" : "💾 Save"}
+            <button onClick={handleSave} style={btn("#0a1a00", hasUnsaved ? "#4ade8088" : "#4ade8044", "#4ade80")}>
+              {FIREBASE_OK ? `${hasUnsaved ? "● " : ""}☁️ Save & Publish` : "💾 Save"}
             </button>
             {FIREBASE_OK && (
               <button onClick={handleSaveSnapshot} disabled={snapshotStatus === "saving"} style={btn(
@@ -1029,6 +1055,20 @@ export default function AdminView({ teamId, teamName }) {
               disabled={!viewingSnap}
               style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 4, color: "#888", padding: "1px 8px", cursor: "pointer", fontSize: 14, lineHeight: 1.4, opacity: !viewingSnap ? 0.3 : 1 }}
             >›</button>
+            {viewingSnap && (
+              <button
+                onClick={async () => {
+                  if (!window.confirm("Delete this snapshot? This cannot be undone.")) return;
+                  try {
+                    await deleteSnapshot(teamId, viewingSnap);
+                    setSnapshots(prev => prev.filter(s => s.id !== viewingSnap));
+                    setViewingSnap(null);
+                  } catch (e) { alert("Delete failed: " + e.message); }
+                }}
+                title="Delete this snapshot"
+                style={{ background: "none", border: "1px solid #3a1a1a", borderRadius: 4, color: "#ef444488", padding: "1px 7px", cursor: "pointer", fontSize: 12, lineHeight: 1.4 }}
+              >🗑</button>
+            )}
           </div>
         )}
       </div>
