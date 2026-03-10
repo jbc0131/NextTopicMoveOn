@@ -562,6 +562,115 @@ function AdminKaraSection({ rosterTue, rosterThu, viewAssignments, isLocked, han
   );
 }
 
+// ── Conflict resolution modal ─────────────────────────────────────────────────
+// Shown when the same Discord ID appears in both imports with different classes.
+// User sets a WCL character name for each of their two characters before import proceeds.
+function ConflictModal({ conflicts, resolved, onChange, onConfirm }) {
+  const allFilled = conflicts.every(c => {
+    const r = resolved[c.discordId];
+    return r?.tueName?.trim() && r?.thuName?.trim();
+  });
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <div style={{
+        background: "#0c0c1a", border: "1px solid #a78bfa44", borderRadius: 10,
+        padding: "24px 28px", width: 520, maxWidth: "95vw", maxHeight: "80vh",
+        overflowY: "auto", fontFamily: "'Cinzel', serif",
+      }}>
+        <div style={{ fontSize: 16, color: "#a78bfa", marginBottom: 6 }}>⚔ Character Conflicts Detected</div>
+        <div style={{ fontSize: 10, color: "#888", marginBottom: 20, lineHeight: 1.6 }}>
+          The following players are signed up on <span style={{ color: "#4ade80" }}>Tuesday</span> and{" "}
+          <span style={{ color: "#60a5fa" }}>Thursday</span> on <strong style={{ color: "#fff" }}>different characters</strong>.
+          They'll be split into two separate roster entries.
+          Set the WarcraftLogs character name for each so parse scores work correctly.
+        </div>
+
+        {conflicts.map(({ discordId, tueSlot, thuSlot }) => {
+          const r = resolved[discordId] || { tueName: tueSlot.name, thuName: thuSlot.name };
+          return (
+            <div key={discordId} style={{
+              marginBottom: 16, padding: "12px 14px",
+              background: "#08081a", border: "1px solid #2a2a4a", borderRadius: 7,
+            }}>
+              {/* Discord display name header */}
+              <div style={{ fontSize: 11, color: "#c8a84b", marginBottom: 10, letterSpacing: "0.08em" }}>
+                🎮 {tueSlot.name}
+                <span style={{ color: "#444", fontSize: 9, marginLeft: 8 }}>Discord ID: {discordId}</span>
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                {/* Tuesday character */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 9, color: "#4ade80", letterSpacing: "0.1em", marginBottom: 5 }}>
+                    📅 TUESDAY
+                  </div>
+                  <div style={{ fontSize: 10, color: CLASS_COLORS[tueSlot.className] || "#aaa", marginBottom: 6 }}>
+                    {tueSlot.specName} {tueSlot.className}
+                  </div>
+                  <div style={{ fontSize: 9, color: "#666", marginBottom: 3 }}>WCL Character Name</div>
+                  <input
+                    value={r.tueName}
+                    onChange={e => onChange(discordId, "tueName", e.target.value)}
+                    placeholder="Character name…"
+                    style={{
+                      width: "100%", background: "#080810", border: "1px solid #2a2a4a",
+                      borderRadius: 4, color: "#4ade80", padding: "5px 8px",
+                      fontFamily: "'Cinzel', serif", fontSize: 11, outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+
+                {/* Thursday character */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 9, color: "#60a5fa", letterSpacing: "0.1em", marginBottom: 5 }}>
+                    📅 THURSDAY
+                  </div>
+                  <div style={{ fontSize: 10, color: CLASS_COLORS[thuSlot.className] || "#aaa", marginBottom: 6 }}>
+                    {thuSlot.specName} {thuSlot.className}
+                  </div>
+                  <div style={{ fontSize: 9, color: "#666", marginBottom: 3 }}>WCL Character Name</div>
+                  <input
+                    value={r.thuName}
+                    onChange={e => onChange(discordId, "thuName", e.target.value)}
+                    placeholder="Character name…"
+                    style={{
+                      width: "100%", background: "#080810", border: "1px solid #2a2a4a",
+                      borderRadius: 4, color: "#60a5fa", padding: "5px 8px",
+                      fontFamily: "'Cinzel', serif", fontSize: 11, outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        <button
+          onClick={onConfirm}
+          disabled={!allFilled}
+          style={{
+            width: "100%", marginTop: 8, padding: "10px",
+            background: allFilled ? "#0a1a0a" : "#0a0a0a",
+            border: `1px solid ${allFilled ? "#4ade8066" : "#333"}`,
+            borderRadius: 6, color: allFilled ? "#4ade80" : "#444",
+            cursor: allFilled ? "pointer" : "not-allowed",
+            fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.05em",
+            transition: "all 0.15s",
+          }}
+        >
+          {allFilled ? "✓ Confirm & Import" : `Fill in all character names to continue (${conflicts.filter(c => { const r = resolved[c.discordId]; return r?.tueName?.trim() && r?.thuName?.trim(); }).length}/${conflicts.length} done)`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminView({ teamId, teamName }) {
   const [unlocked,    setUnlocked]    = useState(false);
   const [roster,      setRoster]      = useState([]);
@@ -607,6 +716,13 @@ export default function AdminView({ teamId, teamName }) {
   const [deleteMode,   setDeleteMode]   = useState(false);
   const [deleteSelected, setDeleteSelected] = useState(new Set());
   const [hasUnsaved,   setHasUnsaved]   = useState(false);
+  // ── Conflict resolution modal ───────────────────────────────────────────────
+  // pendingConflicts: array of { discordId, tueSlot, thuSlot }
+  // pendingResolved: { [discordId]: { tueName, thuName } } — wclName inputs
+  // pendingImportQueue: slots/dividers staged until conflicts are resolved
+  const [pendingConflicts,   setPendingConflicts]   = useState([]);
+  const [pendingResolved,    setPendingResolved]    = useState({});
+  const [pendingImportQueue, setPendingImportQueue] = useState(null); // { tueSlots, thuSlots, tueDividers, thuDividers }
   const autoSaveTimer = useRef(null);
   const fileRef    = useRef();
   const fileRefTue = useRef();
@@ -834,40 +950,27 @@ export default function AdminView({ teamId, teamName }) {
   };
 
   // ── JSON import ─────────────────────────────────────────────────────────────
-  // Parse a JSON text into cleaned slots, preserving existing wclName overrides
-  // Each JSON import MERGES into the combined roster (so importing both JSONs gives all 50).
-  // rosterTue and rosterThu always equal the full combined roster — Kara assignments are
-  // what determine which night a player appears on.
-  // Import a JSON and tag all its players with the given night ("tue" or "thu").
-  // Players are merged into the main roster by id. rosterTue/Thu are derived views.
+  // Stage both imports, detect class conflicts, show modal if needed.
+  // A "conflict" = same Discord ID in both JSONs with a DIFFERENT className.
+  // Same ID + same class = one player on both nights, no conflict.
+  // Conflicting players are split into two separate roster entries:
+  //   {discordId}_tue  and  {discordId}_thu
+  // each with their own wclName so WCL lookup works independently.
   const handleImportJSON = (text, night) => {
     try {
       const data = JSON.parse(text);
       if (!data.slots) throw new Error("No 'slots' array found");
 
-      setRoster(prev => {
-        const byId = new Map(prev.map(p => [p.id, p]));
-        data.slots.forEach(slot => {
-          const existing = byId.get(slot.id);
-          // If player already exists with the OTHER night tag, mark them as "both"
-          const prevNight = existing?.karaNight;
-          const newNight = prevNight && prevNight !== night && prevNight !== "both"
-            ? "both"
-            : night;
-          byId.set(slot.id, {
-            ...(existing || {}),
-            ...slot,
-            wclName:   existing?.wclName,
-            karaNight: newNight,
-          });
-        });
-        const merged = [...byId.values()];
-        setRosterTue(merged.filter(p => p.karaNight === "tue" || p.karaNight === "both"));
-        setRosterThu(merged.filter(p => p.karaNight === "thu" || p.karaNight === "both"));
-        return merged;
+      // Stage this night's slots into the queue
+      setPendingImportQueue(prev => {
+        const next = prev || { tueSlots: [], thuSlots: [], tueDividers: [], thuDividers: [] };
+        if (night === "tue") {
+          return { ...next, tueSlots: data.slots, tueDividers: data.dividers || [] };
+        } else {
+          return { ...next, thuSlots: data.slots, thuDividers: data.dividers || [] };
+        }
       });
 
-      if (data.dividers?.length) setDividers(data.dividers);
       if (night === "tue") setJsonErrorTue("");
       else setJsonErrorThu("");
     } catch (e) {
@@ -875,6 +978,117 @@ export default function AdminView({ teamId, teamName }) {
       else setJsonErrorThu(e.message);
     }
   };
+
+  // Runs whenever pendingImportQueue changes — if both nights are staged, check for conflicts
+  useEffect(() => {
+    if (!pendingImportQueue) return;
+    const { tueSlots, thuSlots } = pendingImportQueue;
+    if (!tueSlots.length || !thuSlots.length) {
+      // Only one night imported so far — commit it immediately, no conflict possible
+      commitImport(pendingImportQueue, []);
+      return;
+    }
+
+    // Both nights staged — detect conflicts
+    const thuById = new Map(thuSlots.map(s => [s.id, s]));
+    const conflicts = [];
+    tueSlots.forEach(tueSlot => {
+      const thuSlot = thuById.get(tueSlot.id);
+      if (thuSlot && thuSlot.className !== tueSlot.className) {
+        conflicts.push({ discordId: tueSlot.id, tueSlot, thuSlot });
+      }
+    });
+
+    if (conflicts.length === 0) {
+      commitImport(pendingImportQueue, []);
+    } else {
+      // Pre-fill wclName inputs from existing roster data if available
+      const initialResolved = {};
+      conflicts.forEach(({ discordId, tueSlot, thuSlot }) => {
+        const existingTue = roster.find(p => p.id === `${discordId}_tue`);
+        const existingThu = roster.find(p => p.id === `${discordId}_thu`);
+        initialResolved[discordId] = {
+          tueName: existingTue?.wclName ?? tueSlot.name,
+          thuName: existingThu?.wclName ?? thuSlot.name,
+        };
+      });
+      setPendingConflicts(conflicts);
+      setPendingResolved(initialResolved);
+    }
+  }, [pendingImportQueue, commitImport, roster]);
+
+  // Commit staged import to roster — called either directly (no conflicts) or after modal confirm
+  const commitImport = useCallback((queue, resolvedConflicts) => {
+    const { tueSlots, thuSlots, tueDividers, thuDividers } = queue;
+    const conflictIds = new Set(resolvedConflicts.map(c => c.discordId));
+
+    // Build final slot lists, splitting conflicting players into two entries
+    const buildSlots = (slots, night) => slots.flatMap(slot => {
+      if (conflictIds.has(slot.id)) {
+        // Split into night-specific entry with its own id and wclName
+        const resolved = resolvedConflicts.find(c => c.discordId === slot.id);
+        const wclName = night === "tue"
+          ? resolved?.resolvedNames?.tueName
+          : resolved?.resolvedNames?.thuName;
+        return [{
+          ...slot,
+          id: `${slot.id}_${night}`,
+          karaNight: night,
+          wclName: wclName || undefined,
+          _discordId: slot.id, // preserve original for reference
+        }];
+      }
+      return [{ ...slot, karaNight: night }];
+    });
+
+    const finalTue = buildSlots(tueSlots, "tue");
+    const finalThu = buildSlots(thuSlots, "thu");
+
+    setRoster(prev => {
+      const byId = new Map(prev.map(p => [p.id, p]));
+
+      // Clear out any previously imported slots for each night before merging,
+      // so re-importing a night fully replaces that night's players
+      const nightsBeingImported = new Set();
+      if (tueSlots.length) nightsBeingImported.add("tue");
+      if (thuSlots.length) nightsBeingImported.add("thu");
+      for (const [id, p] of byId) {
+        if (nightsBeingImported.has(p.karaNight)) byId.delete(id);
+      }
+
+      [...finalTue, ...finalThu].forEach(slot => {
+        const existing = byId.get(slot.id);
+        byId.set(slot.id, {
+          ...(existing || {}),
+          ...slot,
+          // Preserve wclName from existing entry unless the new slot explicitly sets one
+          wclName: slot.wclName ?? existing?.wclName,
+        });
+      });
+
+      const merged = [...byId.values()];
+      setRosterTue(merged.filter(p => p.karaNight === "tue"));
+      setRosterThu(merged.filter(p => p.karaNight === "thu"));
+      return merged;
+    });
+
+    if (tueDividers.length) setDividers(tueDividers);
+    else if (thuDividers.length) setDividers(thuDividers);
+
+    // Clear pending state
+    setPendingImportQueue(null);
+    setPendingConflicts([]);
+    setPendingResolved({});
+  }, [roster]);
+
+  // Called when user confirms the conflict modal
+  const handleConflictConfirm = useCallback(() => {
+    const resolvedConflicts = pendingConflicts.map(c => ({
+      ...c,
+      resolvedNames: pendingResolved[c.discordId] || { tueName: c.tueSlot.name, thuName: c.thuSlot.name },
+    }));
+    commitImport(pendingImportQueue, resolvedConflicts);
+  }, [pendingConflicts, pendingResolved, pendingImportQueue, commitImport]);
 
   const handleFile = (e, night) => {
     const file = e.target.files[0];
@@ -969,20 +1183,14 @@ export default function AdminView({ teamId, teamName }) {
   const viewSnap     = viewingSnap ? snapshots.find(s => s.id === viewingSnap) : null;
   const isLocked     = viewSnap?.locked ?? false;
   const viewAssignments = viewSnap ? (viewSnap.assignments ?? {}) : assignments;
+  const viewRoster      = viewSnap ? (viewSnap.roster      ?? []) : roster;
   const viewTextInputs  = viewSnap ? (viewSnap.textInputs  ?? {}) : textInputs;
   const viewRaidDate    = viewSnap ? viewSnap.raidDate   : raidDate;
   const viewRaidLeader  = viewSnap ? viewSnap.raidLeader : raidLeader;
 
-  // Team Dick = Tuesday raiders, Team Balls = Thursday raiders.
-  // Gruul/Mag panels only show that team's specific day roster — never the merged combined roster.
-  const teamDayRoster = teamId === "team-dick" ? rosterTue : rosterThu;
-  const viewRoster    = viewSnap
-    ? (viewSnap.roster ?? []).filter(p => p.karaNight === (teamId === "team-dick" ? "tue" : "thu") || p.karaNight === "both")
-    : teamDayRoster;
-
   // All players always visible in sidebar — same player can fill multiple roles
   const assignedIds  = new Set(Object.values(assignments).flat());
-  const filtered     = teamDayRoster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
+  const filtered     = roster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
   const unassigned   = filtered; // show everyone always
   const assignedList = [];       // no separate assigned section needed
 
@@ -1079,9 +1287,27 @@ export default function AdminView({ teamId, teamName }) {
 
   if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />;
 
+  // Handler for conflict modal name input changes
+  const handleConflictNameChange = (discordId, field, value) => {
+    setPendingResolved(prev => ({
+      ...prev,
+      [discordId]: { ...(prev[discordId] || {}), [field]: value },
+    }));
+  };
+
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: "#06060f", display: "flex", flexDirection: "column" }}>
       <FontImport />
+
+      {/* ── Conflict resolution modal ── */}
+      {pendingConflicts.length > 0 && (
+        <ConflictModal
+          conflicts={pendingConflicts}
+          resolved={pendingResolved}
+          onChange={handleConflictNameChange}
+          onConfirm={handleConflictConfirm}
+        />
+      )}
 
       {/* ── Top bar ── */}
       <div style={{
@@ -1289,7 +1515,7 @@ export default function AdminView({ teamId, teamName }) {
             <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#9999bb", letterSpacing: "0.15em" }}>
               {activeTab === "kara"
                 ? `KARA ROSTER · ${karaNight === "tue" ? rosterTue.length : rosterThu.length} PLAYERS`
-                : `ROSTER · ${teamDayRoster.length} PLAYERS`}
+                : `ROSTER · ${roster.length} PLAYERS`}
               {activeTab === "kara" && <span style={{ color: "#9b72cf", marginLeft: 6 }}>· KARA MODE</span>}
             </div>
             {/* Night toggle for Kara */}
