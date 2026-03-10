@@ -727,6 +727,7 @@ export default function AdminView({ teamId, teamName }) {
   const fileRef    = useRef();
   const fileRefTue = useRef();
   const fileRefThu = useRef();
+  const commitImportRef = useRef(null); // always points to latest commitImport
   const navigate = useNavigate();
 
   // ── WarcraftLogs parse scores ───────────────────────────────────────────────
@@ -960,14 +961,32 @@ export default function AdminView({ teamId, teamName }) {
     try {
       const data = JSON.parse(text);
       if (!data.slots) throw new Error("No 'slots' array found");
+      const slots = data.slots;
+      const dividers = data.dividers || [];
 
-      // Stage this night's slots into the queue
+      // Check if the OTHER night is already staged in the queue
+      // If so, add this night to the queue and let the useEffect handle conflict detection
+      // If not, commit this night directly to roster (single-night import)
       setPendingImportQueue(prev => {
-        const next = prev || { tueSlots: [], thuSlots: [], tueDividers: [], thuDividers: [] };
-        if (night === "tue") {
-          return { ...next, tueSlots: data.slots, tueDividers: data.dividers || [] };
+        const otherNightAlreadyStaged = prev && (
+          night === "tue" ? prev.thuSlots.length > 0 : prev.tueSlots.length > 0
+        );
+
+        if (otherNightAlreadyStaged) {
+          // Both nights now staged — queue for conflict detection
+          if (night === "tue") {
+            return { ...prev, tueSlots: slots, tueDividers: dividers };
+          } else {
+            return { ...prev, thuSlots: slots, thuDividers: dividers };
+          }
         } else {
-          return { ...next, thuSlots: data.slots, thuDividers: data.dividers || [] };
+          // Single night import — commit immediately, bypassing queue
+          const queue = night === "tue"
+            ? { tueSlots: slots, thuSlots: [], tueDividers: dividers, thuDividers: [] }
+            : { tueSlots: [], thuSlots: slots, tueDividers: [], thuDividers: dividers };
+          // Use setTimeout to call commitImport after state settles
+          setTimeout(() => commitImportRef.current(queue, []), 0);
+          return null; // clear any stale queue
         }
       });
 
@@ -1043,15 +1062,15 @@ export default function AdminView({ teamId, teamName }) {
     setPendingResolved({});
   }, [roster]);
 
+  // Keep ref in sync so handleImportJSON can call it without stale closure
+  commitImportRef.current = commitImport;
+
   // Runs whenever pendingImportQueue changes — if both nights are staged, check for conflicts
   useEffect(() => {
     if (!pendingImportQueue) return;
     const { tueSlots, thuSlots } = pendingImportQueue;
-    if (!tueSlots.length || !thuSlots.length) {
-      // Only one night imported so far — commit it immediately, no conflict possible
-      commitImport(pendingImportQueue, []);
-      return;
-    }
+    // Wait until both nights are staged before doing anything
+    if (!tueSlots.length || !thuSlots.length) return;
 
     // Both nights staged — detect conflicts
     const thuById = new Map(thuSlots.map(s => [s.id, s]));
