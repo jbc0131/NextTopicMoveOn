@@ -192,20 +192,26 @@ function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searc
         </div>
       )}
 
-      {/* Groups stacked vertically, full width — matches Gruul/Mags panel sizing */}
-      {[team.g1, team.g2].map((group, gi) => (
-        <div key={gi} style={{ borderBottom: gi === 0 ? `1px solid ${color}18` : "none" }}>
-          <div style={{ padding: "5px 14px", borderBottom: `1px solid ${color}11`, display: "flex", justifyContent: "space-between", background: `${color}05` }}>
-            <span style={{ fontSize: 10, color: `${color}99`, fontFamily: "'Cinzel', serif", letterSpacing: "0.12em", fontWeight: 700 }}>GROUP {gi + 1}</span>
-            <span style={{ fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif" }}>{gi === 0 ? filledG1 : filledG2}/5</span>
+      {/* Groups side by side */}
+      <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row" }}>
+        {[team.g1, team.g2].map((group, gi) => (
+          <div key={gi} style={{
+            flex: 1,
+            borderRight: !isNarrow && gi === 0 ? `1px solid ${color}18` : "none",
+            borderBottom: isNarrow && gi === 0 ? `1px solid ${color}18` : "none",
+          }}>
+            <div style={{ padding: "5px 14px", borderBottom: `1px solid ${color}11`, display: "flex", justifyContent: "space-between", background: `${color}05` }}>
+              <span style={{ fontSize: 10, color: `${color}99`, fontFamily: "'Cinzel', serif", letterSpacing: "0.12em", fontWeight: 700 }}>GROUP {gi + 1}</span>
+              <span style={{ fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif" }}>{gi === 0 ? filledG1 : filledG2}/5</span>
+            </div>
+            {group.map(row => {
+              const ids = viewAssignments[row.key];
+              const slots = ids ? (Array.isArray(ids) ? ids : [ids]).map(id => allRosters.find(p => p.id === id)).filter(Boolean) : [];
+              return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact={false} />;
+            })}
           </div>
-          {group.map(row => {
-            const ids = viewAssignments[row.key];
-            const slots = ids ? (Array.isArray(ids) ? ids : [ids]).map(id => allRosters.find(p => p.id === id)).filter(Boolean) : [];
-            return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact={false} />;
-          })}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -226,7 +232,7 @@ function KaraSection({ viewAssignments, viewRosterTue, viewRosterThu, searchName
             <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>{label}</span>
             <span style={{ fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif", marginLeft: 4 }}>3 TEAMS · 2 GROUPS OF 5</span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 12 }}>
             {teams.map((team, i) => (
               <KaraTeamCard key={i} team={team} teamNum={i + 1} color={color}
                 viewAssignments={viewAssignments} allRosters={allRosters}
