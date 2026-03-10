@@ -99,10 +99,10 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile, wclScores, 
               border: `1px solid ${nameMatch ? color : color + "44"}`,
               borderRadius: 4, padding: compact ? "1px 7px" : "3px 10px",
               color, fontFamily: "'Cinzel', serif", fontSize: compact ? 11 : (isMobile ? 12 : 13),
-              boxShadow: nameMatch ? `0 0 8px ${color}66` : "none", transition: "all 0.2s", maxWidth: "100%",
+              boxShadow: nameMatch ? `0 0 8px ${color}66` : "none", transition: "all 0.2s", width: "100%", whiteSpace: "normal", wordBreak: "break-word",
             }}>
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
-              <span style={{ fontWeight: nameMatch ? 700 : 600 }}>{slot.name}</span>
+              <span style={{ fontWeight: nameMatch ? 700 : 600, wordBreak: "break-word" }}>{slot.name}</span>
               {!isMobile && !compact && <span style={{ color: `${color}bb`, fontSize: 11 }}>{getSpecDisplay(slot)} {getClass(slot)}</span>}
               {(() => { const score = getScoreForPlayer(wclScores, slot, activeTab); const scoreColor = getScoreColor(score); return score != null ? <span style={{ fontSize: 10, fontWeight: 700, color: scoreColor, fontFamily: "monospace" }}>{Math.round(score)}</span> : null; })()}
               {nameMatch && <span style={{ color, fontSize: 9 }}>◄</span>}
