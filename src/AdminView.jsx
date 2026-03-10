@@ -12,7 +12,7 @@ import {
 import {
   FontImport, PlayerBadge, RoleHeader, BossPanel, RaidTabs, WarningBar, KaraTeamHeader, KaraPlayerBadge, MarkerIcon, RowLabel,
 } from "./components";
-import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured, saveSnapshot, fetchSnapshots, submitWclLog, updateSnapshot } from "./firebase";
+import { saveToFirebase, fetchFromFirebase, isFirebaseConfigured, saveSnapshot, fetchSnapshots, submitWclLog, updateSnapshot, deleteSnapshot } from "./firebase";
 import { useWarcraftLogs, getScoreForTab, getScoreForPlayer, getScoreColor } from "./useWarcraftLogs";
 
 const ADMIN_USERS = {
@@ -504,6 +504,8 @@ export default function AdminView({ teamId, teamName }) {
   const [discordCopied, setDiscordCopied] = useState(false);
   const [mrtCopied,   setMrtCopied]   = useState(false);
   const [parsesOpen,  setParsesOpen]  = useState(false);
+  const [deleteMode,   setDeleteMode]   = useState(false);
+  const [deleteSelected, setDeleteSelected] = useState(new Set());
   const fileRef  = useRef();
   const navigate = useNavigate();
 
@@ -721,6 +723,9 @@ export default function AdminView({ teamId, teamName }) {
       });
 
       setRoster(mergedSlots);
+      // Kara rosters default to the full imported roster — admins can cull per-night from there
+      setRosterTue(mergedSlots);
+      setRosterThu(mergedSlots);
       setDividers(data.dividers || []);
       setAssignments({});
       setJsonError("");
@@ -1275,45 +1280,148 @@ export default function AdminView({ teamId, teamName }) {
                   <span style={{ fontSize: 9, color: "#555" }}>{historyOpen ? "▲" : "▼"}</span>
                 </button>
 
-                {historyOpen && (
-                  <div style={{ padding: "0 8px 8px", maxHeight: 400, overflowY: "auto" }}>
+                {historyOpen && (() => {
+                  // Group snapshots by raidDate (or formatted savedAt)
+                  const grouped = {};
+                  snapshots.forEach(snap => {
+                    const key = snap.raidDate || new Date(snap.savedAt).toLocaleDateString();
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(snap);
+                  });
+                  const duplicateDates = Object.keys(grouped).filter(k => grouped[k].length > 1);
+                  const hasDuplicates  = duplicateDates.length > 0;
+
+                  return (
+                  <div style={{ padding: "0 8px 8px", maxHeight: 480, overflowY: "auto" }}>
                     {snapshots.length === 0 && !historyLoading && (
                       <div style={{ fontSize: 9, color: "#444", fontFamily: "'Cinzel', serif", padding: "8px 4px" }}>
                         No snapshots yet. Use 📸 Save Snapshot after a raid.
                       </div>
                     )}
-                    {snapshots.map(snap => {
+
+                    {/* ── Duplicate cleanup banner ── */}
+                    {hasDuplicates && (
+                      <div style={{ marginBottom: 8, padding: "6px 8px", background: "#1a0a00", border: "1px solid #ef444433", borderRadius: 5 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: deleteMode ? 6 : 0 }}>
+                          <span style={{ fontSize: 9, color: "#ef9944", fontFamily: "'Cinzel', serif" }}>
+                            ⚠ {duplicateDates.length} date{duplicateDates.length > 1 ? "s" : ""} with duplicates
+                          </span>
+                          <button
+                            onClick={() => { setDeleteMode(v => !v); setDeleteSelected(new Set()); }}
+                            style={{
+                              background: deleteMode ? "#200808" : "#0a0a1a", border: `1px solid ${deleteMode ? "#ef444466" : "#55555566"}`,
+                              borderRadius: 3, color: deleteMode ? "#ef4444" : "#888", fontSize: 8,
+                              padding: "2px 7px", cursor: "pointer", fontFamily: "'Cinzel', serif",
+                            }}
+                          >{deleteMode ? "✗ Cancel" : "🗑 Clean Up"}</button>
+                        </div>
+
+                        {deleteMode && (
+                          <div>
+                            <div style={{ fontSize: 8, color: "#888", fontFamily: "'Cinzel', serif", marginBottom: 4 }}>
+                              Select snapshots to delete — keep at least one per date:
+                            </div>
+                            {duplicateDates.map(date => (
+                              <div key={date} style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 8, color: "#ef9944", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", marginBottom: 3 }}>
+                                  📅 {date} ({grouped[date].length} entries)
+                                </div>
+                                {grouped[date].map((snap, i) => {
+                                  const isChecked = deleteSelected.has(snap.id);
+                                  const savedTime = new Date(snap.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                                  return (
+                                    <div key={snap.id} onClick={() => {
+                                      setDeleteSelected(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(snap.id)) next.delete(snap.id);
+                                        else next.add(snap.id);
+                                        return next;
+                                      });
+                                    }} style={{
+                                      display: "flex", alignItems: "center", gap: 5,
+                                      padding: "3px 5px", marginBottom: 2, cursor: "pointer", borderRadius: 3,
+                                      background: isChecked ? "#2a0808" : "#0d0d1a",
+                                      border: `1px solid ${isChecked ? "#ef444466" : "#1a1a2a"}`,
+                                    }}>
+                                      <span style={{ fontSize: 11, color: isChecked ? "#ef4444" : "#555", flexShrink: 0 }}>
+                                        {isChecked ? "☑" : "☐"}
+                                      </span>
+                                      <span style={{ flex: 1, fontSize: 9, color: isChecked ? "#ef4444" : "#888", fontFamily: "'Cinzel', serif" }}>
+                                        {snap.locked ? "🔒" : "📸"} {savedTime}
+                                        {snap.wclReportUrl && <span style={{ color: "#60a5fa55", marginLeft: 4 }}>WCL</span>}
+                                        {snap.sheetUrl    && <span style={{ color: "#4ade8055", marginLeft: 3 }}>RPB</span>}
+                                      </span>
+                                      {i === 0 && <span style={{ fontSize: 7, color: "#4ade8077", fontFamily: "'Cinzel', serif" }}>oldest</span>}
+                                      {i === grouped[date].length - 1 && <span style={{ fontSize: 7, color: "#a78bfa77", fontFamily: "'Cinzel', serif" }}>newest</span>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ))}
+                            {deleteSelected.size > 0 && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Permanently delete ${deleteSelected.size} snapshot${deleteSelected.size > 1 ? "s" : ""}? This cannot be undone.`)) return;
+                                  try {
+                                    const { deleteSnapshot } = await import("./firebase");
+                                    for (const id of deleteSelected) {
+                                      await deleteSnapshot(teamId, id);
+                                    }
+                                    setSnapshots(prev => prev.filter(s => !deleteSelected.has(s.id)));
+                                    if (deleteSelected.has(viewingSnap)) setViewingSnap(null);
+                                    setDeleteSelected(new Set());
+                                    setDeleteMode(false);
+                                  } catch (e) {
+                                    console.error("Delete failed", e);
+                                    alert("Delete failed — check console for details.");
+                                  }
+                                }}
+                                style={{
+                                  width: "100%", marginTop: 4, padding: "4px",
+                                  background: "#200808", border: "1px solid #ef444466",
+                                  borderRadius: 4, color: "#ef4444", cursor: "pointer",
+                                  fontFamily: "'Cinzel', serif", fontSize: 9,
+                                }}
+                              >
+                                🗑 Delete {deleteSelected.size} selected snapshot{deleteSelected.size > 1 ? "s" : ""}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Normal history list */}
+                    {!deleteMode && snapshots.map(snap => {
                       const isExpanded = expandedSnap === snap.id;
                       const snapRoster = snap.roster ?? [];
-
-                      // Roster diff vs current
                       const currentNames = new Set(roster.filter(p => !p.isDivider && p.name).map(p => p.name.toLowerCase()));
                       const snapNames    = new Set(snapRoster.filter(p => !p.isDivider && p.name).map(p => p.name.toLowerCase()));
                       const newPlayers     = roster.filter(p => !p.isDivider && p.name && !snapNames.has(p.name.toLowerCase()));
                       const missingPlayers = snapRoster.filter(p => !p.isDivider && p.name && !currentNames.has(p.name.toLowerCase()));
-
                       const label = snap.raidDate
                         ? `${snap.raidDate}${snap.raidLeader ? ` · ${snap.raidLeader}` : ""}`
                         : new Date(snap.savedAt).toLocaleDateString();
+                      const isDupe = grouped[snap.raidDate || new Date(snap.savedAt).toLocaleDateString()]?.length > 1;
 
                       return (
-                        <div key={snap.id} style={{ marginBottom: 6, border: "1px solid #1a1a2a", borderRadius: 4, overflow: "hidden" }}>
-                          {/* Snapshot header */}
+                        <div key={snap.id} style={{ marginBottom: 6, border: `1px solid ${isDupe ? "#ef444422" : "#1a1a2a"}`, borderRadius: 4, overflow: "hidden" }}>
                           <button onClick={() => setExpandedSnap(isExpanded ? null : snap.id)} style={{
                             width: "100%", background: "#080810", border: "none", cursor: "pointer",
                             padding: "5px 8px", display: "flex", alignItems: "center", justifyContent: "space-between",
                           }}>
-                            <span style={{ fontSize: 10, color: "#c8a84b", fontFamily: "'Cinzel', serif" }}>{label}</span>
+                            <span style={{ fontSize: 10, color: isDupe ? "#ef9944" : "#c8a84b", fontFamily: "'Cinzel', serif" }}>
+                              {isDupe && <span style={{ fontSize: 8, marginRight: 4 }}>⚠</span>}{label}
+                            </span>
                             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                              {newPlayers.length > 0     && <span style={{ fontSize: 8, color: "#4ade80" }}>+{newPlayers.length} new</span>}
-                              {missingPlayers.length > 0 && <span style={{ fontSize: 8, color: "#ef4444" }}>−{missingPlayers.length} missing</span>}
+                              {newPlayers.length > 0     && <span style={{ fontSize: 8, color: "#4ade80" }}>+{newPlayers.length}</span>}
+                              {missingPlayers.length > 0 && <span style={{ fontSize: 8, color: "#ef4444" }}>−{missingPlayers.length}</span>}
                               <span style={{ fontSize: 9, color: "#555" }}>{isExpanded ? "▲" : "▼"}</span>
                             </div>
                           </button>
 
                           {isExpanded && (
                             <div style={{ background: "#06060f", padding: "6px 8px" }}>
-                              {/* Roster diff */}
                               {(newPlayers.length > 0 || missingPlayers.length > 0) ? (
                                 <div style={{ marginBottom: 8 }}>
                                   <div style={{ fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", marginBottom: 4 }}>ROSTER CHANGES</div>
@@ -1331,8 +1439,6 @@ export default function AdminView({ teamId, teamName }) {
                               ) : (
                                 <div style={{ fontSize: 9, color: "#4ade80", fontFamily: "'Cinzel', serif", marginBottom: 8 }}>✓ Same roster</div>
                               )}
-
-                              {/* Snapshot roster list */}
                               <div style={{ fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", marginBottom: 4 }}>
                                 SNAPSHOT ROSTER ({snapRoster.filter(p => !p.isDivider && p.name).length})
                               </div>
@@ -1348,7 +1454,8 @@ export default function AdminView({ teamId, teamName }) {
                       );
                     })}
                   </div>
-                )}
+                  );
+                })()}
               </div>
             )}
 
