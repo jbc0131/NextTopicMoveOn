@@ -954,20 +954,17 @@ export default function AdminView({ teamId, teamName }) {
 
     [["📅 TUESDAY", KARA_TUE_TEAMS], ["📅 THURSDAY", KARA_THU_TEAMS]].forEach(([nightLabel, teams]) => {
       const nightHasAny = teams.some(team =>
-        team.some(r => assignments[r.key])
+        [...team.g1, ...team.g2].some(r => assignments[r.key])
       );
       if (!nightHasAny) return;
       lines.push(`**${nightLabel}**`);
       teams.forEach((team, i) => {
-        const placedIds = team.flatMap(r =>
-          assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []
-        );
-        if (placedIds.length === 0) return;
+        const g1Ids = team.g1.flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
+        const g2Ids = team.g2.flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
+        if (!g1Ids.length && !g2Ids.length) return;
         lines.push(`🏰 **Team ${i + 1}**`);
-        placedIds.forEach(id => {
-          const player = allRosters.find(s => s.id === id);
-          if (player) lines.push(`> • ${player.name}`);
-        });
+        if (g1Ids.length) { lines.push(`> **Group 1**`); g1Ids.forEach(id => { const player = allRosters.find(s => s.id === id); if (player) lines.push(`> • ${player.name}`); }); }
+        if (g2Ids.length) { lines.push(`> **Group 2**`); g2Ids.forEach(id => { const player = allRosters.find(s => s.id === id); if (player) lines.push(`> • ${player.name}`); }); }
         lines.push("");
       });
     });
