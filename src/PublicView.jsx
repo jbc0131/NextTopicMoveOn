@@ -284,7 +284,14 @@ function WclNameEditor({ player, onChange, locked }) {
 
 // ── Parse scores list ─────────────────────────────────────────────────────────
 function ParseScoresList({ roster, wclScores, wclLoading, activeTab, onWclNameChange, rowPadding = "3px 8px", fontSize = 11, scoreWidth = 28 }) {
-  const players = roster.filter(p => !p.isDivider && p.name);
+  const seenLookup = new Set();
+  const players = roster.filter(p => {
+    if (p.isDivider || !p.name) return false;
+    const key = (p.wclName?.trim() || p.name).toLowerCase();
+    if (seenLookup.has(key)) return false;
+    seenLookup.add(key);
+    return true;
+  });
   const rows = players.map(p => { const n = p.wclName?.trim() || p.name; return { ...p, kara: wclScores[n]?.kara ?? null, gruulMags: wclScores[n]?.gruulMags ?? null }; });
   rows.sort((a, b) => { const sa = getScoreForPlayer(wclScores, a, activeTab) ?? -1; const sb = getScoreForPlayer(wclScores, b, activeTab) ?? -1; return sb - sa; });
   if (wclLoading && rows.every(r => r.kara == null && r.gruulMags == null)) return <div style={{ padding: "12px 8px", fontSize: 9, color: "#555", fontFamily: "'Cinzel', serif", textAlign: "center" }}>Loading…</div>;
