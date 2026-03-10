@@ -693,12 +693,14 @@ export default function AdminView({ teamId, teamName }) {
 
 
   const handleSpecCycle = (playerId) => {
-    setRoster(prev => prev.map(s => {
+    const updateSlot = s => {
       if (s.id !== playerId) return s;
       const { specName: nextSpec, baseClass } = cycleSpec(s);
-      // Preserve the real class in baseClass so future cycles still work
       return { ...s, specName: nextSpec, className: nextSpec, baseClass };
-    }));
+    };
+    setRoster(prev => prev.map(updateSlot));
+    setRosterTue(prev => prev.map(updateSlot));
+    setRosterThu(prev => prev.map(updateSlot));
     setSpecOverrides(prev => {
       const player = roster.find(s => s.id === playerId);
       if (!player) return prev;
@@ -1175,9 +1177,9 @@ export default function AdminView({ teamId, teamName }) {
                       items.push(
                         <div key={s.id} style={{ position: "relative", opacity: isPlaced ? 0.35 : 1, transition: "opacity 0.2s" }}
                           title={isPlaced ? `${s.name} is already in a Kara team` : undefined}>
-                          <RosterToken slot={s} onDragStart={isPlaced ? () => {} : handleDragStart} compact={false}
-                            parseScore={getScoreForPlayer(wclScores, s, activeTab)}
-                            parseColor={getScoreColor(getScoreForPlayer(wclScores, s, activeTab))} />
+                          <KaraPlayerBadge slot={s}
+                            onSpecCycle={isPlaced ? null : handleSpecCycle}
+                            onDragStart={isPlaced ? null : (e, slot) => handleDragStart(e, slot, null)} />
                           {isPlaced && (
                             <span style={{
                               position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
@@ -1758,14 +1760,6 @@ export default function AdminView({ teamId, teamName }) {
                               {filledG1 + filledG2}/10
                             </span>
                           </div>
-                          {/* Composition summary */}
-                          <KaraTeamHeader
-                            teamNum={i + 1}
-                            assignments={viewAssignments}
-                            allRows={allRows}
-                            roster={[...rosterTue, ...rosterThu]}
-                            hideTitle
-                          />
                           {/* Two groups side by side */}
                           <div style={{ display: "flex" }}>
                             {[team.g1, team.g2].map((group, gi) => (
