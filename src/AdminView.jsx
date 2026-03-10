@@ -483,7 +483,7 @@ export default function AdminView({ teamId, teamName }) {
   const [dragSourceKey, setDragSourceKey] = useState(null); // slot key player is being dragged FROM
   const [roleFilter,  setRoleFilter]  = useState("All");
   const [showImport,  setShowImport]  = useState(false);
-  const [jsonError,   setJsonError]   = useState("");
+  const [jsonError,    setJsonError]    = useState("");
   const [saveStatus,    setSaveStatus]    = useState(FIREBASE_OK ? "idle" : "offline");
   const [snapshotStatus, setSnapshotStatus] = useState("idle");
   const [historyOpen,   setHistoryOpen]   = useState(false);
@@ -506,7 +506,7 @@ export default function AdminView({ teamId, teamName }) {
   const [parsesOpen,  setParsesOpen]  = useState(false);
   const [deleteMode,   setDeleteMode]   = useState(false);
   const [deleteSelected, setDeleteSelected] = useState(new Set());
-  const fileRef  = useRef();
+  const fileRef    = useRef();
   const navigate = useNavigate();
 
   // ── WarcraftLogs parse scores ───────────────────────────────────────────────
@@ -704,35 +704,36 @@ export default function AdminView({ teamId, teamName }) {
   };
 
   // ── JSON import ─────────────────────────────────────────────────────────────
+  // Parse a JSON text into cleaned slots, preserving existing wclName overrides
+  // Each JSON import MERGES into the combined roster (so importing both JSONs gives all 50).
+  // rosterTue and rosterThu always equal the full combined roster — Kara assignments are
+  // what determine which night a player appears on.
   const handleImportJSON = text => {
     try {
       const data = JSON.parse(text);
       if (!data.slots) throw new Error("No 'slots' array found");
 
-      // Build a lookup of existing wclName overrides keyed by player name (lowercased)
-      // so re-importing preserves any overrides set in the public view or admin
-      const existingOverrides = {};
-      roster.forEach(p => {
-        if (p.wclName) existingOverrides[p.name.toLowerCase()] = p.wclName;
+      setRoster(prev => {
+        // Preserve existing wclName overrides by id, then merge new slots in
+        const byId = new Map(prev.map(p => [p.id, p]));
+        data.slots.forEach(slot => {
+          const existing = byId.get(slot.id);
+          byId.set(slot.id, existing
+            ? { ...slot, wclName: existing.wclName }   // keep wclName override
+            : slot
+          );
+        });
+        const merged = [...byId.values()];
+        // Both Kara nights always reflect the full combined pool
+        setRosterTue(merged);
+        setRosterThu(merged);
+        return merged;
       });
 
-      // Merge overrides into new slots — match by name
-      const mergedSlots = data.slots.map(slot => {
-        const override = existingOverrides[slot.name?.toLowerCase()];
-        return override ? { ...slot, wclName: override } : slot;
-      });
-
-      setRoster(mergedSlots);
-      // Kara rosters default to the full imported roster — admins can cull per-night from there
-      setRosterTue(mergedSlots);
-      setRosterThu(mergedSlots);
-      setDividers(data.dividers || []);
-      setAssignments({});
+      // Only update dividers if this import has them
+      if (data.dividers?.length) setDividers(data.dividers);
       setJsonError("");
-      setShowImport(false);
-    } catch (e) {
-      setJsonError(e.message);
-    }
+    } catch (e) { setJsonError(e.message); }
   };
 
   const handleFile = e => {
@@ -1023,11 +1024,14 @@ export default function AdminView({ teamId, teamName }) {
           padding: "14px 20px", display: "flex", gap: 12, alignItems: "flex-start",
         }}>
           <div style={{ flex: 1 }}>
-            <div style={{ color: "#c8a84b", fontSize: 11, marginBottom: 8, fontFamily: "'Cinzel', serif" }}>
-              Paste or upload your roster JSON export:
+            <div style={{ color: "#c8a84b", fontSize: 11, marginBottom: 4, fontFamily: "'Cinzel', serif" }}>
+              Import Raid Roster JSON
+            </div>
+            <div style={{ color: "#666", fontSize: 10, marginBottom: 8, fontFamily: "'Cinzel', serif" }}>
+              Paste or upload each group's JSON — both imports merge into one combined roster used for Gruul, Mags, and Kara.
             </div>
             <textarea
-              placeholder='{"slots":[...], "groups":[...], ...}'
+              placeholder='Paste JSON export here…'
               onChange={e => { if (e.target.value.trim()) handleImportJSON(e.target.value.trim()); }}
               style={{
                 width: "100%", height: 80, background: "#080810",
@@ -1038,12 +1042,17 @@ export default function AdminView({ teamId, teamName }) {
             />
             {jsonError && <div style={{ color: "#ef4444", fontSize: 11, marginTop: 4 }}>⚠ {jsonError}</div>}
             {roster.length > 0 && !jsonError && (
-              <div style={{ color: "#4ade80", fontSize: 11, marginTop: 4 }}>✓ {roster.length} players loaded</div>
+              <div style={{ color: "#4ade80", fontSize: 11, marginTop: 4 }}>
+                ✓ {roster.length} players loaded — paste or upload the second JSON to add more
+              </div>
             )}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 28 }}>
             <button onClick={() => fileRef.current.click()} style={btn("#111a2a", "#60a5fa44", "#60a5fa")}>
-              📁 Upload .json
+              📁 Upload JSON
+            </button>
+            <button onClick={() => { setRoster([]); setRosterTue([]); setRosterThu([]); setAssignments({}); setDividers([]); }} style={btn("#1a0808", "#ef444433", "#ef4444")}>
+              🗑 Clear All
             </button>
             <input ref={fileRef} type="file" accept=".json" onChange={handleFile} style={{ display: "none" }} />
           </div>
