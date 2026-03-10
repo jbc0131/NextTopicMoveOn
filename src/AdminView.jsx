@@ -979,44 +979,6 @@ export default function AdminView({ teamId, teamName }) {
     }
   };
 
-  // Runs whenever pendingImportQueue changes — if both nights are staged, check for conflicts
-  useEffect(() => {
-    if (!pendingImportQueue) return;
-    const { tueSlots, thuSlots } = pendingImportQueue;
-    if (!tueSlots.length || !thuSlots.length) {
-      // Only one night imported so far — commit it immediately, no conflict possible
-      commitImport(pendingImportQueue, []);
-      return;
-    }
-
-    // Both nights staged — detect conflicts
-    const thuById = new Map(thuSlots.map(s => [s.id, s]));
-    const conflicts = [];
-    tueSlots.forEach(tueSlot => {
-      const thuSlot = thuById.get(tueSlot.id);
-      if (thuSlot && thuSlot.className !== tueSlot.className) {
-        conflicts.push({ discordId: tueSlot.id, tueSlot, thuSlot });
-      }
-    });
-
-    if (conflicts.length === 0) {
-      commitImport(pendingImportQueue, []);
-    } else {
-      // Pre-fill wclName inputs from existing roster data if available
-      const initialResolved = {};
-      conflicts.forEach(({ discordId, tueSlot, thuSlot }) => {
-        const existingTue = roster.find(p => p.id === `${discordId}_tue`);
-        const existingThu = roster.find(p => p.id === `${discordId}_thu`);
-        initialResolved[discordId] = {
-          tueName: existingTue?.wclName ?? tueSlot.name,
-          thuName: existingThu?.wclName ?? thuSlot.name,
-        };
-      });
-      setPendingConflicts(conflicts);
-      setPendingResolved(initialResolved);
-    }
-  }, [pendingImportQueue, commitImport, roster]);
-
   // Commit staged import to roster — called either directly (no conflicts) or after modal confirm
   const commitImport = useCallback((queue, resolvedConflicts) => {
     const { tueSlots, thuSlots, tueDividers, thuDividers } = queue;
@@ -1080,6 +1042,44 @@ export default function AdminView({ teamId, teamName }) {
     setPendingConflicts([]);
     setPendingResolved({});
   }, [roster]);
+
+  // Runs whenever pendingImportQueue changes — if both nights are staged, check for conflicts
+  useEffect(() => {
+    if (!pendingImportQueue) return;
+    const { tueSlots, thuSlots } = pendingImportQueue;
+    if (!tueSlots.length || !thuSlots.length) {
+      // Only one night imported so far — commit it immediately, no conflict possible
+      commitImport(pendingImportQueue, []);
+      return;
+    }
+
+    // Both nights staged — detect conflicts
+    const thuById = new Map(thuSlots.map(s => [s.id, s]));
+    const conflicts = [];
+    tueSlots.forEach(tueSlot => {
+      const thuSlot = thuById.get(tueSlot.id);
+      if (thuSlot && thuSlot.className !== tueSlot.className) {
+        conflicts.push({ discordId: tueSlot.id, tueSlot, thuSlot });
+      }
+    });
+
+    if (conflicts.length === 0) {
+      commitImport(pendingImportQueue, []);
+    } else {
+      // Pre-fill wclName inputs from existing roster data if available
+      const initialResolved = {};
+      conflicts.forEach(({ discordId, tueSlot, thuSlot }) => {
+        const existingTue = roster.find(p => p.id === `${discordId}_tue`);
+        const existingThu = roster.find(p => p.id === `${discordId}_thu`);
+        initialResolved[discordId] = {
+          tueName: existingTue?.wclName ?? tueSlot.name,
+          thuName: existingThu?.wclName ?? thuSlot.name,
+        };
+      });
+      setPendingConflicts(conflicts);
+      setPendingResolved(initialResolved);
+    }
+  }, [pendingImportQueue, commitImport, roster]);
 
   // Called when user confirms the conflict modal
   const handleConflictConfirm = useCallback(() => {
