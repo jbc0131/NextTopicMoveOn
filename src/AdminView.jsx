@@ -969,14 +969,20 @@ export default function AdminView({ teamId, teamName }) {
   const viewSnap     = viewingSnap ? snapshots.find(s => s.id === viewingSnap) : null;
   const isLocked     = viewSnap?.locked ?? false;
   const viewAssignments = viewSnap ? (viewSnap.assignments ?? {}) : assignments;
-  const viewRoster      = viewSnap ? (viewSnap.roster      ?? []) : roster;
   const viewTextInputs  = viewSnap ? (viewSnap.textInputs  ?? {}) : textInputs;
   const viewRaidDate    = viewSnap ? viewSnap.raidDate   : raidDate;
   const viewRaidLeader  = viewSnap ? viewSnap.raidLeader : raidLeader;
 
+  // Team Dick = Tuesday raiders, Team Balls = Thursday raiders.
+  // Gruul/Mag panels only show that team's specific day roster — never the merged combined roster.
+  const teamDayRoster = teamId === "team-dick" ? rosterTue : rosterThu;
+  const viewRoster    = viewSnap
+    ? (viewSnap.roster ?? []).filter(p => p.karaNight === (teamId === "team-dick" ? "tue" : "thu") || p.karaNight === "both")
+    : teamDayRoster;
+
   // All players always visible in sidebar — same player can fill multiple roles
   const assignedIds  = new Set(Object.values(assignments).flat());
-  const filtered     = roster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
+  const filtered     = teamDayRoster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
   const unassigned   = filtered; // show everyone always
   const assignedList = [];       // no separate assigned section needed
 
@@ -1283,7 +1289,7 @@ export default function AdminView({ teamId, teamName }) {
             <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#9999bb", letterSpacing: "0.15em" }}>
               {activeTab === "kara"
                 ? `KARA ROSTER · ${karaNight === "tue" ? rosterTue.length : rosterThu.length} PLAYERS`
-                : `ROSTER · ${roster.length} PLAYERS`}
+                : `ROSTER · ${teamDayRoster.length} PLAYERS`}
               {activeTab === "kara" && <span style={{ color: "#9b72cf", marginLeft: 6 }}>· KARA MODE</span>}
             </div>
             {/* Night toggle for Kara */}
