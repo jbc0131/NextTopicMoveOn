@@ -504,6 +504,8 @@ export default function AdminView({ teamId, teamName }) {
   const [combatLogEditUrl,    setCombatLogEditUrl]    = useState("");
   const [combatLogEditStatus, setCombatLogEditStatus] = useState("idle"); // idle | saving | saved
   const [discordCopied, setDiscordCopied] = useState(false);
+  const [discordCopiedTue, setDiscordCopiedTue] = useState(false);
+  const [discordCopiedThu, setDiscordCopiedThu] = useState(false);
   const [mrtCopied,   setMrtCopied]   = useState(false);
   const [parsesOpen,  setParsesOpen]  = useState(false);
   const [deleteMode,   setDeleteMode]   = useState(false);
@@ -920,6 +922,26 @@ export default function AdminView({ teamId, teamName }) {
     navigator.clipboard.writeText(rows.join("\n")).then(() => {
       setMrtCopied(true);
       setTimeout(() => setMrtCopied(false), 2000);
+    });
+  };
+
+  const copyNightDiscord = (nightLabel, teams, setCopied) => {
+    const allRosters = [...rosterTue, ...rosterThu];
+    const lines = [];
+    lines.push(`**${nightLabel}**`);
+    lines.push("");
+    teams.forEach((team, i) => {
+      const g1Ids = team.g1.flatMap(r => viewAssignments[r.key] ? (Array.isArray(viewAssignments[r.key]) ? viewAssignments[r.key] : [viewAssignments[r.key]]) : []);
+      const g2Ids = team.g2.flatMap(r => viewAssignments[r.key] ? (Array.isArray(viewAssignments[r.key]) ? viewAssignments[r.key] : [viewAssignments[r.key]]) : []);
+      if (!g1Ids.length && !g2Ids.length) return;
+      lines.push(`🏰 **Team ${i + 1}**`);
+      if (g1Ids.length) { lines.push(`> **Group 1**`); g1Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • ${p.name}`); }); }
+      if (g2Ids.length) { lines.push(`> **Group 2**`); g2Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • ${p.name}`); }); }
+      lines.push("");
+    });
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     });
   };
 
@@ -1770,7 +1792,12 @@ export default function AdminView({ teamId, teamName }) {
                 { label: "📅 TUESDAY", teams: KARA_TUE_TEAMS, color: "#4ade80" },
                 { label: "📅 THURSDAY", teams: KARA_THU_TEAMS, color: "#60a5fa" },
               ];
-              return nightSections.map(({ label, teams, color }) => (
+
+              return nightSections.map(({ label, teams, color }) => {
+                const isTue = label.includes("TUESDAY");
+                const copied = isTue ? discordCopiedTue : discordCopiedThu;
+                const setCopied = isTue ? setDiscordCopiedTue : setDiscordCopiedThu;
+                return (
                 <div key={label} style={{ marginBottom: 28 }}>
                   {/* Night header */}
                   <div style={{
@@ -1782,7 +1809,12 @@ export default function AdminView({ teamId, teamName }) {
                     <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "'Cinzel', serif", letterSpacing: "0.1em" }}>
                       {label}
                     </span>
-                  </div>
+                    <button
+                      onClick={() => copyNightDiscord(label, teams, setCopied)}
+                      style={{ ...btn("#000820", "#5865f244", copied ? "#4ade80" : "#5865f2"), marginLeft: "auto", fontSize: 10, padding: "3px 10px" }}
+                    >
+                      {copied ? "✓ Copied!" : "💬 Copy Discord"}
+                    </button>                  </div>
                   {/* 3 teams side by side */}
                   <div style={{ display: "flex", gap: 12 }}>
                     {teams.map((team, i) => {
@@ -1898,7 +1930,10 @@ export default function AdminView({ teamId, teamName }) {
                     })}
                   </div>
                 </div>
-              ));
+                );
+              })}
+            </div>
+          ));
             })()}
 
             {activeTab === "mags" && <>
