@@ -1187,9 +1187,14 @@ export default function AdminView({ teamId, teamName }) {
   const handleAddManual  = slot => setRoster(prev => [...prev, slot]);
   const handleTextChange = (key, val) => setTextInputs(prev => ({ ...prev, [key]: val }));
   const handleWclNameChange = async (playerId, wclName) => {
-    const updatedRoster = roster.map(p => p.id === playerId ? { ...p, wclName: wclName || undefined } : p);
+    const updatePlayer = p => p.id === playerId ? { ...p, wclName: wclName || undefined } : p;
+    const updatedRoster    = roster.map(updatePlayer);
+    const updatedRosterTue = rosterTue.map(updatePlayer);
+    const updatedRosterThu = rosterThu.map(updatePlayer);
     setRoster(updatedRoster);
-    const state = { roster: updatedRoster, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
+    setRosterTue(updatedRosterTue);
+    setRosterThu(updatedRosterThu);
+    const state = { roster: updatedRoster, rosterTue: updatedRosterTue, rosterThu: updatedRosterThu, assignments, textInputs, raidDate, raidLeader, specOverrides, dividers };
     saveState(state, teamId);
     if (FIREBASE_OK) {
       try { await saveToFirebase(state, teamId); } catch (e) { console.warn("WCL name save failed", e); }
@@ -1658,8 +1663,15 @@ export default function AdminView({ teamId, teamName }) {
               </button>
 
               {parsesOpen && (() => {
-                // Build sortable rows — one per real player, with all 3 scores
-                const players = roster.filter(p => !p.isDivider && p.name);
+                // Build sortable rows — one per real player, deduped by lookup name
+                const seenLookup = new Set();
+                const players = roster.filter(p => {
+                  if (p.isDivider || !p.name) return false;
+                  const key = (p.wclName?.trim() || p.name).toLowerCase();
+                  if (seenLookup.has(key)) return false;
+                  seenLookup.add(key);
+                  return true;
+                });
                 const rows = players.map(p => {
                   const lookupName = p.wclName?.trim() || p.name;
                   return {

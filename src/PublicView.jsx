@@ -347,8 +347,11 @@ export default function PublicView({ teamId, teamName }) {
   const { scores: wclScores, loading: wclLoading, lastFetch: wclLastFetch } = useWarcraftLogs(data?.roster ?? []);
 
   const handleWclNameChange = useCallback(async (playerId, wclName) => {
-    const updatedRoster = (data?.roster ?? []).map(p => p.id === playerId ? { ...p, wclName: wclName || undefined } : p);
-    const newData = { ...data, roster: updatedRoster };
+    const updatePlayer = p => p.id === playerId ? { ...p, wclName: wclName || undefined } : p;
+    const updatedRoster    = (data?.roster    ?? []).map(updatePlayer);
+    const updatedRosterTue = (data?.rosterTue ?? []).map(updatePlayer);
+    const updatedRosterThu = (data?.rosterThu ?? []).map(updatePlayer);
+    const newData = { ...data, roster: updatedRoster, rosterTue: updatedRosterTue, rosterThu: updatedRosterThu };
     setData(newData);
     if (FIREBASE_OK) { try { await saveToFirebase(newData, teamId); } catch (e) { console.warn("WCL name save failed", e); } }
     else saveState(newData, teamId);
