@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, onSnapshot, getDoc, collection, addDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { getFirestore, doc, setDoc, onSnapshot, getDoc, collection, addDoc, getDocs, query, orderBy, limit, deleteDoc } from "firebase/firestore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  STEP 1: Paste your Firebase config here.
@@ -29,11 +29,16 @@ function raidDoc(teamId) {
  */
 export async function saveToFirebase(state, teamId) {
   await setDoc(raidDoc(teamId), {
-    roster:      state.roster      ?? [],
-    assignments: state.assignments ?? {},
-    raidDate:    state.raidDate    ?? "",
-    raidLeader:  state.raidLeader  ?? "",
-    updatedAt:   new Date().toISOString(),
+    roster:        state.roster        ?? [],
+    rosterTue:     state.rosterTue     ?? [],
+    rosterThu:     state.rosterThu     ?? [],
+    assignments:   state.assignments   ?? {},
+    textInputs:    state.textInputs    ?? {},
+    raidDate:      state.raidDate      ?? "",
+    raidLeader:    state.raidLeader    ?? "",
+    specOverrides: state.specOverrides ?? {},
+    dividers:      state.dividers      ?? [],
+    updatedAt:     new Date().toISOString(),
   });
 }
 
@@ -108,4 +113,12 @@ export async function updateSnapshot(teamId, snapshotId, fields) {
   const { updateDoc } = await import("firebase/firestore");
   const snapDoc = doc(db, "raid", teamId, "snapshots", snapshotId);
   await updateDoc(snapDoc, fields);
+}
+
+/**
+ * Permanently delete a snapshot by ID.
+ */
+export async function deleteSnapshot(teamId, snapshotId) {
+  const snapDoc = doc(db, "raid", teamId, "snapshots", snapshotId);
+  await deleteDoc(snapDoc);
 }
