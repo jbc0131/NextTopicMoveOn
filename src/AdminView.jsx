@@ -1932,8 +1932,6 @@ export default function AdminView({ teamId, teamName }) {
                 </div>
                 );
               })}
-            </div>
-          ));
             })()}
 
             {activeTab === "mags" && <>
