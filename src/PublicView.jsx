@@ -77,16 +77,18 @@ function PublicRow({ rowCfg, slots, textValue, searchName, isMobile, wclScores, 
       borderTop: "none", borderRight: "none", borderBottom: "1px solid #ffffff08",
       boxShadow: isHighlighted ? "0 0 12px #c8a84b22" : "none", transition: "all 0.2s",
     }}>
-      <span style={{
-        fontSize: compact ? 11 : (isMobile ? 12 : 13), color: "#ccc", fontFamily: "'Cinzel', serif", flexShrink: 0,
-        display: "inline-flex", alignItems: "center", gap: 6,
-        ...(isMobile ? {} : { minWidth: compact ? (rowCfg.markerKey && !rowCfg.label ? 24 : 140) : 180, maxWidth: compact ? 180 : 220 }),
-      }}>
-        {rowCfg.markerKey && <MarkerIcon markerKey={rowCfg.markerKey} size={compact ? 13 : 15} />}
-        {rowCfg.label}
-        {rowCfg.hint && <span style={{ color: "#666", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
-      </span>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 3, width: isMobile ? "100%" : undefined, flex: isMobile ? undefined : 1 }}>
+      {(rowCfg.label || rowCfg.markerKey || rowCfg.hint) && (
+        <span style={{
+          fontSize: compact ? 11 : (isMobile ? 12 : 13), color: "#ccc", fontFamily: "'Cinzel', serif", flexShrink: 0,
+          display: "inline-flex", alignItems: "center", gap: 6,
+          ...(isMobile ? {} : { minWidth: compact ? (rowCfg.markerKey && !rowCfg.label ? 24 : 140) : 180, maxWidth: compact ? 180 : 220 }),
+        }}>
+          {rowCfg.markerKey && <MarkerIcon markerKey={rowCfg.markerKey} size={compact ? 13 : 15} />}
+          {rowCfg.label}
+          {rowCfg.hint && <span style={{ color: "#666", marginLeft: 5, fontSize: 9, fontFamily: "monospace" }}>({rowCfg.hint})</span>}
+        </span>
+      )}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 3, width: isMobile ? "100%" : undefined, flex: isMobile ? undefined : 1, justifyContent: (rowCfg.label || rowCfg.markerKey) ? "flex-start" : "center" }}>
         {slots && slots.length > 0 && slots.map(slot => {
           const color = getColor(slot);
           const nameMatch = searchName && slot.name.toLowerCase().includes(searchName.toLowerCase());
