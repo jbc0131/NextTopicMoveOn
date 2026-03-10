@@ -52,16 +52,14 @@ async function getAccessToken() {
   return cachedToken;
 }
 
-// Build a single GraphQL query that fetches all zones for one character, filtered by role
-function buildQuery({ name, role }) {
-  // Map our role strings to WCL's expected values
-  const wclRole = role === "Healer" ? "Healer" : role === "Tank" ? "Tank" : "DPS";
+// Build a single GraphQL query that fetches all zones for one character
+function buildQuery({ name }) {
   return `
     ${sanitizeName(name)}: characterData {
       character(name: "${name}", serverSlug: "${SERVER_SLUG}", serverRegion: "${SERVER_REGION}") {
         name
-        kara: zoneRankings(zoneID: ${ZONE_KARA}, role: ${wclRole})
-        gruulMags: zoneRankings(zoneID: ${ZONE_GRUULMAGS}, role: ${wclRole})
+        kara: zoneRankings(zoneID: ${ZONE_KARA})
+        gruulMags: zoneRankings(zoneID: ${ZONE_GRUULMAGS})
       }
     }
   `;
@@ -115,15 +113,15 @@ export default async function handler(req, res) {
 
   // Support both old { names: [] } and new { players: [{name, role}] } formats
   const players = playersInput
-    ? playersInput.slice(0, 50)
+    ? playersInput.slice(0, 100)
     : (Array.isArray(names) ? names.map(n => ({ name: n, role: "DPS" })) : null);
 
   if (!players || players.length === 0) {
     return res.status(400).json({ error: "players array required" });
   }
 
-  // Cap at 50 names per request to avoid huge queries
-  const batch = players.slice(0, 50);
+  // Cap at 100 names per request to avoid huge queries
+  const batch = players.slice(0, 100);
 
   try {
     const token  = await getAccessToken();
