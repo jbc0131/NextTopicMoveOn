@@ -18,6 +18,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
+// Firestore rejects any undefined value anywhere in the document tree.
+// This recursively strips undefined, replacing with null for explicit fields.
+function sanitize(val) {
+  if (val === undefined) return null;
+  if (val === null || typeof val !== "object") return val;
+  if (Array.isArray(val)) return val.map(sanitize);
+  return Object.fromEntries(
+    Object.entries(val)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, sanitize(v)])
+  );
+}
+
 // Each team gets its own Firestore document under the "raid" collection
 // teamId: "team-dick" | "team-balls"
 function raidDoc(teamId) {
@@ -28,7 +41,7 @@ function raidDoc(teamId) {
  * Save the full raid state to Firestore for a specific team.
  */
 export async function saveToFirebase(state, teamId) {
-  await setDoc(raidDoc(teamId), {
+  await setDoc(raidDoc(teamId), sanitize({
     roster:        state.roster        ?? [],
     rosterTue:     state.rosterTue     ?? [],
     rosterThu:     state.rosterThu     ?? [],
@@ -39,7 +52,7 @@ export async function saveToFirebase(state, teamId) {
     specOverrides: state.specOverrides ?? {},
     dividers:      state.dividers      ?? [],
     updatedAt:     new Date().toISOString(),
-  });
+  }));
 }
 
 /**
@@ -74,7 +87,7 @@ export function isFirebaseConfigured() {
  */
 export async function saveSnapshot(state, teamId, extra = {}) {
   const snapshotsCol = collection(db, "raid", teamId, "snapshots");
-  return await addDoc(snapshotsCol, {
+  return await addDoc(snapshotsCol, sanitize({
     raidDate:    state.raidDate    ?? "",
     raidLeader:  state.raidLeader  ?? "",
     roster:      state.roster      ?? [],
@@ -84,7 +97,7 @@ export async function saveSnapshot(state, teamId, extra = {}) {
     wclReportUrl: null,
     locked:      false,
     ...extra,
-  });
+  }));
 }
 
 /**
