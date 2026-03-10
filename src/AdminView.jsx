@@ -963,32 +963,25 @@ export default function AdminView({ teamId, teamName }) {
       if (!data.slots) throw new Error("No 'slots' array found");
       const slots = data.slots;
       const dividers = data.dividers || [];
+      const otherNight = night === "tue" ? "thu" : "tue";
 
-      // Check if the OTHER night is already staged in the queue
-      // If so, add this night to the queue and let the useEffect handle conflict detection
-      // If not, commit this night directly to roster (single-night import)
-      setPendingImportQueue(prev => {
-        const otherNightAlreadyStaged = prev && (
-          night === "tue" ? prev.thuSlots.length > 0 : prev.tueSlots.length > 0
-        );
+      // Check if the other night already has players committed to the roster
+      const otherNightSlots = roster.filter(p => p.karaNight === otherNight);
 
-        if (otherNightAlreadyStaged) {
-          // Both nights now staged — queue for conflict detection
-          if (night === "tue") {
-            return { ...prev, tueSlots: slots, tueDividers: dividers };
-          } else {
-            return { ...prev, thuSlots: slots, thuDividers: dividers };
-          }
-        } else {
-          // Single night import — commit immediately, bypassing queue
-          const queue = night === "tue"
-            ? { tueSlots: slots, thuSlots: [], tueDividers: dividers, thuDividers: [] }
-            : { tueSlots: [], thuSlots: slots, tueDividers: [], thuDividers: dividers };
-          // Use setTimeout to call commitImport after state settles
-          setTimeout(() => commitImportRef.current(queue, []), 0);
-          return null; // clear any stale queue
-        }
-      });
+      if (otherNightSlots.length > 0) {
+        // Other night exists — stage both nights together and run conflict detection
+        const tueSlots  = night === "tue" ? slots          : otherNightSlots;
+        const thuSlots  = night === "thu" ? slots          : otherNightSlots;
+        const tueDividers = night === "tue" ? dividers     : [];
+        const thuDividers = night === "thu" ? dividers     : [];
+        setPendingImportQueue({ tueSlots, thuSlots, tueDividers, thuDividers });
+      } else {
+        // No other night data — commit this night directly, no conflict possible
+        const queue = night === "tue"
+          ? { tueSlots: slots, thuSlots: [], tueDividers: dividers, thuDividers: [] }
+          : { tueSlots: [], thuSlots: slots, tueDividers: [], thuDividers: dividers };
+        commitImportRef.current(queue, []);
+      }
 
       if (night === "tue") setJsonErrorTue("");
       else setJsonErrorThu("");
