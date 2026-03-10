@@ -756,6 +756,10 @@ export default function AdminView({ teamId, teamName }) {
     load();
   }, [teamId]);
 
+  useEffect(() => {
+    document.title = teamId === "team-dick" ? "NextTopicMoveOn - Tuesday" : "NextTopicMoveOn - Thursday";
+  }, [teamId]);
+
   // ── Auto-save: debounce 4s after any meaningful state change ────────────────
   const isFirstLoad = useRef(true);
   useEffect(() => {

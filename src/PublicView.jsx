@@ -368,6 +368,10 @@ export default function PublicView({ teamId, teamName }) {
     }
   }, [teamId]);
 
+  useEffect(() => {
+    document.title = teamId === "team-dick" ? "NextTopicMoveOn - Tuesday" : "NextTopicMoveOn - Thursday";
+  }, [teamId]);
+
   const roster        = data?.roster        ?? [];
   const rosterTue     = data?.rosterTue     ?? [];
   const rosterThu     = data?.rosterThu     ?? [];
