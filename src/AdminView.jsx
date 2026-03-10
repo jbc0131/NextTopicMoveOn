@@ -939,11 +939,12 @@ export default function AdminView({ teamId, teamName }) {
       const { specName: nextSpec, baseClass } = cycleSpec(s);
       return { ...s, specName: nextSpec, className: nextSpec, baseClass };
     };
-    setRoster(prev => prev.map(updateSlot));
+    // Only update the Kara night rosters — NOT the shared roster used by Gruul/Mag
     setRosterTue(prev => prev.map(updateSlot));
     setRosterThu(prev => prev.map(updateSlot));
     setSpecOverrides(prev => {
-      const player = roster.find(s => s.id === playerId);
+      const player = roster.find(s => s.id === playerId)
+        || [...(rosterTue), ...(rosterThu)].find(s => s.id === playerId);
       if (!player) return prev;
       const { specName: nextSpec } = cycleSpec(player);
       return { ...prev, [playerId]: nextSpec };
