@@ -52,14 +52,15 @@ async function getAccessToken() {
   return cachedToken;
 }
 
-// Build a single GraphQL query that fetches all zones for one character
-function buildQuery({ name }) {
+// Build a single GraphQL query that fetches all zones for one character, filtered by role
+function buildQuery({ name, role }) {
+  const wclRole = role === "Healer" ? "Healer" : role === "Tank" ? "Tank" : "DPS";
   return `
     ${sanitizeName(name)}: characterData {
       character(name: "${name}", serverSlug: "${SERVER_SLUG}", serverRegion: "${SERVER_REGION}") {
         name
-        kara: zoneRankings(zoneID: ${ZONE_KARA})
-        gruulMags: zoneRankings(zoneID: ${ZONE_GRUULMAGS})
+        kara: zoneRankings(zoneID: ${ZONE_KARA}, role: ${wclRole})
+        gruulMags: zoneRankings(zoneID: ${ZONE_GRUULMAGS}, role: ${wclRole})
       }
     }
   `;
