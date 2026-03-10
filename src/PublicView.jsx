@@ -208,7 +208,7 @@ function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searc
               {group.map(row => {
                 const ids = viewAssignments[row.key];
                 const slots = ids ? (Array.isArray(ids) ? ids : [ids]).map(id => allRosters.find(p => p.id === id)).filter(Boolean) : [];
-                return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact={false} />;
+                return <PublicRow key={row.key} rowCfg={row} slots={slots} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} compact={true} />;
               })}
             </div>
           </div>
