@@ -1653,7 +1653,7 @@ export default function AdminView({ teamId, teamName }) {
             }
 
             {/* ── WCL Parses Panel ── */}
-            <div style={{ borderTop: "1px solid #1a1a2a", flexShrink: 0 }}>
+            <div style={{ borderTop: "1px solid #1a1a2a", flexShrink: 0, display: "flex", flexDirection: "column", minHeight: 0, maxHeight: parsesOpen ? "50%" : "auto", overflow: "hidden" }}>
               <button onClick={() => setParsesOpen(o => !o)} style={{
                 width: "100%", background: "none", border: "none", cursor: "pointer",
                 padding: "7px 12px", display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1690,7 +1690,7 @@ export default function AdminView({ teamId, teamName }) {
                 rows.sort((a, b) => sortScore(b) - sortScore(a));
 
                 return (
-                  <div style={{ padding: "0 8px 8px" }}>
+                  <div style={{ padding: "0 8px 8px", overflowY: "auto", flex: 1 }}>
                     {/* Refresh button + last updated */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                       <span style={{ fontSize: 8, color: "#555", fontFamily: "'Cinzel', serif" }}>
