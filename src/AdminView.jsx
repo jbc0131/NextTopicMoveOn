@@ -723,16 +723,21 @@ export default function AdminView({ teamId, teamName }) {
         const byId = new Map(prev.map(p => [p.id, p]));
         data.slots.forEach(slot => {
           const existing = byId.get(slot.id);
+          // If player already exists with the OTHER night tag, mark them as "both"
+          const prevNight = existing?.karaNight;
+          const newNight = prevNight && prevNight !== night && prevNight !== "both"
+            ? "both"
+            : night;
           byId.set(slot.id, {
             ...(existing || {}),
             ...slot,
-            wclName:   existing?.wclName,    // preserve any existing wclName override
-            karaNight: night,                // tag which night this player belongs to
+            wclName:   existing?.wclName,
+            karaNight: newNight,
           });
         });
         const merged = [...byId.values()];
-        setRosterTue(merged.filter(p => p.karaNight === "tue"));
-        setRosterThu(merged.filter(p => p.karaNight === "thu"));
+        setRosterTue(merged.filter(p => p.karaNight === "tue" || p.karaNight === "both"));
+        setRosterThu(merged.filter(p => p.karaNight === "thu" || p.karaNight === "both"));
         return merged;
       });
 
@@ -1776,18 +1781,15 @@ export default function AdminView({ teamId, teamName }) {
                                   {group.map((row, si) => (
                                     <AssignmentRow
                                       key={row.key}
-                                      rowKey={row.key}
                                       rowCfg={row}
-                                      slots={(viewAssignments[row.key] ? (Array.isArray(viewAssignments[row.key]) ? viewAssignments[row.key] : [viewAssignments[row.key]]) : [])
-                                        .map(id => allRosters.find(p => p.id === id)).filter(Boolean)}
+                                      assignedIds={viewAssignments[row.key]}
+                                      roster={allRosters}
                                       onDrop={isLocked ? null : handleDrop}
                                       onClear={isLocked ? null : handleClear}
                                       onDragStart={isLocked ? null : handleDragStart}
-                                      dragSlot={dragSlot}
-                                      wclScores={wclScores}
-                                      activeTab={activeTab}
+                                      onSpecCycle={handleSpecCycle}
+                                      assignments={viewAssignments}
                                       compact={false}
-                                      slotNum={si + 1}
                                     />
                                   ))}
                                 </div>
