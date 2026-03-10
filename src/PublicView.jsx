@@ -379,6 +379,9 @@ export default function PublicView({ teamId, teamName }) {
   const viewRoster      = viewSnap ? (viewSnap.roster      ?? []) : roster;
   const viewRosterTue   = viewSnap ? (viewSnap.rosterTue   ?? []) : rosterTue;
   const viewRosterThu   = viewSnap ? (viewSnap.rosterThu   ?? []) : rosterThu;
+
+  // Gruul/Mag panels and parse scores use the team's own night roster directly
+  const viewRosterGruulMag = teamId === "team-dick" ? viewRosterTue : viewRosterThu;
   const viewTextInputs  = viewSnap ? (viewSnap.textInputs  ?? {}) : (data?.textInputs ?? {});
   const viewRaidDate    = viewSnap ? viewSnap.raidDate   : raidDate;
   const viewRaidLeader  = viewSnap ? viewSnap.raidLeader : raidLeader;
@@ -437,7 +440,7 @@ export default function PublicView({ teamId, teamName }) {
                 <span style={{ width: 28, fontSize: 10, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>GM</span>
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
-                <ParseScoresList roster={viewRoster} wclScores={wclScores} wclLoading={wclLoading} activeTab={activeTab} onWclNameChange={handleWclNameChange} />
+                <ParseScoresList roster={viewRosterGruulMag} wclScores={wclScores} wclLoading={wclLoading} activeTab={activeTab} onWclNameChange={handleWclNameChange} />
               </div>
               {wclLastFetch && <div style={{ padding: "5px 8px", borderTop: "1px solid #1a1a2a", fontSize: 10, color: "#555", fontFamily: "'Cinzel', serif" }}>Updated {wclLastFetch.toLocaleTimeString()}</div>}
             </div>
@@ -486,15 +489,15 @@ export default function PublicView({ teamId, teamName }) {
                   </button>
                   {assignmentsOpen && (
                     <div style={{ padding: isMobile ? "10px 8px" : "14px 16px", borderTop: "1px solid #1a1a2a" }}>
-                      <GeneralAssignments viewAssignments={viewAssignments} viewRoster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                      <GeneralAssignments viewAssignments={viewAssignments} viewRoster={viewRosterGruulMag} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
                       <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />
                       {activeTab === "gruul" && <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14, marginTop: 12 }}>
-                        <PublicPanel title="HIGH KING MAULGAR" icon="👑" bossImage={BOSS_KEYS.maulgar} rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
-                        <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" bossImage={BOSS_KEYS.gruul} rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                        <PublicPanel title="HIGH KING MAULGAR" icon="👑" bossImage={BOSS_KEYS.maulgar} rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRosterGruulMag} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                        <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" bossImage={BOSS_KEYS.gruul} rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRosterGruulMag} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
                       </div>}
                       {activeTab === "mags" && <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14, marginTop: 12 }}>
-                        <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
-                        <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                        <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRosterGruulMag} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                        <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRosterGruulMag} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
                       </div>}
                       {activeTab === "kara" && <KaraSection viewAssignments={viewAssignments} viewRosterTue={viewRosterTue} viewRosterThu={viewRosterThu} searchName={searchName} isMobile={isMobile} isNarrow={isNarrow} wclScores={wclScores} activeTab={activeTab} />}
                     </div>
@@ -512,14 +515,14 @@ export default function PublicView({ teamId, teamName }) {
                 </div>
               )}
 
-              <GeneralAssignments viewAssignments={viewAssignments} viewRoster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+              <GeneralAssignments viewAssignments={viewAssignments} viewRoster={viewRosterGruulMag} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
 
               <RaidTabs activeTab={activeTab} onTab={setActiveTab} raidDate={viewRaidDate} raidLeader={viewRaidLeader} />
 
               {activeTab === "gruul" && (
                 <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
-                  <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar} rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
-                  <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul} rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                  <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar} rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRosterGruulMag} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                  <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul} rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRosterGruulMag} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
                 </div>
               )}
 
@@ -529,12 +532,12 @@ export default function PublicView({ teamId, teamName }) {
 
               {activeTab === "mags" && (
                 <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", gap: 14 }}>
-                  <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
-                  <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                  <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRosterGruulMag} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
+                  <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRosterGruulMag} searchName={searchName} isMobile={isMobile} wclScores={wclScores} activeTab={activeTab} />
                 </div>
               )}
 
-              {isMobile && viewRoster.length > 0 && (
+              {isMobile && viewRosterGruulMag.length > 0 && (
                 <div style={{ marginTop: 20, border: "1px solid #1e1e3a", borderRadius: 8, overflow: "hidden" }}>
                   <div style={{ padding: "8px 12px", background: "#0a0a14", borderBottom: "1px solid #1a1a2a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 10, color: "#c8a84b", fontFamily: "'Cinzel', serif", letterSpacing: "0.15em" }}>📊 PARSE SCORES{wclLoading && <span style={{ color: "#888", marginLeft: 8 }}>loading…</span>}</span>
@@ -546,7 +549,7 @@ export default function PublicView({ teamId, teamName }) {
                       <span style={{ width: 40, fontSize: 8, color: "#9b72cf", textAlign: "center", fontFamily: "'Cinzel', serif" }}>KARA</span>
                       <span style={{ width: 40, fontSize: 8, color: "#c8a84b", textAlign: "center", fontFamily: "'Cinzel', serif" }}>G/M</span>
                     </div>
-                    <ParseScoresList roster={viewRoster} wclScores={wclScores} wclLoading={wclLoading} activeTab={activeTab} onWclNameChange={handleWclNameChange} rowPadding="4px 12px" fontSize={12} scoreWidth={40} />
+                    <ParseScoresList roster={viewRosterGruulMag} wclScores={wclScores} wclLoading={wclLoading} activeTab={activeTab} onWclNameChange={handleWclNameChange} rowPadding="4px 12px" fontSize={12} scoreWidth={40} />
                   </div>
                 </div>
               )}
