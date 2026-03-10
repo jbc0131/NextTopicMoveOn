@@ -3,7 +3,7 @@
 // Keeps client_secret off the browser entirely.
 //
 // Usage: POST /api/warcraftlogs
-// Body:  { "names": ["Bloodfang", "Jipal", ...] }
+// Body:  { "players": [{ "name": "Bloodfang", "role": "DPS" }, ...] }
 // Returns: { "Bloodfang": { kara: 87.3, gruulMags: 72.1 }, ... }
 
 const WCL_TOKEN_URL = "https://fresh.warcraftlogs.com/oauth/token";
@@ -47,14 +47,19 @@ async function getAccessToken() {
 
   const data = await res.json();
   cachedToken    = data.access_token;
-  // Expire 5 min early to be safe
   tokenExpiresAt = Date.now() + (data.expires_in - 300) * 1000;
   return cachedToken;
 }
 
-// Build a single GraphQL query that fetches all zones for one character, filtered by role
+// GraphQL field names can't start with numbers or have special chars
+function sanitizeName(name) {
+  return "char_" + name.replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+// Build a single GraphQL query for one character with their correct role
 function buildQuery({ name, role }) {
   const wclRole = role === "Healer" ? "Healer" : role === "Tank" ? "Tank" : "DPS";
+  console.log(`[WCL] ${name} → ${wclRole} (role input: "${role}")`);
   return `
     ${sanitizeName(name)}: characterData {
       character(name: "${name}", serverSlug: "${SERVER_SLUG}", serverRegion: "${SERVER_REGION}") {
@@ -66,14 +71,8 @@ function buildQuery({ name, role }) {
   `;
 }
 
-// GraphQL field names can't start with numbers or have special chars
-function sanitizeName(name) {
-  return "char_" + name.replace(/[^a-zA-Z0-9]/g, "_");
-}
-
-async function queryWCL(names, token) {
-  // Batch all characters into a single GraphQL query
-  const query = `{ ${names.map(buildQuery).join("\n")} }`;
+async function queryWCL(players, token) {
+  const query = `{ ${players.map(buildQuery).join("\n")} }`;
 
   const res = await fetch(WCL_API_URL, {
     method: "POST",
@@ -93,16 +92,13 @@ async function queryWCL(names, token) {
 }
 
 function extractScore(zoneData) {
-  // zoneRankings returns a JSON blob — medianPerformanceAverage is what
-  // the fresh.warcraftlogs.com character pages display
   if (!zoneData) return null;
   const val = zoneData.medianPerformanceAverage;
   if (val == null) return null;
-  return Math.round(val * 10) / 10; // round to 1 decimal place
+  return Math.round(val * 10) / 10;
 }
 
 export default async function handler(req, res) {
-  // CORS — allow your Vercel app to call this
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -114,32 +110,30 @@ export default async function handler(req, res) {
 
   // Support both old { names: [] } and new { players: [{name, role}] } formats
   const players = playersInput
-    ? playersInput.slice(0, 100)
+    ? playersInput
     : (Array.isArray(names) ? names.map(n => ({ name: n, role: "DPS" })) : null);
 
   if (!players || players.length === 0) {
     return res.status(400).json({ error: "players array required" });
   }
 
-  // Cap at 100 names per request to avoid huge queries
+  // Cap at 100 per request
   const batch = players.slice(0, 100);
 
   try {
-    const token  = await getAccessToken();
-    const data   = await queryWCL(batch, token);
+    const token = await getAccessToken();
+    const data  = await queryWCL(batch, token);
 
     if (data.errors) {
-      console.error("WCL GraphQL errors:", data.errors);
+      console.error("WCL GraphQL errors:", JSON.stringify(data.errors));
     }
 
-    // Transform the aliased response back into { characterName: { kara, gruulMags } }
     const result = {};
     for (const player of batch) {
-      const name      = player.name;
-      const alias     = sanitizeName(name);
-      const charData  = data?.data?.[alias]?.character;
+      const alias    = sanitizeName(player.name);
+      const charData = data?.data?.[alias]?.character;
 
-      result[name] = {
+      result[player.name] = {
         kara:      extractScore(charData?.kara),
         gruulMags: extractScore(charData?.gruulMags),
         found:     !!charData,
