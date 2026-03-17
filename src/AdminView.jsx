@@ -1146,14 +1146,15 @@ export default function AdminView({ teamId, teamName }) {
   const viewRaidDate    = viewSnap ? viewSnap.raidDate   : raidDate;
   const viewRaidLeader  = viewSnap ? viewSnap.raidLeader : raidLeader;
 
-  // Gruul/Mag sidebar uses only the night-specific roster for this team
-  const nightRoster = teamId === "team-dick" ? rosterTue : rosterThu;
-  const assignedIds = new Set(Object.values(assignments).flat());
-  const filtered    = nightRoster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
-  const unassigned  = filtered;
-
-  // Kara sidebar
+  // Night-specific rosters
+  const nightRoster      = teamId === "team-dick" ? rosterTue : rosterThu;
   const karaActiveRoster = karaNight === "tue" ? rosterTue : rosterThu;
+
+  const assignedIds   = new Set(Object.values(assignments).flat());
+  // Kara tab uses the night toggle roster; Gruul/Mag tabs use the team night roster
+  const sidebarRoster = activeTab === "kara" ? karaActiveRoster : nightRoster;
+  const filtered      = sidebarRoster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
+  const unassigned    = filtered;
   const seenNames = new Set();
   const karaFiltered = karaActiveRoster.filter(s => {
     if (roleFilter !== "All" && getRole(s) !== roleFilter) return false;
@@ -1465,7 +1466,7 @@ export default function AdminView({ teamId, teamName }) {
             <div style={{ padding: "8px 12px", borderBottom: "1px solid #1a1a2a", fontSize: 9, color: "#9999bb", letterSpacing: "0.15em" }}>
               {activeTab === "kara"
                 ? `KARA ROSTER · ${karaNight === "tue" ? rosterTue.length : rosterThu.length} PLAYERS`
-                : `ROSTER · ${nightRoster.length} PLAYERS`}
+                : `ROSTER · ${filtered.length} PLAYERS`}
               {activeTab === "kara" && <span style={{ color: "#9b72cf", marginLeft: 6 }}>· KARA MODE</span>}
             </div>
 
