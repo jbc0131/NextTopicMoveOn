@@ -91,6 +91,8 @@ export async function saveSnapshot(state, teamId, extra = {}) {
     raidDate:    state.raidDate    ?? "",
     raidLeader:  state.raidLeader  ?? "",
     roster:      state.roster      ?? [],
+    rosterTue:   state.rosterTue   ?? [],
+    rosterThu:   state.rosterThu   ?? [],
     assignments: state.assignments ?? {},
     textInputs:  state.textInputs  ?? {},
     savedAt:     new Date().toISOString(),
