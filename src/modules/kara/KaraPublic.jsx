@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   surface, border, text, accent, intent, font, fontSize,
   fontWeight, radius, space, btnStyle, layout,
 } from "../../shared/theme";
-import { getRole, getColor, getSpecDisplay, getClass, KARA_TUE_TEAMS, KARA_THU_TEAMS } from "../../shared/constants";
+import { getRole, getColor, getSpecDisplay, KARA_TUE_TEAMS, KARA_THU_TEAMS } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, StatusChip, SyncBadge, SearchBox,
   EmptyState, LoadingSpinner, KaraPlayerBadge,
@@ -29,9 +29,9 @@ function PlayerSlot({ ids, allRosters, searchName, wclScores }) {
   return (
     <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 3 }}>
       {slots.map(slot => {
-        const color     = getColor(slot);
-        const nameMatch = searchName && slot.name.toLowerCase().includes(searchName.toLowerCase());
-        const score     = getScoreForPlayer(wclScores, slot, "kara");
+        const color      = getColor(slot);
+        const nameMatch  = searchName && slot.name.toLowerCase().includes(searchName.toLowerCase());
+        const score      = getScoreForPlayer(wclScores, slot, "kara");
         const scoreColor = getScoreColor(score);
         return (
           <span key={slot.id} style={{
@@ -56,14 +56,10 @@ function PlayerSlot({ ids, allRosters, searchName, wclScores }) {
 
 function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searchName, wclScores }) {
   const allRows     = [...team.g1, ...team.g2];
-  const filledG1    = team.g1.filter(r => viewAssignments[r.key]).length;
-  const filledG2    = team.g2.filter(r => viewAssignments[r.key]).length;
-  const filledCount = filledG1 + filledG2;
-
+  const filledCount = allRows.filter(r => viewAssignments[r.key]).length;
   const teamPlayers = allRows
     .flatMap(r => viewAssignments[r.key] ? (Array.isArray(viewAssignments[r.key]) ? viewAssignments[r.key] : [viewAssignments[r.key]]) : [])
     .map(id => allRosters.find(p => p.id === id)).filter(Boolean);
-
   const tankCount   = teamPlayers.filter(p => getRole(p) === "Tank").length;
   const healerCount = teamPlayers.filter(p => getRole(p) === "Healer").length;
   const has = {};
@@ -71,31 +67,21 @@ function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searc
 
   return (
     <div style={{ flex: 1, background: surface.panel, border: `1px solid ${color}33`, borderRadius: radius.lg, overflow: "hidden" }}>
-      {/* Team header */}
       <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: space[2], background: `${color}08` }}>
         <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>🏰 TEAM {teamNum}</span>
         <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>🛡 {tankCount}</span>
         <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>💚 {healerCount}</span>
         <span style={{ fontSize: fontSize.xs, color: text.muted, marginLeft: "auto", fontFamily: font.sans }}>{filledCount}/10</span>
       </div>
-
-      {/* Utility tracker */}
       {filledCount > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 3, padding: `${space[1]}px ${space[2]}px`, borderBottom: `1px solid ${color}11`, background: surface.base }}>
           {Object.entries(UTILITY).map(([k, u]) => (
-            <span key={k} style={{
-              fontSize: 9, fontFamily: font.sans, padding: "1px 5px", borderRadius: radius.sm,
-              background: has[k] ? `${intent.success}15` : `${intent.danger}15`,
-              border: `1px solid ${has[k] ? intent.success + "33" : intent.danger + "33"}`,
-              color: has[k] ? intent.success : `${intent.danger}88`,
-            }}>
+            <span key={k} style={{ fontSize: 9, fontFamily: font.sans, padding: "1px 5px", borderRadius: radius.sm, background: has[k] ? `${intent.success}15` : `${intent.danger}15`, border: `1px solid ${has[k] ? intent.success + "33" : intent.danger + "33"}`, color: has[k] ? intent.success : `${intent.danger}88` }}>
               {u.icon} {u.label}
             </span>
           ))}
         </div>
       )}
-
-      {/* Groups */}
       <div style={{ display: "flex" }}>
         {[team.g1, team.g2].map((group, gi) => {
           const filled = group.filter(r => viewAssignments[r.key]).length;
@@ -107,13 +93,11 @@ function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searc
               </div>
               {group.map(row => {
                 const ids = viewAssignments[row.key];
-                if (!ids) {
-                  return (
-                    <div key={row.key} style={{ minHeight: layout.rowHeight, borderBottom: `1px solid ${border.subtle}`, padding: `${space[1]}px ${space[2]}px` }}>
-                      <span style={{ fontSize: fontSize.xs, color: text.disabled, fontFamily: font.sans }}>—</span>
-                    </div>
-                  );
-                }
+                if (!ids) return (
+                  <div key={row.key} style={{ minHeight: layout.rowHeight, borderBottom: `1px solid ${border.subtle}`, padding: `${space[1]}px ${space[2]}px` }}>
+                    <span style={{ fontSize: fontSize.xs, color: text.disabled, fontFamily: font.sans }}>—</span>
+                  </div>
+                );
                 return (
                   <div key={row.key} style={{ padding: `${space[1]}px ${space[2]}px`, borderBottom: `1px solid ${border.subtle}`, minHeight: layout.rowHeight, display: "flex", alignItems: "center" }}>
                     <PlayerSlot ids={ids} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
@@ -131,11 +115,7 @@ function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searc
 function NightSection({ label, teams, color, viewAssignments, allRosters, searchName, wclScores }) {
   return (
     <div style={{ marginBottom: space[6] }}>
-      <div style={{
-        display: "flex", alignItems: "center", gap: space[3], marginBottom: space[3],
-        padding: `${space[2]}px ${space[3]}px`,
-        background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base,
-      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: space[3], marginBottom: space[3], padding: `${space[2]}px ${space[3]}px`, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base }}>
         <div style={{ width: 3, height: 18, borderRadius: 1, background: color, flexShrink: 0 }} />
         <span style={{ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color, fontFamily: font.sans }}>{label}</span>
         <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>3 TEAMS · 2 GROUPS OF 5</span>
@@ -151,7 +131,7 @@ function NightSection({ label, teams, color, viewAssignments, allRosters, search
   );
 }
 
-export default function KaraPublic({ teamId }) {
+export default function KaraPublic() {
   const [data,        setData]        = useState(null);
   const [loading,     setLoading]     = useState(true);
   const [liveSync,    setLiveSync]    = useState(false);
@@ -161,19 +141,18 @@ export default function KaraPublic({ teamId }) {
   const [searchName,  setSearchName]  = useState("");
 
   const roster = [...(data?.rosterTue ?? []), ...(data?.rosterThu ?? [])];
-  const { scores: wclScores, loading: wclLoading } = useWarcraftLogs(roster, { teamId, module: "kara" });
+  const { scores: wclScores } = useWarcraftLogs(roster, { teamId: "shared", module: "kara" });
 
   useEffect(() => {
-    document.title = teamId === "team-dick" ? "NTMO Kara – Tuesday" : "NTMO Kara – Thursday";
-    if (FIREBASE_OK) {
-      const unsub = subscribeToKaraState(teamId, snap => { setData(snap); setLoading(false); setLiveSync(true); setLastUpdate(new Date()); });
-      fetchKaraState(teamId).then(d => { if (d) { setData(d); setLoading(false); } }).catch(() => {});
-      fetchKaraSnapshots(teamId).then(setSnapshots).catch(console.warn);
-      return () => unsub();
-    } else {
-      setLoading(false);
-    }
-  }, [teamId]);
+    document.title = "NTMO · Karazhan";
+    if (!FIREBASE_OK) { setLoading(false); return; }
+    const unsub = subscribeToKaraState(snap => {
+      setData(snap); setLoading(false); setLiveSync(true); setLastUpdate(new Date());
+    });
+    fetchKaraState().then(d => { if (d) { setData(d); setLoading(false); } }).catch(() => {});
+    fetchKaraSnapshots().then(setSnapshots).catch(console.warn);
+    return () => unsub();
+  }, []);
 
   const viewSnap        = viewingSnap ? snapshots.find(s => s.id === viewingSnap) : null;
   const isLocked        = viewSnap?.locked ?? false;
@@ -181,22 +160,18 @@ export default function KaraPublic({ teamId }) {
   const viewRosterTue   = viewSnap ? (viewSnap.rosterTue ?? []) : (data?.rosterTue ?? []);
   const viewRosterThu   = viewSnap ? (viewSnap.rosterThu ?? []) : (data?.rosterThu ?? []);
   const allRosters      = [...viewRosterTue, ...viewRosterThu];
-  const viewRaidDateTue = viewSnap ? viewSnap.raidDateTue : data?.raidDateTue;
-  const viewRaidDateThu = viewSnap ? viewSnap.raidDateThu : data?.raidDateThu;
-
-  const hasData = allRosters.length > 0;
+  const hasData         = allRosters.length > 0;
 
   return (
-    <AppShell teamId={teamId}>
+    <AppShell>
       <ModuleHeader
         icon="🏰"
         title="Karazhan"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / Karazhan`}
+        breadcrumb="Karazhan"
         actions={<>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}
           <SearchBox value={searchName} onChange={setSearchName} placeholder="Search your name…" />
-          {/* Week slider */}
           {FIREBASE_OK && snapshots.length > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: space[1] }}>
               <button onClick={() => { const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null); }} disabled={viewingSnap === snapshots[snapshots.length - 1]?.id} style={{ ...btnStyle("default"), padding: "0 8px", opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}>‹</button>
@@ -208,23 +183,20 @@ export default function KaraPublic({ teamId }) {
           )}
         </>}
       />
-
       {loading ? (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}><LoadingSpinner size={32} /></div>
       ) : !hasData ? (
         <EmptyState icon="🏰" title="No assignments published yet" message="The raid leader hasn't published Karazhan assignments yet — check back soon." />
       ) : (
         <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
-          {/* Locked snapshot banner */}
           {isLocked && viewSnap && (
             <div style={{ marginBottom: space[3], padding: `${space[2]}px ${space[3]}px`, background: surface.panel, border: `1px solid ${"#9980D4"}33`, borderRadius: radius.base, display: "flex", alignItems: "center", gap: space[3] }}>
               <StatusChip type="locked">🔒 Locked</StatusChip>
-              {viewSnap.wclReportUrl && <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: accent.blue, fontFamily: font.sans, textDecoration: "none" }}>📊 WarcraftLogs →</a>}
+              {viewSnap.wclReportUrl && <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: accent.blue,   fontFamily: font.sans, textDecoration: "none" }}>📊 WarcraftLogs →</a>}
               {viewSnap.sheetUrl     && <a href={viewSnap.sheetUrl}     target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.success, fontFamily: font.sans, textDecoration: "none" }}>📊 RPB Sheet →</a>}
               {viewSnap.combatLogUrl && <a href={viewSnap.combatLogUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, textDecoration: "none" }}>⚔ Combat Log →</a>}
             </div>
           )}
-
           <NightSection label="📅 TUESDAY"  teams={KARA_TUE_TEAMS} color={intent.success} viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
           <NightSection label="📅 THURSDAY" teams={KARA_THU_TEAMS} color={accent.blue}    viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
         </div>

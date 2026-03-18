@@ -354,8 +354,11 @@ export function AppShell({ teamId, children, adminMode = false }) {
 
 // ── App header ────────────────────────────────────────────────────────────────
 function AppHeader({ teamId, adminMode }) {
-  const navigate = useNavigate();
-  const team     = RAID_TEAMS.find(t => t.id === teamId);
+  const navigate   = useNavigate();
+  const location   = useLocation();
+  const isKara     = location.pathname.startsWith("/kara");
+  const team       = RAID_TEAMS.find(t => t.id === teamId);
+
   return (
     <div style={{
       height: layout.headerHeight,
@@ -373,38 +376,26 @@ function AppHeader({ teamId, adminMode }) {
         <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: text.primary, fontFamily: font.sans, letterSpacing: "0.02em" }}>NTMO</span>
       </button>
 
-      {/* Divider */}
       <div style={{ width: 1, height: 20, background: border.subtle }} />
 
-      {/* Team name */}
-      {team && (
+      {/* Context label */}
+      {isKara ? (
         <span style={{ fontSize: fontSize.sm, color: text.secondary, fontFamily: font.sans }}>
-          {team.name}
-          <span style={{ color: text.muted, marginLeft: space[2] }}>· {team.night}</span>
+          Karazhan <span style={{ color: text.muted, marginLeft: space[1] }}>· All Teams</span>
         </span>
-      )}
+      ) : team ? (
+        <span style={{ fontSize: fontSize.sm, color: text.secondary, fontFamily: font.sans }}>
+          {team.name}<span style={{ color: text.muted, marginLeft: space[2] }}>· {team.night}</span>
+        </span>
+      ) : null}
 
-      {/* Admin badge */}
-      {adminMode && (
-        <StatusChip type="warning">Admin</StatusChip>
-      )}
+      {adminMode && <StatusChip type="warning">Admin</StatusChip>}
 
-      {/* Right side: public/admin toggle */}
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: space[2] }}>
         {adminMode ? (
-          <button
-            onClick={() => navigate(`/${teamId}`)}
-            style={btnStyle("default")}
-          >
-            ← Public View
-          </button>
+          <button onClick={() => navigate(isKara ? "/kara" : `/${teamId}`)} style={btnStyle("default")}>← Public View</button>
         ) : (
-          <button
-            onClick={() => navigate(`/${teamId}/kara/admin`)}
-            style={btnStyle("default")}
-          >
-            Admin →
-          </button>
+          <button onClick={() => navigate(isKara ? "/kara/admin" : `/${teamId}/25man/admin`)} style={btnStyle("default")}>Admin →</button>
         )}
       </div>
     </div>
@@ -413,13 +404,16 @@ function AppHeader({ teamId, adminMode }) {
 
 // ── Nav sidebar ───────────────────────────────────────────────────────────────
 function NavSidebar({ teamId, adminMode }) {
-  const location = useLocation();
+  const location  = useLocation();
   const navigate  = useNavigate();
+  const isKara    = location.pathname.startsWith("/kara");
 
+  // Kara is teamless — always links to /kara
+  // 25-man and history are team-scoped
   const navLinks = [
-    { path: `/${teamId}/kara${adminMode ? "/admin" : ""}`,   label: "Karazhan",    icon: "🏰" },
-    { path: `/${teamId}/25man${adminMode ? "/admin" : ""}`,  label: "25-Man Raids", icon: "⚔" },
-    { path: `/${teamId}/history`,                             label: "Raid History", icon: "📜" },
+    { path: `/kara${adminMode ? "/admin" : ""}`,                          label: "Karazhan",    icon: "🏰" },
+    { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "⚔" },
+    { path: `/${teamId || "team-dick"}/history`,                           label: "Raid History", icon: "📜" },
   ];
 
   return (
@@ -434,9 +428,9 @@ function NavSidebar({ teamId, adminMode }) {
           Modules
         </div>
         {navLinks.map(link => {
-          const active = location.pathname === link.path ||
-            (link.path.includes("/kara")   && location.pathname.includes("/kara"))   ||
-            (link.path.includes("/25man")  && location.pathname.includes("/25man"))  ||
+          const active =
+            (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))   ||
+            (link.path.includes("/25man")   && location.pathname.includes("/25man"))    ||
             (link.path.includes("/history") && location.pathname.includes("/history"));
           return (
             <button
@@ -451,10 +445,10 @@ function NavSidebar({ teamId, adminMode }) {
         })}
       </div>
 
-      {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Team switcher */}
+      {/* Team switcher — hidden on kara routes since kara is teamless */}
+      {!isKara && (
       <div style={{ padding: space[3], borderTop: `1px solid ${border.subtle}` }}>
         <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[2] }}>
           Team
@@ -465,8 +459,7 @@ function NavSidebar({ teamId, adminMode }) {
             <button
               key={team.id}
               onClick={() => {
-                const currentModule = location.pathname.includes("/kara") ? "/kara"
-                  : location.pathname.includes("/25man") ? "/25man"
+                const currentModule = location.pathname.includes("/25man") ? "/25man"
                   : location.pathname.includes("/history") ? "/history"
                   : "";
                 const adminSuffix = adminMode && currentModule !== "/history" ? "/admin" : "";
@@ -488,6 +481,7 @@ function NavSidebar({ teamId, adminMode }) {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

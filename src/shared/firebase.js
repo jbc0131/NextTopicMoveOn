@@ -1,10 +1,9 @@
 /**
  * NTMO Shared Firebase Helpers
- * New per-module paths as defined in the rebuild spec.
  *
  * Path structure:
- *   raid/{teamId}/kara/live              — Kara live state
- *   raid/{teamId}/kara-snapshots/{id}    — Kara snapshots
+ *   raid/kara/live                       — Kara live state (shared, no teamId)
+ *   raid/kara-snapshots/{id}             — Kara snapshots (shared)
  *   raid/{teamId}/25man-tue/live         — Tuesday 25-man live state
  *   raid/{teamId}/25man-thu/live         — Thursday 25-man live state
  *   raid/{teamId}/25man-snapshots/{id}   — 25-man snapshots
@@ -32,7 +31,6 @@ export function isFirebaseConfigured() {
   return firebaseConfig.apiKey !== "REPLACE_WITH_YOUR_API_KEY";
 }
 
-// Recursively strips undefined values — Firestore rejects them
 function sanitize(val) {
   if (val === undefined) return null;
   if (val === null || typeof val !== "object") return val;
@@ -45,23 +43,20 @@ function sanitize(val) {
 }
 
 // ── Document path helpers ─────────────────────────────────────────────────────
-function karaLiveDoc(teamId) {
-  return doc(db, "raid", teamId, "kara", "live");
-}
+// Kara is teamless — single shared document
+const KARA_LIVE_DOC      = doc(db, "raid", "kara", "live");
+const KARA_SNAPSHOTS_COL = collection(db, "raid", "kara-snapshots");
+
 function tfLiveDoc(teamId, night) {
-  // night: "tue" | "thu"
   return doc(db, "raid", teamId, `25man-${night}`, "live");
-}
-function karaSnapshotsCol(teamId) {
-  return collection(db, "raid", teamId, "kara-snapshots");
 }
 function tfSnapshotsCol(teamId) {
   return collection(db, "raid", teamId, "25man-snapshots");
 }
 
 // ── Kara — live state ─────────────────────────────────────────────────────────
-export async function saveKaraState(state, teamId) {
-  await setDoc(karaLiveDoc(teamId), sanitize({
+export async function saveKaraState(state) {
+  await setDoc(KARA_LIVE_DOC, sanitize({
     rosterTue:     state.rosterTue     ?? [],
     rosterThu:     state.rosterThu     ?? [],
     assignments:   state.assignments   ?? {},
@@ -72,20 +67,20 @@ export async function saveKaraState(state, teamId) {
   }));
 }
 
-export async function fetchKaraState(teamId) {
-  const snap = await getDoc(karaLiveDoc(teamId));
+export async function fetchKaraState() {
+  const snap = await getDoc(KARA_LIVE_DOC);
   return snap.exists() ? snap.data() : null;
 }
 
-export function subscribeToKaraState(teamId, callback) {
-  return onSnapshot(karaLiveDoc(teamId), snap => {
+export function subscribeToKaraState(callback) {
+  return onSnapshot(KARA_LIVE_DOC, snap => {
     if (snap.exists()) callback(snap.data());
   });
 }
 
 // ── Kara — snapshots ──────────────────────────────────────────────────────────
-export async function saveKaraSnapshot(state, teamId, extra = {}) {
-  return await addDoc(karaSnapshotsCol(teamId), sanitize({
+export async function saveKaraSnapshot(state, extra = {}) {
+  return await addDoc(KARA_SNAPSHOTS_COL, sanitize({
     rosterTue:     state.rosterTue     ?? [],
     rosterThu:     state.rosterThu     ?? [],
     assignments:   state.assignments   ?? {},
@@ -102,22 +97,22 @@ export async function saveKaraSnapshot(state, teamId, extra = {}) {
   }));
 }
 
-export async function fetchKaraSnapshots(teamId, maxCount = 20) {
-  const q    = query(karaSnapshotsCol(teamId), orderBy("savedAt", "desc"), limit(maxCount));
+export async function fetchKaraSnapshots(maxCount = 20) {
+  const q    = query(KARA_SNAPSHOTS_COL, orderBy("savedAt", "desc"), limit(maxCount));
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function updateKaraSnapshot(teamId, snapshotId, fields) {
-  await updateDoc(doc(db, "raid", teamId, "kara-snapshots", snapshotId), fields);
+export async function updateKaraSnapshot(snapshotId, fields) {
+  await updateDoc(doc(db, "raid", "kara-snapshots", snapshotId), fields);
 }
 
-export async function deleteKaraSnapshot(teamId, snapshotId) {
-  await deleteDoc(doc(db, "raid", teamId, "kara-snapshots", snapshotId));
+export async function deleteKaraSnapshot(snapshotId) {
+  await deleteDoc(doc(db, "raid", "kara-snapshots", snapshotId));
 }
 
-export async function submitKaraWclLog(teamId, snapshotId, wclReportUrl) {
-  await updateDoc(doc(db, "raid", teamId, "kara-snapshots", snapshotId), {
+export async function submitKaraWclLog(snapshotId, wclReportUrl) {
+  await updateDoc(doc(db, "raid", "kara-snapshots", snapshotId), {
     wclReportUrl,
     locked: true,
   });
@@ -150,18 +145,18 @@ export function subscribeToTwentyFiveState(teamId, night, callback) {
 // ── 25-Man — snapshots ────────────────────────────────────────────────────────
 export async function saveTwentyFiveSnapshot(state, teamId, night, extra = {}) {
   return await addDoc(tfSnapshotsCol(teamId), sanitize({
-    roster:      state.roster      ?? [],
-    assignments: state.assignments ?? {},
-    textInputs:  state.textInputs  ?? {},
-    raidDate:    state.raidDate    ?? "",
-    raidLeader:  state.raidLeader  ?? "",
-    night:       night,
-    savedAt:     new Date().toISOString(),
-    locked:      false,
+    roster:       state.roster      ?? [],
+    assignments:  state.assignments ?? {},
+    textInputs:   state.textInputs  ?? {},
+    raidDate:     state.raidDate    ?? "",
+    raidLeader:   state.raidLeader  ?? "",
+    night,
+    savedAt:      new Date().toISOString(),
+    locked:       false,
     wclReportUrl: null,
-    sheetUrl:    null,
+    sheetUrl:     null,
     combatLogUrl: null,
-    module:      "25man",
+    module:       "25man",
     ...extra,
   }));
 }
@@ -187,30 +182,26 @@ export async function submitTwentyFiveWclLog(teamId, snapshotId, wclReportUrl) {
   });
 }
 
-// ── History — fetch both snapshot collections ─────────────────────────────────
+// ── History — fetch all snapshots ─────────────────────────────────────────────
 export async function fetchAllSnapshots(teamId, maxCount = 40) {
   const [karaSnaps, tfSnaps] = await Promise.all([
-    fetchKaraSnapshots(teamId, maxCount),
+    fetchKaraSnapshots(maxCount),
     fetchTwentyFiveSnapshots(teamId, maxCount),
   ]);
-
-  // Merge and sort by savedAt descending
   return [...karaSnaps, ...tfSnaps]
     .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt))
     .slice(0, maxCount);
 }
 
 // ── Dashboard — lightweight summary reads ─────────────────────────────────────
-export async function fetchKaraSummary(teamId) {
-  const state = await fetchKaraState(teamId);
+export async function fetchKaraSummary() {
+  const state = await fetchKaraState();
   if (!state) return null;
-  const totalSlots   = 60; // 6 teams × 10 slots
-  const filledSlots  = Object.keys(state.assignments || {}).length;
   return {
-    raidDateTue: state.raidDateTue || "",
-    raidDateThu: state.raidDateThu || "",
-    filledSlots,
-    totalSlots,
+    raidDateTue:    state.raidDateTue || "",
+    raidDateThu:    state.raidDateThu || "",
+    filledSlots:    Object.keys(state.assignments || {}).length,
+    totalSlots:     60,
     rosterTueCount: (state.rosterTue || []).length,
     rosterThuCount: (state.rosterThu || []).length,
   };
@@ -220,9 +211,9 @@ export async function fetchTwentyFiveSummary(teamId, night) {
   const state = await fetchTwentyFiveState(teamId, night);
   if (!state) return null;
   return {
-    raidDate:    state.raidDate    || "",
-    raidLeader:  state.raidLeader  || "",
-    rosterCount: (state.roster || []).length,
+    raidDate:        state.raidDate   || "",
+    raidLeader:      state.raidLeader || "",
+    rosterCount:     (state.roster || []).length,
     assignmentCount: Object.keys(state.assignments || {}).length,
   };
 }

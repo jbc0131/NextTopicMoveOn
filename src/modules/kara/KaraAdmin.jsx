@@ -343,7 +343,7 @@ function KaraRosterPanel({ karaNight, setKaraNight, rosterTue, rosterThu, assign
 }
 
 // ── Main KaraAdmin ────────────────────────────────────────────────────────────
-export default function KaraAdmin({ teamId }) {
+export default function KaraAdmin() {
   const [roster,        setRoster]        = useState([]);
   const [rosterTue,     setRosterTue]     = useState([]);
   const [rosterThu,     setRosterThu]     = useState([]);
@@ -379,16 +379,16 @@ export default function KaraAdmin({ teamId }) {
   const commitImportRef = useRef(null);
 
   const { scores: wclScores, loading: wclLoading, error: wclError, lastFetch: wclLastFetch, refetch: wclRefetch } =
-    useWarcraftLogs(roster, { teamId, module: "kara" });
+    useWarcraftLogs(roster, { teamId: "shared", module: "kara" });
 
   // ── Load ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     async function load() {
       let s = null;
       if (FIREBASE_OK) {
-        try { s = await fetchKaraState(teamId); } catch (e) { console.warn(e); }
+        try { s = await fetchKaraState(); } catch (e) { console.warn(e); }
       }
-      if (!s) s = loadState(teamId, "kara");
+      if (!s) s = loadState("shared", "kara");
       if (s) {
         if (s.rosterTue)     setRosterTue(s.rosterTue);
         if (s.rosterThu)     setRosterThu(s.rosterThu);
@@ -402,8 +402,8 @@ export default function KaraAdmin({ teamId }) {
       }
     }
     load();
-    if (FIREBASE_OK) fetchKaraSnapshots(teamId).then(setSnapshots).catch(console.warn);
-    document.title = teamId === "team-dick" ? "NTMO Kara Admin – Tuesday" : "NTMO Kara Admin – Thursday";
+    if (FIREBASE_OK) fetchKaraSnapshots().then(setSnapshots).catch(console.warn);
+    document.title = "NTMO · Karazhan Admin";
   }, [teamId]);
 
   // ── Auto-save ─────────────────────────────────────────────────────────────
@@ -415,10 +415,10 @@ export default function KaraAdmin({ teamId }) {
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       const state = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu };
-      saveState(state, teamId, "kara");
+      saveState(state, "shared", "kara");
       try {
         setSaveStatus("saving");
-        await saveKaraState(state, teamId);
+        await saveKaraState(state);
         setSaveStatus("saved");
         setHasUnsaved(false);
         setTimeout(() => setSaveStatus("idle"), 2000);
@@ -429,11 +429,11 @@ export default function KaraAdmin({ teamId }) {
   // ── Manual save ───────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     const state = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu };
-    saveState(state, teamId, "kara");
+    saveState(state, "shared", "kara");
     if (!FIREBASE_OK) { setSaveStatus("offline"); return; }
     setSaveStatus("saving");
     try {
-      await saveKaraState(state, teamId);
+      await saveKaraState(state);
       setSaveStatus("saved"); setHasUnsaved(false);
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (e) { setSaveStatus("error"); setTimeout(() => setSaveStatus("idle"), 4000); }
@@ -445,9 +445,9 @@ export default function KaraAdmin({ teamId }) {
     setSnapshotStatus("saving");
     try {
       const state = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu };
-      await saveKaraSnapshot(state, teamId);
+      await saveKaraSnapshot(state);
       setSnapshotStatus("saved");
-      const snaps = await fetchKaraSnapshots(teamId);
+      const snaps = await fetchKaraSnapshots();
       setSnapshots(snaps);
       setTimeout(() => setSnapshotStatus("idle"), 3000);
     } catch (e) { setSnapshotStatus("error"); setTimeout(() => setSnapshotStatus("idle"), 4000); }
@@ -467,12 +467,12 @@ export default function KaraAdmin({ teamId }) {
       const state = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu };
       const extra = { wclReportUrl: finalUrl, locked: true, ...(sheetUrl ? { sheetUrl } : {}) };
       if (viewingSnap) {
-        await submitKaraWclLog(teamId, viewingSnap, finalUrl);
-        if (sheetUrl) await updateKaraSnapshot(teamId, viewingSnap, { sheetUrl });
+        await submitKaraWclLog(viewingSnap, finalUrl);
+        if (sheetUrl) await updateKaraSnapshot(viewingSnap, { sheetUrl });
         setSnapshots(prev => prev.map(s => s.id === viewingSnap ? { ...s, ...extra } : s));
       } else {
-        await saveKaraSnapshot(state, teamId, extra);
-        const snaps = await fetchKaraSnapshots(teamId);
+        await saveKaraSnapshot(state, extra);
+        const snaps = await fetchKaraSnapshots();
         setSnapshots(snaps);
       }
       setWclSubmitStatus("saved");
@@ -665,15 +665,15 @@ export default function KaraAdmin({ teamId }) {
 
   if (roster.length === 0 && !showImport) {
     return (
-      <AppShell teamId={teamId} adminMode>
-        <ModuleHeader icon="🏰" title="Karazhan Admin" breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / Karazhan`} />
+      <AppShell adminMode>
+        <ModuleHeader icon="🏰" title="Karazhan Admin" breadcrumb="Karazhan" />
         <EmptyState icon="🏰" title="No roster imported" message="Import Tuesday and Thursday JSONs to get started" action="Import Roster" onAction={() => setShowImport(true)} />
       </AppShell>
     );
   }
 
   return (
-    <AppShell teamId={teamId} adminMode>
+    <AppShell adminMode>
       {/* Conflict modal */}
       {pendingConflicts.length > 0 && (
         <ConflictModal
@@ -701,7 +701,7 @@ export default function KaraAdmin({ teamId }) {
       <ModuleHeader
         icon="🏰"
         title="Karazhan Admin"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / Karazhan`}
+        breadcrumb="Karazhan"
         actions={<>
           <SaveStatus status={saveStatus} />
           <button onClick={() => setShowImport(v => !v)} style={btnStyle("default")}>
@@ -755,7 +755,7 @@ export default function KaraAdmin({ teamId }) {
           </div>
           <button onClick={() => { const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null); }} disabled={!viewingSnap} style={{ ...btnStyle("default"), padding: "0 8px", opacity: !viewingSnap ? 0.3 : 1 }}>›</button>
           {viewingSnap && (
-            <button onClick={async () => { if (!window.confirm("Delete snapshot?")) return; await deleteKaraSnapshot(teamId, viewingSnap); setSnapshots(prev => prev.filter(s => s.id !== viewingSnap)); setViewingSnap(null); }} style={{ ...btnStyle("danger"), padding: "0 8px" }}>🗑</button>
+            <button onClick={async () => { if (!window.confirm("Delete snapshot?")) return; await deleteKaraSnapshot(viewingSnap); setSnapshots(prev => prev.filter(s => s.id !== viewingSnap)); setViewingSnap(null); }} style={{ ...btnStyle("danger"), padding: "0 8px" }}>🗑</button>
           )}
         </div>
       )}
