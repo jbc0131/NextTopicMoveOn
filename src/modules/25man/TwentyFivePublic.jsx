@@ -95,7 +95,7 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, text
 }
 
 export default function TwentyFivePublic({ teamId }) {
-  const [night,       setNight]       = useState("tue");
+  const night = teamId === "team-balls" ? "thu" : "tue";
   const [data,        setData]        = useState(null);
   const [loading,     setLoading]     = useState(true);
   const [liveSync,    setLiveSync]    = useState(false);
@@ -139,12 +139,6 @@ export default function TwentyFivePublic({ teamId }) {
         title="25-Man Raids"
         breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / 25-Man`}
         actions={<>
-          {/* Night toggle */}
-          <div style={{ display: "flex", border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
-            {[["tue","Tuesday"],["thu","Thursday"]].map(([n, l]) => (
-              <button key={n} onClick={() => { setNight(n); setViewingSnap(null); }} style={{ padding: `0 ${space[3]}px`, height: 28, border: "none", cursor: "pointer", fontFamily: font.sans, fontSize: fontSize.xs, fontWeight: n === night ? fontWeight.semibold : fontWeight.normal, background: n === night ? `${nightColor}22` : "transparent", color: n === night ? nightColor : text.muted }}>{l}</button>
-            ))}
-          </div>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}
           <SearchBox value={searchName} onChange={setSearchName} placeholder="Search your name…" />

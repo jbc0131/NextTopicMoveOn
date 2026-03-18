@@ -178,7 +178,7 @@ function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter,
 
 // ── Main TwentyFiveAdmin ──────────────────────────────────────────────────────
 export default function TwentyFiveAdmin({ teamId }) {
-  const [night,        setNight]        = useState("tue");
+  const night = teamId === "team-balls" ? "thu" : "tue";
   const [roster,       setRoster]       = useState([]);
   const [assignments,  setAssignments]  = useState({});
   const [textInputs,   setTextInputs]   = useState({});
@@ -411,12 +411,6 @@ export default function TwentyFiveAdmin({ teamId }) {
         title="25-Man Raids Admin"
         breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / 25-Man`}
         actions={<>
-          {/* Night toggle */}
-          <div style={{ display: "flex", border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
-            {[["tue","Tuesday"], ["thu","Thursday"]].map(([n, l]) => (
-              <button key={n} onClick={() => setNight(n)} style={{ padding: `0 ${space[3]}px`, height: 28, border: "none", cursor: "pointer", fontFamily: font.sans, fontSize: fontSize.xs, fontWeight: n === night ? fontWeight.semibold : fontWeight.normal, background: n === night ? (n === "tue" ? `${intent.success}22` : `${accent.blue}22`) : "transparent", color: n === night ? (n === "tue" ? intent.success : accent.blue) : text.muted }}>{l}</button>
-            ))}
-          </div>
           <SaveStatus status={saveStatus} />
           <button onClick={() => setShowImport(v => !v)} style={btnStyle("default")}>📂 {roster.length ? `Roster (${roster.length})` : "Import JSON"}</button>
           <button onClick={() => setConfirmClearOpen(true)} style={btnStyle("danger")}>🗑 Clear</button>
