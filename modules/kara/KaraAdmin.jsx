@@ -1,3 +1,4 @@
+// KaraAdmin v3 — teamless, no teamId prop
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   surface, border, text, accent, intent, font, fontSize,

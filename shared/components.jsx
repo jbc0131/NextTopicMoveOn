@@ -393,9 +393,9 @@ function AppHeader({ teamId, adminMode }) {
 
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: space[2] }}>
         {adminMode ? (
-          <button onClick={() => navigate(isKara ? "/kara" : `/${teamId}`)} style={btnStyle("default")}>← Public View</button>
+          <button onClick={() => navigate(isKara ? "/kara" : `/${teamId || "team-dick"}`)} style={btnStyle("default")}>← Public View</button>
         ) : (
-          <button onClick={() => navigate(isKara ? "/kara/admin" : `/${teamId}/25man/admin`)} style={btnStyle("default")}>Admin →</button>
+          <button onClick={() => navigate(isKara ? "/kara/admin" : `/${teamId || "team-dick"}/25man/admin`)} style={btnStyle("default")}>Admin →</button>
         )}
       </div>
     </div>
