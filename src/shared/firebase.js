@@ -2,8 +2,8 @@
  * NTMO Shared Firebase Helpers
  *
  * Path structure:
- *   raid/kara/live                       — Kara live state (shared, no teamId)
- *   raid/kara-snapshots/{id}             — Kara snapshots (shared)
+ *   raid-kara/live                      — Kara live state (shared, no teamId)
+ *   raid-kara-snapshots/{id}            — Kara snapshots (shared)
  *   raid/{teamId}/25man-tue/live         — Tuesday 25-man live state
  *   raid/{teamId}/25man-thu/live         — Thursday 25-man live state
  *   raid/{teamId}/25man-snapshots/{id}   — 25-man snapshots
@@ -44,8 +44,8 @@ function sanitize(val) {
 
 // ── Document path helpers ─────────────────────────────────────────────────────
 // Kara is teamless — single shared document
-const KARA_LIVE_DOC      = doc(db, "raid", "kara", "live");
-const KARA_SNAPSHOTS_COL = collection(db, "raid", "kara-snapshots");
+const KARA_LIVE_DOC      = doc(db, "raid-kara", "live");
+const KARA_SNAPSHOTS_COL = collection(db, "raid-kara-snapshots");
 
 function tfLiveDoc(teamId, night) {
   return doc(db, "raid", teamId, `25man-${night}`, "live");
@@ -104,15 +104,15 @@ export async function fetchKaraSnapshots(maxCount = 20) {
 }
 
 export async function updateKaraSnapshot(snapshotId, fields) {
-  await updateDoc(doc(db, "raid", "kara-snapshots", snapshotId), fields);
+  await updateDoc(doc(db, "raid-kara-snapshots", snapshotId), fields);
 }
 
 export async function deleteKaraSnapshot(snapshotId) {
-  await deleteDoc(doc(db, "raid", "kara-snapshots", snapshotId));
+  await deleteDoc(doc(db, "raid-kara-snapshots", snapshotId));
 }
 
 export async function submitKaraWclLog(snapshotId, wclReportUrl) {
-  await updateDoc(doc(db, "raid", "kara-snapshots", snapshotId), {
+  await updateDoc(doc(db, "raid-kara-snapshots", snapshotId), {
     wclReportUrl,
     locked: true,
   });
