@@ -338,17 +338,6 @@ function KaraRosterPanel({ karaNight, setKaraNight, rosterTue, rosterThu, assign
           );
         })}
       </div>
-
-      <ParseScoresPanel
-        scores={wclScores}
-        roster={[...rosterTue, ...rosterThu]}
-        module="kara"
-        loading={wclLoading}
-        error={wclError}
-        lastFetch={wclLastFetch}
-        onRefetch={onWclRefetch}
-        onWclNameChange={onWclNameChange}
-      />
     </div>
   );
 }
@@ -422,7 +411,7 @@ export default function KaraAdmin() {
     load();
     if (FIREBASE_OK) fetchKaraSnapshots().then(setSnapshots).catch(console.warn);
     document.title = "NTMO · Karazhan Admin";
-  }, [teamId]);
+  }, []);
 
   // ── Auto-save ─────────────────────────────────────────────────────────────
   const isFirstLoad = useRef(true);
@@ -455,7 +444,7 @@ export default function KaraAdmin() {
       setSaveStatus("saved"); setHasUnsaved(false);
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (e) { setSaveStatus("error"); setTimeout(() => setSaveStatus("idle"), 4000); }
-  }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu, teamId]);
+  }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu]);
 
   // ── Snapshot ──────────────────────────────────────────────────────────────
   const handleSaveSnapshot = useCallback(async () => {
@@ -469,7 +458,7 @@ export default function KaraAdmin() {
       setSnapshots(snaps);
       setTimeout(() => setSnapshotStatus("idle"), 3000);
     } catch (e) { setSnapshotStatus("error"); setTimeout(() => setSnapshotStatus("idle"), 4000); }
-  }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu, teamId]);
+  }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu]);
 
   // ── WCL submit ────────────────────────────────────────────────────────────
   const handleWclSubmit = useCallback(async () => {
@@ -497,7 +486,7 @@ export default function KaraAdmin() {
       setWclSubmitUrl(""); setSheetSubmitUrl("");
       setTimeout(() => setWclSubmitStatus("idle"), 3000);
     } catch (e) { setWclSubmitStatus("error"); setTimeout(() => setWclSubmitStatus("idle"), 4000); }
-  }, [wclSubmitUrl, sheetSubmitUrl, viewingSnap, teamId, rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu]);
+  }, [wclSubmitUrl, sheetSubmitUrl, viewingSnap, rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu]);
 
   // ── Spec cycle ────────────────────────────────────────────────────────────
   const handleSpecCycle = useCallback((playerId) => {
@@ -683,7 +672,7 @@ export default function KaraAdmin() {
 
   if (roster.length === 0 && !showImport) {
     return (
-      <AppShell adminMode>
+      <AppShell adminMode parsePanelContent={<ParseScoresPanel scores={wclScores} roster={[...rosterTue, ...rosterThu]} module="kara" loading={wclLoading} error={wclError} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} />}>
         <ModuleHeader icon="🏰" title="Karazhan Admin" breadcrumb="Karazhan" />
         <EmptyState icon="🏰" title="No roster imported" message="Import Tuesday and Thursday JSONs to get started" action="Import Roster" onAction={() => setShowImport(true)} />
       </AppShell>
@@ -691,7 +680,7 @@ export default function KaraAdmin() {
   }
 
   return (
-    <AppShell adminMode>
+    <AppShell adminMode parsePanelContent={<ParseScoresPanel scores={wclScores} roster={[...rosterTue, ...rosterThu]} module="kara" loading={wclLoading} error={wclError} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} />}>
       {/* Conflict modal */}
       {pendingConflicts.length > 0 && (
         <ConflictModal

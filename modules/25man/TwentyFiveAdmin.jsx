@@ -173,16 +173,6 @@ function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter,
             parseColor={getScoreColor(getScoreForPlayer(wclScores, s, activeTab))} />
         ))}
       </div>
-      <ParseScoresPanel
-        scores={wclScores}
-        roster={roster}
-        module="25man"
-        loading={wclLoading}
-        error={wclError}
-        lastFetch={wclLastFetch}
-        onRefetch={onWclRefetch}
-        onWclNameChange={onWclNameChange}
-      />
     </div>
   );
 }
@@ -418,7 +408,10 @@ export default function TwentyFiveAdmin({ teamId }) {
   const nightLabel = night === "tue" ? "Tuesday" : "Thursday";
 
   return (
-    <AppShell teamId={teamId} adminMode>
+    <AppShell teamId={teamId} adminMode parsePanelContent={
+      <ParseScoresPanel scores={wclScores} roster={roster} module="25man"
+        loading={wclLoading} lastFetch={null} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} />
+    }>
       <ConfirmDialog open={confirmClearOpen} title="Clear All Assignments" message="This will remove all 25-man assignments for this night. Cannot be undone." confirmLabel="Clear All" dangerous onConfirm={() => { setAssignments({}); setTextInputs({}); setConfirmClearOpen(false); }} onCancel={() => setConfirmClearOpen(false)} />
 
       <ModuleHeader

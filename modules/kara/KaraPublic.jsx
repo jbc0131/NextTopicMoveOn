@@ -164,7 +164,10 @@ export default function KaraPublic() {
   const hasData         = allRosters.length > 0;
 
   return (
-    <AppShell>
+    <AppShell parsePanelContent={
+      <ParseScoresPanel scores={wclScores} roster={allRosters} module="kara"
+        loading={wclLoading} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={null} />
+    }>
       <ModuleHeader
         icon="🏰"
         title="Karazhan"
@@ -189,33 +192,17 @@ export default function KaraPublic() {
       ) : !hasData ? (
         <EmptyState icon="🏰" title="No assignments published yet" message="The raid leader hasn't published Karazhan assignments yet — check back soon." />
       ) : (
-        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-          {/* Main content */}
-          <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
-            {isLocked && viewSnap && (
-              <div style={{ marginBottom: space[3], padding: `${space[2]}px ${space[3]}px`, background: surface.panel, border: `1px solid ${"#9980D4"}33`, borderRadius: radius.base, display: "flex", alignItems: "center", gap: space[3] }}>
-                <StatusChip type="locked">🔒 Locked</StatusChip>
-                {viewSnap.wclReportUrl && <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: accent.blue,   fontFamily: font.sans, textDecoration: "none" }}>📊 WarcraftLogs →</a>}
-                {viewSnap.sheetUrl     && <a href={viewSnap.sheetUrl}     target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.success, fontFamily: font.sans, textDecoration: "none" }}>📊 RPB Sheet →</a>}
-                {viewSnap.combatLogUrl && <a href={viewSnap.combatLogUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, textDecoration: "none" }}>⚔ Combat Log →</a>}
-              </div>
-            )}
-            <NightSection label="📅 TUESDAY"  teams={KARA_TUE_TEAMS} color={intent.success} viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
-            <NightSection label="📅 THURSDAY" teams={KARA_THU_TEAMS} color={accent.blue}    viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
-          </div>
-
-          {/* Parse scores panel — right sidebar */}
-          <div style={{ width: 200, flexShrink: 0, borderLeft: `1px solid ${border.subtle}`, background: surface.panel, overflowY: "auto", display: "flex", flexDirection: "column" }}>
-            <ParseScoresPanel
-              scores={wclScores}
-              roster={allRosters}
-              module="kara"
-              loading={wclLoading}
-              lastFetch={wclLastFetch}
-              onRefetch={wclRefetch}
-              onWclNameChange={null}
-            />
-          </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
+          {isLocked && viewSnap && (
+            <div style={{ marginBottom: space[3], padding: `${space[2]}px ${space[3]}px`, background: surface.panel, border: `1px solid ${"#9980D4"}33`, borderRadius: radius.base, display: "flex", alignItems: "center", gap: space[3] }}>
+              <StatusChip type="locked">🔒 Locked</StatusChip>
+              {viewSnap.wclReportUrl && <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: accent.blue,   fontFamily: font.sans, textDecoration: "none" }}>📊 WarcraftLogs →</a>}
+              {viewSnap.sheetUrl     && <a href={viewSnap.sheetUrl}     target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.success, fontFamily: font.sans, textDecoration: "none" }}>📊 RPB Sheet →</a>}
+              {viewSnap.combatLogUrl && <a href={viewSnap.combatLogUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, textDecoration: "none" }}>⚔ Combat Log →</a>}
+            </div>
+          )}
+          <NightSection label="📅 TUESDAY"  teams={KARA_TUE_TEAMS} color={intent.success} viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
+          <NightSection label="📅 THURSDAY" teams={KARA_THU_TEAMS} color={accent.blue}    viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
         </div>
       )}
     </AppShell>

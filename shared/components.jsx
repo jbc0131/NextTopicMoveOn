@@ -337,12 +337,12 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", 
 }
 
 // ── AppShell ──────────────────────────────────────────────────────────────────
-export function AppShell({ teamId, children, adminMode = false }) {
+export function AppShell({ teamId, children, adminMode = false, parsePanelContent }) {
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: surface.base, display: "flex", flexDirection: "column", fontFamily: font.sans }}>
       <AppHeader teamId={teamId} adminMode={adminMode} />
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <NavSidebar teamId={teamId} adminMode={adminMode} />
+        <NavSidebar teamId={teamId} adminMode={adminMode} parsePanelContent={parsePanelContent} />
         <main style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
           {children}
         </main>
@@ -403,7 +403,7 @@ function AppHeader({ teamId, adminMode }) {
 }
 
 // ── Nav sidebar ───────────────────────────────────────────────────────────────
-function NavSidebar({ teamId, adminMode }) {
+function NavSidebar({ teamId, adminMode, parsePanelContent }) {
   const location  = useLocation();
   const navigate  = useNavigate();
   const isKara    = location.pathname.startsWith("/kara");
@@ -445,7 +445,9 @@ function NavSidebar({ teamId, adminMode }) {
         })}
       </div>
 
-      <div style={{ flex: 1 }} />
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {parsePanelContent}
+      </div>
 
       {/* Team switcher — hidden on kara routes since kara is teamless */}
       {!isKara && (

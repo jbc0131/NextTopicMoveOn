@@ -134,7 +134,10 @@ export default function TwentyFivePublic({ teamId }) {
   const nightLabel      = night === "tue" ? "Tuesday" : "Thursday";
 
   return (
-    <AppShell teamId={teamId}>
+    <AppShell teamId={teamId} parsePanelContent={
+      <ParseScoresPanel scores={wclScores} roster={viewRoster} module="25man"
+        loading={wclLoading} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={null} />
+    }>
       <ModuleHeader
         icon="⚔"
         title="25-Man Raids"
@@ -161,80 +164,64 @@ export default function TwentyFivePublic({ teamId }) {
       ) : !hasData ? (
         <EmptyState icon="⚔" title="No assignments published yet" message={`The raid leader hasn't published ${nightLabel} 25-man assignments yet — check back soon.`} />
       ) : (
-        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-          {/* Main content */}
-          <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
 
-            {/* Locked snapshot banner */}
-            {isLocked && viewSnap && (
-              <div style={{ marginBottom: space[3], padding: `${space[2]}px ${space[3]}px`, background: surface.panel, border: `1px solid ${"#9980D4"}33`, borderRadius: radius.base, display: "flex", alignItems: "center", gap: space[3] }}>
-                <StatusChip type="locked">🔒 Locked</StatusChip>
-                {viewRaidDate   && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>📅 {viewRaidDate}</span>}
-                {viewRaidLeader && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>👤 {viewRaidLeader}</span>}
-                {viewSnap.wclReportUrl && <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: accent.blue,   fontFamily: font.sans, textDecoration: "none" }}>📊 WarcraftLogs →</a>}
-                {viewSnap.sheetUrl     && <a href={viewSnap.sheetUrl}     target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.success, fontFamily: font.sans, textDecoration: "none" }}>📊 RPB Sheet →</a>}
-                {viewSnap.combatLogUrl && <a href={viewSnap.combatLogUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, textDecoration: "none" }}>⚔ Combat Log →</a>}
-              </div>
-            )}
-
-            {/* Date / leader bar */}
-            {(viewRaidDate || viewRaidLeader) && !isLocked && (
-              <div style={{ marginBottom: space[3], fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, display: "flex", gap: space[3] }}>
-                {viewRaidDate   && <span>📅 {viewRaidDate}</span>}
-                {viewRaidLeader && <span>👤 {viewRaidLeader}</span>}
-              </div>
-            )}
-
-            {/* Tab bar */}
-            <div style={{ display: "flex", gap: space[2], marginBottom: space[3] }}>
-              {[["gruul","⚔ Gruul's Lair"],["mags","🔥 Magtheridon"]].map(([tab, label]) => (
-                <button key={tab} onClick={() => setActiveTab(tab)} style={{ ...btnStyle(activeTab === tab ? "primary" : "default"), height: 32 }}>{label}</button>
-              ))}
+          {/* Locked snapshot banner */}
+          {isLocked && viewSnap && (
+            <div style={{ marginBottom: space[3], padding: `${space[2]}px ${space[3]}px`, background: surface.panel, border: `1px solid ${"#9980D4"}33`, borderRadius: radius.base, display: "flex", alignItems: "center", gap: space[3] }}>
+              <StatusChip type="locked">🔒 Locked</StatusChip>
+              {viewRaidDate   && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>📅 {viewRaidDate}</span>}
+              {viewRaidLeader && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>👤 {viewRaidLeader}</span>}
+              {viewSnap.wclReportUrl && <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: accent.blue,   fontFamily: font.sans, textDecoration: "none" }}>📊 WarcraftLogs →</a>}
+              {viewSnap.sheetUrl     && <a href={viewSnap.sheetUrl}     target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.success, fontFamily: font.sans, textDecoration: "none" }}>📊 RPB Sheet →</a>}
+              {viewSnap.combatLogUrl && <a href={viewSnap.combatLogUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, textDecoration: "none" }}>⚔ Combat Log →</a>}
             </div>
+          )}
 
-            {/* General assignments */}
-            <div style={{ marginBottom: space[3], display: "flex", gap: 0, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
-              <div style={{ flex: 1, borderRight: `1px solid ${border.subtle}` }}>
-                <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}>
-                  <span style={{ fontSize: fontSize.xs, color: "#8788EE", fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>🟣 Warlock Curses</span>
-                </div>
-                {GENERAL_CURSES.map(row => <PublicRow key={row.key} rowCfg={row} ids={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />)}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}>
-                  <span style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>⚡ Trash Interrupts</span>
-                </div>
-                {GENERAL_INTERRUPTS.map(row => <PublicRow key={row.key} rowCfg={row} ids={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />)}
-              </div>
+          {/* Date / leader bar */}
+          {(viewRaidDate || viewRaidLeader) && !isLocked && (
+            <div style={{ marginBottom: space[3], fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, display: "flex", gap: space[3] }}>
+              {viewRaidDate   && <span>📅 {viewRaidDate}</span>}
+              {viewRaidLeader && <span>👤 {viewRaidLeader}</span>}
             </div>
+          )}
 
-            {activeTab === "gruul" && (
-              <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
-                <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage="maulgar" rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
-                <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage="gruul" rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
-              </div>
-            )}
-
-            {activeTab === "mags" && (
-              <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
-                <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage="mags" rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
-                <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage="mags" rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
-              </div>
-            )}
+          {/* Tab bar */}
+          <div style={{ display: "flex", gap: space[2], marginBottom: space[3] }}>
+            {[["gruul","⚔ Gruul's Lair"],["mags","🔥 Magtheridon"]].map(([tab, label]) => (
+              <button key={tab} onClick={() => setActiveTab(tab)} style={{ ...btnStyle(activeTab === tab ? "primary" : "default"), height: 32 }}>{label}</button>
+            ))}
           </div>
 
-          {/* Parse scores panel — right sidebar */}
-          <div style={{ width: 200, flexShrink: 0, borderLeft: `1px solid ${border.subtle}`, background: surface.panel, overflowY: "auto", display: "flex", flexDirection: "column" }}>
-            <ParseScoresPanel
-              scores={wclScores}
-              roster={viewRoster}
-              module="25man"
-              loading={wclLoading}
-              lastFetch={wclLastFetch}
-              onRefetch={wclRefetch}
-              onWclNameChange={null}
-            />
+          {/* General assignments */}
+          <div style={{ marginBottom: space[3], display: "flex", gap: 0, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
+            <div style={{ flex: 1, borderRight: `1px solid ${border.subtle}` }}>
+              <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}>
+                <span style={{ fontSize: fontSize.xs, color: "#8788EE", fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>🟣 Warlock Curses</span>
+              </div>
+              {GENERAL_CURSES.map(row => <PublicRow key={row.key} rowCfg={row} ids={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />)}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}>
+                <span style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>⚡ Trash Interrupts</span>
+              </div>
+              {GENERAL_INTERRUPTS.map(row => <PublicRow key={row.key} rowCfg={row} ids={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />)}
+            </div>
           </div>
+
+          {activeTab === "gruul" && (
+            <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
+              <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage="maulgar" rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
+              <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage="gruul" rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
+            </div>
+          )}
+
+          {activeTab === "mags" && (
+            <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
+              <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage="mags" rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
+              <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage="mags" rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
+            </div>
+          )}
         </div>
       )}
     </AppShell>
