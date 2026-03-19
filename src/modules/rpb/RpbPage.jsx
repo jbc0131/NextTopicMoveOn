@@ -1315,32 +1315,30 @@ export default function RpbPage() {
             </div>
           </div>
 
-          {!!selectedFightId && (
-            <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-              <div style={{ fontSize: fontSize.xs, color: text.muted }}>
-                Player Selection
-              </div>
-              <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
-                {filteredPlayers.map(player => {
-                  const active = String(player.id) === String(selectedPlayerId);
-                  return (
-                    <button
-                      key={player.id}
-                      onClick={() => setSelectedPlayerId(player.id)}
-                      style={{
-                        ...btnStyle(active ? "primary" : "default", active),
-                        height: 30,
-                        color: getClassColor(player.type),
-                        fontWeight: fontWeight.semibold,
-                      }}
-                    >
-                      {player.name}
-                    </button>
-                  );
-                })}
-              </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+            <div style={{ fontSize: fontSize.xs, color: text.muted }}>
+              Player Selection
             </div>
-          )}
+            <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
+              {filteredPlayers.map(player => {
+                const active = String(player.id) === String(selectedPlayerId);
+                return (
+                  <button
+                    key={player.id}
+                    onClick={() => setSelectedPlayerId(player.id)}
+                    style={{
+                      ...btnStyle(active ? "primary" : "default", active),
+                      height: 30,
+                      color: getClassColor(player.type),
+                      fontWeight: fontWeight.semibold,
+                    }}
+                  >
+                    {player.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <div style={{ fontSize: fontSize.xs, color: text.muted }}>
             Filters now apply directly to the slicer totals, encounter picks, and player detail breakdowns.

@@ -1,5 +1,8 @@
+import { buildCacheKey, getJsonCache, setJsonCache } from "./upstashRedis.js";
+
 const WOWHEAD_ITEM_BASE = "https://www.wowhead.com/tbc/item=";
 const ITEM_CACHE = new Map();
+const ITEM_META_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 function decodeHtml(value = "") {
   return String(value)
@@ -42,6 +45,10 @@ async function fetchOneItemMeta(itemId) {
   if (ITEM_CACHE.has(normalizedId)) return ITEM_CACHE.get(normalizedId);
 
   const promise = (async () => {
+    const cacheKey = buildCacheKey("wowhead:item-meta", [normalizedId]);
+    const cached = await getJsonCache(cacheKey);
+    if (cached) return cached;
+
     const response = await fetch(`${WOWHEAD_ITEM_BASE}${normalizedId}`, {
       headers: {
         "user-agent": "Mozilla/5.0 Codex RPB",
@@ -63,12 +70,14 @@ async function fetchOneItemMeta(itemId) {
       /"icon"\s*:\s*"([^"]+)"/i,
     ]);
 
-    return {
+    const result = {
       id: normalizedId,
       name,
       icon,
       quality: extractQuality(html),
     };
+    await setJsonCache(cacheKey, result, ITEM_META_TTL_SECONDS);
+    return result;
   })()
     .catch(() => ({
       id: normalizedId,

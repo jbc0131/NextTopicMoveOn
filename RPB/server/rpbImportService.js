@@ -1,4 +1,5 @@
 import { deriveRpbAnalytics } from "./rpbAnalytics.js";
+import { buildCacheKey, getJsonCache, setJsonCache } from "./upstashRedis.js";
 
 const BASE_URL = "https://classic.warcraftlogs.com/v1";
 
@@ -13,6 +14,7 @@ const ENGINEERING_DAMAGE_FILTER =
   "ability.id IN (23063,13241,17291,30486,4062,19821,15239,19784,12543,30461,30217,39965,4068,19769,4100,30216,22792,30526,4072,19805,27661,23000,11350) AND encounterid != 724";
 const DRUMS_CAST_FILTER =
   "ability.id IN (35478,35476,35475,351355,351358,351360)";
+const WCL_CACHE_TTL_SECONDS = 60 * 15;
 
 async function fetchBossSummarySnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
@@ -145,11 +147,26 @@ async function wclFetch(path, params = {}, apiKeyOverride = "") {
     }
   }
 
+  const cacheParts = [path];
+  const sortedParams = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .sort(([left], [right]) => left.localeCompare(right));
+
+  for (const [key, value] of sortedParams) {
+    cacheParts.push(`${key}=${value}`);
+  }
+
+  const cacheKey = buildCacheKey("wcl:v1", cacheParts);
+  const cached = await getJsonCache(cacheKey);
+  if (cached) return cached;
+
   const res = await fetch(url.toString());
   if (!res.ok) {
     throw new Error(`WCL v1 ${res.status}: ${await res.text()}`);
   }
-  return res.json();
+  const data = await res.json();
+  await setJsonCache(cacheKey, data, WCL_CACHE_TTL_SECONDS);
+  return data;
 }
 
 function getTrackedCastCount(entry) {

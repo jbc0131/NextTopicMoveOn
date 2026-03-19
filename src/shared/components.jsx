@@ -646,10 +646,10 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
                     <div
                       style={{
                         position: "absolute",
-                        top: "calc(100% + 8px)",
+                        top: "100%",
                         right: 0,
                         minWidth: 164,
-                        padding: space[2],
+                        padding: `${space[2]}px`,
                         borderRadius: radius.base,
                         border: `1px solid ${border.subtle}`,
                         background: surface.panel,

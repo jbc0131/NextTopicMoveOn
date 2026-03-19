@@ -125,6 +125,14 @@ function upsertLocalUserProfile(discordId, profile) {
   writeLocalUserProfiles(profiles);
 }
 
+function chunkItems(items, size = 450) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 // ── Kara — live state ─────────────────────────────────────────────────────────
 export async function saveKaraState(state) {
   await setDoc(KARA_LIVE_DOC, sanitize({
@@ -266,107 +274,46 @@ export async function fetchAllSnapshots(teamId, maxCount = 40) {
 
 // ── RPB — persistent raid imports ────────────────────────────────────────────
 export async function saveRpbRaidImport(raid) {
-  const raidId = raid.id || `${raid.reportId}-${raid.start ?? "0"}-${raid.end ?? "0"}`;
-  const importedAt = raid.importedAt || new Date().toISOString();
-  const raidRef = rpbRaidDoc(raidId);
-  const batch = writeBatch(db);
-  const fullRaid = sanitize({
+  const payload = sanitize({
     ...raid,
-    id: raidId,
-    importedAt,
+    id: raid.id || `${raid.reportId}-${raid.start ?? "0"}-${raid.end ?? "0"}`,
+    importedAt: raid.importedAt || new Date().toISOString(),
   });
 
-  batch.set(raidRef, sanitize({
-    id: raidId,
-    reportId: raid.reportId,
-    title: raid.title || "",
-    zone: raid.zone || "",
-    zoneId: raid.zoneId ?? null,
-    start: raid.start ?? null,
-    end: raid.end ?? null,
-    importedAt,
-    updatedAt: new Date().toISOString(),
-    fightCount: (raid.fights || []).length,
-    playerCount: (raid.players || []).length,
-    source: "wcl-import",
-  }));
+  const response = await fetch("/api/rpb-store", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
-  for (const fight of raid.fights || []) {
-    const fightRef = doc(rpbFightsCol(raidId), String(fight.id));
-    batch.set(fightRef, sanitize({
-      ...fight,
-      raidId,
-    }));
-  }
-
-  for (const player of raid.players || []) {
-    const playerRef = doc(rpbPlayersCol(raidId), String(player.id));
-    batch.set(playerRef, sanitize({
-      ...player,
-      raidId,
-    }));
-  }
-
-  try {
-    await batch.commit();
-  } catch (error) {
-    upsertLocalRpbRaid(fullRaid);
-    return { raidId, persistence: "local", error };
-  }
-
-  upsertLocalRpbRaid(fullRaid);
-  return { raidId, persistence: "remote" };
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to save RPB raid import");
+  return data;
 }
 
 export async function fetchRpbRaidList(maxCount = 25) {
-  const localRaids = readLocalRpbRaids().map(raid => ({
-    id: raid.id,
-    ...raid,
-    source: raid.source || "local-cache",
-  }));
-
-  try {
-    const q = query(RPB_RAIDS_COL, orderBy("importedAt", "desc"), limit(maxCount));
-    const snap = await getDocs(q);
-    const remoteRaids = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const merged = [...remoteRaids];
-    for (const localRaid of localRaids) {
-      if (!merged.find(raid => raid.id === localRaid.id)) merged.push(localRaid);
-    }
-    return merged
-      .sort((a, b) => new Date(b.importedAt || 0) - new Date(a.importedAt || 0))
-      .slice(0, maxCount);
-  } catch {
-    return localRaids
-      .sort((a, b) => new Date(b.importedAt || 0) - new Date(a.importedAt || 0))
-      .slice(0, maxCount);
-  }
+  const response = await fetch(`/api/rpb-store?maxCount=${encodeURIComponent(String(maxCount))}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to load RPB raid list");
+  return data.raids || [];
 }
 
 export async function fetchRpbRaid(raidId) {
-  try {
-    const snap = await getDoc(rpbRaidDoc(raidId));
-    if (snap.exists()) return { id: snap.id, ...snap.data() };
-  } catch {}
-  return readLocalRpbRaids().find(raid => raid.id === raidId) || null;
+  const response = await fetch(`/api/rpb-store?raidId=${encodeURIComponent(String(raidId))}`);
+  if (response.status === 404) return null;
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to load RPB raid");
+  return data || null;
 }
 
 export async function fetchRpbRaidFights(raidId) {
-  try {
-    const snap = await getDocs(query(rpbFightsCol(raidId), orderBy("startTime", "asc")));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch {
-    return readLocalRpbRaids().find(raid => raid.id === raidId)?.fights || [];
-  }
+  const raid = await fetchRpbRaid(raidId);
+  return raid?.fights || [];
 }
 
 export async function fetchRpbRaidPlayers(raidId) {
-  try {
-    const snap = await getDocs(query(rpbPlayersCol(raidId), orderBy("name", "asc")));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch {
-    return readLocalRpbRaids().find(raid => raid.id === raidId)?.players || [];
-  }
+  const raid = await fetchRpbRaid(raidId);
+  return raid?.players || [];
 }
 
 export async function fetchRpbRaidBundle(raidId) {
@@ -382,13 +329,10 @@ export async function fetchRpbRaidBundle(raidId) {
 
 export async function fetchUserProfile(discordId) {
   if (!discordId) return null;
-
-  try {
-    const snap = await getDoc(userProfileDoc(discordId));
-    if (snap.exists()) return { discordId: snap.id, ...snap.data() };
-  } catch {}
-
-  return readLocalUserProfiles()[String(discordId)] || null;
+  const response = await fetch(`/api/profile-store?discordId=${encodeURIComponent(String(discordId))}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to load profile");
+  return data.profile || null;
 }
 
 export async function saveUserProfile(discordId, profile) {
@@ -399,18 +343,15 @@ export async function saveUserProfile(discordId, profile) {
     mainCharacterName: profile?.mainCharacterName || "",
     alts: Array.isArray(profile?.alts) ? profile.alts : [],
     wclV1ApiKey: profile?.wclV1ApiKey || "",
-    updatedAt: new Date().toISOString(),
   });
-
-  try {
-    await setDoc(userProfileDoc(discordId), payload, { merge: true });
-  } catch (error) {
-    upsertLocalUserProfile(discordId, payload);
-    return { persistence: "local", error };
-  }
-
-  upsertLocalUserProfile(discordId, payload);
-  return { persistence: "remote" };
+  const response = await fetch("/api/profile-store", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to save profile");
+  return data;
 }
 
 // ── Dashboard — lightweight summary reads ─────────────────────────────────────
