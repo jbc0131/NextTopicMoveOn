@@ -12,7 +12,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import {
   getFirestore, doc, setDoc, onSnapshot, getDoc,
-  collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, updateDoc,
+  collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, updateDoc, writeBatch,
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -52,6 +52,77 @@ function tfLiveDoc(teamId, night) {
 }
 function tfSnapshotsCol(teamId) {
   return collection(db, "raid", teamId, "25man-snapshots");
+}
+
+const RPB_RAIDS_COL = collection(db, "rpb-raids");
+const RPB_LOCAL_STORAGE_KEY = "rpb_raids_v1";
+const USER_PROFILES_COL = collection(db, "user-profiles");
+const USER_PROFILES_LOCAL_STORAGE_KEY = "ntmo_user_profiles_v1";
+
+function rpbRaidDoc(raidId) {
+  return doc(db, "rpb-raids", raidId);
+}
+
+function rpbFightsCol(raidId) {
+  return collection(db, "rpb-raids", raidId, "fights");
+}
+
+function rpbPlayersCol(raidId) {
+  return collection(db, "rpb-raids", raidId, "players");
+}
+
+function userProfileDoc(discordId) {
+  return doc(db, "user-profiles", String(discordId));
+}
+
+function canUseLocalStorage() {
+  return typeof window !== "undefined" && typeof localStorage !== "undefined";
+}
+
+function readLocalRpbRaids() {
+  if (!canUseLocalStorage()) return [];
+  try {
+    const raw = localStorage.getItem(RPB_LOCAL_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalRpbRaids(raids) {
+  if (!canUseLocalStorage()) return;
+  try {
+    localStorage.setItem(RPB_LOCAL_STORAGE_KEY, JSON.stringify(raids));
+  } catch {}
+}
+
+function upsertLocalRpbRaid(raid) {
+  const raids = readLocalRpbRaids().filter(existing => existing.id !== raid.id);
+  raids.unshift(raid);
+  writeLocalRpbRaids(raids);
+}
+
+function readLocalUserProfiles() {
+  if (!canUseLocalStorage()) return {};
+  try {
+    const raw = localStorage.getItem(USER_PROFILES_LOCAL_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalUserProfiles(profiles) {
+  if (!canUseLocalStorage()) return;
+  try {
+    localStorage.setItem(USER_PROFILES_LOCAL_STORAGE_KEY, JSON.stringify(profiles));
+  } catch {}
+}
+
+function upsertLocalUserProfile(discordId, profile) {
+  const profiles = readLocalUserProfiles();
+  profiles[String(discordId)] = profile;
+  writeLocalUserProfiles(profiles);
 }
 
 // ── Kara — live state ─────────────────────────────────────────────────────────
@@ -191,6 +262,155 @@ export async function fetchAllSnapshots(teamId, maxCount = 40) {
   return [...karaSnaps, ...tfSnaps]
     .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt))
     .slice(0, maxCount);
+}
+
+// ── RPB — persistent raid imports ────────────────────────────────────────────
+export async function saveRpbRaidImport(raid) {
+  const raidId = raid.id || `${raid.reportId}-${raid.start ?? "0"}-${raid.end ?? "0"}`;
+  const importedAt = raid.importedAt || new Date().toISOString();
+  const raidRef = rpbRaidDoc(raidId);
+  const batch = writeBatch(db);
+  const fullRaid = sanitize({
+    ...raid,
+    id: raidId,
+    importedAt,
+  });
+
+  batch.set(raidRef, sanitize({
+    id: raidId,
+    reportId: raid.reportId,
+    title: raid.title || "",
+    zone: raid.zone || "",
+    zoneId: raid.zoneId ?? null,
+    start: raid.start ?? null,
+    end: raid.end ?? null,
+    importedAt,
+    updatedAt: new Date().toISOString(),
+    fightCount: (raid.fights || []).length,
+    playerCount: (raid.players || []).length,
+    source: "wcl-import",
+  }));
+
+  for (const fight of raid.fights || []) {
+    const fightRef = doc(rpbFightsCol(raidId), String(fight.id));
+    batch.set(fightRef, sanitize({
+      ...fight,
+      raidId,
+    }));
+  }
+
+  for (const player of raid.players || []) {
+    const playerRef = doc(rpbPlayersCol(raidId), String(player.id));
+    batch.set(playerRef, sanitize({
+      ...player,
+      raidId,
+    }));
+  }
+
+  try {
+    await batch.commit();
+  } catch (error) {
+    upsertLocalRpbRaid(fullRaid);
+    return { raidId, persistence: "local", error };
+  }
+
+  upsertLocalRpbRaid(fullRaid);
+  return { raidId, persistence: "remote" };
+}
+
+export async function fetchRpbRaidList(maxCount = 25) {
+  const localRaids = readLocalRpbRaids().map(raid => ({
+    id: raid.id,
+    ...raid,
+    source: raid.source || "local-cache",
+  }));
+
+  try {
+    const q = query(RPB_RAIDS_COL, orderBy("importedAt", "desc"), limit(maxCount));
+    const snap = await getDocs(q);
+    const remoteRaids = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const merged = [...remoteRaids];
+    for (const localRaid of localRaids) {
+      if (!merged.find(raid => raid.id === localRaid.id)) merged.push(localRaid);
+    }
+    return merged
+      .sort((a, b) => new Date(b.importedAt || 0) - new Date(a.importedAt || 0))
+      .slice(0, maxCount);
+  } catch {
+    return localRaids
+      .sort((a, b) => new Date(b.importedAt || 0) - new Date(a.importedAt || 0))
+      .slice(0, maxCount);
+  }
+}
+
+export async function fetchRpbRaid(raidId) {
+  try {
+    const snap = await getDoc(rpbRaidDoc(raidId));
+    if (snap.exists()) return { id: snap.id, ...snap.data() };
+  } catch {}
+  return readLocalRpbRaids().find(raid => raid.id === raidId) || null;
+}
+
+export async function fetchRpbRaidFights(raidId) {
+  try {
+    const snap = await getDocs(query(rpbFightsCol(raidId), orderBy("startTime", "asc")));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch {
+    return readLocalRpbRaids().find(raid => raid.id === raidId)?.fights || [];
+  }
+}
+
+export async function fetchRpbRaidPlayers(raidId) {
+  try {
+    const snap = await getDocs(query(rpbPlayersCol(raidId), orderBy("name", "asc")));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch {
+    return readLocalRpbRaids().find(raid => raid.id === raidId)?.players || [];
+  }
+}
+
+export async function fetchRpbRaidBundle(raidId) {
+  const [raid, fights, players] = await Promise.all([
+    fetchRpbRaid(raidId),
+    fetchRpbRaidFights(raidId),
+    fetchRpbRaidPlayers(raidId),
+  ]);
+
+  if (!raid) return null;
+  return { ...raid, fights, players };
+}
+
+export async function fetchUserProfile(discordId) {
+  if (!discordId) return null;
+
+  try {
+    const snap = await getDoc(userProfileDoc(discordId));
+    if (snap.exists()) return { discordId: snap.id, ...snap.data() };
+  } catch {}
+
+  return readLocalUserProfiles()[String(discordId)] || null;
+}
+
+export async function saveUserProfile(discordId, profile) {
+  if (!discordId) throw new Error("discordId is required");
+
+  const payload = sanitize({
+    discordId: String(discordId),
+    mainCharacterName: profile?.mainCharacterName || "",
+    alts: Array.isArray(profile?.alts) ? profile.alts : [],
+    wclV1ApiKey: profile?.wclV1ApiKey || "",
+    updatedAt: new Date().toISOString(),
+  });
+
+  try {
+    await setDoc(userProfileDoc(discordId), payload, { merge: true });
+  } catch (error) {
+    upsertLocalUserProfile(discordId, payload);
+    return { persistence: "local", error };
+  }
+
+  upsertLocalUserProfile(discordId, payload);
+  return { persistence: "remote" };
 }
 
 // ── Dashboard — lightweight summary reads ─────────────────────────────────────

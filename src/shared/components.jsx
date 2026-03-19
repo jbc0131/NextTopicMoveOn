@@ -577,6 +577,7 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
   const location   = useLocation();
   const isKara     = location.pathname.startsWith("/kara");
   const team       = RAID_TEAMS.find(t => t.id === teamId);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   return (
     <div style={{
@@ -625,7 +626,11 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
         ) : (
             <>
               {authUser && (
-                <div style={{ display: "flex", alignItems: "center", gap: space[1], marginRight: space[1] }}>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: space[1], marginRight: space[1], position: "relative" }}
+                  onMouseEnter={() => setAccountMenuOpen(true)}
+                  onMouseLeave={() => setAccountMenuOpen(false)}
+                >
                   {authUser.avatar && (
                     <img
                       src={`https://cdn.discordapp.com/avatars/${authUser.discordId}/${authUser.avatar}.png?size=32`}
@@ -633,14 +638,66 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
                       style={{ width: 20, height: 20, borderRadius: "50%", border: `1px solid ${border.subtle}` }}
                     />
                   )}
-                  <span style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans }}>
-                    {authUser.globalName || authUser.username}
+                  <span style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans, display: "inline-flex", alignItems: "center", gap: 6, cursor: "default" }}>
+                    <span aria-hidden="true" style={{ color: text.muted }}>⚙</span>
+                    <span>{authUser.globalName || authUser.username}</span>
                   </span>
-                  <a
-                    href={getLogoutUrl(location.pathname)}
-                    style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, textDecoration: "none", marginLeft: space[1] }}
-                    title="Sign out"
-                  >Sign out</a>
+                  {accountMenuOpen && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "calc(100% + 8px)",
+                        right: 0,
+                        minWidth: 164,
+                        padding: space[2],
+                        borderRadius: radius.base,
+                        border: `1px solid ${border.subtle}`,
+                        background: surface.panel,
+                        boxShadow: "0 12px 28px rgba(0,0,0,0.35)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                        zIndex: 200,
+                      }}
+                    >
+                      <Link
+                        to="/profile"
+                        style={{
+                          fontSize: fontSize.xs,
+                          color: text.secondary,
+                          fontFamily: font.sans,
+                          textDecoration: "none",
+                          padding: `${space[2]}px ${space[2]}px`,
+                          borderRadius: radius.sm,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                        title="Profile"
+                      >
+                        <span aria-hidden="true">⚙</span>
+                        <span>Profile</span>
+                      </Link>
+                      <a
+                        href={getLogoutUrl(location.pathname)}
+                        style={{
+                          fontSize: fontSize.xs,
+                          color: text.secondary,
+                          fontFamily: font.sans,
+                          textDecoration: "none",
+                          padding: `${space[2]}px ${space[2]}px`,
+                          borderRadius: radius.sm,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                        title="Sign out"
+                      >
+                        <span aria-hidden="true">↩</span>
+                        <span>Sign out</span>
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
               {adminMode ? (
@@ -673,7 +730,8 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
     { path: `/kara`,                                     label: "Karazhan",     external: false },
     { path: `/${teamId || "team-dick"}/25man`,           label: "25-Man Raids", external: false },
     { path: `/history`,                                  label: "Raid History", external: false },
-    { path: `/history`,                                  label: "RBP/CLA",      external: false },
+    { path: `/rpb`,                                      label: "RBP/CLA",      external: false },
+    { path: `/profile`,                                  label: "Profile",      external: false },
     { path: "https://professions.nexttopicmoveon.com/", label: "Professions",  external: true  },
   ];
 
@@ -715,7 +773,9 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
           const active =
             (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))  ||
             (link.path.includes("/25man")   && location.pathname.includes("/25man"))   ||
-            (link.path.includes("/history") && location.pathname.includes("/history"));
+            (link.path.includes("/history") && location.pathname.includes("/history")) ||
+            (link.path.includes("/rpb")     && location.pathname.startsWith("/rpb"))   ||
+            (link.path.includes("/profile") && location.pathname.startsWith("/profile"));
           return (
             <button
               key={link.path}
@@ -785,7 +845,7 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
     { path: `/kara${adminMode ? "/admin" : ""}`,                           label: "Karazhan",     icon: "KR" },
     { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "25" },
     { path: `/history${adminMode ? "/admin" : ""}`,                        label: "Raid History", icon: "HX" },
-    { path: `/history${adminMode ? "/admin" : ""}`,                        label: "RBP/CLA",      icon: "RC" },
+    { path: `/rpb`,                                                        label: "RBP/CLA",      icon: "RC" },
     { path: "https://professions.nexttopicmoveon.com/",                    label: "Professions",  icon: "PF", external: true },
   ];
 
@@ -825,7 +885,8 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
           const active =
             (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))   ||
             (link.path.includes("/25man")   && location.pathname.includes("/25man"))    ||
-            (link.path.includes("/history") && location.pathname.includes("/history"));
+            (link.path.includes("/history") && location.pathname.includes("/history"))  ||
+            (link.path.includes("/rpb")     && location.pathname.startsWith("/rpb"));
 
           const handleClick = () => {
             if (link.external) window.open(link.path, "_blank", "noopener noreferrer");
@@ -898,6 +959,39 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
           })}
         </div>
       )}
+
+      <div style={{ borderTop: `1px solid ${border.subtle}` }}>
+        {!collapsed && (
+          <div style={{ padding: `${space[2]}px ${space[3]}px ${space[1]}px` }}>
+            <span style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Settings
+            </span>
+          </div>
+        )}
+        <button
+          onClick={() => navigate("/profile")}
+          title={collapsed ? "Profile" : undefined}
+          style={{
+            ...navItemStyle(location.pathname.startsWith("/profile")),
+            width: "100%",
+            border: "none",
+            textAlign: "left",
+            justifyContent: collapsed ? "center" : "flex-start",
+            padding: collapsed ? `${space[2]}px 0` : undefined,
+          }}
+        >
+          <span style={{
+            fontSize: 12,
+            color: location.pathname.startsWith("/profile") ? accent.blue : text.disabled,
+            minWidth: collapsed ? undefined : 20,
+            display: "inline-flex",
+            justifyContent: "center",
+          }}>
+            ⚙
+          </span>
+          {!collapsed && <span>Profile</span>}
+        </button>
+      </div>
     </div>
   );
 }

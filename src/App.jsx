@@ -7,6 +7,8 @@ import TwentyFivePublic from "./modules/25man/TwentyFivePublic";
 import TwentyFiveAdmin  from "./modules/25man/TwentyFiveAdmin";
 import HistoryView      from "./modules/history/HistoryView";
 import HistoryAdmin     from "./modules/history/HistoryAdmin";
+import RpbPage          from "./modules/rpb/RpbPage";
+import ProfilePage      from "./pages/ProfilePage";
 
 export default function App() {
   return (
@@ -22,6 +24,11 @@ export default function App() {
         {/* History — shared, no team */}
         <Route path="/history"       element={<HistoryView />} />
         <Route path="/history/admin" element={<HistoryAdmin />} />
+
+        {/* RPB — shared, no team */}
+        <Route path="/rpb" element={<RpbPage />} />
+        <Route path="/rpb/:raidId" element={<RpbPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
 
         {/* Team Dick */}
         <Route path="/team-dick"             element={<TeamDashboard    teamId="team-dick"  />} />
