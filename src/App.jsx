@@ -19,27 +19,31 @@ export default function App() {
         <Route path="/kara"       element={<KaraPublic />} />
         <Route path="/kara/admin" element={<KaraAdmin />} />
 
+        {/* History — shared, no team */}
+        <Route path="/history"       element={<HistoryView />} />
+        <Route path="/history/admin" element={<HistoryAdmin />} />
+
         {/* Team Dick */}
-        <Route path="/team-dick"             element={<TeamDashboard   teamId="team-dick"  />} />
-        <Route path="/team-dick/25man"       element={<TwentyFivePublic teamId="team-dick" />} />
-        <Route path="/team-dick/25man/admin" element={<TwentyFiveAdmin  teamId="team-dick" />} />
-        <Route path="/team-dick/history"       element={<HistoryView  teamId="team-dick"  />} />
-        <Route path="/team-dick/history/admin" element={<HistoryAdmin teamId="team-dick"  />} />
+        <Route path="/team-dick"             element={<TeamDashboard    teamId="team-dick"  />} />
+        <Route path="/team-dick/25man"       element={<TwentyFivePublic teamId="team-dick"  />} />
+        <Route path="/team-dick/25man/admin" element={<TwentyFiveAdmin  teamId="team-dick"  />} />
 
         {/* Team Balls */}
-        <Route path="/team-balls"             element={<TeamDashboard   teamId="team-balls" />} />
+        <Route path="/team-balls"             element={<TeamDashboard    teamId="team-balls" />} />
         <Route path="/team-balls/25man"       element={<TwentyFivePublic teamId="team-balls" />} />
         <Route path="/team-balls/25man/admin" element={<TwentyFiveAdmin  teamId="team-balls" />} />
-        <Route path="/team-balls/history"       element={<HistoryView  teamId="team-balls" />} />
-        <Route path="/team-balls/history/admin" element={<HistoryAdmin teamId="team-balls" />} />
 
         {/* Legacy redirects */}
-        <Route path="/team-dick/kara"        element={<Navigate to="/kara"       replace />} />
-        <Route path="/team-dick/kara/admin"  element={<Navigate to="/kara/admin" replace />} />
-        <Route path="/team-balls/kara"       element={<Navigate to="/kara"       replace />} />
-        <Route path="/team-balls/kara/admin" element={<Navigate to="/kara/admin" replace />} />
-        <Route path="/team-dick/admin"       element={<Navigate to="/kara/admin" replace />} />
-        <Route path="/team-balls/admin"      element={<Navigate to="/kara/admin" replace />} />
+        <Route path="/team-dick/kara"          element={<Navigate to="/kara"          replace />} />
+        <Route path="/team-dick/kara/admin"    element={<Navigate to="/kara/admin"    replace />} />
+        <Route path="/team-balls/kara"         element={<Navigate to="/kara"          replace />} />
+        <Route path="/team-balls/kara/admin"   element={<Navigate to="/kara/admin"    replace />} />
+        <Route path="/team-dick/admin"         element={<Navigate to="/kara/admin"    replace />} />
+        <Route path="/team-balls/admin"        element={<Navigate to="/kara/admin"    replace />} />
+        <Route path="/team-dick/history"       element={<Navigate to="/history"       replace />} />
+        <Route path="/team-dick/history/admin" element={<Navigate to="/history/admin" replace />} />
+        <Route path="/team-balls/history"      element={<Navigate to="/history"       replace />} />
+        <Route path="/team-balls/history/admin" element={<Navigate to="/history/admin" replace />} />
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />

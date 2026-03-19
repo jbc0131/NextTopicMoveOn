@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
 import {
   surface, border, text, accent, intent, font, fontSize,
-  fontWeight, radius, space, btnStyle, inputStyle, layout,
+  fontWeight, radius, space, btnStyle, inputStyle,
 } from "../../shared/theme";
-import { getColor, getSpecDisplay } from "../../shared/constants";
 import {
-  AppShell, ModuleHeader, StatusChip, EmptyState, LoadingSpinner,
-  ConfirmDialog, SaveStatus,
+  AppShell, ModuleHeader, StatusChip, EmptyState, LoadingSpinner, ConfirmDialog,
 } from "../../shared/components";
 import {
   fetchTwentyFiveSnapshots, updateTwentyFiveSnapshot,
@@ -21,7 +19,6 @@ function formatDate(snap) {
   return "Unknown date";
 }
 
-// Fetch raid date from WCL report URL (same logic as old AdminView)
 async function fetchRaidDateFromReport(reportCode) {
   try {
     const res = await fetch("/api/warcraftlogs-report", {
@@ -37,7 +34,6 @@ async function fetchRaidDateFromReport(reportCode) {
   } catch { return null; }
 }
 
-// ── Individual snapshot admin card ────────────────────────────────────────────
 function HistoryAdminCard({ snap, onUpdate, onDelete }) {
   const [wclUrl,   setWclUrl]   = useState(snap.wclReportUrl || "");
   const [sheetUrl, setSheetUrl] = useState(snap.sheetUrl     || "");
@@ -45,7 +41,7 @@ function HistoryAdminCard({ snap, onUpdate, onDelete }) {
   const [night,    setNight]    = useState(snap.night        || "");
   const [saving,   setSaving]   = useState("idle");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [expanded, setExpanded] = useState(!snap.night); // auto-expand if night missing
+  const [expanded, setExpanded] = useState(!snap.night);
 
   const nightLabel = snap.night === "tue" ? "Tuesday" : snap.night === "thu" ? "Thursday" : null;
 
@@ -73,10 +69,10 @@ function HistoryAdminCard({ snap, onUpdate, onDelete }) {
       sheetUrl:     normalizeSheet(sheetUrl),
       combatLogUrl: normalizeSheet(clogUrl),
       locked:       !!finalWclUrl,
-      ...(night ? { night } : {}),
+      ...(night    ? { night }    : {}),
       ...(raidDate ? { raidDate } : {}),
     };
-    await onUpdate(snap.id, updates);
+    await onUpdate(snap._teamId, snap.id, updates);
     setSaving("saved");
     setTimeout(() => setSaving("idle"), 2500);
   };
@@ -89,112 +85,68 @@ function HistoryAdminCard({ snap, onUpdate, onDelete }) {
         message={`Permanently delete the ${formatDate(snap)} snapshot? This cannot be undone.`}
         confirmLabel="Delete"
         dangerous
-        onConfirm={() => { setConfirmDelete(false); onDelete(snap.id); }}
+        onConfirm={() => { setConfirmDelete(false); onDelete(snap._teamId, snap.id); }}
         onCancel={() => setConfirmDelete(false)}
       />
 
-      <div style={{
-        background: surface.panel,
-        border: `1px solid ${snap.locked ? "#9980D433" : border.subtle}`,
-        borderRadius: radius.lg, overflow: "hidden", marginBottom: space[3],
-      }}>
-        {/* Card header */}
-        <div style={{
-          padding: `${space[3]}px ${space[4]}px`,
-          display: "flex", alignItems: "center", gap: space[3],
-          background: snap.locked ? "#9980D408" : surface.panel,
-          borderBottom: `1px solid ${border.subtle}`,
-        }}>
+      <div style={{ background: surface.panel, border: `1px solid ${snap.locked ? "#9980D433" : border.subtle}`, borderRadius: radius.lg, overflow: "hidden", marginBottom: space[3] }}>
+        {/* Header */}
+        <div style={{ padding: `${space[3]}px ${space[4]}px`, display: "flex", alignItems: "center", gap: space[3], background: snap.locked ? "#9980D408" : surface.panel, borderBottom: `1px solid ${border.subtle}` }}>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap" }}>
-              {snap.locked
-                ? <StatusChip type="locked">Locked</StatusChip>
-                : <StatusChip type="neutral">Draft</StatusChip>
-              }
-              <span style={{ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: text.primary, fontFamily: font.sans }}>
-                {formatDate(snap)}
-              </span>
+              {snap.locked ? <StatusChip type="locked">Locked</StatusChip> : <StatusChip type="neutral">Draft</StatusChip>}
+              <span style={{ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: text.primary, fontFamily: font.sans }}>{formatDate(snap)}</span>
               {nightLabel
                 ? <StatusChip type={snap.night === "tue" ? "success" : "blue"}>{nightLabel}</StatusChip>
                 : <StatusChip type="danger">Night unset</StatusChip>
               }
+              <StatusChip type="neutral">{snap._teamId === "team-dick" ? "Team Dick" : "Team Balls"}</StatusChip>
             </div>
             <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
               {snap.wclReportUrl && <a href={snap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: accent.blue, fontFamily: font.sans, textDecoration: "none" }}>WCL Report →</a>}
               {snap.sheetUrl     && <a href={snap.sheetUrl}     target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.success, fontFamily: font.sans, textDecoration: "none" }}>RPB Sheet →</a>}
               {snap.combatLogUrl && <a href={snap.combatLogUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, textDecoration: "none" }}>Combat Log →</a>}
-              <span style={{ fontSize: fontSize.xs, color: text.disabled, fontFamily: font.sans }}>
-                Saved {new Date(snap.savedAt).toLocaleString()}
-              </span>
+              <span style={{ fontSize: fontSize.xs, color: text.disabled, fontFamily: font.sans }}>Saved {new Date(snap.savedAt).toLocaleString()}</span>
             </div>
           </div>
-          <div style={{ display: "flex", gap: space[2], alignItems: "center", flexShrink: 0 }}>
-            <button onClick={() => setExpanded(v => !v)} style={{ ...btnStyle("default"), height: 28, fontSize: fontSize.xs }}>
-              {expanded ? "▲ Collapse" : "▼ Edit"}
-            </button>
-            <button onClick={() => setConfirmDelete(true)} style={{ ...btnStyle("danger"), height: 28, fontSize: fontSize.xs }}>
-              Delete
-            </button>
+          <div style={{ display: "flex", gap: space[2], flexShrink: 0 }}>
+            <button onClick={() => setExpanded(v => !v)} style={{ ...btnStyle("default"), height: 28, fontSize: fontSize.xs }}>{expanded ? "▲ Collapse" : "▼ Edit"}</button>
+            <button onClick={() => setConfirmDelete(true)} style={{ ...btnStyle("danger"), height: 28, fontSize: fontSize.xs }}>Delete</button>
           </div>
         </div>
 
         {/* Edit panel */}
         {expanded && (
-          <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, background: surface.card }}>
-            <div style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[3] }}>
-              Report URLs
-            </div>
+          <div style={{ padding: space[4], background: surface.card, borderBottom: `1px solid ${border.subtle}` }}>
+            <div style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[3] }}>Report URLs</div>
             <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
               <div>
                 <div style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans, marginBottom: 4 }}>WarcraftLogs Report URL</div>
-                <input
-                  value={wclUrl}
-                  onChange={e => setWclUrl(e.target.value)}
-                  placeholder="https://fresh.warcraftlogs.com/reports/…"
-                  style={{ ...inputStyle, width: "100%" }}
-                />
-                <div style={{ fontSize: 10, color: text.disabled, fontFamily: font.sans, marginTop: 3 }}>
-                  Pasting a WCL URL will auto-populate the raid date and lock this week.
-                </div>
+                <input value={wclUrl} onChange={e => setWclUrl(e.target.value)} placeholder="https://fresh.warcraftlogs.com/reports/…" style={{ ...inputStyle, width: "100%" }} />
+                <div style={{ fontSize: 10, color: text.disabled, fontFamily: font.sans, marginTop: 3 }}>Pasting a WCL URL will auto-populate the raid date and lock this week.</div>
               </div>
               <div>
                 <div style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans, marginBottom: 4 }}>RPB Sheet URL</div>
-                <input
-                  value={sheetUrl}
-                  onChange={e => setSheetUrl(e.target.value)}
-                  placeholder="https://docs.google.com/spreadsheets/…"
-                  style={{ ...inputStyle, width: "100%" }}
-                />
+                <input value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/…" style={{ ...inputStyle, width: "100%" }} />
               </div>
               <div>
                 <div style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans, marginBottom: 4 }}>Combat Log Analysis URL</div>
-                <input
-                  value={clogUrl}
-                  onChange={e => setClogUrl(e.target.value)}
-                  placeholder="https://docs.google.com/spreadsheets/…"
-                  style={{ ...inputStyle, width: "100%" }}
-                />
+                <input value={clogUrl} onChange={e => setClogUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/…" style={{ ...inputStyle, width: "100%" }} />
               </div>
               <div>
                 <div style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans, marginBottom: 4 }}>
                   Raid Night
-                  {!snap.night && <span style={{ color: intent.danger, marginLeft: space[2], fontSize: 10 }}>⚠ Missing — set this so the snapshot appears under Tuesday or Thursday filters</span>}
+                  {!snap.night && <span style={{ color: intent.danger, marginLeft: space[2], fontSize: 10 }}>⚠ Missing — required for Tuesday/Thursday filters</span>}
                 </div>
                 <div style={{ display: "flex", gap: space[2] }}>
                   {[["tue", "Tuesday"], ["thu", "Thursday"]].map(([val, label]) => (
-                    <button key={val} onClick={() => setNight(val)}
-                      style={{
-                        ...btnStyle(night === val ? (val === "tue" ? "success" : "primary") : "default"),
-                        height: 30, fontSize: fontSize.xs,
-                      }}>
-                      {label}
-                    </button>
+                    <button key={val} onClick={() => setNight(val)} style={{ ...btnStyle(night === val ? (val === "tue" ? "success" : "primary") : "default"), height: 30, fontSize: fontSize.xs }}>{label}</button>
                   ))}
                   {night && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, alignSelf: "center" }}>Selected: {night === "tue" ? "Tuesday" : "Thursday"}</span>}
                 </div>
               </div>
             </div>
-            <div style={{ display: "flex", gap: space[2], marginTop: space[3], alignItems: "center" }}>
+            <div style={{ display: "flex", gap: space[2], marginTop: space[3] }}>
               <button onClick={handleSave} disabled={saving === "saving"} style={btnStyle(saving === "saved" ? "success" : "primary")}>
                 {saving === "saving" ? "Saving…" : saving === "saved" ? "✓ Saved" : "Save"}
               </button>
@@ -207,28 +159,36 @@ function HistoryAdminCard({ snap, onUpdate, onDelete }) {
   );
 }
 
-// ── Main HistoryAdmin ─────────────────────────────────────────────────────────
-export default function HistoryAdmin({ teamId }) {
+export default function HistoryAdmin() {
   const [snapshots, setSnapshots] = useState([]);
   const [loading,   setLoading]   = useState(true);
-  const [filter,    setFilter]    = useState("all"); // all | tue | thu
+  const [filter,    setFilter]    = useState("all");
 
   useEffect(() => {
-    document.title = `NTMO History Admin – ${teamId === "team-dick" ? "Team Dick" : "Team Balls"}`;
+    document.title = "NTMO · Raid History Admin";
     if (!FIREBASE_OK) { setLoading(false); return; }
-    fetchTwentyFiveSnapshots(teamId, 60)
-      .then(snaps => { setSnapshots(snaps); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [teamId]);
+    Promise.all([
+      fetchTwentyFiveSnapshots("team-dick",  60),
+      fetchTwentyFiveSnapshots("team-balls", 60),
+    ]).then(([dickSnaps, ballsSnaps]) => {
+      // Tag each snap with its source team so we know where to save updates
+      const tagged = [
+        ...dickSnaps.map(s => ({ ...s, _teamId: "team-dick"  })),
+        ...ballsSnaps.map(s => ({ ...s, _teamId: "team-balls" })),
+      ].sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+      setSnapshots(tagged);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
 
-  const handleUpdate = async (snapId, updates) => {
+  const handleUpdate = async (teamId, snapId, updates) => {
     await updateTwentyFiveSnapshot(teamId, snapId, updates);
-    setSnapshots(prev => prev.map(s => s.id === snapId ? { ...s, ...updates } : s));
+    setSnapshots(prev => prev.map(s => s.id === snapId && s._teamId === teamId ? { ...s, ...updates } : s));
   };
 
-  const handleDelete = async (snapId) => {
+  const handleDelete = async (teamId, snapId) => {
     await deleteTwentyFiveSnapshot(teamId, snapId);
-    setSnapshots(prev => prev.filter(s => s.id !== snapId));
+    setSnapshots(prev => prev.filter(s => !(s.id === snapId && s._teamId === teamId)));
   };
 
   const tueCount = snapshots.filter(s => s.night === "tue").length;
@@ -240,57 +200,41 @@ export default function HistoryAdmin({ teamId }) {
     return true;
   });
 
+  const untagged = snapshots.filter(s => !s.night).length;
+
   return (
-    <AppShell teamId={teamId} adminMode>
+    <AppShell adminMode>
       <ModuleHeader
-        icon="📜"
         title="Raid History Admin"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / History / Admin`}
-        subtitle={`${snapshots.length} snapshots · ${snapshots.filter(s => s.locked).length} locked`}
+        breadcrumb="History / Admin"
+        subtitle={`${snapshots.length} snapshots · ${snapshots.filter(s => s.locked).length} locked${untagged > 0 ? ` · ${untagged} missing night` : ""}`}
       />
 
-      {/* Filter bar */}
-      <div style={{
-        padding: `${space[2]}px ${space[4]}px`,
-        borderBottom: `1px solid ${border.subtle}`,
-        display: "flex", gap: space[2], alignItems: "center",
-        background: surface.panel, flexShrink: 0,
-      }}>
+      <div style={{ padding: `${space[2]}px ${space[4]}px`, borderBottom: `1px solid ${border.subtle}`, display: "flex", gap: space[2], alignItems: "center", background: surface.panel, flexShrink: 0, flexWrap: "wrap" }}>
         {[
           ["all", `All (${snapshots.length})`],
           ["tue", `Tuesday (${tueCount})`],
           ["thu", `Thursday (${thuCount})`],
         ].map(([val, label]) => (
-          <button key={val} onClick={() => setFilter(val)}
-            style={{ ...btnStyle(filter === val ? "primary" : "default"), height: 28, fontSize: fontSize.xs }}>
-            {label}
-          </button>
+          <button key={val} onClick={() => setFilter(val)} style={{ ...btnStyle(filter === val ? "primary" : "default"), height: 28, fontSize: fontSize.xs }}>{label}</button>
         ))}
-        <span style={{ fontSize: fontSize.xs, color: text.disabled, fontFamily: font.sans, marginLeft: "auto" }}>
-          Changes save immediately to Firebase
-        </span>
+        {untagged > 0 && (
+          <span style={{ fontSize: fontSize.xs, color: intent.danger, fontFamily: font.sans, marginLeft: "auto" }}>
+            {untagged} snapshot{untagged > 1 ? "s" : ""} missing night — expand to fix
+          </span>
+        )}
       </div>
 
       {loading ? (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <LoadingSpinner size={32} />
-        </div>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}><LoadingSpinner size={32} /></div>
       ) : !snapshots.length ? (
-        <EmptyState
-          title="No raid history yet"
-          message="Snapshots appear here once the raid leader saves a raid night from the 25-Man admin page."
-        />
+        <EmptyState title="No raid history yet" message="Snapshots appear here once the raid leader saves a raid night." />
       ) : !filtered.length ? (
         <EmptyState title="No results" message={`No ${filter === "tue" ? "Tuesday" : "Thursday"} snapshots found.`} />
       ) : (
         <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
           {filtered.map(snap => (
-            <HistoryAdminCard
-              key={snap.id}
-              snap={snap}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
-            />
+            <HistoryAdminCard key={`${snap._teamId}-${snap.id}`} snap={snap} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
         </div>
       )}

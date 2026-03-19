@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   surface, border, text, accent, intent, font, fontSize,
-  fontWeight, radius, space, btnStyle, layout,
+  fontWeight, radius, space, btnStyle,
 } from "../../shared/theme";
 import {
   getColor, getSpecDisplay,
@@ -95,7 +95,6 @@ function SnapshotCard({ snap }) {
 
   return (
     <div style={{ background: surface.panel, border: `1px solid ${snap.locked ? "#9980D433" : border.subtle}`, borderRadius: radius.lg, overflow: "hidden", marginBottom: space[3] }}>
-      {/* Header */}
       <div onClick={() => setExpanded(v => !v)} style={{ padding: `${space[3]}px ${space[4]}px`, display: "flex", alignItems: "center", gap: space[3], cursor: "pointer", background: snap.locked ? "#9980D408" : surface.panel }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap" }}>
@@ -113,7 +112,6 @@ function SnapshotCard({ snap }) {
         <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
       </div>
 
-      {/* Expanded content */}
       {expanded && (
         <div style={{ borderTop: `1px solid ${border.subtle}` }}>
           {rpbUrl && (
@@ -143,19 +141,26 @@ function SnapshotCard({ snap }) {
   );
 }
 
-export default function HistoryView({ teamId }) {
+export default function HistoryView() {
   const [snapshots,  setSnapshots]  = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [filter,     setFilter]     = useState("all");
   const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
-    document.title = `NTMO History – ${teamId === "team-dick" ? "Team Dick" : "Team Balls"}`;
+    document.title = "NTMO · Raid History";
     if (!FIREBASE_OK) { setLoading(false); return; }
-    fetchTwentyFiveSnapshots(teamId, 60)
-      .then(snaps => { setSnapshots(snaps); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [teamId]);
+    // Fetch from both teams in parallel
+    Promise.all([
+      fetchTwentyFiveSnapshots("team-dick",  60),
+      fetchTwentyFiveSnapshots("team-balls", 60),
+    ]).then(([dickSnaps, ballsSnaps]) => {
+      const all = [...dickSnaps, ...ballsSnaps]
+        .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+      setSnapshots(all);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
 
   const tueCount = snapshots.filter(s => s.night === "tue").length;
   const thuCount = snapshots.filter(s => s.night === "thu").length;
@@ -174,10 +179,10 @@ export default function HistoryView({ teamId }) {
   });
 
   return (
-    <AppShell teamId={teamId}>
+    <AppShell>
       <ModuleHeader
         title="Raid History"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / History`}
+        breadcrumb="History"
         subtitle={`${snapshots.filter(s => s.locked).length} locked raids · ${snapshots.length} total`}
         mobileActions={null}
         actions={<SearchBox value={searchText} onChange={setSearchText} placeholder="Search name, date…" />}

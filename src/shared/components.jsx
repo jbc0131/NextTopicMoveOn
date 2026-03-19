@@ -464,13 +464,13 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen }) {
         ) : adminMode ? (
             <button onClick={() => {
               if (isKara) navigate("/kara");
-              else if (location.pathname.includes("/history")) navigate(`/${teamId || "team-dick"}/history`);
+              else if (location.pathname.includes("/history")) navigate("/history");
               else navigate(`/${teamId || "team-dick"}`);
             }} style={btnStyle("default")}>← Public View</button>
           ) : (
             <button onClick={() => {
               if (isKara) navigate("/kara/admin");
-              else if (location.pathname.includes("/history")) navigate(`/${teamId || "team-dick"}/history/admin`);
+              else if (location.pathname.includes("/history")) navigate("/history/admin");
               else navigate(`/${teamId || "team-dick"}/25man/admin`);
             }} style={btnStyle("default")}>Admin →</button>
           )}
@@ -488,7 +488,7 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
   const navLinks = [
     { path: `/kara`,                                                              label: "Karazhan"     },
     { path: `/${teamId || "team-dick"}/25man`,                                    label: "25-Man Raids" },
-    { path: `/${teamId || "team-dick"}/history`,                                  label: "Raid History" },
+    { path: `/history`,                                                              label: "Raid History" },
   ];
 
   const go = (path) => { navigate(path); onClose(); };
@@ -594,9 +594,9 @@ function NavSidebar({ teamId, adminMode, parsePanelContent }) {
   // Kara is teamless — always links to /kara
   // 25-man and history are team-scoped
   const navLinks = [
-    { path: `/kara${adminMode ? "/admin" : ""}`,                                    label: "Karazhan",     icon: "KR" },
-    { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`,           label: "25-Man Raids", icon: "25" },
-    { path: `/${teamId || "team-dick"}/history${adminMode ? "/admin" : ""}`,         label: "Raid History", icon: "HX" },
+    { path: `/kara${adminMode ? "/admin" : ""}`,                          label: "Karazhan",     icon: "KR" },
+    { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "25" },
+    { path: `/history${adminMode ? "/admin" : ""}`,                        label: "Raid History", icon: "HX" },
   ];
 
   return (
