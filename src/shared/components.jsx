@@ -13,6 +13,7 @@ import {
   classColors,
 } from "./theme";
 import { getClass, getSpecDisplay, getColor, getRole, RAID_TEAMS } from "./constants";
+import { useAuth, getLoginUrl, getLogoutUrl, clearAuthCache } from "./auth";
 
 // ── Marker SVGs (unchanged) ───────────────────────────────────────────────────
 const MARKER_SVGS = {
@@ -376,10 +377,45 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
-// ── Admin password gate ───────────────────────────────────────────────────────
+// ── Discord OAuth gate ────────────────────────────────────────────────────────
+function DiscordLoginGate() {
+  return (
+    <div style={{ height: "100vh", background: surface.base, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font.sans }}>
+      <div style={{
+        background: surface.panel, border: `1px solid ${border.subtle}`,
+        borderRadius: radius.lg, padding: space[8], width: 340, maxWidth: "90vw",
+        display: "flex", flexDirection: "column", gap: space[3],
+      }}>
+        <div style={{ textAlign: "center", marginBottom: space[2] }}>
+          <div style={{ width: 40, height: 40, borderRadius: radius.base, background: accent.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: fontWeight.bold, margin: "0 auto", marginBottom: space[3] }}>N</div>
+          <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: text.primary }}>Admin Access</div>
+          <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4, letterSpacing: "0.06em", textTransform: "uppercase" }}>NTMO Raid Platform</div>
+        </div>
+
+        <div style={{ fontSize: fontSize.sm, color: text.secondary, textAlign: "center", lineHeight: 1.5 }}>
+          Sign in with Discord to access admin tools. You must be a member of the NTMO server with an officer role.
+        </div>
+
+        <a
+          href={getLoginUrl()}
+          style={{
+            ...btnStyle("primary"), width: "100%", justifyContent: "center", height: 40,
+            textDecoration: "none", display: "flex", alignItems: "center", gap: space[2],
+            background: "#5865F2", borderColor: "#4752C4",
+          }}
+        >
+          <svg width="20" height="15" viewBox="0 0 71 55" fill="none"><path d="M60.1 4.9A58.5 58.5 0 0045.4.2a.2.2 0 00-.2.1 40.8 40.8 0 00-1.8 3.7 54 54 0 00-16.2 0A37.4 37.4 0 0025.4.3a.2.2 0 00-.2-.1A58.4 58.4 0 0010.5 4.9a.2.2 0 00-.1.1C1.5 18.7-.9 32.2.3 45.5v.2a58.9 58.9 0 0017.7 9a.2.2 0 00.3-.1 42.1 42.1 0 003.6-5.9.2.2 0 00-.1-.3 38.8 38.8 0 01-5.5-2.7.2.2 0 01 0-.4l1.1-.9a.2.2 0 01.2 0 42 42 0 0035.6 0 .2.2 0 01.2 0l1.1.9a.2.2 0 010 .4 36.4 36.4 0 01-5.5 2.7.2.2 0 00-.1.3 47.2 47.2 0 003.6 5.9.2.2 0 00.3.1A58.7 58.7 0 0070.5 45.7v-.2c1.4-15-2.3-28.1-9.8-39.7a.2.2 0 00-.1 0zM23.7 37.3c-3.4 0-6.3-3.2-6.3-7s2.8-7 6.3-7 6.4 3.1 6.3 7-2.8 7-6.3 7zm23.2 0c-3.4 0-6.3-3.2-6.3-7s2.8-7 6.3-7 6.4 3.1 6.3 7-2.8 7-6.3 7z" fill="white"/></svg>
+          Sign in with Discord
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ── Password gate (fallback when Discord OAuth is not configured) ─────────────
 const ADMIN_SESSION_KEY = "ntmo_admin_unlocked";
 
-function AdminGate({ onUnlock }) {
+function PasswordGate({ onUnlock }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error,    setError]    = useState(false);
@@ -450,13 +486,37 @@ export function AppShell({ teamId, children, adminMode = false, parsePanelConten
   const isMobile = useIsMobile();
   const [menuOpen,          setMenuOpen]          = useState(false);
   const [sidebarCollapsed,  setSidebarCollapsed]  = useState(false);
-  const [adminUnlocked,     setAdminUnlocked]     = useState(
-    () => !adminMode || sessionStorage.getItem(ADMIN_SESSION_KEY) === "1"
+  const [passwordUnlocked,  setPasswordUnlocked]  = useState(
+    () => sessionStorage.getItem(ADMIN_SESSION_KEY) === "1"
   );
 
-  // If admin mode and not unlocked, show gate
-  if (!adminUnlocked) {
-    return <AdminGate onUnlock={() => setAdminUnlocked(true)} />;
+  const auth = useAuth();
+
+  // If admin mode, check auth
+  if (adminMode) {
+    // Still loading auth state — show a minimal loading screen
+    if (auth.loading) {
+      return (
+        <div style={{ height: "100vh", background: surface.base, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <LoadingSpinner size={32} />
+        </div>
+      );
+    }
+
+    // Discord OAuth is configured and user is authenticated
+    if (auth.authenticated) {
+      // Good — fall through to render the shell
+    }
+    // Fallback mode (Discord OAuth not configured on server) — use password gate
+    else if (auth.fallback) {
+      if (!passwordUnlocked) {
+        return <PasswordGate onUnlock={() => setPasswordUnlocked(true)} />;
+      }
+    }
+    // Discord OAuth is configured but user is not authenticated — show Discord login
+    else {
+      return <DiscordLoginGate />;
+    }
   }
 
   return (
@@ -469,7 +529,7 @@ export function AppShell({ teamId, children, adminMode = false, parsePanelConten
         *::-webkit-scrollbar-thumb:hover { background: ${text.disabled}; }
       `}</style>
 
-      <AppHeader teamId={teamId} adminMode={adminMode} isMobile={isMobile} onMenuOpen={() => setMenuOpen(true)} />
+      <AppHeader teamId={teamId} adminMode={adminMode} isMobile={isMobile} onMenuOpen={() => setMenuOpen(true)} authUser={auth.authenticated ? auth.user : null} />
 
       {isMobile && menuOpen && (
         <MobileNavOverlay teamId={teamId} adminMode={adminMode} onClose={() => setMenuOpen(false)} />
@@ -495,7 +555,7 @@ export function AppShell({ teamId, children, adminMode = false, parsePanelConten
 }
 
 // ── App header ────────────────────────────────────────────────────────────────
-function AppHeader({ teamId, adminMode, isMobile, onMenuOpen }) {
+function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser }) {
   const navigate   = useNavigate();
   const location   = useLocation();
   const isKara     = location.pathname.startsWith("/kara");
@@ -546,11 +606,32 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen }) {
             aria-label="Open navigation"
           >☰</button>
         ) : adminMode ? (
-            <button onClick={() => {
-              if (isKara) navigate("/kara");
-              else if (location.pathname.includes("/history")) navigate("/history");
-              else navigate(`/${teamId || "team-dick"}`);
-            }} style={btnStyle("default")}>← Public View</button>
+            <>
+              {authUser && (
+                <div style={{ display: "flex", alignItems: "center", gap: space[1], marginRight: space[1] }}>
+                  {authUser.avatar && (
+                    <img
+                      src={`https://cdn.discordapp.com/avatars/${authUser.discordId}/${authUser.avatar}.png?size=32`}
+                      alt=""
+                      style={{ width: 20, height: 20, borderRadius: "50%", border: `1px solid ${border.subtle}` }}
+                    />
+                  )}
+                  <span style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans }}>
+                    {authUser.globalName || authUser.username}
+                  </span>
+                  <a
+                    href={getLogoutUrl(location.pathname)}
+                    style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, textDecoration: "none", marginLeft: space[1] }}
+                    title="Sign out"
+                  >Sign out</a>
+                </div>
+              )}
+              <button onClick={() => {
+                if (isKara) navigate("/kara");
+                else if (location.pathname.includes("/history")) navigate("/history");
+                else navigate(`/${teamId || "team-dick"}`);
+              }} style={btnStyle("default")}>← Public View</button>
+            </>
           ) : (
             <button onClick={() => {
               if (isKara) navigate("/kara/admin");
