@@ -39,7 +39,6 @@ function PlayerChip({ slot, searchName, wclScores, activeTab }) {
       <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
       <span style={{ fontWeight: nameMatch ? fontWeight.bold : fontWeight.semibold }}>{slot.name}</span>
       <span style={{ color: `${color}88`, fontSize: fontSize.xs }}>{getSpecDisplay(slot)}</span>
-      {score != null && <span style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: scoreColor, fontFamily: font.mono }}>{Math.round(score)}</span>}
       {nameMatch && <span style={{ color, fontSize: 9 }}>◄</span>}
     </span>
   );
@@ -144,6 +143,10 @@ export default function TwentyFivePublic({ teamId }) {
         icon="⚔"
         title="25-Man Raids"
         breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / 25-Man`}
+        mobileActions={<>
+          {FIREBASE_OK && <SyncBadge live={liveSync} />}
+          {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}
+        </>}
         actions={<>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}

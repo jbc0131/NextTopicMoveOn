@@ -29,10 +29,8 @@ function PlayerSlot({ ids, allRosters, searchName, wclScores }) {
   return (
     <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 3 }}>
       {slots.map(slot => {
-        const color      = getColor(slot);
-        const nameMatch  = searchName && slot.name.toLowerCase().includes(searchName.toLowerCase());
-        const score      = getScoreForPlayer(wclScores, slot, "kara");
-        const scoreColor = getScoreColor(score);
+        const color     = getColor(slot);
+        const nameMatch = searchName && slot.name.toLowerCase().includes(searchName.toLowerCase());
         return (
           <span key={slot.id} style={{
             display: "inline-flex", alignItems: "center", gap: 3,
@@ -45,7 +43,6 @@ function PlayerSlot({ ids, allRosters, searchName, wclScores }) {
             <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
             <span style={{ fontWeight: nameMatch ? fontWeight.bold : fontWeight.semibold }}>{slot.name}</span>
             <span style={{ color: `${color}88`, fontSize: fontSize.xs }}>{getSpecDisplay(slot)}</span>
-            {score != null && <span style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: scoreColor, fontFamily: font.mono }}>{Math.round(score)}</span>}
             {nameMatch && <span style={{ color, fontSize: 9 }}>◄</span>}
           </span>
         );
@@ -172,6 +169,10 @@ export default function KaraPublic() {
         icon="🏰"
         title="Karazhan"
         breadcrumb="Karazhan"
+        mobileActions={<>
+          {FIREBASE_OK && <SyncBadge live={liveSync} />}
+          {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}
+        </>}
         actions={<>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}
@@ -180,7 +181,7 @@ export default function KaraPublic() {
             <div style={{ display: "flex", alignItems: "center", gap: space[1] }}>
               <button onClick={() => { const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null); }} disabled={viewingSnap === snapshots[snapshots.length - 1]?.id} style={{ ...btnStyle("default"), padding: "0 8px", opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}>‹</button>
               <span style={{ fontSize: fontSize.xs, color: viewSnap ? (viewSnap.locked ? "#9980D4" : text.secondary) : intent.success, fontFamily: font.sans, minWidth: 140, textAlign: "center" }}>
-                {viewSnap ? `${viewSnap.locked ? "🔒" : "📸"} ${viewSnap.raidDateTue || viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}` : "⚡ Current Week"}
+                {viewSnap ? `${viewSnap.locked ? "🔒" : "📸"} ${viewSnap.raidDateTue || viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}` : "Current Week"}
               </span>
               <button onClick={() => { const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null); }} disabled={!viewingSnap} style={{ ...btnStyle("default"), padding: "0 8px", opacity: !viewingSnap ? 0.3 : 1 }}>›</button>
             </div>

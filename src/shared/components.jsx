@@ -666,13 +666,14 @@ function NavSidebar({ teamId, adminMode, parsePanelContent }) {
 }
 
 // ── Module header ─────────────────────────────────────────────────────────────
-export function ModuleHeader({ title, subtitle, icon, actions, breadcrumb }) {
+export function ModuleHeader({ title, subtitle, icon, actions, breadcrumb, mobileActions }) {
   const isMobile = useIsMobile();
   if (isMobile) {
-    // On mobile: hide the entire module header — top bar already shows context
-    return actions ? (
-      <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`, background: surface.panel, display: "flex", justifyContent: "flex-end", gap: space[2], flexShrink: 0 }}>
-        {actions}
+    // On mobile: show only explicitly passed mobileActions (e.g. LIVE + timestamp)
+    // Full actions (search, week slider, etc.) are desktop-only
+    return mobileActions ? (
+      <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`, background: surface.panel, display: "flex", alignItems: "center", gap: space[2], flexShrink: 0 }}>
+        {mobileActions}
       </div>
     ) : null;
   }
