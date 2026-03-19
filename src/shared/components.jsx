@@ -376,11 +376,88 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
+// ── Admin password gate ───────────────────────────────────────────────────────
+const ADMIN_SESSION_KEY = "ntmo_admin_unlocked";
+
+function AdminGate({ onUnlock }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error,    setError]    = useState(false);
+
+  const attempt = () => {
+    if (username.trim() === "Admin" && password === "NTMO6969") {
+      sessionStorage.setItem(ADMIN_SESSION_KEY, "1");
+      onUnlock();
+    } else {
+      setError(true);
+      setPassword("");
+    }
+  };
+
+  return (
+    <div style={{ height: "100vh", background: surface.base, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font.sans }}>
+      <div style={{
+        background: surface.panel, border: `1px solid ${border.subtle}`,
+        borderRadius: radius.lg, padding: space[8], width: 340, maxWidth: "90vw",
+        display: "flex", flexDirection: "column", gap: space[3],
+      }}>
+        <div style={{ textAlign: "center", marginBottom: space[2] }}>
+          <div style={{ width: 40, height: 40, borderRadius: radius.base, background: accent.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: fontWeight.bold, margin: "0 auto", marginBottom: space[3] }}>N</div>
+          <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: text.primary }}>Admin Access</div>
+          <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4, letterSpacing: "0.06em", textTransform: "uppercase" }}>NTMO Raid Platform</div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans, marginBottom: 4 }}>Username</div>
+          <input
+            autoFocus
+            value={username}
+            onChange={e => { setUsername(e.target.value); setError(false); }}
+            onKeyDown={e => e.key === "Enter" && attempt()}
+            placeholder="Username"
+            style={{ ...inputStyle, width: "100%", borderColor: error ? intent.danger : border.subtle }}
+          />
+        </div>
+
+        <div>
+          <div style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans, marginBottom: 4 }}>Password</div>
+          <input
+            type="password"
+            value={password}
+            onChange={e => { setPassword(e.target.value); setError(false); }}
+            onKeyDown={e => e.key === "Enter" && attempt()}
+            placeholder="Password"
+            style={{ ...inputStyle, width: "100%", borderColor: error ? intent.danger : border.subtle }}
+          />
+        </div>
+
+        {error && (
+          <div style={{ fontSize: fontSize.xs, color: intent.danger, fontFamily: font.sans, textAlign: "center" }}>
+            Incorrect username or password.
+          </div>
+        )}
+
+        <button onClick={attempt} style={{ ...btnStyle("primary"), width: "100%", justifyContent: "center", height: 36 }}>
+          Sign In
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── AppShell ──────────────────────────────────────────────────────────────────
 export function AppShell({ teamId, children, adminMode = false, parsePanelContent }) {
   const isMobile = useIsMobile();
   const [menuOpen,          setMenuOpen]          = useState(false);
   const [sidebarCollapsed,  setSidebarCollapsed]  = useState(false);
+  const [adminUnlocked,     setAdminUnlocked]     = useState(
+    () => !adminMode || sessionStorage.getItem(ADMIN_SESSION_KEY) === "1"
+  );
+
+  // If admin mode and not unlocked, show gate
+  if (!adminUnlocked) {
+    return <AdminGate onUnlock={() => setAdminUnlocked(true)} />;
+  }
 
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: surface.base, display: "flex", flexDirection: "column", fontFamily: font.sans }}>
