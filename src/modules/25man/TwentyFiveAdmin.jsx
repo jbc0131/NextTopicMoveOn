@@ -14,9 +14,7 @@ import {
   ParseScoresPanel,
 } from "../../shared/components";
 import {
-  saveTwentyFiveState, fetchTwentyFiveState, saveTwentyFiveSnapshot,
-  fetchTwentyFiveSnapshots, updateTwentyFiveSnapshot, deleteTwentyFiveSnapshot,
-  submitTwentyFiveWclLog, isFirebaseConfigured,
+  saveTwentyFiveState, fetchTwentyFiveState, isFirebaseConfigured,
 } from "../../shared/firebase";
 import { useWarcraftLogs, getScoreForPlayer, getScoreColor } from "../../shared/useWarcraftLogs";
 import { saveState, loadState } from "../../shared/constants";
@@ -223,13 +221,6 @@ export default function TwentyFiveAdmin({ teamId }) {
   const [jsonError,    setJsonError]    = useState("");
   const [saveStatus,   setSaveStatus]   = useState(FIREBASE_OK ? "idle" : "offline");
   const [hasUnsaved,   setHasUnsaved]   = useState(false);
-  const [snapshots,    setSnapshots]    = useState([]);
-  const [viewingSnap,  setViewingSnap]  = useState(null);
-  const [snapshotStatus, setSnapshotStatus] = useState("idle");
-  const [wclSubmitUrl,   setWclSubmitUrl]   = useState("");
-  const [sheetSubmitUrl, setSheetSubmitUrl] = useState("");
-  const [combatLogUrl,   setCombatLogUrl]   = useState("");
-  const [wclSubmitStatus, setWclSubmitStatus] = useState("idle");
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const autoSaveTimer = useRef(null);
   const fileRef       = useRef();
@@ -263,7 +254,6 @@ export default function TwentyFiveAdmin({ teamId }) {
 
   useEffect(() => {
     loadNight(night);
-    if (FIREBASE_OK) fetchTwentyFiveSnapshots(teamId).then(setSnapshots).catch(console.warn);
     document.title = `NTMO 25-Man Admin – ${teamId === "team-dick" ? "Tuesday" : "Thursday"}`;
   }, [teamId, night, loadNight]);
 
@@ -297,62 +287,6 @@ export default function TwentyFiveAdmin({ teamId }) {
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (e) { setSaveStatus("error"); setTimeout(() => setSaveStatus("idle"), 4000); }
   }, [roster, assignments, textInputs, dividers, raidDate, raidLeader, teamId, night]);
-
-  // ── Snapshot ──────────────────────────────────────────────────────────────
-  const handleSaveSnapshot = useCallback(async () => {
-    if (!FIREBASE_OK) { toast({ message: "Firebase required", type: "danger" }); return; }
-    setSnapshotStatus("saving");
-    try {
-      await saveTwentyFiveSnapshot({ roster, assignments, textInputs, raidDate, raidLeader }, teamId, night);
-      setSnapshotStatus("saved");
-      const snaps = await fetchTwentyFiveSnapshots(teamId);
-      setSnapshots(snaps);
-      setTimeout(() => setSnapshotStatus("idle"), 3000);
-    } catch (e) { setSnapshotStatus("error"); setTimeout(() => setSnapshotStatus("idle"), 4000); }
-  }, [roster, assignments, textInputs, raidDate, raidLeader, teamId, night]);
-
-  // ── WCL submit ────────────────────────────────────────────────────────────
-  const handleWclSubmit = useCallback(async () => {
-    const url = wclSubmitUrl.trim();
-    if (!url) return;
-    const match      = url.match(/reports\/([A-Za-z0-9]+)/);
-    const reportCode = match ? match[1] : null;
-    const finalUrl   = reportCode ? `https://fresh.warcraftlogs.com/reports/${reportCode}` : url;
-
-    // Auto-fetch raid date
-    if (reportCode) {
-      try {
-        const res = await fetch("/api/warcraftlogs-report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fights", reportId: reportCode }) });
-        if (res.ok) {
-          const d = await res.json();
-          if (d.start) { const dt = new Date(d.start); setRaidDate(`${dt.getMonth() + 1}-${dt.getDate()}-${String(dt.getFullYear()).slice(2)}`); }
-        }
-      } catch {}
-    }
-
-    const sheetUrlNorm    = sheetSubmitUrl.trim()  ? sheetSubmitUrl.trim().replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview") : null;
-    const combatLogNorm   = combatLogUrl.trim()    ? combatLogUrl.trim().replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview")   : null;
-    const extra = { wclReportUrl: finalUrl, locked: true, ...(sheetUrlNorm ? { sheetUrl: sheetUrlNorm } : {}), ...(combatLogNorm ? { combatLogUrl: combatLogNorm } : {}) };
-
-    setWclSubmitStatus("saving");
-    try {
-      if (viewingSnap) {
-        await submitTwentyFiveWclLog(teamId, viewingSnap, finalUrl);
-        const updates = {};
-        if (sheetUrlNorm)  updates.sheetUrl    = sheetUrlNorm;
-        if (combatLogNorm) updates.combatLogUrl = combatLogNorm;
-        if (Object.keys(updates).length) await updateTwentyFiveSnapshot(teamId, viewingSnap, updates);
-        setSnapshots(prev => prev.map(s => s.id === viewingSnap ? { ...s, ...extra } : s));
-      } else {
-        await saveTwentyFiveSnapshot({ roster, assignments, textInputs, raidDate, raidLeader }, teamId, night, extra);
-        const snaps = await fetchTwentyFiveSnapshots(teamId);
-        setSnapshots(snaps);
-      }
-      setWclSubmitStatus("saved");
-      setWclSubmitUrl(""); setSheetSubmitUrl(""); setCombatLogUrl("");
-      setTimeout(() => setWclSubmitStatus("idle"), 3000);
-    } catch (e) { setWclSubmitStatus("error"); setTimeout(() => setWclSubmitStatus("idle"), 4000); }
-  }, [wclSubmitUrl, sheetSubmitUrl, combatLogUrl, viewingSnap, teamId, night, roster, assignments, textInputs, raidDate, raidLeader]);
 
   // ── Import ────────────────────────────────────────────────────────────────
   const handleImportJSON = useCallback((text) => {
@@ -426,12 +360,10 @@ export default function TwentyFiveAdmin({ teamId }) {
   }, []);
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const viewSnap        = viewingSnap ? snapshots.find(s => s.id === viewingSnap) : null;
-  const isLocked        = viewSnap?.locked ?? false;
-  const viewAssignments = viewSnap ? (viewSnap.assignments ?? {}) : assignments;
-  const viewRoster      = viewSnap ? (viewSnap.roster ?? []) : roster;
-  const viewTextInputs  = viewSnap ? (viewSnap.textInputs ?? {}) : textInputs;
-  const nightRoster     = viewRoster;
+  const viewAssignments = assignments;
+  const viewRoster      = roster;
+  const viewTextInputs  = textInputs;
+  const isLocked        = false;
 
   const nightColor = night === "tue" ? intent.success : accent.blue;
   const nightLabel = night === "tue" ? "Tuesday" : "Thursday";
@@ -452,7 +384,6 @@ export default function TwentyFiveAdmin({ teamId }) {
           <button onClick={() => setShowImport(v => !v)} style={btnStyle("default")}>📂 {roster.length ? `Roster (${roster.length})` : "Import JSON"}</button>
           <button onClick={() => setConfirmClearOpen(true)} style={btnStyle("danger")}>🗑 Clear</button>
           <button onClick={handleSave} style={btnStyle(hasUnsaved ? "warning" : "success")}>{FIREBASE_OK ? `${hasUnsaved ? "● " : ""}☁ Save` : "💾 Save"}</button>
-          {FIREBASE_OK && <button onClick={handleSaveSnapshot} style={btnStyle("default")}>{snapshotStatus === "saved" ? "✓ Snapshotted" : "📸 Snapshot"}</button>}
         </>}
       />
 
@@ -488,42 +419,13 @@ export default function TwentyFiveAdmin({ teamId }) {
         </div>
       </div>
 
-      {/* Week slider */}
-      {FIREBASE_OK && snapshots.filter(s => s.night === night).length > 0 && (
-        <div style={{ padding: `${space[1]}px ${space[3]}px`, background: surface.panel, borderBottom: `1px solid ${border.subtle}`, display: "flex", alignItems: "center", gap: space[2] }}>
-          {(() => {
-            const nightSnaps = snapshots.filter(s => s.night === night);
-            return (<>
-              <button onClick={() => { const idx = viewingSnap ? nightSnaps.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx + 1 < nightSnaps.length ? nightSnaps[idx + 1].id : null); }} disabled={viewingSnap === nightSnaps[nightSnaps.length - 1]?.id} style={{ ...btnStyle("default"), padding: "0 8px", opacity: viewingSnap === nightSnaps[nightSnaps.length - 1]?.id ? 0.3 : 1 }}>‹</button>
-              <div style={{ flex: 1, textAlign: "center", fontSize: fontSize.xs, fontFamily: font.sans }}>
-                {viewSnap ? <span style={{ color: viewSnap.locked ? "#9980D4" : text.secondary }}>{viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}</span> : <span style={{ color: intent.success }}>⚡ Current Week (Live)</span>}
-              </div>
-              <button onClick={() => { const idx = viewingSnap ? nightSnaps.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx > 0 ? nightSnaps[idx - 1].id : null); }} disabled={!viewingSnap} style={{ ...btnStyle("default"), padding: "0 8px", opacity: !viewingSnap ? 0.3 : 1 }}>›</button>
-              {viewingSnap && <button onClick={async () => { if (!window.confirm("Delete snapshot?")) return; await deleteTwentyFiveSnapshot(teamId, viewingSnap); setSnapshots(prev => prev.filter(s => s.id !== viewingSnap)); setViewingSnap(null); }} style={{ ...btnStyle("danger"), padding: "0 8px" }}>🗑</button>}
-            </>);
-          })()}
-        </div>
-      )}
-
-      {/* WCL submit */}
-      {FIREBASE_OK && !isLocked && (
-        <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.panel, borderBottom: `1px solid ${border.subtle}`, display: "flex", gap: space[2], alignItems: "center" }}>
-          <input value={wclSubmitUrl} onChange={e => setWclSubmitUrl(e.target.value)} placeholder="🔗 WarcraftLogs report URL…" style={{ ...inputStyle, flex: 1 }} />
-          <input value={sheetSubmitUrl} onChange={e => setSheetSubmitUrl(e.target.value)} placeholder="📊 RPB Sheet URL (optional)…" style={{ ...inputStyle, flex: 1 }} />
-          <input value={combatLogUrl} onChange={e => setCombatLogUrl(e.target.value)} placeholder="⚔ Combat Log URL (optional)…" style={{ ...inputStyle, flex: 1 }} />
-          <button onClick={handleWclSubmit} disabled={!wclSubmitUrl.trim()} style={btnStyle(wclSubmitStatus === "saved" ? "success" : "default")}>
-            {wclSubmitStatus === "saving" ? "Locking…" : wclSubmitStatus === "saved" ? "✓ Locked!" : "🔒 Lock"}
-          </button>
-        </div>
-      )}
-
       {/* Main content */}
       {roster.length === 0 ? (
         <EmptyState icon="⚔" title={`No ${nightLabel} roster`} message={`Import the ${nightLabel} JSON to get started`} action="Import JSON" onAction={() => setShowImport(true)} />
       ) : (
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
           <TwentyFiveRosterPanel
-            roster={nightRoster}
+            roster={roster}
             assignments={viewAssignments}
             roleFilter={roleFilter}
             setRoleFilter={setRoleFilter}

@@ -7,8 +7,8 @@ import {
   AppShell, ModuleHeader, StatusChip, EmptyState, LoadingSpinner, ConfirmDialog,
 } from "../../shared/components";
 import {
-  fetchTwentyFiveSnapshots, updateTwentyFiveSnapshot,
-  deleteTwentyFiveSnapshot, isFirebaseConfigured,
+  fetchTwentyFiveSnapshots, updateTwentyFiveSnapshot, deleteTwentyFiveSnapshot,
+  saveTwentyFiveSnapshot, fetchTwentyFiveState, isFirebaseConfigured,
 } from "../../shared/firebase";
 
 const FIREBASE_OK = isFirebaseConfigured();
@@ -159,19 +159,122 @@ function HistoryAdminCard({ snap, onUpdate, onDelete }) {
   );
 }
 
-export default function HistoryAdmin() {
-  const [snapshots, setSnapshots] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [filter,    setFilter]    = useState("all");
+// ── Add Raid Week modal ───────────────────────────────────────────────────────
+function AddRaidWeekModal({ onClose, onAdded }) {
+  const [night,      setNight]      = useState("tue");
+  const [wclUrl,     setWclUrl]     = useState("");
+  const [sheetUrl,   setSheetUrl]   = useState("");
+  const [clogUrl,    setClogUrl]    = useState("");
+  const [saving,     setSaving]     = useState(false);
+  const [error,      setError]      = useState("");
 
-  useEffect(() => {
-    document.title = "NTMO · Raid History Admin";
+  const teamId = night === "tue" ? "team-dick" : "team-balls";
+
+  const handleSave = async () => {
+    setSaving(true); setError("");
+    try {
+      // Fetch current live state for this team/night
+      const liveState = await fetchTwentyFiveState(teamId, night);
+      if (!liveState) throw new Error(`No live data found for ${night === "tue" ? "Tuesday" : "Thursday"}. Make sure assignments have been saved in the 25-Man admin first.`);
+
+      // Auto-fetch date from WCL
+      let raidDate = liveState.raidDate || "";
+      const match = wclUrl.trim().match(/reports\/([A-Za-z0-9]+)/);
+      const reportCode = match ? match[1] : null;
+      if (reportCode) {
+        try {
+          const res = await fetch("/api/warcraftlogs-report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fights", reportId: reportCode }) });
+          if (res.ok) {
+            const d = await res.json();
+            if (d.start) { const dt = new Date(d.start); raidDate = `${dt.getMonth() + 1}-${dt.getDate()}-${String(dt.getFullYear()).slice(2)}`; }
+          }
+        } catch {}
+      }
+
+      const finalWclUrl  = reportCode ? `https://fresh.warcraftlogs.com/reports/${reportCode}` : wclUrl.trim() || null;
+      const norm = url => url.trim() ? url.trim().replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview") : null;
+
+      const extra = {
+        ...(finalWclUrl          ? { wclReportUrl: finalWclUrl, locked: true } : {}),
+        ...(norm(sheetUrl)       ? { sheetUrl: norm(sheetUrl) }                : {}),
+        ...(norm(clogUrl)        ? { combatLogUrl: norm(clogUrl) }             : {}),
+        ...(raidDate             ? { raidDate }                                : {}),
+      };
+
+      const snap = await saveTwentyFiveSnapshot(
+        { roster: liveState.roster || [], assignments: liveState.assignments || {}, textInputs: liveState.textInputs || {}, raidDate, raidLeader: liveState.raidLeader || "" },
+        teamId, night, extra
+      );
+
+      onAdded();
+      onClose();
+    } catch (e) {
+      setError(e.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.lg, padding: space[6], width: 520, maxWidth: "95vw", fontFamily: font.sans }}>
+        <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: text.primary, marginBottom: space[1] }}>Add Raid Week</div>
+        <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[4] }}>
+          Creates a new history entry from the current live assignments in the 25-Man admin.
+        </div>
+
+        {/* Night selector */}
+        <div style={{ marginBottom: space[3] }}>
+          <div style={{ fontSize: fontSize.xs, color: text.secondary, marginBottom: space[2] }}>Raid Night</div>
+          <div style={{ display: "flex", gap: space[2] }}>
+            {[["tue", "Tuesday (Team Dick)"], ["thu", "Thursday (Team Balls)"]].map(([val, label]) => (
+              <button key={val} onClick={() => setNight(val)}
+                style={{ ...btnStyle(night === val ? (val === "tue" ? "success" : "primary") : "default"), flex: 1 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: space[2], marginBottom: space[4] }}>
+          <div>
+            <div style={{ fontSize: fontSize.xs, color: text.secondary, marginBottom: 4 }}>WarcraftLogs Report URL</div>
+            <input value={wclUrl} onChange={e => setWclUrl(e.target.value)} placeholder="https://fresh.warcraftlogs.com/reports/… (auto-fills date + locks week)" style={{ ...inputStyle, width: "100%" }} />
+          </div>
+          <div>
+            <div style={{ fontSize: fontSize.xs, color: text.secondary, marginBottom: 4 }}>RPB Sheet URL <span style={{ color: text.disabled }}>(optional)</span></div>
+            <input value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/…" style={{ ...inputStyle, width: "100%" }} />
+          </div>
+          <div>
+            <div style={{ fontSize: fontSize.xs, color: text.secondary, marginBottom: 4 }}>Combat Log Analysis URL <span style={{ color: text.disabled }}>(optional)</span></div>
+            <input value={clogUrl} onChange={e => setClogUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/…" style={{ ...inputStyle, width: "100%" }} />
+          </div>
+        </div>
+
+        {error && <div style={{ fontSize: fontSize.xs, color: intent.danger, fontFamily: font.sans, marginBottom: space[3], padding: space[2], background: `${intent.danger}10`, borderRadius: radius.base, border: `1px solid ${intent.danger}33` }}>{error}</div>}
+
+        <div style={{ display: "flex", gap: space[2], justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={btnStyle("default")}>Cancel</button>
+          <button onClick={handleSave} disabled={saving} style={btnStyle("primary")}>
+            {saving ? "Saving…" : "Save to History"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function HistoryAdmin() {
+  const [snapshots,    setSnapshots]    = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [filter,       setFilter]       = useState("all");
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const loadSnapshots = () => {
     if (!FIREBASE_OK) { setLoading(false); return; }
     Promise.all([
       fetchTwentyFiveSnapshots("team-dick",  60),
       fetchTwentyFiveSnapshots("team-balls", 60),
     ]).then(([dickSnaps, ballsSnaps]) => {
-      // Tag each snap with its source team so we know where to save updates
       const tagged = [
         ...dickSnaps.map(s => ({ ...s, _teamId: "team-dick"  })),
         ...ballsSnaps.map(s => ({ ...s, _teamId: "team-balls" })),
@@ -179,6 +282,11 @@ export default function HistoryAdmin() {
       setSnapshots(tagged);
       setLoading(false);
     }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    document.title = "NTMO · Raid History Admin";
+    loadSnapshots();
   }, []);
 
   const handleUpdate = async (teamId, snapId, updates) => {
@@ -193,6 +301,7 @@ export default function HistoryAdmin() {
 
   const tueCount = snapshots.filter(s => s.night === "tue").length;
   const thuCount = snapshots.filter(s => s.night === "thu").length;
+  const untagged = snapshots.filter(s => !s.night).length;
 
   const filtered = snapshots.filter(s => {
     if (filter === "tue") return s.night === "tue";
@@ -200,14 +309,22 @@ export default function HistoryAdmin() {
     return true;
   });
 
-  const untagged = snapshots.filter(s => !s.night).length;
-
   return (
     <AppShell adminMode>
+      {showAddModal && (
+        <AddRaidWeekModal
+          onClose={() => setShowAddModal(false)}
+          onAdded={() => { setLoading(true); loadSnapshots(); }}
+        />
+      )}
+
       <ModuleHeader
         title="Raid History Admin"
         breadcrumb="History / Admin"
         subtitle={`${snapshots.length} snapshots · ${snapshots.filter(s => s.locked).length} locked${untagged > 0 ? ` · ${untagged} missing night` : ""}`}
+        actions={
+          <button onClick={() => setShowAddModal(true)} style={btnStyle("primary")}>+ Add Raid Week</button>
+        }
       />
 
       <div style={{ padding: `${space[2]}px ${space[4]}px`, borderBottom: `1px solid ${border.subtle}`, display: "flex", gap: space[2], alignItems: "center", background: surface.panel, flexShrink: 0, flexWrap: "wrap" }}>
@@ -228,7 +345,7 @@ export default function HistoryAdmin() {
       {loading ? (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}><LoadingSpinner size={32} /></div>
       ) : !snapshots.length ? (
-        <EmptyState title="No raid history yet" message="Snapshots appear here once the raid leader saves a raid night." />
+        <EmptyState title="No raid history yet" message="Click '+ Add Raid Week' to create your first entry from the current live assignments." />
       ) : !filtered.length ? (
         <EmptyState title="No results" message={`No ${filter === "tue" ? "Tuesday" : "Thursday"} snapshots found.`} />
       ) : (
