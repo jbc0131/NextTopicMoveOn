@@ -49,8 +49,7 @@ export default function TeamSelector() {
     );
   }
 
-  // Require Discord login (unless in fallback mode with no Discord configured)
-  if (!auth.fallback && !auth.authenticated) {
+  if (!auth.authenticated) {
     return <DiscordLoginGate />;
   }
 

@@ -1,7 +1,6 @@
 // src/shared/auth.js
 // Discord OAuth auth hook for NTMO.
 // Two tiers: member (site access) and admin (admin pages).
-// Falls back to password gate if Discord OAuth env vars aren't configured on the server.
 
 import { useState, useEffect } from "react";
 
@@ -14,10 +13,10 @@ export function useAuth() {
     try {
       const cached = JSON.parse(sessionStorage.getItem(AUTH_CACHE_KEY));
       if (cached && Date.now() < cached.expiresAt) {
-        return { loading: false, authenticated: cached.authenticated, isAdmin: cached.isAdmin || false, user: cached.user, fallback: false };
+        return { loading: false, authenticated: cached.authenticated, isAdmin: cached.isAdmin || false, user: cached.user };
       }
     } catch {}
-    return { loading: true, authenticated: false, isAdmin: false, user: null, fallback: false };
+    return { loading: true, authenticated: false, isAdmin: false, user: null };
   });
 
   useEffect(() => {
@@ -29,12 +28,11 @@ export function useAuth() {
         if (cancelled) return;
         const result = { authenticated: data.authenticated, isAdmin: data.isAdmin || false, user: data.user || null };
         sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({ ...result, expiresAt: Date.now() + AUTH_CACHE_TTL }));
-        setState({ loading: false, ...result, fallback: false });
+        setState({ loading: false, ...result });
       })
       .catch(() => {
         if (cancelled) return;
-        // If /api/auth/me fails (e.g. env vars not set), fall back to password gate
-        setState({ loading: false, authenticated: false, isAdmin: false, user: null, fallback: true });
+        setState({ loading: false, authenticated: false, isAdmin: false, user: null });
       });
 
     return () => { cancelled = true; };

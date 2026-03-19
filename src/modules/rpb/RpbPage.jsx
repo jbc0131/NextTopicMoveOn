@@ -1119,7 +1119,7 @@ export default function RpbPage() {
     );
   }
 
-  if (!auth.fallback && !auth.authenticated) {
+  if (!auth.authenticated) {
     return <DiscordLoginGate />;
   }
 
