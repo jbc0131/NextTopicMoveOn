@@ -379,7 +379,8 @@ function useIsMobile(breakpoint = 768) {
 // ── AppShell ──────────────────────────────────────────────────────────────────
 export function AppShell({ teamId, children, adminMode = false, parsePanelContent }) {
   const isMobile = useIsMobile();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen,          setMenuOpen]          = useState(false);
+  const [sidebarCollapsed,  setSidebarCollapsed]  = useState(false);
 
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: surface.base, display: "flex", flexDirection: "column", fontFamily: font.sans }}>
@@ -399,7 +400,13 @@ export function AppShell({ teamId, children, adminMode = false, parsePanelConten
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {!isMobile && (
-          <NavSidebar teamId={teamId} adminMode={adminMode} parsePanelContent={parsePanelContent} />
+          <NavSidebar
+            teamId={teamId}
+            adminMode={adminMode}
+            parsePanelContent={parsePanelContent}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed(v => !v)}
+          />
         )}
         <main style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
           {children}
@@ -486,12 +493,16 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
   const isKara    = location.pathname.startsWith("/kara");
 
   const navLinks = [
-    { path: `/kara`,                                                              label: "Karazhan"     },
-    { path: `/${teamId || "team-dick"}/25man`,                                    label: "25-Man Raids" },
-    { path: `/history`,                                                              label: "Raid History" },
+    { path: `/kara`,                                     label: "Karazhan",     external: false },
+    { path: `/${teamId || "team-dick"}/25man`,           label: "25-Man Raids", external: false },
+    { path: `/history`,                                  label: "Raid History", external: false },
+    { path: "https://professions.nexttopicmoveon.com/", label: "Professions",  external: true  },
   ];
 
-  const go = (path) => { navigate(path); onClose(); };
+  const go = (link) => {
+    if (link.external) { window.open(link.path, "_blank", "noopener noreferrer"); onClose(); }
+    else { navigate(link.path); onClose(); }
+  };
 
   return (
     <div style={{
@@ -530,7 +541,7 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
           return (
             <button
               key={link.path}
-              onClick={() => go(link.path)}
+              onClick={() => go(link)}
               style={{
                 width: "100%", border: "none", textAlign: "left", cursor: "pointer",
                 display: "flex", alignItems: "center", gap: space[3],
@@ -586,86 +597,127 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
 }
 
 // ── Nav sidebar ───────────────────────────────────────────────────────────────
-function NavSidebar({ teamId, adminMode, parsePanelContent }) {
+function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleCollapse }) {
   const location  = useLocation();
   const navigate  = useNavigate();
   const isKara    = location.pathname.startsWith("/kara");
+  const isHistory = location.pathname.includes("/history");
 
-  // Kara is teamless — always links to /kara
-  // 25-man and history are team-scoped
   const navLinks = [
-    { path: `/kara${adminMode ? "/admin" : ""}`,                          label: "Karazhan",     icon: "KR" },
+    { path: `/kara${adminMode ? "/admin" : ""}`,                           label: "Karazhan",     icon: "KR" },
     { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "25" },
     { path: `/history${adminMode ? "/admin" : ""}`,                        label: "Raid History", icon: "HX" },
+    { path: "https://professions.nexttopicmoveon.com/",                    label: "Professions",  icon: "PF", external: true },
   ];
+
+  const COLLAPSED_WIDTH = 44;
 
   return (
     <div style={{
-      width: layout.sidebarWidth, flexShrink: 0,
+      width: collapsed ? COLLAPSED_WIDTH : layout.sidebarWidth,
+      flexShrink: 0, transition: "width 0.2s ease",
       background: surface.panel, borderRight: `1px solid ${border.subtle}`,
       display: "flex", flexDirection: "column", height: "100%", overflow: "hidden",
     }}>
       {/* Module nav */}
       <div style={{ padding: `${space[2]}px 0`, borderBottom: `1px solid ${border.subtle}` }}>
-        <div style={{ padding: `${space[1]}px ${space[3]}px ${space[2]}px`, fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-          Modules
+        {/* Header row with collapse toggle */}
+        <div style={{ padding: `${space[1]}px ${space[3]}px ${space[2]}px`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {!collapsed && (
+            <span style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Modules
+            </span>
+          )}
+          <button
+            onClick={onToggleCollapse}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: text.muted, fontSize: 12, lineHeight: 1, padding: "2px 4px",
+              borderRadius: radius.sm, marginLeft: collapsed ? "auto" : 0,
+              display: "flex", alignItems: "center",
+            }}
+          >
+            {collapsed ? "»" : "«"}
+          </button>
         </div>
+
         {navLinks.map(link => {
           const active =
             (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))   ||
             (link.path.includes("/25man")   && location.pathname.includes("/25man"))    ||
             (link.path.includes("/history") && location.pathname.includes("/history"));
+
+          const handleClick = () => {
+            if (link.external) window.open(link.path, "_blank", "noopener noreferrer");
+            else navigate(link.path);
+          };
+
           return (
             <button
               key={link.path}
-              onClick={() => navigate(link.path)}
-              style={{ ...navItemStyle(active), width: "100%", border: "none", textAlign: "left" }}
-            >
-              <span style={{ fontSize: 10, color: active ? accent.blue : text.disabled, fontFamily: font.mono, fontWeight: fontWeight.bold }}>{link.icon}</span>
-              <span>{link.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-        {parsePanelContent}
-      </div>
-
-      {/* Team switcher — hidden on kara routes since kara is teamless */}
-      {!isKara && (
-      <div style={{ padding: space[3], borderTop: `1px solid ${border.subtle}` }}>
-        <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[2] }}>
-          Team
-        </div>
-        {RAID_TEAMS.map(team => {
-          const active = team.id === teamId;
-          return (
-            <button
-              key={team.id}
-              onClick={() => {
-                const currentModule = location.pathname.includes("/25man") ? "/25man"
-                  : location.pathname.includes("/history") ? "/history"
-                  : "";
-                const adminSuffix = adminMode ? "/admin" : "";
-                navigate(`/${team.id}${currentModule}${adminSuffix}`);
-              }}
+              onClick={handleClick}
+              title={collapsed ? link.label : undefined}
               style={{
-                width: "100%", border: "none", cursor: "pointer", textAlign: "left",
-                padding: `${space[1]}px ${space[2]}px`, borderRadius: radius.base,
-                background: active ? `${accent.blue}18` : "transparent",
-                color: active ? accent.blue : text.secondary,
-                fontSize: fontSize.sm, fontFamily: font.sans,
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                marginBottom: 2,
+                ...navItemStyle(active), width: "100%", border: "none",
+                textAlign: "left", justifyContent: collapsed ? "center" : "flex-start",
+                padding: collapsed ? `${space[2]}px 0` : undefined,
               }}
             >
-              <span>{team.name}</span>
-              <span style={{ fontSize: fontSize.xs, color: text.muted }}>{team.night}</span>
+              <span style={{
+                fontSize: 10, color: active ? accent.blue : text.disabled,
+                fontFamily: font.mono, fontWeight: fontWeight.bold,
+                minWidth: collapsed ? undefined : 20,
+              }}>
+                {link.icon}
+              </span>
+              {!collapsed && <span>{link.label}{link.external && <span style={{ fontSize: 9, color: text.disabled, marginLeft: 4 }}>↗</span>}</span>}
             </button>
           );
         })}
       </div>
+
+      {/* Parse panel — hidden when collapsed */}
+      {!collapsed && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          {parsePanelContent}
+        </div>
+      )}
+
+      {/* Team switcher — hidden on kara/history routes, hidden when collapsed */}
+      {!isKara && !isHistory && !collapsed && (
+        <div style={{ padding: space[3], borderTop: `1px solid ${border.subtle}` }}>
+          <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[2] }}>
+            Team
+          </div>
+          {RAID_TEAMS.map(team => {
+            const active = team.id === teamId;
+            return (
+              <button
+                key={team.id}
+                onClick={() => {
+                  const currentModule = location.pathname.includes("/25man") ? "/25man"
+                    : location.pathname.includes("/history") ? "/history"
+                    : "";
+                  const adminSuffix = adminMode ? "/admin" : "";
+                  navigate(`/${team.id}${currentModule}${adminSuffix}`);
+                }}
+                style={{
+                  width: "100%", border: "none", cursor: "pointer", textAlign: "left",
+                  padding: `${space[1]}px ${space[2]}px`, borderRadius: radius.base,
+                  background: active ? `${accent.blue}18` : "transparent",
+                  color: active ? accent.blue : text.secondary,
+                  fontSize: fontSize.sm, fontFamily: font.sans,
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  marginBottom: 2,
+                }}
+              >
+                <span>{team.name}</span>
+                <span style={{ fontSize: fontSize.xs, color: text.muted }}>{team.night}</span>
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );
