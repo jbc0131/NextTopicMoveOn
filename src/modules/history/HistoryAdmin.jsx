@@ -42,11 +42,11 @@ function HistoryAdminCard({ snap, onUpdate, onDelete }) {
   const [wclUrl,   setWclUrl]   = useState(snap.wclReportUrl || "");
   const [sheetUrl, setSheetUrl] = useState(snap.sheetUrl     || "");
   const [clogUrl,  setClogUrl]  = useState(snap.combatLogUrl || "");
+  const [night,    setNight]    = useState(snap.night        || "");
   const [saving,   setSaving]   = useState("idle");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(!snap.night); // auto-expand if night missing
 
-  const nightColor = snap.night === "tue" ? intent.success : accent.blue;
   const nightLabel = snap.night === "tue" ? "Tuesday" : snap.night === "thu" ? "Thursday" : null;
 
   const handleSave = async () => {
@@ -55,7 +55,6 @@ function HistoryAdminCard({ snap, onUpdate, onDelete }) {
     const reportCode = match ? match[1] : null;
     let raidDate = snap.raidDate;
 
-    // Auto-fetch date from WCL if URL changed and we have a report code
     if (reportCode && wclUrl.trim() !== (snap.wclReportUrl || "")) {
       const fetched = await fetchRaidDateFromReport(reportCode);
       if (fetched) raidDate = fetched;
@@ -74,6 +73,7 @@ function HistoryAdminCard({ snap, onUpdate, onDelete }) {
       sheetUrl:     normalizeSheet(sheetUrl),
       combatLogUrl: normalizeSheet(clogUrl),
       locked:       !!finalWclUrl,
+      ...(night ? { night } : {}),
       ...(raidDate ? { raidDate } : {}),
     };
     await onUpdate(snap.id, updates);
@@ -114,9 +114,10 @@ function HistoryAdminCard({ snap, onUpdate, onDelete }) {
               <span style={{ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: text.primary, fontFamily: font.sans }}>
                 {formatDate(snap)}
               </span>
-              {nightLabel && (
-                <StatusChip type={snap.night === "tue" ? "success" : "blue"}>{nightLabel}</StatusChip>
-              )}
+              {nightLabel
+                ? <StatusChip type={snap.night === "tue" ? "success" : "blue"}>{nightLabel}</StatusChip>
+                : <StatusChip type="danger">Night unset</StatusChip>
+              }
             </div>
             <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
               {snap.wclReportUrl && <a href={snap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: accent.blue, fontFamily: font.sans, textDecoration: "none" }}>WCL Report →</a>}
@@ -173,6 +174,24 @@ function HistoryAdminCard({ snap, onUpdate, onDelete }) {
                   placeholder="https://docs.google.com/spreadsheets/…"
                   style={{ ...inputStyle, width: "100%" }}
                 />
+              </div>
+              <div>
+                <div style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans, marginBottom: 4 }}>
+                  Raid Night
+                  {!snap.night && <span style={{ color: intent.danger, marginLeft: space[2], fontSize: 10 }}>⚠ Missing — set this so the snapshot appears under Tuesday or Thursday filters</span>}
+                </div>
+                <div style={{ display: "flex", gap: space[2] }}>
+                  {[["tue", "Tuesday"], ["thu", "Thursday"]].map(([val, label]) => (
+                    <button key={val} onClick={() => setNight(val)}
+                      style={{
+                        ...btnStyle(night === val ? (val === "tue" ? "success" : "primary") : "default"),
+                        height: 30, fontSize: fontSize.xs,
+                      }}>
+                      {label}
+                    </button>
+                  ))}
+                  {night && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, alignSelf: "center" }}>Selected: {night === "tue" ? "Tuesday" : "Thursday"}</span>}
+                </div>
               </div>
             </div>
             <div style={{ display: "flex", gap: space[2], marginTop: space[3], alignItems: "center" }}>
