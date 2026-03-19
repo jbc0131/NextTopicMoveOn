@@ -760,7 +760,7 @@ export function SearchBox({ value, onChange, placeholder = "Search…" }) {
 // Collapsible sidebar panel showing WCL median performance averages.
 // module: "kara" | "25man" — controls which score column is shown.
 // Pass wclLoading, wclError, wclLastFetch, onRefetch from useWarcraftLogs.
-export function ParseScoresPanel({ scores, roster, module, loading, error, lastFetch, onRefetch, onWclNameChange }) {
+export function ParseScoresPanel({ scores, roster, module, loading, error, lastFetch, onRefetch, onWclNameChange, showRefresh = false }) {
   const [open,   setOpen]   = useState(true);
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState("");
@@ -828,13 +828,11 @@ export function ParseScoresPanel({ scores, roster, module, loading, error, lastF
           {/* Toolbar */}
           <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 9, color: text.muted, fontFamily: font.sans }}>{rows.length} players</span>
-            <button
-              onClick={onRefetch}
-              disabled={loading}
-              style={{ ...btnStyle("default"), height: 20, padding: "0 6px", fontSize: 9, opacity: loading ? 0.5 : 1 }}
-            >
-              {loading ? "…" : "↻ Refresh"}
-            </button>
+            {showRefresh && (
+              <button onClick={onRefetch} disabled={loading} style={{ ...btnStyle("default"), height: 20, padding: "0 6px", fontSize: 9, opacity: loading ? 0.5 : 1 }}>
+                {loading ? "…" : "↻ Refresh"}
+              </button>
+            )}
           </div>
 
           {error && (

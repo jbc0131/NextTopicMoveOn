@@ -4,7 +4,7 @@ import {
   fontWeight, radius, space, btnStyle, inputStyle, layout,
 } from "../../shared/theme";
 import {
-  getRole, getClass, getColor, getSpecDisplay, CLASS_COLORS, ROLE_COLORS,
+  getRole, getClass, getColor, getSpecDisplay, CLASS_COLORS, ROLE_COLORS, CLASS_SPECS,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
   GENERAL_CURSES, GENERAL_INTERRUPTS, CUBE1_KEYS, CUBE2_KEYS, CUBEBU_KEYS,
 } from "../../shared/constants";
@@ -175,8 +175,75 @@ function AssignmentPanel({ title, icon, subtitle, bossImage, rows, assignments, 
   );
 }
 
+// ── Manual add player ─────────────────────────────────────────────────────────
+function ManualAddPlayer({ onAdd }) {
+  const [open,  setOpen]  = useState(false);
+  const [name,  setName]  = useState("");
+  const [cls,   setCls]   = useState("Warrior");
+  const [spec,  setSpec]  = useState("Arms");
+  const [error, setError] = useState("");
+
+  const specs = CLASS_SPECS[cls] || [];
+  const handleClass = c => { setCls(c); setSpec(CLASS_SPECS[c][0].specName); };
+
+  const handleAdd = () => {
+    if (!name.trim()) { setError("Enter a name"); return; }
+    onAdd({
+      id:        `manual_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name:      name.trim(),
+      className: cls,
+      specName:  spec,
+      color:     CLASS_COLORS[cls] || "#aaa",
+      manual:    true,
+    });
+    setName(""); setCls("Warrior"); setSpec("Arms"); setError(""); setOpen(false);
+  };
+
+  if (!open) return (
+    <button onClick={() => setOpen(true)} style={{
+      width: "100%", background: "transparent",
+      border: `1px dashed ${border.subtle}`, borderRadius: radius.base,
+      color: text.muted, padding: `${space[1]}px`, cursor: "pointer",
+      fontFamily: font.sans, fontSize: fontSize.xs, marginTop: space[1],
+    }}>
+      + Add Player Manually
+    </button>
+  );
+
+  const color = CLASS_COLORS[cls] || "#aaa";
+  return (
+    <div style={{ background: surface.card, border: `1px solid ${border.subtle}`, borderRadius: radius.base, padding: space[2], marginTop: space[1], display: "flex", flexDirection: "column", gap: space[1] }}>
+      <div style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 2 }}>Add Player</div>
+      <input
+        autoFocus value={name}
+        onChange={e => { setName(e.target.value); setError(""); }}
+        onKeyDown={e => e.key === "Enter" && handleAdd()}
+        placeholder="Character name"
+        style={{ ...inputStyle, width: "100%", fontSize: fontSize.xs }}
+      />
+      {error && <div style={{ fontSize: 10, color: intent.danger, fontFamily: font.sans }}>{error}</div>}
+      <select value={cls} onChange={e => handleClass(e.target.value)} style={{ ...inputStyle, color, fontSize: fontSize.xs, cursor: "pointer" }}>
+        {Object.keys(CLASS_SPECS).map(c => (
+          <option key={c} value={c} style={{ color: CLASS_COLORS[c] || "#fff", background: surface.base }}>{c}</option>
+        ))}
+      </select>
+      <select value={spec} onChange={e => setSpec(e.target.value)} style={{ ...inputStyle, fontSize: fontSize.xs, cursor: "pointer" }}>
+        {specs.map(s => (
+          <option key={s.specName} value={s.specName} style={{ background: surface.base }}>
+            {s.specName.replace(/\d+$/, "")} ({s.role})
+          </option>
+        ))}
+      </select>
+      <div style={{ display: "flex", gap: space[1] }}>
+        <button onClick={handleAdd} style={{ ...btnStyle("success"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Add</button>
+        <button onClick={() => { setOpen(false); setError(""); setName(""); }} style={{ ...btnStyle("default"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Roster sidebar ────────────────────────────────────────────────────────────
-function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter, onDragStart, wclScores, wclLoading, wclError, wclLastFetch, onWclRefetch, onWclNameChange, activeTab }) {
+function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter, onDragStart, wclScores, wclLoading, wclError, wclLastFetch, onWclRefetch, onWclNameChange, activeTab, onAddManual }) {
   const nightRoster = roster;
   const filtered    = nightRoster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
 
@@ -199,6 +266,7 @@ function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter,
             parseScore={getScoreForPlayer(wclScores, s, activeTab)}
             parseColor={getScoreColor(getScoreForPlayer(wclScores, s, activeTab))} />
         ))}
+        <ManualAddPlayer onAdd={onAddManual} />
       </div>
     </div>
   );
@@ -371,7 +439,7 @@ export default function TwentyFiveAdmin({ teamId }) {
   return (
     <AppShell teamId={teamId} adminMode parsePanelContent={
       <ParseScoresPanel scores={wclScores} roster={roster} module="25man"
-        loading={wclLoading} lastFetch={null} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} />
+        loading={wclLoading} lastFetch={null} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} showRefresh />
     }>
       <ConfirmDialog open={confirmClearOpen} title="Clear All Assignments" message="This will remove all 25-man assignments for this night. Cannot be undone." confirmLabel="Clear All" dangerous onConfirm={() => { setAssignments({}); setTextInputs({}); setConfirmClearOpen(false); }} onCancel={() => setConfirmClearOpen(false)} />
 
@@ -436,6 +504,7 @@ export default function TwentyFiveAdmin({ teamId }) {
             onWclRefetch={wclRefetch}
             onWclNameChange={handleWclNameChange}
             activeTab={activeTab}
+            onAddManual={slot => setRoster(prev => [...prev, slot])}
           />
 
           <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>

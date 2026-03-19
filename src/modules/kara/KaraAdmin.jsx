@@ -673,7 +673,7 @@ export default function KaraAdmin() {
 
   if (roster.length === 0 && !showImport) {
     return (
-      <AppShell adminMode parsePanelContent={<ParseScoresPanel scores={wclScores} roster={[...rosterTue, ...rosterThu]} module="kara" loading={wclLoading} error={wclError} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} />}>
+      <AppShell adminMode parsePanelContent={<ParseScoresPanel scores={wclScores} roster={[...rosterTue, ...rosterThu]} module="kara" loading={wclLoading} error={wclError} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} showRefresh />}>
         <ModuleHeader icon="🏰" title="Karazhan Admin" breadcrumb="Karazhan" />
         <EmptyState icon="🏰" title="No roster imported" message="Import Tuesday and Thursday JSONs to get started" action="Import Roster" onAction={() => setShowImport(true)} />
       </AppShell>
@@ -681,7 +681,7 @@ export default function KaraAdmin() {
   }
 
   return (
-    <AppShell adminMode parsePanelContent={<ParseScoresPanel scores={wclScores} roster={[...rosterTue, ...rosterThu]} module="kara" loading={wclLoading} error={wclError} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} />}>
+    <AppShell adminMode parsePanelContent={<ParseScoresPanel scores={wclScores} roster={[...rosterTue, ...rosterThu]} module="kara" loading={wclLoading} error={wclError} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} showRefresh />}>
       {/* Conflict modal */}
       {pendingConflicts.length > 0 && (
         <ConflictModal
