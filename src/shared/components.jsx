@@ -667,6 +667,15 @@ function NavSidebar({ teamId, adminMode, parsePanelContent }) {
 
 // ── Module header ─────────────────────────────────────────────────────────────
 export function ModuleHeader({ title, subtitle, icon, actions, breadcrumb }) {
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    // On mobile: hide the entire module header — top bar already shows context
+    return actions ? (
+      <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`, background: surface.panel, display: "flex", justifyContent: "flex-end", gap: space[2], flexShrink: 0 }}>
+        {actions}
+      </div>
+    ) : null;
+  }
   return (
     <div style={{
       padding: `${space[3]}px ${space[4]}px`,

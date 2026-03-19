@@ -148,12 +148,11 @@ export default function TwentyFivePublic({ teamId }) {
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}
           <SearchBox value={searchName} onChange={setSearchName} placeholder="Search your name…" />
-          {/* Week slider */}
           {FIREBASE_OK && nightSnaps.length > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: space[1] }}>
               <button onClick={() => { const idx = viewingSnap ? nightSnaps.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx + 1 < nightSnaps.length ? nightSnaps[idx + 1].id : null); }} disabled={viewingSnap === nightSnaps[nightSnaps.length - 1]?.id} style={{ ...btnStyle("default"), padding: "0 8px", opacity: viewingSnap === nightSnaps[nightSnaps.length - 1]?.id ? 0.3 : 1 }}>‹</button>
               <span style={{ fontSize: fontSize.xs, color: viewSnap ? (viewSnap.locked ? "#9980D4" : text.secondary) : intent.success, fontFamily: font.sans, minWidth: 130, textAlign: "center" }}>
-                {viewSnap ? `${viewSnap.locked ? "🔒" : "📸"} ${viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}` : "⚡ Current Week"}
+                {viewSnap ? `${viewSnap.locked ? "🔒" : "📸"} ${viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}` : "Current Week"}
               </span>
               <button onClick={() => { const idx = viewingSnap ? nightSnaps.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx > 0 ? nightSnaps[idx - 1].id : null); }} disabled={!viewingSnap} style={{ ...btnStyle("default"), padding: "0 8px", opacity: !viewingSnap ? 0.3 : 1 }}>›</button>
             </div>
@@ -222,14 +221,14 @@ export default function TwentyFivePublic({ teamId }) {
           )}
 
           {/* General assignments — bottom */}
-          <div style={{ marginTop: space[3], display: "flex", gap: 0, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
-            <div style={{ flex: 1, borderRight: `1px solid ${border.subtle}` }}>
+          <div style={{ marginTop: space[3], display: "flex", flexWrap: "wrap", gap: 0, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
+            <div style={{ flex: 1, minWidth: 260, borderRight: `1px solid ${border.subtle}`, borderBottom: `1px solid ${border.subtle}` }}>
               <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}>
                 <span style={{ fontSize: fontSize.xs, color: "#8788EE", fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>Warlock Curses</span>
               </div>
               {GENERAL_CURSES.map(row => <PublicRow key={row.key} rowCfg={row} ids={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />)}
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
               <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}>
                 <span style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>Trash Interrupts</span>
               </div>
