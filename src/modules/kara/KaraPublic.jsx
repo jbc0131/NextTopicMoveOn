@@ -66,11 +66,11 @@ function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searc
   Object.keys(UTILITY).forEach(k => { has[k] = teamPlayers.some(p => UTILITY[k].specs.has(p.specName)); });
 
   return (
-    <div style={{ flex: 1, background: surface.panel, border: `1px solid ${color}33`, borderRadius: radius.lg, overflow: "hidden" }}>
+    <div style={{ flex: 1, minWidth: 300, background: surface.panel, border: `1px solid ${color}33`, borderRadius: radius.lg, overflow: "hidden" }}>
       <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: space[2], background: `${color}08` }}>
-        <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>🏰 TEAM {teamNum}</span>
-        <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>🛡 {tankCount}</span>
-        <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>💚 {healerCount}</span>
+        <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>TEAM {teamNum}</span>
+        <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>T {tankCount}</span>
+        <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>H {healerCount}</span>
         <span style={{ fontSize: fontSize.xs, color: text.muted, marginLeft: "auto", fontFamily: font.sans }}>{filledCount}/10</span>
       </div>
       {filledCount > 0 && (
@@ -201,8 +201,8 @@ export default function KaraPublic() {
               {viewSnap.combatLogUrl && <a href={viewSnap.combatLogUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, textDecoration: "none" }}>⚔ Combat Log →</a>}
             </div>
           )}
-          <NightSection label="📅 TUESDAY"  teams={KARA_TUE_TEAMS} color={intent.success} viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
-          <NightSection label="📅 THURSDAY" teams={KARA_THU_TEAMS} color={accent.blue}    viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
+          <NightSection label="TUESDAY"  teams={KARA_TUE_TEAMS} color={intent.success} viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
+          <NightSection label="THURSDAY" teams={KARA_THU_TEAMS} color={accent.blue}    viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
         </div>
       )}
     </AppShell>

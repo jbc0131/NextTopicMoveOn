@@ -104,7 +104,7 @@ function NightSection({ night, teams, color, assignments, allRosters, isLocked, 
       }}>
         <div style={{ width: 3, height: 18, borderRadius: 1, background: color, flexShrink: 0 }} />
         <span style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color, fontFamily: font.sans }}>
-          {night === "tue" ? "📅 TUESDAY" : "📅 THURSDAY"}
+          {night === "tue" ? "TUESDAY" : "THURSDAY"}
         </span>
         <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>3 TEAMS · 2 GROUPS OF 5</span>
         {!isLocked && (
@@ -142,9 +142,9 @@ function NightSection({ night, teams, color, assignments, allRosters, isLocked, 
                 display: "flex", alignItems: "center", gap: space[2],
                 background: `${color}08`,
               }}>
-                <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>🏰 TEAM {i + 1}</span>
-                <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>🛡 {tankCount}</span>
-                <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>💚 {healerCount}</span>
+                <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>TEAM {i + 1}</span>
+                <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>T {tankCount}</span>
+                <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>H {healerCount}</span>
                 <span style={{ fontSize: fontSize.xs, color: text.muted, marginLeft: "auto", fontFamily: font.sans }}>{filledCount}/10</span>
               </div>
 

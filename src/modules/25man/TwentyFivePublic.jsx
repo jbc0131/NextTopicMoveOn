@@ -82,15 +82,17 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, text
     items.push({ type: "row", row: r });
   });
   return (
-    <BossPanel title={title} icon={icon} subtitle={subtitle} bossImage={bossImage}>
-      {items.map((item, i) =>
-        item.type === "header"
-          ? <RoleHeader key={i} role={item.role} overrideLabel={item.label} />
-          : <PublicRow key={item.row.key} rowCfg={item.row} ids={assignments[item.row.key]}
-              textValues={textValues} roster={roster} searchName={searchName}
-              wclScores={wclScores} activeTab={activeTab} />
-      )}
-    </BossPanel>
+    <div style={{ flex: 1, minWidth: 320 }}>
+      <BossPanel title={title} icon={icon} subtitle={subtitle} bossImage={bossImage}>
+        {items.map((item, i) =>
+          item.type === "header"
+            ? <RoleHeader key={i} role={item.role} overrideLabel={item.label} />
+            : <PublicRow key={item.row.key} rowCfg={item.row} ids={assignments[item.row.key]}
+                textValues={textValues} roster={roster} searchName={searchName}
+                wclScores={wclScores} activeTab={activeTab} />
+        )}
+      </BossPanel>
+    </div>
   );
 }
 
@@ -164,7 +166,7 @@ export default function TwentyFivePublic({ teamId }) {
       ) : !hasData ? (
         <EmptyState icon="⚔" title="No assignments published yet" message={`The raid leader hasn't published ${nightLabel} 25-man assignments yet — check back soon.`} />
       ) : (
-        <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: space[3] }}>
 
           {/* Locked snapshot banner */}
           {isLocked && viewSnap && (
@@ -192,7 +194,7 @@ export default function TwentyFivePublic({ teamId }) {
             background: surface.panel, border: `1px solid ${border.subtle}`,
             borderRadius: radius.base, padding: 3, gap: 2, width: "fit-content",
           }}>
-            {[["mags","🔥 Magtheridon"],["gruul","⚔ Gruul's Lair"]].map(([tab, label]) => (
+            {[["mags","Magtheridon"],["gruul","Gruul's Lair"]].map(([tab, label]) => (
               <button key={tab} onClick={() => setActiveTab(tab)} style={{
                 padding: `${space[1]}px ${space[4]}px`, height: 30,
                 border: "none", borderRadius: radius.sm, cursor: "pointer",
@@ -223,13 +225,13 @@ export default function TwentyFivePublic({ teamId }) {
           <div style={{ marginTop: space[3], display: "flex", gap: 0, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
             <div style={{ flex: 1, borderRight: `1px solid ${border.subtle}` }}>
               <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}>
-                <span style={{ fontSize: fontSize.xs, color: "#8788EE", fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>🟣 Warlock Curses</span>
+                <span style={{ fontSize: fontSize.xs, color: "#8788EE", fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>Warlock Curses</span>
               </div>
               {GENERAL_CURSES.map(row => <PublicRow key={row.key} rowCfg={row} ids={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />)}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}>
-                <span style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>⚡ Trash Interrupts</span>
+                <span style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>Trash Interrupts</span>
               </div>
               {GENERAL_INTERRUPTS.map(row => <PublicRow key={row.key} rowCfg={row} ids={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />)}
             </div>

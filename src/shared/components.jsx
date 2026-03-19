@@ -103,7 +103,6 @@ export function KaraPlayerBadge({ slot, onSpecCycle, onDragStart }) {
 export function RoleHeader({ role: roleName, overrideLabel }) {
   const isCubeClickers = overrideLabel === "Cube Clickers";
   const rc     = roleColors[roleName?.toLowerCase()] || roleColors.dps;
-  const icons  = { Tank: "🛡", Healer: "💚", DPS: "⚔" };
   const titles = { Tank: "Tank Assignments", Healer: "Healer Assignments", DPS: "DPS Assignments" };
   const label  = overrideLabel || titles[roleName];
 
@@ -115,14 +114,14 @@ export function RoleHeader({ role: roleName, overrideLabel }) {
         padding: `${space[2]}px ${space[3]}px`,
         borderLeft: `3px solid #C87619`,
         borderBottom: `1px solid #C8761933`,
-        background: `#C8761910`,
+        background: `#C8761918`,
         marginTop: space[2], marginBottom: 2,
       }}>
         <span style={{
           fontSize: fontSize.xs, fontFamily: font.sans, fontWeight: fontWeight.bold,
           color: "#C87619", letterSpacing: "0.08em", textTransform: "uppercase",
         }}>
-          🎯 {label}
+          {label}
         </span>
         <span style={{ fontSize: 9, color: "#C8761988", fontFamily: font.sans }}>
           — PRIMARY ASSIGNMENT
@@ -131,19 +130,20 @@ export function RoleHeader({ role: roleName, overrideLabel }) {
     );
   }
 
-  // Standard role headers — subtle, not dominant
+  // Standard role headers — visible but not dominant
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: space[2],
       padding: `${space[1]}px ${space[3]}px`,
-      borderLeft: `2px solid ${rc.color}55`,
+      borderLeft: `3px solid ${rc.color}88`,
+      background: `${rc.color}0d`,
       marginTop: space[2], marginBottom: 2,
     }}>
       <span style={{
-        fontSize: fontSize.xs, fontFamily: font.sans, fontWeight: fontWeight.medium,
-        color: text.muted, letterSpacing: "0.08em", textTransform: "uppercase",
+        fontSize: fontSize.xs, fontFamily: font.sans, fontWeight: fontWeight.semibold,
+        color: rc.color, letterSpacing: "0.08em", textTransform: "uppercase",
       }}>
-        {icons[roleName]}  {label}
+        {label}
       </span>
     </div>
   );
@@ -151,10 +151,10 @@ export function RoleHeader({ role: roleName, overrideLabel }) {
 
 // ── Boss panel ────────────────────────────────────────────────────────────────
 const BOSS_META = {
-  maulgar: { accent: "#C87820", label: "GRUUL'S LAIR · BOSS 1 OF 2", icon: "⚔" },
-  gruul:   { accent: "#4A8ACC", label: "GRUUL'S LAIR · BOSS 2 OF 2", icon: "🗿" },
-  mags:    { accent: "#CC3300", label: "MAGTHERIDON'S LAIR",          icon: "🔥" },
-  kara:    { accent: accent.blue, label: "KARAZHAN",                  icon: "🏰" },
+  maulgar: { accent: "#C87820", label: "GRUUL'S LAIR · BOSS 1 OF 2" },
+  gruul:   { accent: "#4A8ACC", label: "GRUUL'S LAIR · BOSS 2 OF 2" },
+  mags:    { accent: "#CC3300", label: "MAGTHERIDON'S LAIR"          },
+  kara:    { accent: accent.blue, label: "KARAZHAN"                  },
 };
 
 export function BossPanel({ title, icon, subtitle, bossImage, children, compact }) {
@@ -176,7 +176,7 @@ export function BossPanel({ title, icon, subtitle, bossImage, children, compact 
             fontSize: fontSize.base, fontWeight: fontWeight.bold,
             color: accentColor, fontFamily: font.sans, letterSpacing: "0.03em",
           }}>
-            {icon} {title}
+            {title}
           </div>
           {subtitle && !compact && (
             <div style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, marginTop: 2 }}>
@@ -211,7 +211,7 @@ export function WarningBar({ text: msg }) {
       marginBottom: space[3],
       fontFamily: font.sans,
     }}>
-      ⚠ {msg}
+      {msg}
     </div>
   );
 }
@@ -365,8 +365,22 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", 
   );
 }
 
+// ── Mobile detection hook ─────────────────────────────────────────────────────
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 // ── AppShell ──────────────────────────────────────────────────────────────────
 export function AppShell({ teamId, children, adminMode = false, parsePanelContent }) {
+  const isMobile = useIsMobile();
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: surface.base, display: "flex", flexDirection: "column", fontFamily: font.sans }}>
       <style>{`
@@ -376,9 +390,17 @@ export function AppShell({ teamId, children, adminMode = false, parsePanelConten
         *::-webkit-scrollbar-thumb { background: ${border.strong}; border-radius: 3px; }
         *::-webkit-scrollbar-thumb:hover { background: ${text.disabled}; }
       `}</style>
-      <AppHeader teamId={teamId} adminMode={adminMode} />
+
+      <AppHeader teamId={teamId} adminMode={adminMode} isMobile={isMobile} onMenuOpen={() => setMenuOpen(true)} />
+
+      {isMobile && menuOpen && (
+        <MobileNavOverlay teamId={teamId} adminMode={adminMode} onClose={() => setMenuOpen(false)} />
+      )}
+
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <NavSidebar teamId={teamId} adminMode={adminMode} parsePanelContent={parsePanelContent} />
+        {!isMobile && (
+          <NavSidebar teamId={teamId} adminMode={adminMode} parsePanelContent={parsePanelContent} />
+        )}
         <main style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
           {children}
         </main>
@@ -389,7 +411,7 @@ export function AppShell({ teamId, children, adminMode = false, parsePanelConten
 }
 
 // ── App header ────────────────────────────────────────────────────────────────
-function AppHeader({ teamId, adminMode }) {
+function AppHeader({ teamId, adminMode, isMobile, onMenuOpen }) {
   const navigate   = useNavigate();
   const location   = useLocation();
   const isKara     = location.pathname.startsWith("/kara");
@@ -403,7 +425,6 @@ function AppHeader({ teamId, adminMode }) {
       display: "flex", alignItems: "center", padding: `0 ${space[4]}px`,
       gap: space[3], flexShrink: 0, zIndex: 100,
     }}>
-      {/* Logo */}
       <button
         onClick={() => navigate("/")}
         style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: space[2], padding: 0 }}
@@ -414,24 +435,144 @@ function AppHeader({ teamId, adminMode }) {
 
       <div style={{ width: 1, height: 20, background: border.subtle }} />
 
-      {/* Context label */}
       {isKara ? (
         <span style={{ fontSize: fontSize.sm, color: text.secondary, fontFamily: font.sans }}>
-          Karazhan <span style={{ color: text.muted, marginLeft: space[1] }}>· All Teams</span>
+          Karazhan {!isMobile && <span style={{ color: text.muted, marginLeft: space[1] }}>· All Teams</span>}
         </span>
       ) : team ? (
         <span style={{ fontSize: fontSize.sm, color: text.secondary, fontFamily: font.sans }}>
-          {team.name}<span style={{ color: text.muted, marginLeft: space[2] }}>· {team.night}</span>
+          {team.name}{!isMobile && <span style={{ color: text.muted, marginLeft: space[2] }}>· {team.night}</span>}
         </span>
       ) : null}
 
-      {adminMode && <StatusChip type="warning">Admin</StatusChip>}
+      {adminMode && !isMobile && <StatusChip type="warning">Admin</StatusChip>}
 
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: space[2] }}>
-        {adminMode ? (
-          <button onClick={() => navigate(isKara ? "/kara" : `/${teamId || "team-dick"}`)} style={btnStyle("default")}>← Public View</button>
+        {/* Mobile: hamburger only — no admin button */}
+        {isMobile ? (
+          <button
+            onClick={onMenuOpen}
+            style={{
+              background: "none", border: `1px solid ${border.subtle}`,
+              borderRadius: radius.base, cursor: "pointer",
+              padding: `${space[1]}px ${space[2]}px`,
+              color: text.secondary, fontSize: 18, lineHeight: 1,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+            aria-label="Open navigation"
+          >☰</button>
         ) : (
-          <button onClick={() => navigate(isKara ? "/kara/admin" : `/${teamId || "team-dick"}/25man/admin`)} style={btnStyle("default")}>Admin →</button>
+          adminMode ? (
+            <button onClick={() => navigate(isKara ? "/kara" : `/${teamId || "team-dick"}`)} style={btnStyle("default")}>← Public View</button>
+          ) : (
+            <button onClick={() => navigate(isKara ? "/kara/admin" : `/${teamId || "team-dick"}/25man/admin`)} style={btnStyle("default")}>Admin →</button>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Mobile nav overlay ────────────────────────────────────────────────────────
+function MobileNavOverlay({ teamId, adminMode, onClose }) {
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const isKara    = location.pathname.startsWith("/kara");
+
+  const navLinks = [
+    { path: `/kara`,                                label: "Karazhan"     },
+    { path: `/${teamId || "team-dick"}/25man`,      label: "25-Man Raids" },
+    { path: `/${teamId || "team-dick"}/history`,    label: "Raid History" },
+  ];
+
+  const go = (path) => { navigate(path); onClose(); };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: surface.base, display: "flex", flexDirection: "column",
+      fontFamily: font.sans,
+    }}>
+      {/* Overlay header */}
+      <div style={{
+        height: layout.headerHeight, display: "flex", alignItems: "center",
+        padding: `0 ${space[4]}px`, borderBottom: `1px solid ${border.subtle}`,
+        background: surface.panel, flexShrink: 0,
+      }}>
+        <span style={{ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: text.primary }}>Navigation</span>
+        <button
+          onClick={onClose}
+          style={{
+            marginLeft: "auto", background: "none", border: "none",
+            cursor: "pointer", color: text.muted, fontSize: 24, lineHeight: 1, padding: space[1],
+          }}
+          aria-label="Close navigation"
+        >×</button>
+      </div>
+
+      {/* Nav content */}
+      <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
+        {/* Modules */}
+        <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[2] }}>
+          Modules
+        </div>
+        {navLinks.map(link => {
+          const active =
+            (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))  ||
+            (link.path.includes("/25man")   && location.pathname.includes("/25man"))   ||
+            (link.path.includes("/history") && location.pathname.includes("/history"));
+          return (
+            <button
+              key={link.path}
+              onClick={() => go(link.path)}
+              style={{
+                width: "100%", border: "none", textAlign: "left", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: space[3],
+                padding: `${space[3]}px ${space[3]}px`,
+                borderRadius: radius.base, marginBottom: space[1],
+                background: active ? `${accent.blue}18` : "transparent",
+                color: active ? accent.blue : text.secondary,
+                fontSize: fontSize.base, fontFamily: font.sans,
+                borderLeft: active ? `3px solid ${accent.blue}` : `3px solid transparent`,
+              }}
+            >
+              <span>{link.label}</span>
+            </button>
+          );
+        })}
+
+        {/* Team switcher */}
+        {!isKara && (
+          <>
+            <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: space[6], marginBottom: space[2] }}>
+              Team
+            </div>
+            {RAID_TEAMS.map(team => {
+              const active = team.id === teamId;
+              const currentModule = location.pathname.includes("/25man") ? "/25man"
+                : location.pathname.includes("/history") ? "/history"
+                : "";
+              return (
+                <button
+                  key={team.id}
+                  onClick={() => go(`/${team.id}${currentModule}`)}
+                  style={{
+                    width: "100%", border: "none", textAlign: "left", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: `${space[3]}px ${space[3]}px`,
+                    borderRadius: radius.base, marginBottom: space[1],
+                    background: active ? `${accent.blue}18` : "transparent",
+                    color: active ? accent.blue : text.secondary,
+                    fontSize: fontSize.base, fontFamily: font.sans,
+                    borderLeft: active ? `3px solid ${accent.blue}` : `3px solid transparent`,
+                  }}
+                >
+                  <span>{team.name}</span>
+                  <span style={{ fontSize: fontSize.sm, color: text.muted }}>{team.night}</span>
+                </button>
+              );
+            })}
+          </>
         )}
       </div>
     </div>
@@ -447,9 +588,9 @@ function NavSidebar({ teamId, adminMode, parsePanelContent }) {
   // Kara is teamless — always links to /kara
   // 25-man and history are team-scoped
   const navLinks = [
-    { path: `/kara${adminMode ? "/admin" : ""}`,                          label: "Karazhan",    icon: "🏰" },
-    { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "⚔" },
-    { path: `/${teamId || "team-dick"}/history`,                           label: "Raid History", icon: "📜" },
+    { path: `/kara${adminMode ? "/admin" : ""}`,                          label: "Karazhan",     icon: "KR" },
+    { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "25" },
+    { path: `/${teamId || "team-dick"}/history`,                           label: "Raid History", icon: "HX" },
   ];
 
   return (
@@ -474,7 +615,7 @@ function NavSidebar({ teamId, adminMode, parsePanelContent }) {
               onClick={() => navigate(link.path)}
               style={{ ...navItemStyle(active), width: "100%", border: "none", textAlign: "left" }}
             >
-              <span style={{ fontSize: 14 }}>{link.icon}</span>
+              <span style={{ fontSize: 10, color: active ? accent.blue : text.disabled, fontFamily: font.mono, fontWeight: fontWeight.bold }}>{link.icon}</span>
               <span>{link.label}</span>
             </button>
           );
