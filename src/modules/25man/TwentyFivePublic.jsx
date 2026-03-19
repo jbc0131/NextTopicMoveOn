@@ -102,7 +102,7 @@ export default function TwentyFivePublic({ teamId }) {
   const [lastUpdate,  setLastUpdate]  = useState(null);
   const [snapshots,   setSnapshots]   = useState([]);
   const [viewingSnap, setViewingSnap] = useState(null);
-  const [activeTab,   setActiveTab]   = useState("gruul");
+  const [activeTab,   setActiveTab]   = useState("mags");
   const [searchName,  setSearchName]  = useState("");
 
   const { scores: wclScores, loading: wclLoading, lastFetch: wclLastFetch, refetch: wclRefetch } =
@@ -188,13 +188,27 @@ export default function TwentyFivePublic({ teamId }) {
 
           {/* Tab bar */}
           <div style={{ display: "flex", gap: space[2], marginBottom: space[3] }}>
-            {[["gruul","⚔ Gruul's Lair"],["mags","🔥 Magtheridon"]].map(([tab, label]) => (
+            {[["mags","🔥 Magtheridon"],["gruul","⚔ Gruul's Lair"]].map(([tab, label]) => (
               <button key={tab} onClick={() => setActiveTab(tab)} style={{ ...btnStyle(activeTab === tab ? "primary" : "default"), height: 32 }}>{label}</button>
             ))}
           </div>
 
-          {/* General assignments */}
-          <div style={{ marginBottom: space[3], display: "flex", gap: 0, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
+          {activeTab === "mags" && (
+            <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
+              <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage="mags" rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
+              <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage="mags" rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
+            </div>
+          )}
+
+          {activeTab === "gruul" && (
+            <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
+              <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage="maulgar" rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
+              <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage="gruul" rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
+            </div>
+          )}
+
+          {/* General assignments — bottom */}
+          <div style={{ marginTop: space[3], display: "flex", gap: 0, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
             <div style={{ flex: 1, borderRight: `1px solid ${border.subtle}` }}>
               <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}>
                 <span style={{ fontSize: fontSize.xs, color: "#8788EE", fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>🟣 Warlock Curses</span>
@@ -208,20 +222,6 @@ export default function TwentyFivePublic({ teamId }) {
               {GENERAL_INTERRUPTS.map(row => <PublicRow key={row.key} rowCfg={row} ids={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />)}
             </div>
           </div>
-
-          {activeTab === "gruul" && (
-            <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
-              <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage="maulgar" rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
-              <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage="gruul" rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
-            </div>
-          )}
-
-          {activeTab === "mags" && (
-            <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
-              <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage="mags" rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
-              <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage="mags" rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
-            </div>
-          )}
         </div>
       )}
     </AppShell>

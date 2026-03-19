@@ -445,7 +445,7 @@ function NavSidebar({ teamId, adminMode, parsePanelContent }) {
         })}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         {parsePanelContent}
       </div>
 
@@ -597,7 +597,7 @@ export function ParseScoresPanel({ scores, roster, module, loading, error, lastF
   const label = module === "kara" ? "Karazhan Parses" : "25-Man Parses";
 
   return (
-    <div style={{ borderTop: `1px solid ${border.subtle}`, flexShrink: 0 }}>
+    <div style={{ borderTop: `1px solid ${border.subtle}`, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {/* Collapsible header */}
       <button
         onClick={() => setOpen(v => !v)}
@@ -606,6 +606,7 @@ export function ParseScoresPanel({ scores, roster, module, loading, error, lastF
           padding: `${space[2]}px ${space[3]}px`,
           background: surface.panel,
           display: "flex", alignItems: "center", justifyContent: "space-between",
+          flexShrink: 0,
         }}
       >
         <span style={{ fontSize: fontSize.xs, color: accent.blue, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: font.sans }}>
@@ -623,7 +624,10 @@ export function ParseScoresPanel({ scores, roster, module, loading, error, lastF
       </button>
 
       {open && (
-        <div style={{ maxHeight: 320, overflowY: "auto", background: surface.base }}>
+        <div style={{ flex: 1, overflowY: "auto", background: surface.base,
+          scrollbarWidth: "thin",
+          scrollbarColor: `${border.strong} ${surface.base}`,
+        }}>
           {/* Toolbar */}
           <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 9, color: text.muted, fontFamily: font.sans }}>{rows.length} players</span>

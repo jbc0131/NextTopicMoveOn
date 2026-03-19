@@ -186,7 +186,7 @@ export default function TwentyFiveAdmin({ teamId }) {
   const [dividers,     setDividers]     = useState([]);
   const [raidDate,     setRaidDate]     = useState("");
   const [raidLeader,   setRaidLeader]   = useState("");
-  const [activeTab,    setActiveTab]    = useState("gruul");
+  const [activeTab,    setActiveTab]    = useState("mags");
   const [dragSlot,     setDragSlot]     = useState(null);
   const [dragSourceKey, setDragSourceKey] = useState(null);
   const [roleFilter,   setRoleFilter]   = useState("All");
@@ -510,22 +510,18 @@ export default function TwentyFiveAdmin({ teamId }) {
           <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
             {/* Tab bar */}
             <div style={{ display: "flex", gap: space[2], marginBottom: space[3] }}>
-              {[["gruul","⚔ Gruul's Lair"], ["mags","🔥 Magtheridon"]].map(([tab, label]) => (
+              {[["mags","🔥 Magtheridon"], ["gruul","⚔ Gruul's Lair"]].map(([tab, label]) => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{ ...btnStyle(activeTab === tab ? "primary" : "default"), height: 32 }}>{label}</button>
               ))}
             </div>
 
-            {/* General assignments */}
-            <div style={{ marginBottom: space[3], display: "flex", gap: 0, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
-              <div style={{ flex: 1, borderRight: `1px solid ${border.subtle}` }}>
-                <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}><span style={{ fontSize: fontSize.xs, color: "#8788EE", fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>🟣 Warlock Curses</span></div>
-                {GENERAL_CURSES.map(row => <AssignmentRow key={row.key} rowCfg={row} assignedIds={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onDragStart={isLocked ? null : handleDragStart} assignments={viewAssignments} compact />)}
+            {activeTab === "mags" && <>
+              <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
+              <div style={{ display: "flex", gap: space[3] }}>
+                <AssignmentPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
+                <AssignmentPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}><span style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>⚡ Trash Interrupts</span></div>
-                {GENERAL_INTERRUPTS.map(row => <AssignmentRow key={row.key} rowCfg={row} assignedIds={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onDragStart={isLocked ? null : handleDragStart} assignments={viewAssignments} compact />)}
-              </div>
-            </div>
+            </>}
 
             {activeTab === "gruul" && <>
               <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
@@ -535,13 +531,17 @@ export default function TwentyFiveAdmin({ teamId }) {
               </div>
             </>}
 
-            {activeTab === "mags" && <>
-              <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
-              <div style={{ display: "flex", gap: space[3] }}>
-                <AssignmentPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
-                <AssignmentPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
+            {/* General assignments — bottom */}
+            <div style={{ marginTop: space[3], display: "flex", gap: 0, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
+              <div style={{ flex: 1, borderRight: `1px solid ${border.subtle}` }}>
+                <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}><span style={{ fontSize: fontSize.xs, color: "#8788EE", fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>🟣 Warlock Curses</span></div>
+                {GENERAL_CURSES.map(row => <AssignmentRow key={row.key} rowCfg={row} assignedIds={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onDragStart={isLocked ? null : handleDragStart} assignments={viewAssignments} compact />)}
               </div>
-            </>}
+              <div style={{ flex: 1 }}>
+                <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}><span style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>⚡ Trash Interrupts</span></div>
+                {GENERAL_INTERRUPTS.map(row => <AssignmentRow key={row.key} rowCfg={row} assignedIds={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onDragStart={isLocked ? null : handleDragStart} assignments={viewAssignments} compact />)}
+              </div>
+            </div>
           </div>
         </div>
       )}
