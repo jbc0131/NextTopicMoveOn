@@ -61,12 +61,18 @@ function sanitizeName(name) {
   return "char_" + name.replace(/[^a-zA-Z0-9]/g, "_");
 }
 
+// Escape double quotes and backslashes for safe GraphQL string interpolation
+function escapeGraphQL(str) {
+  return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 // Build a single GraphQL query for one character with their correct role
 function buildQuery({ name, role }) {
   const wclRole = role === "Healer" ? "Healer" : role === "Tank" ? "Tank" : "DPS";
+  const safeName = escapeGraphQL(name);
   return `
     ${sanitizeName(name)}: characterData {
-      character(name: "${name}", serverSlug: "${SERVER_SLUG}", serverRegion: "${SERVER_REGION}") {
+      character(name: "${safeName}", serverSlug: "${SERVER_SLUG}", serverRegion: "${SERVER_REGION}") {
         name
         kara: zoneRankings(zoneID: ${ZONE_KARA}, role: ${wclRole})
         gruulMags: zoneRankings(zoneID: ${ZONE_GRUULMAGS}, role: ${wclRole})

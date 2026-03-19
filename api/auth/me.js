@@ -34,8 +34,12 @@ function parseCookies(cookieHeader) {
 }
 
 export default function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
+  const allowedOrigins = ["https://nexttopicmoveon.com"];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
 
   const authSecret = process.env.AUTH_SECRET;
   if (!authSecret) {

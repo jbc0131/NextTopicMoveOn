@@ -126,9 +126,10 @@ export default async function handler(req, res) {
 
     const token = sign(payload, authSecret);
 
-    // Get return URL from cookie
+    // Get return URL from cookie (must be a relative path to prevent open redirects)
     const cookies = parseCookies(req.headers.cookie);
-    const returnTo = cookies.ntmo_return ? decodeURIComponent(cookies.ntmo_return) : "/kara/admin";
+    const rawReturn = cookies.ntmo_return ? decodeURIComponent(cookies.ntmo_return) : "/kara/admin";
+    const returnTo = rawReturn.startsWith("/") && !rawReturn.startsWith("//") ? rawReturn : "/";
 
     // Set auth cookie and clear return cookie
     res.setHeader("Set-Cookie", [

@@ -60,8 +60,16 @@ export function useWarcraftLogs(roster, { teamId, module } = {}) {
   const [error,     setError]     = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
 
-  const lastFetchedKey = useRef(null);
-  const fetchInFlight  = useRef(false);
+  const lastFetchedKey  = useRef(null);
+  const lastTeamModule  = useRef(`${teamId}|${module}`);
+  const fetchInFlight   = useRef(false);
+
+  // Reset fetch key when team or module changes so we always refetch
+  const currentTeamModule = `${teamId}|${module}`;
+  if (currentTeamModule !== lastTeamModule.current) {
+    lastTeamModule.current  = currentTeamModule;
+    lastFetchedKey.current  = null;
+  }
 
   // Stabilize roster identity — only change when player names actually change
   const namesKey = useMemo(() => buildNamesKey(roster || []), [roster]);
