@@ -6,8 +6,8 @@
 
 NTMO (Next Topic Move On) is a private raid assignment management platform for a World of Warcraft TBC Anniversary guild on the **Dreamscythe** server. It manages raid assignments across two teams and serves as a live, real-time coordination tool on raid nights.
 
-**Live deployment:** https://nexttopicmoveon.com  
-**GitHub:** jbc0131/NextTopicMoveOn — connected to Vercel for auto-deploy on push to `main`  
+**Live deployment:** https://nexttopicmoveon.com
+**GitHub:** jbc0131/NextTopicMoveOn — connected to Vercel for auto-deploy on push to `main`
 **Stack:** React/JSX · Vite · Firebase (Firestore) · Vercel (hosting + serverless API routes)
 
 ---
@@ -23,11 +23,18 @@ Karazhan and Raid History are **teamless** — shared across both teams at `/kar
 
 ---
 
-## Current Status (as of March 18, 2026)
+## Current Status (as of March 19, 2026)
 
-### ✅ Working
+### Working
 - Full React SPA with React Router v6
 - Firebase Firestore real-time sync for all live state
+- **Discord OAuth authentication** — two-tier, role-based:
+  - **Member roles** (`DISCORD_MEMBER_ROLE_IDS`) — required to access any page on the site
+  - **Admin roles** (`DISCORD_ALLOWED_ROLE_IDS`) — required to access `/admin` pages
+  - Password gate fallback when Discord env vars are not configured
+- Entire site gated behind Discord login (including `/` landing page)
+- User avatar, display name, and "Sign out" shown in header for all logged-in users
+- "Admin" button only visible to users with admin roles
 - Karazhan admin (`/kara/admin`) — import Tue/Thu JSON rosters, drag-and-drop team assignments, spec cycling, conflict detection, copy Discord output, WCL parse scores, snapshot/history
 - 25-Man Raids admin (`/:teamId/25man/admin`) — drag-and-drop Gruul/Mag assignments, manual player add, import JSON, save/auto-save to Firebase
 - Raid History (`/history`) — consolidated view of both teams, All/Tuesday/Thursday filter, RPB iFrame, CLA iFrame, collapsible assignments
@@ -35,13 +42,11 @@ Karazhan and Raid History are **teamless** — shared across both teams at `/kar
 - Public views for all modules — read-only, search by name, mobile responsive
 - Mobile hamburger nav with full-screen overlay
 - Collapsible desktop sidebar (expands/collapses to icon rail)
-- Admin password gate: username `Admin` / password `NTMO6969` (sessionStorage, persists across refreshes)
 - WarcraftLogs parse scores sidebar (admin only has refresh button; public does not)
 - Professions module link → https://professions.nexttopicmoveon.com/
 - TeamSelector landing page at `/`
 
-### ❌ Not Yet Built
-- Discord OAuth authentication (replacing the simple password gate)
+### Not Yet Built
 - Kara history (intentionally excluded — 25-man only)
 - Attendance tracker on history
 - Phase 5 features (see NEXT_SESSION.md)
@@ -61,9 +66,10 @@ src/
     constants.js                   — Game data (MAGS_P2, KARA_TUE_TEAMS, etc.)
     firebase.js                    — All Firebase helpers
     useWarcraftLogs.js             — WCL hook, cache key v6
+    auth.js                        — useAuth hook, getLoginUrl, getLogoutUrl helpers
     components.jsx                 — ALL shared UI components (AppShell, NavSidebar, etc.)
   pages/
-    TeamSelector.jsx               — Landing page /
+    TeamSelector.jsx               — Landing page / (Discord auth gated)
     TeamDashboard.jsx              — /:teamId dashboard
   modules/
     kara/
@@ -76,6 +82,11 @@ src/
       HistoryView.jsx              — /history (public, both teams)
       HistoryAdmin.jsx             — /history/admin
 api/
+  auth/
+    discord.js                     — Vercel serverless: redirect to Discord OAuth
+    callback.js                    — Vercel serverless: OAuth callback, role check, set JWT cookie
+    me.js                          — Vercel serverless: check auth state from cookie
+    logout.js                      — Vercel serverless: clear auth cookie
   warcraftlogs.js                  — Vercel serverless: WCL GraphQL proxy
   warcraftlogs-report.js           — Vercel serverless: WCL v1 REST proxy (fights)
 ```
@@ -83,14 +94,14 @@ api/
 ### Routes
 
 ```
-/                          → TeamSelector
-/kara                      → KaraPublic (teamless)
-/kara/admin                → KaraAdmin (teamless, password gated)
-/history                   → HistoryView (teamless, both teams)
-/history/admin             → HistoryAdmin (password gated)
-/:teamId                   → TeamDashboard
-/:teamId/25man             → TwentyFivePublic
-/:teamId/25man/admin       → TwentyFiveAdmin (password gated)
+/                          → TeamSelector (Discord login required)
+/kara                      → KaraPublic (teamless, member role required)
+/kara/admin                → KaraAdmin (teamless, admin role required)
+/history                   → HistoryView (teamless, both teams, member role required)
+/history/admin             → HistoryAdmin (admin role required)
+/:teamId                   → TeamDashboard (member role required)
+/:teamId/25man             → TwentyFivePublic (member role required)
+/:teamId/25man/admin       → TwentyFiveAdmin (admin role required)
 Legacy redirects: /team-dick/history → /history, etc.
 ```
 
@@ -115,13 +126,51 @@ match /raid-kara-snapshots/{snapId} { allow read, write: if true; }
 
 ---
 
+## Authentication
+
+### Discord OAuth (Primary)
+- **Two-tier role-based access** via Discord OAuth2 + bot token for guild role lookup
+- **Member tier** — `DISCORD_MEMBER_ROLE_IDS` — grants access to all public pages
+- **Admin tier** — `DISCORD_ALLOWED_ROLE_IDS` — grants access to `/admin` pages
+- Bot is not hosted anywhere — bot token is used as an API credential in Vercel serverless functions to call `GET /guilds/{guildId}/members/{userId}` at login time
+- Sessions stored as signed JWT in `httpOnly` `Secure` `SameSite=Lax` cookie (`ntmo_auth`), 7-day expiry
+- Auth state cached in `sessionStorage` for 5 minutes to avoid flash on page navigation
+- User info (avatar, display name) shown in header with "Sign out" link
+- "Admin" button hidden from non-admin users; Access Denied screen if they navigate to admin URLs directly
+
+### Password Gate (Fallback)
+- Only activates when Discord env vars are not configured (e.g. local dev, or if Vercel env vars are missing)
+- Username: `Admin` / Password: `NTMO6969`
+- Stored in `sessionStorage` (`ntmo_admin_unlocked`)
+- Only gates admin pages in fallback mode (public pages are open)
+
+### Vercel Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `DISCORD_CLIENT_ID` | Discord app OAuth2 client ID |
+| `DISCORD_CLIENT_SECRET` | Discord app OAuth2 client secret |
+| `DISCORD_BOT_TOKEN` | Bot token for guild member role lookup |
+| `DISCORD_GUILD_ID` | Dreamscythe Discord server ID |
+| `DISCORD_ALLOWED_ROLE_IDS` | Comma-separated role IDs for admin access |
+| `DISCORD_MEMBER_ROLE_IDS` | Comma-separated role IDs for site access |
+| `AUTH_SECRET` | Random hex string for signing JWT cookies |
+| `AUTH_DOMAIN` | Optional, defaults to `https://nexttopicmoveon.com` |
+
+### Discord Developer Portal Requirements
+- OAuth2 redirect URI: `https://nexttopicmoveon.com/api/auth/callback`
+- Bot: **Server Members Intent** must be enabled (Privileged Gateway Intents)
+- Bot invited to server with Read Members permission
+
+---
+
 ## Key Design Decisions
 
 - **Kara is teamless** — single `/kara` route, single Firebase doc. Tuesday = Team Dick roster, Thursday = Team Balls roster. Both managed in one admin page.
 - **History is teamless** — `/history` fetches from both `team-dick` and `team-balls` 25man-snapshots in parallel, merges and sorts by date.
 - **WCL/RPB/CLA URLs live in History Admin** — removed from 25-Man admin. Workflow: assign in 25-Man admin → add to history in History Admin.
 - **Snapshot button removed from 25-Man admin** — creating history entries now happens exclusively via History Admin → Add Raid Week.
-- **Admin gate uses sessionStorage** — survives page refresh, clears on tab close. Ready to swap for Discord OAuth.
+- **Auth is two-tier** — member role for site access, admin role for admin pages. All pages require Discord login. Password gate is fallback only.
 - **Parse scores refresh button** — only shown in admin views (`showRefresh` prop on `ParseScoresPanel`). Hidden in public views.
 - **Sidebar collapsible** — state lives in `AppShell`, collapses to 44px icon rail. Parse panel and team switcher hide when collapsed.
 - **Mobile** — sidebar hidden entirely on < 768px. Hamburger opens full-screen overlay nav. Parse scores hidden on mobile. Public views only; admin is desktop-only.
@@ -145,11 +194,3 @@ match /raid-kara-snapshots/{snapId} { allow read, write: if true; }
 - Edit files directly in GitHub → commit → Vercel auto-deploys from `main` branch
 - Root-level `modules/`, `shared/`, `pages/` folders exist as dead weight from early zip extraction errors — leave them, they don't affect the build (Vite only bundles what `src/App.jsx` imports)
 - Always edit files under `src/` — that's what Vite builds from
-
----
-
-## Admin Credentials (Temporary)
-
-- **Username:** Admin
-- **Password:** NTMO6969
-- Replacing with Discord OAuth in next session
