@@ -6,6 +6,7 @@ import KaraAdmin        from "./modules/kara/KaraAdmin";
 import TwentyFivePublic from "./modules/25man/TwentyFivePublic";
 import TwentyFiveAdmin  from "./modules/25man/TwentyFiveAdmin";
 import HistoryView      from "./modules/history/HistoryView";
+import HistoryAdmin     from "./modules/history/HistoryAdmin";
 
 export default function App() {
   return (
@@ -22,13 +23,15 @@ export default function App() {
         <Route path="/team-dick"             element={<TeamDashboard   teamId="team-dick"  />} />
         <Route path="/team-dick/25man"       element={<TwentyFivePublic teamId="team-dick" />} />
         <Route path="/team-dick/25man/admin" element={<TwentyFiveAdmin  teamId="team-dick" />} />
-        <Route path="/team-dick/history"     element={<HistoryView     teamId="team-dick"  />} />
+        <Route path="/team-dick/history"       element={<HistoryView  teamId="team-dick"  />} />
+        <Route path="/team-dick/history/admin" element={<HistoryAdmin teamId="team-dick"  />} />
 
         {/* Team Balls */}
         <Route path="/team-balls"             element={<TeamDashboard   teamId="team-balls" />} />
         <Route path="/team-balls/25man"       element={<TwentyFivePublic teamId="team-balls" />} />
         <Route path="/team-balls/25man/admin" element={<TwentyFiveAdmin  teamId="team-balls" />} />
-        <Route path="/team-balls/history"     element={<HistoryView     teamId="team-balls"  />} />
+        <Route path="/team-balls/history"       element={<HistoryView  teamId="team-balls" />} />
+        <Route path="/team-balls/history/admin" element={<HistoryAdmin teamId="team-balls" />} />
 
         {/* Legacy redirects */}
         <Route path="/team-dick/kara"        element={<Navigate to="/kara"       replace />} />
