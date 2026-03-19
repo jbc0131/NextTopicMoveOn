@@ -56,6 +56,7 @@ export default function handler(req, res) {
 
   return res.status(200).json({
     authenticated: true,
+    isAdmin: !!payload.isAdmin,
     user: {
       discordId: payload.discordId,
       username: payload.username,

@@ -492,31 +492,48 @@ export function AppShell({ teamId, children, adminMode = false, parsePanelConten
 
   const auth = useAuth();
 
-  // If admin mode, check auth
-  if (adminMode) {
-    // Still loading auth state — show a minimal loading screen
-    if (auth.loading) {
-      return (
-        <div style={{ height: "100vh", background: surface.base, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <LoadingSpinner size={32} />
-        </div>
-      );
-    }
+  // Loading auth state — show spinner
+  if (auth.loading) {
+    return (
+      <div style={{ height: "100vh", background: surface.base, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <LoadingSpinner size={32} />
+      </div>
+    );
+  }
 
-    // Discord OAuth is configured and user is authenticated
-    if (auth.authenticated) {
-      // Good — fall through to render the shell
+  // Fallback mode (Discord OAuth not configured on server) — use password gate for admin only
+  if (auth.fallback) {
+    if (adminMode && !passwordUnlocked) {
+      return <PasswordGate onUnlock={() => setPasswordUnlocked(true)} />;
     }
-    // Fallback mode (Discord OAuth not configured on server) — use password gate
-    else if (auth.fallback) {
-      if (!passwordUnlocked) {
-        return <PasswordGate onUnlock={() => setPasswordUnlocked(true)} />;
-      }
-    }
-    // Discord OAuth is configured but user is not authenticated — show Discord login
-    else {
-      return <DiscordLoginGate />;
-    }
+    // Non-admin pages pass through in fallback mode (no Discord = open public access)
+  }
+  // Discord OAuth is configured
+  else if (!auth.authenticated) {
+    // Not logged in — require Discord login for ALL pages
+    return <DiscordLoginGate />;
+  }
+  // Authenticated but trying to access admin without admin role
+  else if (adminMode && !auth.isAdmin) {
+    return (
+      <div style={{ height: "100vh", background: surface.base, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font.sans }}>
+        <div style={{
+          background: surface.panel, border: `1px solid ${border.subtle}`,
+          borderRadius: radius.lg, padding: space[8], width: 380, maxWidth: "90vw",
+          display: "flex", flexDirection: "column", gap: space[3], textAlign: "center",
+        }}>
+          <div style={{ width: 40, height: 40, borderRadius: radius.base, background: intent.danger, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: fontWeight.bold, margin: "0 auto" }}>!</div>
+          <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: text.primary }}>Access Denied</div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, lineHeight: 1.5 }}>
+            You are signed in as <strong>{auth.user?.globalName || auth.user?.username}</strong>, but your Discord role does not have admin access. Contact an officer if you need admin permissions.
+          </div>
+          <div style={{ display: "flex", gap: space[2], justifyContent: "center" }}>
+            <a href={getLogoutUrl()} style={{ ...btnStyle("default"), textDecoration: "none", display: "inline-flex", alignItems: "center", height: 34 }}>Sign out</a>
+            <button onClick={() => window.history.back()} style={{ ...btnStyle("primary"), height: 34 }}>Go back</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -529,7 +546,7 @@ export function AppShell({ teamId, children, adminMode = false, parsePanelConten
         *::-webkit-scrollbar-thumb:hover { background: ${text.disabled}; }
       `}</style>
 
-      <AppHeader teamId={teamId} adminMode={adminMode} isMobile={isMobile} onMenuOpen={() => setMenuOpen(true)} authUser={auth.authenticated ? auth.user : null} />
+      <AppHeader teamId={teamId} adminMode={adminMode} isMobile={isMobile} onMenuOpen={() => setMenuOpen(true)} authUser={auth.authenticated ? auth.user : null} isAdmin={auth.isAdmin || auth.fallback} />
 
       {isMobile && menuOpen && (
         <MobileNavOverlay teamId={teamId} adminMode={adminMode} onClose={() => setMenuOpen(false)} />
@@ -555,7 +572,7 @@ export function AppShell({ teamId, children, adminMode = false, parsePanelConten
 }
 
 // ── App header ────────────────────────────────────────────────────────────────
-function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser }) {
+function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin }) {
   const navigate   = useNavigate();
   const location   = useLocation();
   const isKara     = location.pathname.startsWith("/kara");
@@ -605,7 +622,7 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser }) {
             }}
             aria-label="Open navigation"
           >☰</button>
-        ) : adminMode ? (
+        ) : (
             <>
               {authUser && (
                 <div style={{ display: "flex", alignItems: "center", gap: space[1], marginRight: space[1] }}>
@@ -626,18 +643,20 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser }) {
                   >Sign out</a>
                 </div>
               )}
-              <button onClick={() => {
-                if (isKara) navigate("/kara");
-                else if (location.pathname.includes("/history")) navigate("/history");
-                else navigate(`/${teamId || "team-dick"}`);
-              }} style={btnStyle("default")}>← Public View</button>
+              {adminMode ? (
+                <button onClick={() => {
+                  if (isKara) navigate("/kara");
+                  else if (location.pathname.includes("/history")) navigate("/history");
+                  else navigate(`/${teamId || "team-dick"}`);
+                }} style={btnStyle("default")}>← Public View</button>
+              ) : isAdmin && (
+                <button onClick={() => {
+                  if (isKara) navigate("/kara/admin");
+                  else if (location.pathname.includes("/history")) navigate("/history/admin");
+                  else navigate(`/${teamId || "team-dick"}/25man/admin`);
+                }} style={btnStyle("default")}>Admin →</button>
+              )}
             </>
-          ) : (
-            <button onClick={() => {
-              if (isKara) navigate("/kara/admin");
-              else if (location.pathname.includes("/history")) navigate("/history/admin");
-              else navigate(`/${teamId || "team-dick"}/25man/admin`);
-            }} style={btnStyle("default")}>Admin →</button>
           )}
       </div>
     </div>

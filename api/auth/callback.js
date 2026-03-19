@@ -39,14 +39,16 @@ export default async function handler(req, res) {
   const clientSecret = process.env.DISCORD_CLIENT_SECRET;
   const botToken = process.env.DISCORD_BOT_TOKEN;
   const guildId = process.env.DISCORD_GUILD_ID;
-  const allowedRoleIds = (process.env.DISCORD_ALLOWED_ROLE_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
+  const adminRoleIds = (process.env.DISCORD_ALLOWED_ROLE_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
+  const memberRoleIds = (process.env.DISCORD_MEMBER_ROLE_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
   const authSecret = process.env.AUTH_SECRET;
 
   if (!clientId || !clientSecret || !botToken || !guildId || !authSecret) {
     return errorRedirect(res, "Server auth not configured");
   }
 
-  if (allowedRoleIds.length === 0) {
+  const allAllowedRoleIds = [...new Set([...adminRoleIds, ...memberRoleIds])];
+  if (allAllowedRoleIds.length === 0) {
     return errorRedirect(res, "No allowed roles configured");
   }
 
@@ -100,20 +102,24 @@ export default async function handler(req, res) {
 
     const member = await memberRes.json();
 
-    // 4. Check if user has any allowed role
-    const hasRole = member.roles.some(roleId => allowedRoleIds.includes(roleId));
+    // 4. Check if user has any allowed role (member or admin)
+    const hasAccess = member.roles.some(roleId => allAllowedRoleIds.includes(roleId));
 
-    if (!hasRole) {
-      return errorRedirect(res, "You do not have permission to access admin. Contact an officer.");
+    if (!hasAccess) {
+      return errorRedirect(res, "You do not have permission to access this site. Contact an officer.");
     }
 
-    // 5. Build JWT and set cookie
+    // 5. Determine if user is admin
+    const isAdmin = adminRoleIds.length > 0 && member.roles.some(roleId => adminRoleIds.includes(roleId));
+
+    // 6. Build JWT and set cookie
     const payload = {
       discordId: user.id,
       username: user.username,
       globalName: user.global_name || user.username,
       avatar: user.avatar,
-      roles: member.roles.filter(r => allowedRoleIds.includes(r)),
+      isAdmin,
+      roles: member.roles.filter(r => allAllowedRoleIds.includes(r)),
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + COOKIE_MAX_AGE,
     };
