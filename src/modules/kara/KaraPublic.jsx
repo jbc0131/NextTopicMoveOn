@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   surface, border, text, accent, intent, font, fontSize,
   fontWeight, radius, space, btnStyle, layout,
@@ -137,7 +137,10 @@ export default function KaraPublic() {
   const [viewingSnap, setViewingSnap] = useState(null);
   const [searchName,  setSearchName]  = useState("");
 
-  const roster = [...(data?.rosterTue ?? []), ...(data?.rosterThu ?? [])];
+  const roster = useMemo(
+    () => [...(data?.rosterTue ?? []), ...(data?.rosterThu ?? [])],
+    [data?.rosterTue, data?.rosterThu]
+  );
   const { scores: wclScores, loading: wclLoading, lastFetch: wclLastFetch, refetch: wclRefetch } =
     useWarcraftLogs(roster, { teamId: "shared", module: "kara" });
 

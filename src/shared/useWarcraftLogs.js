@@ -12,11 +12,11 @@
  *     useWarcraftLogs(roster, { teamId: "team-dick", module: "kara" });
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { getRole } from "./constants";
 
 const CACHE_VERSION = "v6";
-const CACHE_TTL     = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL     = 30 * 60 * 1000; // 30 minutes (matches server-side cache)
 
 function cacheKey(teamId, module) {
   return `wcl_scores_${CACHE_VERSION}_${teamId}_${module}`;
@@ -61,28 +61,45 @@ export function useWarcraftLogs(roster, { teamId, module } = {}) {
   const [lastFetch, setLastFetch] = useState(null);
 
   const lastFetchedKey = useRef(null);
+  const fetchInFlight  = useRef(false);
+
+  // Stabilize roster identity — only change when player names actually change
+  const namesKey = useMemo(() => buildNamesKey(roster || []), [roster]);
+  const stableNamesKey = useRef(namesKey);
+  const stableRoster   = useRef(roster);
+  if (namesKey !== stableNamesKey.current) {
+    stableNamesKey.current = namesKey;
+    stableRoster.current   = roster;
+  }
 
   const fetchScores = useCallback(async (forceRefresh = false) => {
-    if (!roster || roster.length === 0) return;
+    const currentRoster = stableRoster.current;
+    if (!currentRoster || currentRoster.length === 0) return;
     if (!teamId || !module) {
       console.warn("useWarcraftLogs: teamId and module are required");
       return;
     }
+    if (fetchInFlight.current && !forceRefresh) return;
 
-    const namesKey = buildNamesKey(roster);
+    const currentNamesKey = stableNamesKey.current;
 
     if (!forceRefresh) {
       const cached = loadCache(teamId, module);
       if (cached) {
-        setScores(cached);
-        lastFetchedKey.current = namesKey;
+        setScores(prev => {
+          // Avoid re-render if cache content is identical
+          const prevJson = JSON.stringify(prev);
+          const cachedJson = JSON.stringify(cached);
+          return prevJson === cachedJson ? prev : cached;
+        });
+        lastFetchedKey.current = currentNamesKey;
         return;
       }
-      if (namesKey === lastFetchedKey.current) return;
+      if (currentNamesKey === lastFetchedKey.current) return;
     }
 
     const seen    = new Set();
-    const players = roster
+    const players = currentRoster
       .filter(p => p.name && !p.isDivider)
       .reduce((acc, p) => {
         const name = p.wclName?.trim() || p.name;
@@ -95,6 +112,7 @@ export function useWarcraftLogs(roster, { teamId, module } = {}) {
 
     if (players.length === 0) return;
 
+    fetchInFlight.current = true;
     setLoading(true);
     setError(null);
 
@@ -112,28 +130,33 @@ export function useWarcraftLogs(roster, { teamId, module } = {}) {
       saveCache(data, teamId, module);
       setScores(data);
       setLastFetch(new Date());
-      lastFetchedKey.current = namesKey;
+      lastFetchedKey.current = currentNamesKey;
     } catch (err) {
       console.error("WCL fetch error:", err);
       setError(err.message);
     } finally {
+      fetchInFlight.current = false;
       setLoading(false);
     }
-  }, [roster, teamId, module]);
+  }, [teamId, module, namesKey]);
 
   useEffect(() => {
     if (!roster || roster.length === 0 || !teamId || !module) return;
-    const namesKey = buildNamesKey(roster);
-    const cached   = loadCache(teamId, module);
+    const currentNamesKey = stableNamesKey.current;
+    const cached = loadCache(teamId, module);
     if (cached) {
-      setScores(cached);
-      lastFetchedKey.current = namesKey;
+      setScores(prev => {
+        const prevJson = JSON.stringify(prev);
+        const cachedJson = JSON.stringify(cached);
+        return prevJson === cachedJson ? prev : cached;
+      });
+      lastFetchedKey.current = currentNamesKey;
       return;
     }
-    if (namesKey !== lastFetchedKey.current) {
+    if (currentNamesKey !== lastFetchedKey.current) {
       fetchScores();
     }
-  }, [fetchScores]);
+  }, [fetchScores, teamId, module]);
 
   return {
     scores,

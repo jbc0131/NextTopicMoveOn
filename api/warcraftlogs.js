@@ -15,6 +15,11 @@ const SERVER_REGION = "us";
 const ZONE_KARA      = 1047; // Karazhan
 const ZONE_GRUULMAGS = 1048; // Gruul's Lair + Magtheridon
 
+// Server-side cache: shared across all requests within the same serverless instance.
+// Key = sorted player names, Value = { result, fetchedAt }
+const SERVER_CACHE     = new Map();
+const SERVER_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
 // Token is cached for the lifetime of this serverless instance
 let cachedToken     = null;
 let tokenExpiresAt  = 0;
@@ -59,7 +64,6 @@ function sanitizeName(name) {
 // Build a single GraphQL query for one character with their correct role
 function buildQuery({ name, role }) {
   const wclRole = role === "Healer" ? "Healer" : role === "Tank" ? "Tank" : "DPS";
-  console.log(`[WCL] ${name} → ${wclRole} (role input: "${role}")`);
   return `
     ${sanitizeName(name)}: characterData {
       character(name: "${name}", serverSlug: "${SERVER_SLUG}", serverRegion: "${SERVER_REGION}") {
@@ -98,6 +102,14 @@ function extractScore(zoneData) {
   return Math.round(val * 10) / 10;
 }
 
+// Build a cache key from sorted player names + roles
+function buildCacheKey(players) {
+  return players
+    .map(p => `${p.name}:${p.role || "DPS"}`)
+    .sort()
+    .join("|");
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -120,6 +132,13 @@ export default async function handler(req, res) {
   // Cap at 100 per request
   const batch = players.slice(0, 100);
 
+  // Check server-side cache first
+  const cacheKey = buildCacheKey(batch);
+  const cached = SERVER_CACHE.get(cacheKey);
+  if (cached && (Date.now() - cached.fetchedAt) < SERVER_CACHE_TTL) {
+    return res.status(200).json(cached.result);
+  }
+
   try {
     const token = await getAccessToken();
     const data  = await queryWCL(batch, token);
@@ -138,6 +157,17 @@ export default async function handler(req, res) {
         gruulMags: extractScore(charData?.gruulMags),
         found:     !!charData,
       };
+    }
+
+    // Store in server-side cache
+    SERVER_CACHE.set(cacheKey, { result, fetchedAt: Date.now() });
+
+    // Evict old entries to prevent unbounded growth
+    if (SERVER_CACHE.size > 50) {
+      const now = Date.now();
+      for (const [key, val] of SERVER_CACHE) {
+        if (now - val.fetchedAt > SERVER_CACHE_TTL) SERVER_CACHE.delete(key);
+      }
     }
 
     return res.status(200).json(result);
