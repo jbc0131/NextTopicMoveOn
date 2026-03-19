@@ -461,8 +461,7 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen }) {
             }}
             aria-label="Open navigation"
           >☰</button>
-        ) : (
-          {adminMode ? (
+        ) : adminMode ? (
             <button onClick={() => {
               if (isKara) navigate("/kara");
               else if (location.pathname.includes("/history")) navigate(`/${teamId || "team-dick"}/history`);
@@ -475,7 +474,6 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen }) {
               else navigate(`/${teamId || "team-dick"}/25man/admin`);
             }} style={btnStyle("default")}>Admin →</button>
           )}
-        )}
       </div>
     </div>
   );
@@ -649,7 +647,7 @@ function NavSidebar({ teamId, adminMode, parsePanelContent }) {
                 const currentModule = location.pathname.includes("/25man") ? "/25man"
                   : location.pathname.includes("/history") ? "/history"
                   : "";
-                const adminSuffix = adminMode && currentModule !== "/history" ? "/admin" : "";
+                const adminSuffix = adminMode ? "/admin" : "";
                 navigate(`/${team.id}${currentModule}${adminSuffix}`);
               }}
               style={{
