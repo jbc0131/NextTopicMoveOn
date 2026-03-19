@@ -1,4 +1,4 @@
-import { buildCacheKey, getJsonCache, setJsonCache } from "../RPB/server/upstashRedis.js";
+import { assertRedisConfigured, buildCacheKey, getJsonCache, setJsonCache } from "../RPB/server/upstashRedis.js";
 
 const RPB_INDEX_KEY = buildCacheKey("rpb", ["index"]);
 
@@ -44,6 +44,7 @@ function getRaidKeys(raidId) {
 }
 
 async function saveRaidBundle(raid) {
+  assertRedisConfigured();
   const keys = getRaidKeys(raid.id);
   const summary = getRaidSummary(raid);
   const meta = getRaidMeta(raid);
@@ -52,17 +53,22 @@ async function saveRaidBundle(raid) {
     .sort((a, b) => new Date(b.importedAt || 0) - new Date(a.importedAt || 0))
     .slice(0, 100);
 
-  await Promise.all([
+  const results = await Promise.all([
     setJsonCache(keys.meta, meta),
     setJsonCache(keys.fights, raid.fights || []),
     setJsonCache(keys.players, raid.players || []),
     setJsonCache(RPB_INDEX_KEY, nextIndex),
   ]);
 
+  if (results.some(result => !result)) {
+    throw new Error("Failed to write RPB data to Redis.");
+  }
+
   return summary;
 }
 
 async function getRaidBundle(raidId) {
+  assertRedisConfigured();
   const keys = getRaidKeys(raidId);
   const [meta, fights, players] = await Promise.all([
     getJsonCache(keys.meta),
@@ -86,6 +92,8 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
+    assertRedisConfigured();
+
     if (req.method === "GET") {
       const raidId = String(req.query?.raidId || "").trim();
       const maxCount = Number(req.query?.maxCount || 25);

@@ -103,3 +103,9 @@ export function buildCacheKey(prefix, parts = []) {
 export function redisEnabled() {
   return canUseRedis();
 }
+
+export function assertRedisConfigured() {
+  if (!canUseRedis()) {
+    throw new Error("Upstash Redis is not configured. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.");
+  }
+}

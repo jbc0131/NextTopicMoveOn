@@ -1,4 +1,4 @@
-import { buildCacheKey, getJsonCache, setJsonCache } from "../RPB/server/upstashRedis.js";
+import { assertRedisConfigured, buildCacheKey, getJsonCache, setJsonCache } from "../RPB/server/upstashRedis.js";
 
 function getProfileKey(discordId) {
   return buildCacheKey("profile", [discordId]);
@@ -12,6 +12,8 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
+    assertRedisConfigured();
+
     if (req.method === "GET") {
       const discordId = String(req.query?.discordId || "").trim();
       if (!discordId) return res.status(400).json({ error: "discordId is required" });
@@ -32,7 +34,8 @@ export default async function handler(req, res) {
         updatedAt: new Date().toISOString(),
       };
 
-      await setJsonCache(getProfileKey(discordId), profile);
+      const saved = await setJsonCache(getProfileKey(discordId), profile);
+      if (!saved) throw new Error("Failed to write profile data to Redis.");
       return res.status(200).json({ persistence: "remote", profile });
     }
 
