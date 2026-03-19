@@ -207,18 +207,21 @@ export const CUBEBU_KEYS = [];
 export const ALL_CUBE_KEYS = [...CUBE1_KEYS];
 
 export const MAGS_P2 = [
-  { key: "m_p2mt",   label: "Main Tank",    role: "Tank",   hint: "" },
-  { key: "m_p2h1",   label: "Main Tank",    role: "Healer", hint: "" },
-  { key: "m_p2h2",   label: "Cube Healer", markerKey: "skull",    role: "Healer", hint: "" },
-  { key: "m_p2h3",   label: "Cube Healer", markerKey: "cross",    role: "Healer", hint: "" },
-  { key: "m_p2h4",   label: "Cube Healer", markerKey: "square",   role: "Healer", hint: "" },
-  { key: "m_p2h5",   label: "Cube Healer", markerKey: "moon",     role: "Healer", hint: "" },
-  { key: "m_p2h6",   label: "Cube Healer", markerKey: "triangle", role: "Healer", hint: "" },
+  // Cube Clickers — primary assignment, shown first
   { key: "m_p2c1a",  label: "Cube Clicker", markerKey: "skull",    role: "DPS", roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
   { key: "m_p2c1b",  label: "Cube Clicker", markerKey: "cross",    role: "DPS", roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
   { key: "m_p2c1c",  label: "Cube Clicker", markerKey: "square",   role: "DPS", roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
   { key: "m_p2c1d",  label: "Cube Clicker", markerKey: "moon",     role: "DPS", roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
   { key: "m_p2c1e",  label: "Cube Clicker", markerKey: "triangle", role: "DPS", roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
+  // Tank
+  { key: "m_p2mt",   label: "Main Tank",    role: "Tank",   hint: "" },
+  // Healers
+  { key: "m_p2h1",   label: "Main Tank",    role: "Healer", hint: "" },
+  { key: "m_p2h2",   label: "Cube Healer",  markerKey: "skull",    role: "Healer", hint: "" },
+  { key: "m_p2h3",   label: "Cube Healer",  markerKey: "cross",    role: "Healer", hint: "" },
+  { key: "m_p2h4",   label: "Cube Healer",  markerKey: "square",   role: "Healer", hint: "" },
+  { key: "m_p2h5",   label: "Cube Healer",  markerKey: "moon",     role: "Healer", hint: "" },
+  { key: "m_p2h6",   label: "Cube Healer",  markerKey: "triangle", role: "Healer", hint: "" },
 ];
 
 // ── General assignments ───────────────────────────────────────────────────────

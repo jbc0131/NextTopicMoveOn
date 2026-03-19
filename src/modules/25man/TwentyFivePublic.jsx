@@ -186,17 +186,29 @@ export default function TwentyFivePublic({ teamId }) {
             </div>
           )}
 
-          {/* Tab bar */}
-          <div style={{ display: "flex", gap: space[2], marginBottom: space[3] }}>
+          {/* Tab bar — segmented control style */}
+          <div style={{
+            display: "flex", marginBottom: space[3],
+            background: surface.panel, border: `1px solid ${border.subtle}`,
+            borderRadius: radius.base, padding: 3, gap: 2, width: "fit-content",
+          }}>
             {[["mags","🔥 Magtheridon"],["gruul","⚔ Gruul's Lair"]].map(([tab, label]) => (
-              <button key={tab} onClick={() => setActiveTab(tab)} style={{ ...btnStyle(activeTab === tab ? "primary" : "default"), height: 32 }}>{label}</button>
+              <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                padding: `${space[1]}px ${space[4]}px`, height: 30,
+                border: "none", borderRadius: radius.sm, cursor: "pointer",
+                fontFamily: font.sans, fontSize: fontSize.sm, fontWeight: fontWeight.medium,
+                background: activeTab === tab ? surface.overlay : "transparent",
+                color: activeTab === tab ? text.primary : text.muted,
+                boxShadow: activeTab === tab ? `0 1px 3px rgba(0,0,0,0.3)` : "none",
+                transition: "all 0.15s",
+              }}>{label}</button>
             ))}
           </div>
 
           {activeTab === "mags" && (
             <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
-              <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage="mags" rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
               <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage="mags" rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
+              <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage="mags" rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
             </div>
           )}
 

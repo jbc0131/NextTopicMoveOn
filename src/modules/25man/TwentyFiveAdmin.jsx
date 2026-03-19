@@ -81,11 +81,39 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
         }}
       >
         {(rowCfg.label || rowCfg.markerKey) && (
-          <span style={{ fontSize: compact ? fontSize.xs : fontSize.sm, color: text.secondary, fontFamily: font.sans, minWidth: compact ? 140 : 200, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: space[1] }}>
+          <span style={{ fontSize: compact ? fontSize.xs : fontSize.sm, color: text.secondary, fontFamily: font.sans, width: 180, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: space[1] }}>
             {rowCfg.markerKey && <MarkerIcon markerKey={rowCfg.markerKey} size={compact ? 13 : 15} />}
             {rowCfg.label}
           </span>
         )}
+        {/* Cube Clicker rows — two-column grid when multiple players assigned */}
+        {rowCfg.cubeGroup != null && slots.length > 1 ? (
+          <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: space[1] }}>
+            {slots.map(slot => {
+              const color = getColor(slot);
+              return (
+                <div key={slot.id} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+                  <span
+                    draggable={!!onDragStart}
+                    onDragStart={onDragStart ? e => { e.stopPropagation(); onDragStart(e, slot, rowCfg.key); } : undefined}
+                    style={{
+                      background: `${color}18`, border: `1px solid ${color}44`, borderRadius: radius.sm,
+                      padding: "2px 8px", color, fontFamily: font.sans, fontSize: fontSize.sm,
+                      display: "inline-flex", alignItems: "center", gap: space[1],
+                      cursor: onDragStart ? "grab" : "default", userSelect: "none", flex: 1,
+                    }}
+                  >
+                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                    {slot.name}
+                    <span style={{ color: `${color}77`, fontSize: fontSize.xs }}>{getSpecDisplay(slot)}</span>
+                  </span>
+                  <button onClick={() => onClear && onClear(rowCfg.key, slot.id)} style={{ background: "none", border: "none", color: text.muted, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="Remove">×</button>
+                </div>
+              );
+            })}
+            {over && <span style={{ fontSize: fontSize.xs, color: accent.blue, fontStyle: "italic" }}>drop here</span>}
+          </div>
+        ) : (
         <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: space[1], alignItems: "center" }}>
           {slots.map(slot => {
             const color = getColor(slot);
@@ -111,6 +139,7 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
           })}
           {over && <span style={{ fontSize: fontSize.xs, color: accent.blue, fontStyle: "italic" }}>drop here</span>}
         </div>
+        )}
         {rowCfg.textInput && (
           <input
             value={textValues?.[rowCfg.key] || ""}
@@ -508,18 +537,30 @@ export default function TwentyFiveAdmin({ teamId }) {
           />
 
           <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
-            {/* Tab bar */}
-            <div style={{ display: "flex", gap: space[2], marginBottom: space[3] }}>
+            {/* Tab bar — segmented control style */}
+            <div style={{
+              display: "flex", marginBottom: space[3],
+              background: surface.panel, border: `1px solid ${border.subtle}`,
+              borderRadius: radius.base, padding: 3, gap: 2, width: "fit-content",
+            }}>
               {[["mags","🔥 Magtheridon"], ["gruul","⚔ Gruul's Lair"]].map(([tab, label]) => (
-                <button key={tab} onClick={() => setActiveTab(tab)} style={{ ...btnStyle(activeTab === tab ? "primary" : "default"), height: 32 }}>{label}</button>
+                <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                  padding: `${space[1]}px ${space[4]}px`, height: 30,
+                  border: "none", borderRadius: radius.sm, cursor: "pointer",
+                  fontFamily: font.sans, fontSize: fontSize.sm, fontWeight: fontWeight.medium,
+                  background: activeTab === tab ? surface.overlay : "transparent",
+                  color: activeTab === tab ? text.primary : text.muted,
+                  boxShadow: activeTab === tab ? `0 1px 3px rgba(0,0,0,0.3)` : "none",
+                  transition: "all 0.15s",
+                }}>{label}</button>
               ))}
             </div>
 
             {activeTab === "mags" && <>
               <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
               <div style={{ display: "flex", gap: space[3] }}>
-                <AssignmentPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
                 <AssignmentPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
+                <AssignmentPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
               </div>
             </>}
 

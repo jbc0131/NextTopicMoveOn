@@ -101,25 +101,50 @@ export function KaraPlayerBadge({ slot, onSpecCycle, onDragStart }) {
 
 // ── Role section header ───────────────────────────────────────────────────────
 export function RoleHeader({ role: roleName, overrideLabel }) {
+  const isCubeClickers = overrideLabel === "Cube Clickers";
   const rc     = roleColors[roleName?.toLowerCase()] || roleColors.dps;
   const icons  = { Tank: "🛡", Healer: "💚", DPS: "⚔" };
   const titles = { Tank: "Tank Assignments", Healer: "Healer Assignments", DPS: "DPS Assignments" };
   const label  = overrideLabel || titles[roleName];
+
+  // Cube Clickers — gold accent, visually distinct as primary assignment
+  if (isCubeClickers) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", gap: space[2],
+        padding: `${space[2]}px ${space[3]}px`,
+        borderLeft: `3px solid #C87619`,
+        borderBottom: `1px solid #C8761933`,
+        background: `#C8761910`,
+        marginTop: space[2], marginBottom: 2,
+      }}>
+        <span style={{
+          fontSize: fontSize.xs, fontFamily: font.sans, fontWeight: fontWeight.bold,
+          color: "#C87619", letterSpacing: "0.08em", textTransform: "uppercase",
+        }}>
+          🎯 {label}
+        </span>
+        <span style={{ fontSize: 9, color: "#C8761988", fontFamily: font.sans }}>
+          — PRIMARY ASSIGNMENT
+        </span>
+      </div>
+    );
+  }
+
+  // Standard role headers — subtle, not dominant
   return (
     <div style={{
-      padding: "5px 10px",
-      background: rc.tag,
-      borderRadius: radius.sm,
-      fontSize: fontSize.xs,
-      fontFamily: font.sans,
-      fontWeight: fontWeight.bold,
-      color: text.primary,
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginTop: 10,
-      marginBottom: 4,
+      display: "flex", alignItems: "center", gap: space[2],
+      padding: `${space[1]}px ${space[3]}px`,
+      borderLeft: `2px solid ${rc.color}55`,
+      marginTop: space[2], marginBottom: 2,
     }}>
-      {icons[roleName]}  {label}
+      <span style={{
+        fontSize: fontSize.xs, fontFamily: font.sans, fontWeight: fontWeight.medium,
+        color: text.muted, letterSpacing: "0.08em", textTransform: "uppercase",
+      }}>
+        {icons[roleName]}  {label}
+      </span>
     </div>
   );
 }
@@ -137,32 +162,35 @@ export function BossPanel({ title, icon, subtitle, bossImage, children, compact 
   const accentColor = meta?.accent || accent.blue;
   return (
     <div style={{ ...panelStyle, flex: 1, minWidth: 0 }}>
-      {/* Flat header with left accent border */}
+      {/* Boss header — primary organizational unit, visually dominant */}
       <div style={{
-        display: "flex", alignItems: "center", gap: space[2],
-        padding: compact ? `${space[2]}px ${space[3]}px` : `${space[2]}px ${space[3]}px`,
-        borderBottom: `1px solid ${border.subtle}`,
-        background: surface.panel,
-        minHeight: compact ? 36 : 48,
+        display: "flex", alignItems: "center", gap: space[3],
+        padding: `${space[3]}px ${space[4]}px`,
+        borderBottom: `2px solid ${accentColor}44`,
+        background: `${accentColor}0a`,
+        minHeight: compact ? 44 : 56,
       }}>
-        <div style={{ width: 3, height: 20, borderRadius: 1, background: accentColor, flexShrink: 0 }} />
-        <div>
-          <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: accentColor, fontFamily: font.sans }}>
+        <div style={{ width: 4, height: 28, borderRadius: 2, background: accentColor, flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{
+            fontSize: fontSize.base, fontWeight: fontWeight.bold,
+            color: accentColor, fontFamily: font.sans, letterSpacing: "0.03em",
+          }}>
             {icon} {title}
           </div>
           {subtitle && !compact && (
-            <div style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, marginTop: 1 }}>
+            <div style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, marginTop: 2 }}>
               {subtitle}
             </div>
           )}
         </div>
         {meta && !compact && (
-          <span style={{ marginLeft: "auto", fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, letterSpacing: "0.06em" }}>
+          <span style={{ fontSize: fontSize.xs, color: `${accentColor}66`, fontFamily: font.sans, letterSpacing: "0.06em", textTransform: "uppercase" }}>
             {meta.label}
           </span>
         )}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: compact ? space[2] : space[3] }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 1, padding: compact ? space[2] : space[3] }}>
         {children}
       </div>
     </div>
@@ -176,8 +204,9 @@ export function WarningBar({ text: msg }) {
       fontSize: fontSize.sm,
       color: intent.warning,
       padding: `${space[1]}px ${space[3]}px`,
-      background: `${intent.warning}12`,
+      background: `${intent.warning}10`,
       border: `1px solid ${intent.warning}33`,
+      borderLeft: `3px solid ${intent.warning}`,
       borderRadius: radius.base,
       marginBottom: space[3],
       fontFamily: font.sans,
@@ -340,6 +369,13 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", 
 export function AppShell({ teamId, children, adminMode = false, parsePanelContent }) {
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: surface.base, display: "flex", flexDirection: "column", fontFamily: font.sans }}>
+      <style>{`
+        * { scrollbar-width: thin; scrollbar-color: ${border.strong} transparent; }
+        *::-webkit-scrollbar { width: 6px; height: 6px; }
+        *::-webkit-scrollbar-track { background: transparent; }
+        *::-webkit-scrollbar-thumb { background: ${border.strong}; border-radius: 3px; }
+        *::-webkit-scrollbar-thumb:hover { background: ${text.disabled}; }
+      `}</style>
       <AppHeader teamId={teamId} adminMode={adminMode} />
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <NavSidebar teamId={teamId} adminMode={adminMode} parsePanelContent={parsePanelContent} />
@@ -598,28 +634,32 @@ export function ParseScoresPanel({ scores, roster, module, loading, error, lastF
 
   return (
     <div style={{ borderTop: `1px solid ${border.subtle}`, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-      {/* Collapsible header */}
+      {/* Parse panel header */}
       <button
         onClick={() => setOpen(v => !v)}
         style={{
           width: "100%", border: "none", cursor: "pointer", textAlign: "left",
           padding: `${space[2]}px ${space[3]}px`,
           background: surface.panel,
+          borderBottom: `1px solid ${border.subtle}`,
           display: "flex", alignItems: "center", justifyContent: "space-between",
           flexShrink: 0,
         }}
       >
-        <span style={{ fontSize: fontSize.xs, color: accent.blue, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: font.sans }}>
-          📊 {label}
-        </span>
         <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
-          {loading && <LoadingSpinner size={12} />}
+          <div style={{ width: 2, height: 12, borderRadius: 1, background: accent.blue, flexShrink: 0 }} />
+          <span style={{ fontSize: fontSize.xs, color: text.secondary, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: font.sans }}>
+            {label}
+          </span>
+          {loading && <LoadingSpinner size={10} />}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
           {lastFetch && !loading && (
-            <span style={{ fontSize: 9, color: text.muted, fontFamily: font.sans }}>
+            <span style={{ fontSize: 9, color: text.disabled, fontFamily: font.sans }}>
               {lastFetch.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
-          <span style={{ fontSize: fontSize.xs, color: text.muted }}>{open ? "▲" : "▼"}</span>
+          <span style={{ fontSize: 9, color: text.disabled }}>{open ? "▲" : "▼"}</span>
         </div>
       </button>
 
