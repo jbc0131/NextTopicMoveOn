@@ -12,7 +12,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import {
   getFirestore, doc, setDoc, onSnapshot, getDoc,
-  collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, updateDoc,
+  collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, updateDoc, writeBatch,
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -52,6 +52,20 @@ function tfLiveDoc(teamId, night) {
 }
 function tfSnapshotsCol(teamId) {
   return collection(db, "raid", teamId, "25man-snapshots");
+}
+
+const RPB_RAIDS_COL = collection(db, "rpb-raids");
+
+function rpbRaidDoc(raidId) {
+  return doc(db, "rpb-raids", raidId);
+}
+
+function rpbFightsCol(raidId) {
+  return collection(db, "rpb-raids", raidId, "fights");
+}
+
+function rpbPlayersCol(raidId) {
+  return collection(db, "rpb-raids", raidId, "players");
 }
 
 // ── Kara — live state ─────────────────────────────────────────────────────────
@@ -191,6 +205,80 @@ export async function fetchAllSnapshots(teamId, maxCount = 40) {
   return [...karaSnaps, ...tfSnaps]
     .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt))
     .slice(0, maxCount);
+}
+
+// ── RPB — persistent raid imports ────────────────────────────────────────────
+export async function saveRpbRaidImport(raid) {
+  const raidId = raid.id || `${raid.reportId}-${raid.start ?? "0"}-${raid.end ?? "0"}`;
+  const importedAt = raid.importedAt || new Date().toISOString();
+  const raidRef = rpbRaidDoc(raidId);
+  const batch = writeBatch(db);
+
+  batch.set(raidRef, sanitize({
+    id: raidId,
+    reportId: raid.reportId,
+    title: raid.title || "",
+    zone: raid.zone || "",
+    zoneId: raid.zoneId ?? null,
+    start: raid.start ?? null,
+    end: raid.end ?? null,
+    importedAt,
+    updatedAt: new Date().toISOString(),
+    fightCount: (raid.fights || []).length,
+    playerCount: (raid.players || []).length,
+    source: "wcl-import",
+  }));
+
+  for (const fight of raid.fights || []) {
+    const fightRef = doc(rpbFightsCol(raidId), String(fight.id));
+    batch.set(fightRef, sanitize({
+      ...fight,
+      raidId,
+    }));
+  }
+
+  for (const player of raid.players || []) {
+    const playerRef = doc(rpbPlayersCol(raidId), String(player.id));
+    batch.set(playerRef, sanitize({
+      ...player,
+      raidId,
+    }));
+  }
+
+  await batch.commit();
+  return raidId;
+}
+
+export async function fetchRpbRaidList(maxCount = 25) {
+  const q = query(RPB_RAIDS_COL, orderBy("importedAt", "desc"), limit(maxCount));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function fetchRpbRaid(raidId) {
+  const snap = await getDoc(rpbRaidDoc(raidId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+export async function fetchRpbRaidFights(raidId) {
+  const snap = await getDocs(query(rpbFightsCol(raidId), orderBy("startTime", "asc")));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function fetchRpbRaidPlayers(raidId) {
+  const snap = await getDocs(query(rpbPlayersCol(raidId), orderBy("name", "asc")));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function fetchRpbRaidBundle(raidId) {
+  const [raid, fights, players] = await Promise.all([
+    fetchRpbRaid(raidId),
+    fetchRpbRaidFights(raidId),
+    fetchRpbRaidPlayers(raidId),
+  ]);
+
+  if (!raid) return null;
+  return { ...raid, fights, players };
 }
 
 // ── Dashboard — lightweight summary reads ─────────────────────────────────────

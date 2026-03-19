@@ -673,7 +673,7 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
     { path: `/kara`,                                     label: "Karazhan",     external: false },
     { path: `/${teamId || "team-dick"}/25man`,           label: "25-Man Raids", external: false },
     { path: `/history`,                                  label: "Raid History", external: false },
-    { path: `/history`,                                  label: "RBP/CLA",      external: false },
+    { path: `/rpb`,                                      label: "RBP/CLA",      external: false },
     { path: "https://professions.nexttopicmoveon.com/", label: "Professions",  external: true  },
   ];
 
@@ -715,7 +715,8 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
           const active =
             (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))  ||
             (link.path.includes("/25man")   && location.pathname.includes("/25man"))   ||
-            (link.path.includes("/history") && location.pathname.includes("/history"));
+            (link.path.includes("/history") && location.pathname.includes("/history")) ||
+            (link.path.includes("/rpb")     && location.pathname.startsWith("/rpb"));
           return (
             <button
               key={link.path}
@@ -785,7 +786,7 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
     { path: `/kara${adminMode ? "/admin" : ""}`,                           label: "Karazhan",     icon: "KR" },
     { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "25" },
     { path: `/history${adminMode ? "/admin" : ""}`,                        label: "Raid History", icon: "HX" },
-    { path: `/history${adminMode ? "/admin" : ""}`,                        label: "RBP/CLA",      icon: "RC" },
+    { path: `/rpb`,                                                        label: "RBP/CLA",      icon: "RC" },
     { path: "https://professions.nexttopicmoveon.com/",                    label: "Professions",  icon: "PF", external: true },
   ];
 
@@ -825,7 +826,8 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
           const active =
             (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))   ||
             (link.path.includes("/25man")   && location.pathname.includes("/25man"))    ||
-            (link.path.includes("/history") && location.pathname.includes("/history"));
+            (link.path.includes("/history") && location.pathname.includes("/history"))  ||
+            (link.path.includes("/rpb")     && location.pathname.startsWith("/rpb"));
 
           const handleClick = () => {
             if (link.external) window.open(link.path, "_blank", "noopener noreferrer");
