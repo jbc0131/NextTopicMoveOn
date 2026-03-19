@@ -14,7 +14,7 @@ export default function handler(req, res) {
   // Set return URL in a short-lived cookie
   res.setHeader("Set-Cookie", `ntmo_return=${encodeURIComponent(returnTo)}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=600`);
 
-  const redirectUri = `${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "https://nexttopicmoveon.com"}/api/auth/callback`;
+  const redirectUri = `${process.env.AUTH_DOMAIN || "https://nexttopicmoveon.com"}/api/auth/callback`;
 
   const params = new URLSearchParams({
     client_id: clientId,

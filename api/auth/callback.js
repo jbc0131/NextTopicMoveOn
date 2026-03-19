@@ -52,7 +52,7 @@ export default async function handler(req, res) {
     return errorRedirect(res, "No allowed roles configured");
   }
 
-  const redirectUri = `${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "https://nexttopicmoveon.com"}/api/auth/callback`;
+  const redirectUri = `${process.env.AUTH_DOMAIN || "https://nexttopicmoveon.com"}/api/auth/callback`;
 
   try {
     // 1. Exchange code for access token
