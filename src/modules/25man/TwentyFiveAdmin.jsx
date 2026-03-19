@@ -11,6 +11,7 @@ import {
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, PlayerBadge, MarkerIcon,
   StatusChip, EmptyState, ConfirmDialog, WarningBar, toast, SaveStatus,
+  ParseScoresPanel,
 } from "../../shared/components";
 import {
   saveTwentyFiveState, fetchTwentyFiveState, saveTwentyFiveSnapshot,
@@ -148,7 +149,7 @@ function AssignmentPanel({ title, icon, subtitle, bossImage, rows, assignments, 
 }
 
 // ── Roster sidebar ────────────────────────────────────────────────────────────
-function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter, onDragStart, wclScores, activeTab }) {
+function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter, onDragStart, wclScores, wclLoading, wclError, wclLastFetch, onWclRefetch, onWclNameChange, activeTab }) {
   const nightRoster = roster;
   const filtered    = nightRoster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
 
@@ -206,6 +207,10 @@ export default function TwentyFiveAdmin({ teamId }) {
 
   const { scores: wclScores, loading: wclLoading, refetch: wclRefetch } =
     useWarcraftLogs(roster, { teamId, module: "25man" });
+
+  const handleWclNameChange = useCallback((playerId, newName) => {
+    setRoster(prev => prev.map(s => s.id !== playerId ? s : { ...s, wclName: newName }));
+  }, []);
 
   // ── Load ──────────────────────────────────────────────────────────────────
   const loadNight = useCallback(async (n) => {
@@ -403,7 +408,10 @@ export default function TwentyFiveAdmin({ teamId }) {
   const nightLabel = night === "tue" ? "Tuesday" : "Thursday";
 
   return (
-    <AppShell teamId={teamId} adminMode>
+    <AppShell teamId={teamId} adminMode parsePanelContent={
+      <ParseScoresPanel scores={wclScores} roster={roster} module="25man"
+        loading={wclLoading} lastFetch={null} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} />
+    }>
       <ConfirmDialog open={confirmClearOpen} title="Clear All Assignments" message="This will remove all 25-man assignments for this night. Cannot be undone." confirmLabel="Clear All" dangerous onConfirm={() => { setAssignments({}); setTextInputs({}); setConfirmClearOpen(false); }} onCancel={() => setConfirmClearOpen(false)} />
 
       <ModuleHeader
@@ -485,7 +493,19 @@ export default function TwentyFiveAdmin({ teamId }) {
         <EmptyState icon="⚔" title={`No ${nightLabel} roster`} message={`Import the ${nightLabel} JSON to get started`} action="Import JSON" onAction={() => setShowImport(true)} />
       ) : (
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-          <TwentyFiveRosterPanel roster={nightRoster} assignments={viewAssignments} roleFilter={roleFilter} setRoleFilter={setRoleFilter} onDragStart={handleDragStart} wclScores={wclScores} activeTab={activeTab} />
+          <TwentyFiveRosterPanel
+            roster={nightRoster}
+            assignments={viewAssignments}
+            roleFilter={roleFilter}
+            setRoleFilter={setRoleFilter}
+            onDragStart={handleDragStart}
+            wclScores={wclScores}
+            wclLoading={wclLoading}
+            wclLastFetch={null}
+            onWclRefetch={wclRefetch}
+            onWclNameChange={handleWclNameChange}
+            activeTab={activeTab}
+          />
 
           <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
             {/* Tab bar */}

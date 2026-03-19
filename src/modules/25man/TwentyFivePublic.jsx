@@ -10,7 +10,7 @@ import {
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, MarkerIcon,
-  StatusChip, SyncBadge, SearchBox, EmptyState, LoadingSpinner,
+  StatusChip, SyncBadge, SearchBox, EmptyState, LoadingSpinner, ParseScoresPanel,
 } from "../../shared/components";
 import {
   fetchTwentyFiveState, subscribeToTwentyFiveState, fetchTwentyFiveSnapshots,
@@ -105,7 +105,8 @@ export default function TwentyFivePublic({ teamId }) {
   const [activeTab,   setActiveTab]   = useState("gruul");
   const [searchName,  setSearchName]  = useState("");
 
-  const { scores: wclScores } = useWarcraftLogs(data?.roster ?? [], { teamId, module: "25man" });
+  const { scores: wclScores, loading: wclLoading, lastFetch: wclLastFetch, refetch: wclRefetch } =
+    useWarcraftLogs(data?.roster ?? [], { teamId, module: "25man" });
 
   useEffect(() => {
     document.title = `NTMO 25-Man – ${teamId === "team-dick" ? "Team Dick" : "Team Balls"}`;
@@ -133,7 +134,10 @@ export default function TwentyFivePublic({ teamId }) {
   const nightLabel      = night === "tue" ? "Tuesday" : "Thursday";
 
   return (
-    <AppShell teamId={teamId}>
+    <AppShell teamId={teamId} parsePanelContent={
+      <ParseScoresPanel scores={wclScores} roster={viewRoster} module="25man"
+        loading={wclLoading} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={null} />
+    }>
       <ModuleHeader
         icon="⚔"
         title="25-Man Raids"

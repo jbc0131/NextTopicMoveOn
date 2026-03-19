@@ -6,7 +6,7 @@ import {
 import { getRole, getColor, getSpecDisplay, KARA_TUE_TEAMS, KARA_THU_TEAMS } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, StatusChip, SyncBadge, SearchBox,
-  EmptyState, LoadingSpinner, KaraPlayerBadge,
+  EmptyState, LoadingSpinner, KaraPlayerBadge, ParseScoresPanel,
 } from "../../shared/components";
 import {
   fetchKaraState, subscribeToKaraState, fetchKaraSnapshots, isFirebaseConfigured,
@@ -141,7 +141,8 @@ export default function KaraPublic() {
   const [searchName,  setSearchName]  = useState("");
 
   const roster = [...(data?.rosterTue ?? []), ...(data?.rosterThu ?? [])];
-  const { scores: wclScores } = useWarcraftLogs(roster, { teamId: "shared", module: "kara" });
+  const { scores: wclScores, loading: wclLoading, lastFetch: wclLastFetch, refetch: wclRefetch } =
+    useWarcraftLogs(roster, { teamId: "shared", module: "kara" });
 
   useEffect(() => {
     document.title = "NTMO · Karazhan";
@@ -163,7 +164,10 @@ export default function KaraPublic() {
   const hasData         = allRosters.length > 0;
 
   return (
-    <AppShell>
+    <AppShell parsePanelContent={
+      <ParseScoresPanel scores={wclScores} roster={allRosters} module="kara"
+        loading={wclLoading} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={null} />
+    }>
       <ModuleHeader
         icon="🏰"
         title="Karazhan"

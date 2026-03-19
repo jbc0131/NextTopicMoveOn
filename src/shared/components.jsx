@@ -337,12 +337,12 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", 
 }
 
 // ── AppShell ──────────────────────────────────────────────────────────────────
-export function AppShell({ teamId, children, adminMode = false }) {
+export function AppShell({ teamId, children, adminMode = false, parsePanelContent }) {
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: surface.base, display: "flex", flexDirection: "column", fontFamily: font.sans }}>
       <AppHeader teamId={teamId} adminMode={adminMode} />
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <NavSidebar teamId={teamId} adminMode={adminMode} />
+        <NavSidebar teamId={teamId} adminMode={adminMode} parsePanelContent={parsePanelContent} />
         <main style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
           {children}
         </main>
@@ -393,9 +393,9 @@ function AppHeader({ teamId, adminMode }) {
 
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: space[2] }}>
         {adminMode ? (
-          <button onClick={() => navigate(isKara ? "/kara" : `/${teamId}`)} style={btnStyle("default")}>← Public View</button>
+          <button onClick={() => navigate(isKara ? "/kara" : `/${teamId || "team-dick"}`)} style={btnStyle("default")}>← Public View</button>
         ) : (
-          <button onClick={() => navigate(isKara ? "/kara/admin" : `/${teamId}/25man/admin`)} style={btnStyle("default")}>Admin →</button>
+          <button onClick={() => navigate(isKara ? "/kara/admin" : `/${teamId || "team-dick"}/25man/admin`)} style={btnStyle("default")}>Admin →</button>
         )}
       </div>
     </div>
@@ -403,7 +403,7 @@ function AppHeader({ teamId, adminMode }) {
 }
 
 // ── Nav sidebar ───────────────────────────────────────────────────────────────
-function NavSidebar({ teamId, adminMode }) {
+function NavSidebar({ teamId, adminMode, parsePanelContent }) {
   const location  = useLocation();
   const navigate  = useNavigate();
   const isKara    = location.pathname.startsWith("/kara");
@@ -445,7 +445,9 @@ function NavSidebar({ teamId, adminMode }) {
         })}
       </div>
 
-      <div style={{ flex: 1 }} />
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {parsePanelContent}
+      </div>
 
       {/* Team switcher — hidden on kara routes since kara is teamless */}
       {!isKara && (
@@ -556,6 +558,170 @@ export function SearchBox({ value, onChange, placeholder = "Search…" }) {
           onClick={() => onChange("")}
           style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: text.muted, cursor: "pointer", fontSize: 14, lineHeight: 1 }}
         >×</button>
+      )}
+    </div>
+  );
+}
+
+// ── Parse scores panel ────────────────────────────────────────────────────────
+// Collapsible sidebar panel showing WCL median performance averages.
+// module: "kara" | "25man" — controls which score column is shown.
+// Pass wclLoading, wclError, wclLastFetch, onRefetch from useWarcraftLogs.
+export function ParseScoresPanel({ scores, roster, module, loading, error, lastFetch, onRefetch, onWclNameChange }) {
+  const [open,   setOpen]   = useState(true);
+  const [editId, setEditId] = useState(null);
+  const [editVal, setEditVal] = useState("");
+
+  // Deduplicate by name, pick score for this module
+  const seen = new Set();
+  const rows = roster
+    .filter(p => {
+      const name = (p.wclName?.trim() || p.name).toLowerCase();
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    })
+    .map(p => {
+      const lookupName = p.wclName?.trim() || p.name;
+      const entry      = scores?.[lookupName] || {};
+      const score      = module === "kara" ? entry.kara : entry.gruulMags;
+      return { ...p, score, lookupName };
+    })
+    .sort((a, b) => {
+      if (a.score == null && b.score == null) return 0;
+      if (a.score == null) return 1;
+      if (b.score == null) return -1;
+      return b.score - a.score;
+    });
+
+  const label = module === "kara" ? "Karazhan Parses" : "25-Man Parses";
+
+  return (
+    <div style={{ borderTop: `1px solid ${border.subtle}`, flexShrink: 0 }}>
+      {/* Collapsible header */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          width: "100%", border: "none", cursor: "pointer", textAlign: "left",
+          padding: `${space[2]}px ${space[3]}px`,
+          background: surface.panel,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}
+      >
+        <span style={{ fontSize: fontSize.xs, color: accent.blue, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: font.sans }}>
+          📊 {label}
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
+          {loading && <LoadingSpinner size={12} />}
+          {lastFetch && !loading && (
+            <span style={{ fontSize: 9, color: text.muted, fontFamily: font.sans }}>
+              {lastFetch.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          <span style={{ fontSize: fontSize.xs, color: text.muted }}>{open ? "▲" : "▼"}</span>
+        </div>
+      </button>
+
+      {open && (
+        <div style={{ maxHeight: 320, overflowY: "auto", background: surface.base }}>
+          {/* Toolbar */}
+          <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 9, color: text.muted, fontFamily: font.sans }}>{rows.length} players</span>
+            <button
+              onClick={onRefetch}
+              disabled={loading}
+              style={{ ...btnStyle("default"), height: 20, padding: "0 6px", fontSize: 9, opacity: loading ? 0.5 : 1 }}
+            >
+              {loading ? "…" : "↻ Refresh"}
+            </button>
+          </div>
+
+          {error && (
+            <div style={{ padding: `${space[1]}px ${space[3]}px`, fontSize: 9, color: intent.danger, fontFamily: font.sans }}>
+              ⚠ {error}
+            </div>
+          )}
+
+          {/* Score rows */}
+          {rows.map(p => {
+            const roleKey   = getRole(p);
+            const rc        = roleKey === "Tank" ? "#60a5fa" : roleKey === "Healer" ? "#4ade80" : "#f87171";
+            const classColor = getColor(p);
+            const scoreColor = p.score == null ? text.disabled
+              : p.score === 100  ? "#e5cc80"
+              : p.score >= 99    ? "#e268a8"
+              : p.score >= 95    ? "#ff8000"
+              : p.score >= 75    ? "#a335ee"
+              : p.score >= 50    ? "#0070dd"
+              : p.score >= 25    ? "#1eff00"
+              :                    "#9d9d9d";
+            const isEditing = editId === p.id;
+
+            return (
+              <div
+                key={p.id}
+                style={{
+                  display: "flex", alignItems: "center",
+                  padding: `2px ${space[3]}px`,
+                  borderBottom: `1px solid ${border.subtle}`,
+                  minHeight: 26, gap: space[2],
+                  background: "transparent",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = surface.card}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                {/* Role dot */}
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: rc, flexShrink: 0 }} />
+
+                {/* Name / WCL name edit */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      value={editVal}
+                      onChange={e => setEditVal(e.target.value)}
+                      onBlur={() => {
+                        if (onWclNameChange) onWclNameChange(p.id, editVal.trim() || p.name);
+                        setEditId(null);
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") { if (onWclNameChange) onWclNameChange(p.id, editVal.trim() || p.name); setEditId(null); }
+                        if (e.key === "Escape") setEditId(null);
+                      }}
+                      style={{ ...inputStyle, width: "100%", height: 18, fontSize: 9, padding: "0 4px" }}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => { setEditId(p.id); setEditVal(p.wclName?.trim() || p.name); }}
+                      style={{ fontSize: fontSize.xs, color: classColor, fontFamily: font.sans, cursor: "text", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      title={`Click to set WCL name (currently: ${p.wclName?.trim() || p.name})`}
+                    >
+                      {p.name}
+                      {p.wclName && p.wclName.trim() !== p.name && (
+                        <span style={{ color: text.muted, fontSize: 9, marginLeft: 3 }}>→ {p.wclName}</span>
+                      )}
+                    </span>
+                  )}
+                </div>
+
+                {/* Score */}
+                <span style={{
+                  fontSize: fontSize.xs, fontWeight: fontWeight.bold,
+                  color: scoreColor, fontFamily: font.mono,
+                  minWidth: 28, textAlign: "right", flexShrink: 0,
+                }}>
+                  {p.score != null ? Math.round(p.score) : "—"}
+                </span>
+              </div>
+            );
+          })}
+
+          {rows.length === 0 && !loading && (
+            <div style={{ padding: space[3], fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, textAlign: "center" }}>
+              Import a roster to see parse scores
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
