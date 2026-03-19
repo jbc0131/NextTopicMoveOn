@@ -673,6 +673,7 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
     { path: `/kara`,                                     label: "Karazhan",     external: false },
     { path: `/${teamId || "team-dick"}/25man`,           label: "25-Man Raids", external: false },
     { path: `/history`,                                  label: "Raid History", external: false },
+    { path: `/history`,                                  label: "RBP/CLA",      external: false },
     { path: "https://professions.nexttopicmoveon.com/", label: "Professions",  external: true  },
   ];
 
@@ -784,6 +785,7 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
     { path: `/kara${adminMode ? "/admin" : ""}`,                           label: "Karazhan",     icon: "KR" },
     { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "25" },
     { path: `/history${adminMode ? "/admin" : ""}`,                        label: "Raid History", icon: "HX" },
+    { path: `/history${adminMode ? "/admin" : ""}`,                        label: "RBP/CLA",      icon: "RC" },
     { path: "https://professions.nexttopicmoveon.com/",                    label: "Professions",  icon: "PF", external: true },
   ];
 
