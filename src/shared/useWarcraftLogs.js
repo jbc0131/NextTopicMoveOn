@@ -43,6 +43,20 @@ function saveCache(scores, teamId, module) {
   } catch {}
 }
 
+function scoresEqual(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const k of keysA) {
+    const va = a[k], vb = b[k];
+    if (!vb) return false;
+    if (va.kara !== vb.kara || va.gruulMags !== vb.gruulMags || va.found !== vb.found) return false;
+  }
+  return true;
+}
+
 function buildNamesKey(roster) {
   return roster
     .filter(p => p.name && !p.isDivider)
@@ -94,12 +108,7 @@ export function useWarcraftLogs(roster, { teamId, module } = {}) {
     if (!forceRefresh) {
       const cached = loadCache(teamId, module);
       if (cached) {
-        setScores(prev => {
-          // Avoid re-render if cache content is identical
-          const prevJson = JSON.stringify(prev);
-          const cachedJson = JSON.stringify(cached);
-          return prevJson === cachedJson ? prev : cached;
-        });
+        setScores(prev => scoresEqual(prev, cached) ? prev : cached);
         lastFetchedKey.current = currentNamesKey;
         return;
       }
@@ -153,11 +162,7 @@ export function useWarcraftLogs(roster, { teamId, module } = {}) {
     const currentNamesKey = stableNamesKey.current;
     const cached = loadCache(teamId, module);
     if (cached) {
-      setScores(prev => {
-        const prevJson = JSON.stringify(prev);
-        const cachedJson = JSON.stringify(cached);
-        return prevJson === cachedJson ? prev : cached;
-      });
+      setScores(prev => scoresEqual(prev, cached) ? prev : cached);
       lastFetchedKey.current = currentNamesKey;
       return;
     }

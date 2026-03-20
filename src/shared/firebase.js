@@ -227,6 +227,7 @@ export async function saveTwentyFiveSnapshot(state, teamId, night, extra = {}) {
     roster:       state.roster      ?? [],
     assignments:  state.assignments ?? {},
     textInputs:   state.textInputs  ?? {},
+    dividers:     state.dividers    ?? [],
     raidDate:     state.raidDate    ?? "",
     raidLeader:   state.raidLeader  ?? "",
     night,
@@ -301,8 +302,11 @@ export async function fetchRpbRaidList(maxCount = 25) {
 export async function fetchRpbRaid(raidId) {
   const response = await fetch(`/api/rpb-store?raidId=${encodeURIComponent(String(raidId))}`);
   if (response.status === 404) return null;
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to load RPB raid");
+  }
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Failed to load RPB raid");
   return data || null;
 }
 

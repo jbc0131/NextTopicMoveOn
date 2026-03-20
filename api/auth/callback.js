@@ -86,6 +86,9 @@ export default async function handler(req, res) {
     }
 
     const user = await userRes.json();
+    if (!user.id || !user.username) {
+      return errorRedirect(res, "Invalid response from Discord user API");
+    }
 
     // 3. Check guild membership and roles via bot token
     const memberRes = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${user.id}`, {
@@ -101,6 +104,9 @@ export default async function handler(req, res) {
     }
 
     const member = await memberRes.json();
+    if (!Array.isArray(member.roles)) {
+      return errorRedirect(res, "Invalid response from Discord guild API");
+    }
 
     // 4. Check if user has any allowed role (member or admin)
     const hasAccess = member.roles.some(roleId => allAllowedRoleIds.includes(roleId));
@@ -128,7 +134,7 @@ export default async function handler(req, res) {
 
     // Get return URL from cookie (must be a relative path to prevent open redirects)
     const cookies = parseCookies(req.headers.cookie);
-    const rawReturn = cookies.ntmo_return ? decodeURIComponent(cookies.ntmo_return) : "/kara/admin";
+    const rawReturn = cookies.ntmo_return ? decodeURIComponent(cookies.ntmo_return) : "/";
     const returnTo = rawReturn.startsWith("/") && !rawReturn.startsWith("//") ? rawReturn : "/";
 
     // Set auth cookie and clear return cookie

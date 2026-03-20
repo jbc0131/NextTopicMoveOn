@@ -94,6 +94,7 @@ export const CLASS_SPECS = {
   Druid:    [
     { specName: "Balance",       role: "DPS"    },
     { specName: "Feral",         role: "Tank"   },
+    { specName: "Dreamstate",    role: "Healer" },
     { specName: "Restoration",   role: "Healer" },
   ],
 };

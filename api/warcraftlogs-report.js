@@ -43,6 +43,7 @@ export default async function handler(req, res) {
 
   const { action, reportId, start, end, sourceId, targetId } = req.body;
   if (!reportId) return res.status(400).json({ error: "reportId required" });
+  if (!/^[A-Za-z0-9]+$/.test(reportId)) return res.status(400).json({ error: "Invalid reportId format" });
 
   const tr = (start != null && end != null) ? `&start=${start}&end=${end}` : "&start=0&end=999999999999";
   const f724 = "&filter=encounterid%20%21%3D%20724";
