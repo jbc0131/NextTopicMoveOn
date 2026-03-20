@@ -1813,7 +1813,7 @@ export default function RpbPage() {
         flexWrap: "wrap",
       }}>
         <div>
-          <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: text.primary }}>RPB Workspace</div>
+          <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: text.primary }}>Combat Log Analytics</div>
           <div style={{ fontSize: fontSize.sm, color: text.muted }}>
             Import Warcraft Logs reports, persist them to Firestore, and browse raid/player data.
           </div>
