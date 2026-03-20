@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getLoginUrl, useAuth } from "../../shared/auth";
+import { getScoreColor } from "../../shared/useWarcraftLogs";
 import {
   fetchRpbRaidBundle,
   fetchRpbRaidList,
   saveRpbRaidImport,
   fetchUserProfile,
+  LOCAL_SANDBOX_PROFILE_ID,
 } from "../../shared/firebase";
 import {
   surface, border, text, accent, intent, font, fontSize, fontWeight, radius, space, btnStyle, inputStyle, panelStyle,
@@ -97,6 +99,51 @@ const CLASS_ORDER = {
   Warlock: 8,
 };
 
+const ENCHANTABLE_SLOTS = new Map([
+  [0, "Head"],
+  [2, "Shoulder"],
+  [4, "Chest"],
+  [6, "Legs"],
+  [7, "Feet"],
+  [8, "Wrists"],
+  [9, "Hands"],
+  [14, "Back"],
+  [15, "Main Hand"],
+  [16, "Off Hand"],
+]);
+
+const ALLOWED_UNCOMMON_GEM_IDS = new Set([
+  "38549", "32836", "28118", "27679", "30571", "27812", "30598", "27777",
+  "28362", "28361", "28363", "28123", "28119", "28120", "28360", "38545",
+  "38550", "27785", "27809", "38546", "27820", "38548", "27786", "38547",
+]);
+
+const IGNORED_TEMP_ENCHANT_IDS = new Set([
+  "4264", "263", "264", "265", "266", "283", "284", "525", "563", "564",
+  "1669", "1783", "2636", "2638", "2639",
+]);
+
+const BAD_TEMP_ENCHANT_CLASS_RULES = new Map([
+  ["2684", new Set(["Druid", "Hunter", "Rogue", "Warrior", "Shaman", "Paladin"])],
+  ["2685", new Set(["Druid", "Mage", "Priest", "Warlock", "Shaman", "Paladin"])],
+  ["2677", new Set(["Hunter", "Priest"])],
+  ["2678", new Set(["Paladin", "Druid", "Priest"])],
+  ["2712", new Set(["Hunter"])],
+]);
+
+const ALWAYS_BAD_TEMP_ENCHANT_IDS = new Set([
+  "2627", "2625", "2626", "2624", "2623", "1643", "2954", "13", "40",
+  "20", "1703", "14", "19", "483", "484",
+]);
+
+const ENGINEERING_DAMAGE_ABILITY_IDS = new Set([
+  "23063", "13241", "17291", "30486", "4062", "19821", "15239", "19784",
+  "12543", "30461", "30217", "39965", "4068", "19769", "4100", "30216",
+  "22792", "30526", "4072", "19805", "27661", "23000", "11350",
+]);
+
+const OIL_OF_IMMOLATION_ABILITY_IDS = new Set(["11351"]);
+
 const GEAR_SLOT_LABELS = {
   0: "Head",
   1: "Neck",
@@ -140,6 +187,9 @@ const DISPLAY_SLOT_SEQUENCE = [
 ];
 
 const OPTIONAL_EMPTY_GEAR_SLOTS = new Set([16, 18]);
+const ALL_VISIBLE_ENCOUNTERS_ID = "__all_visible_encounters__";
+const ALL_KILLS_ENCOUNTERS_ID = "__all_kills_encounters__";
+const ALL_WIPES_ENCOUNTERS_ID = "__all_wipes_encounters__";
 
 const ITEM_QUALITY_COLORS = {
   0: "#9d9d9d",
@@ -148,6 +198,14 @@ const ITEM_QUALITY_COLORS = {
   3: "#0070dd",
   4: "#a335ee",
   5: "#ff8000",
+};
+
+const PILL_TONE_ORDER = {
+  danger: 0,
+  warning: 1,
+  info: 2,
+  success: 3,
+  neutral: 4,
 };
 
 function tagStyle(tone = "neutral") {
@@ -307,6 +365,169 @@ function getResolvedGemQualityColor(gem, itemMetaById) {
   return directColor;
 }
 
+function getNormalizedGearText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function hasGearText(value, tokens) {
+  const normalized = getNormalizedGearText(value);
+  return !!normalized && tokens.some(token => normalized.includes(token));
+}
+
+function getGearItemClass(item) {
+  return item?.itemClass ?? item?.class ?? item?.itemclass ?? item?.className ?? "";
+}
+
+function getGearItemSubclass(item) {
+  return item?.itemSubclass ?? item?.subclass ?? item?.subClass ?? item?.subclassName ?? "";
+}
+
+function getGearInventoryType(item) {
+  return item?.inventoryType ?? item?.inventorytype ?? item?.invType ?? item?.equipSlot ?? item?.slotName ?? "";
+}
+
+function isShieldOrHeldInOffHandItem(item) {
+  return hasGearText(getGearInventoryType(item), ["shield", "hold", "held", "off-hand", "off hand"])
+    || hasGearText(getGearItemSubclass(item), ["shield", "idol", "totem", "libram", "miscellaneous", "held"])
+    || hasGearText(getGearItemClass(item), ["armor", "misc"])
+    || hasGearText(item?.name, ["shield", "idol", "totem", "libram"]);
+}
+
+function isWeaponGearItem(item) {
+  return hasGearText(getGearItemClass(item), ["weapon"])
+    || hasGearText(getGearInventoryType(item), ["weapon", "main hand", "off hand", "one-hand", "one hand", "two-hand", "two hand"])
+    || hasGearText(getGearItemSubclass(item), ["axe", "dagger", "fist", "mace", "sword", "staff", "polearm"]);
+}
+
+function isTwoHandedWeaponItem(item) {
+  return hasGearText(getGearInventoryType(item), ["two-hand", "two hand", "2h"])
+    || hasGearText(getGearItemSubclass(item), ["staff", "polearm"])
+    || hasGearText(item?.name, ["great", "staff", "polearm"]);
+}
+
+function shouldExpectTemporaryEnchant(item, gear = []) {
+  if (!item?.id) return false;
+  const slot = Number(item?.slot);
+
+  if (slot === 15) return isWeaponGearItem(item);
+  if (slot !== 16) return false;
+  if (isShieldOrHeldInOffHandItem(item)) return false;
+  if (!isWeaponGearItem(item)) return false;
+
+  const mainHand = (gear || []).find(entry => Number(entry?.slot) === 15 && entry?.id);
+  if (isTwoHandedWeaponItem(mainHand)) return false;
+
+  return true;
+}
+
+function isSuboptimalTemporaryEnchant(item, playerType) {
+  const enchantId = item?.temporaryEnchant ?? item?.temporaryEnchantId ?? null;
+  const normalizedEnchantId = enchantId != null ? String(enchantId) : "";
+  if (!normalizedEnchantId || IGNORED_TEMP_ENCHANT_IDS.has(normalizedEnchantId)) return false;
+  if (ALWAYS_BAD_TEMP_ENCHANT_IDS.has(normalizedEnchantId)) return true;
+
+  const allowedClasses = BAD_TEMP_ENCHANT_CLASS_RULES.get(normalizedEnchantId);
+  if (!allowedClasses) return false;
+
+  return !allowedClasses.has(playerType);
+}
+
+function deriveMissingEnchantsFromGear(gear = []) {
+  const missingPermanent = [];
+  const missingTemporary = [];
+
+  for (const item of gear) {
+    const slot = Number(item?.slot);
+    if (!ENCHANTABLE_SLOTS.has(slot)) continue;
+
+    if (!getItemEnchantId(item)) {
+      missingPermanent.push({
+        slot,
+        slotLabel: ENCHANTABLE_SLOTS.get(slot),
+        itemId: item?.id ?? null,
+        itemName: item?.name || "Unknown Item",
+      });
+    }
+
+    if (shouldExpectTemporaryEnchant(item, gear) && !getTemporaryEnchantLabel(item)) {
+      missingTemporary.push({
+        slot,
+        slotLabel: ENCHANTABLE_SLOTS.get(slot),
+        itemId: item?.id ?? null,
+        itemName: item?.name || "Unknown Item",
+      });
+    }
+  }
+
+  return { missingPermanent, missingTemporary };
+}
+
+function deriveTemporaryEnchantIssuesFromGear(gear = [], playerType = "") {
+  const activeTemporaryEnchants = [];
+  const suboptimalTemporaryEnchants = [];
+
+  for (const item of gear) {
+    if (!shouldExpectTemporaryEnchant(item, gear)) continue;
+
+    const enchantName = getTemporaryEnchantLabel(item);
+    if (!enchantName) continue;
+
+    activeTemporaryEnchants.push({
+      slot: Number(item?.slot),
+      slotLabel: ENCHANTABLE_SLOTS.get(Number(item?.slot)),
+      itemId: item?.id ?? null,
+      itemName: item?.name || "Unknown Item",
+      enchantId: item?.temporaryEnchant ?? item?.temporaryEnchantId ?? null,
+      enchantName,
+    });
+
+    if (isSuboptimalTemporaryEnchant(item, playerType)) {
+      suboptimalTemporaryEnchants.push({
+        slot: Number(item?.slot),
+        slotLabel: ENCHANTABLE_SLOTS.get(Number(item?.slot)),
+        itemId: item?.id ?? null,
+        itemName: item?.name || "Unknown Item",
+        enchantId: item?.temporaryEnchant ?? item?.temporaryEnchantId ?? null,
+        enchantName,
+      });
+    }
+  }
+
+  return {
+    activeTemporaryEnchants,
+    suboptimalTemporaryEnchants,
+  };
+}
+
+function deriveLowQualityGemIssuesFromGear(gear = []) {
+  const commonQualityGems = [];
+  const uncommonQualityGems = [];
+
+  for (const item of gear) {
+    for (const gem of item?.gems || []) {
+      const gemId = gem?.id != null ? String(gem.id) : "";
+      const gemRecord = {
+        itemId: item?.id ?? null,
+        itemName: item?.name || "Unknown Item",
+        gemId: gem?.id ?? null,
+        gemItemLevel: gem?.itemLevel ?? null,
+      };
+
+      if (gem?.itemLevel != null && gem.itemLevel < 60) {
+        commonQualityGems.push(gemRecord);
+      } else if (gem?.itemLevel === 60 && !ALLOWED_UNCOMMON_GEM_IDS.has(gemId)) {
+        uncommonQualityGems.push(gemRecord);
+      }
+    }
+  }
+
+  return {
+    commonQualityGems,
+    uncommonQualityGems,
+    rareQualityGems: [],
+  };
+}
+
 function getItemIconUrl(item) {
   const rawIcon =
     item?.icon ||
@@ -446,16 +667,165 @@ function aggregateMetricEntries(fights, field) {
         total: 0,
         activeTime: 0,
         fights: 0,
+        parsePercent: null,
       };
 
       existing.total += entry.total || 0;
       existing.activeTime += entry.activeTime || 0;
       existing.fights += 1;
+      if (Number.isFinite(Number(entry.parsePercent))) {
+        existing.parsePercent = existing.parsePercent == null
+          ? Number(entry.parsePercent)
+          : Math.max(existing.parsePercent, Number(entry.parsePercent));
+      }
       grouped.set(key, existing);
     }
   }
 
   return [...grouped.values()].sort((a, b) => b.total - a.total);
+}
+
+function getPlayerSliceTotals(fights, playerId, playerRole = "") {
+  if (!playerId) {
+    return {
+      deaths: 0,
+      activeTimeMs: 0,
+      availableTimeMs: 0,
+      visibleFights: 0,
+    };
+  }
+
+  let deaths = 0;
+  let activeTimeMs = 0;
+  let availableTimeMs = 0;
+  let visibleFights = 0;
+
+  for (const fight of fights || []) {
+    const damageEntry = (fight.damageDoneEntries || []).find(entry => String(entry?.id) === String(playerId));
+    const healingEntry = (fight.healingDoneEntries || []).find(entry => String(entry?.id) === String(playerId));
+    const deathEntry = (fight.deathEntries || []).find(entry => String(entry?.id) === String(playerId));
+    const snapshot = getSelectedFightPlayerSnapshot([fight], fight.id, playerId);
+    const activeTimeEntry = playerRole === "Healer"
+      ? (healingEntry || damageEntry)
+      : (damageEntry || healingEntry);
+
+    if (damageEntry || healingEntry || deathEntry || snapshot) {
+      visibleFights += 1;
+      availableTimeMs += Number(fight?.durationMs || 0);
+    }
+
+    activeTimeMs += Number(activeTimeEntry?.activeTime || 0);
+    deaths += Number(deathEntry?.total || 0);
+  }
+
+  return {
+    deaths,
+    activeTimeMs,
+    availableTimeMs,
+    visibleFights,
+  };
+}
+
+function derivePlayerAnalyticsFromFights(fights, playerId, playerType = "") {
+  const snapshots = [];
+
+  for (const fight of fights || []) {
+    const snapshot = getSelectedFightPlayerSnapshot([fight], fight.id, playerId);
+    if (snapshot?.gear?.length) snapshots.push(snapshot);
+  }
+
+  if (!snapshots.length) {
+    return {
+      hasGearData: false,
+      gearIssueSummary: {
+        missingPermanentEnchantCount: 0,
+        missingTemporaryEnchantCount: 0,
+        suboptimalTemporaryEnchantCount: 0,
+        lowQualityGemCount: 0,
+      },
+      missingEnchants: {
+        missingPermanent: [],
+        missingTemporary: [],
+      },
+      temporaryEnchantIssues: {
+        activeTemporaryEnchants: [],
+        suboptimalTemporaryEnchants: [],
+      },
+      gemIssues: {
+        commonQualityGems: [],
+        uncommonQualityGems: [],
+        rareQualityGems: [],
+      },
+    };
+  }
+
+  const missingPermanent = [];
+  const missingTemporary = [];
+  const activeTemporaryEnchants = [];
+  const suboptimalTemporaryEnchants = [];
+  const commonQualityGems = [];
+  const uncommonQualityGems = [];
+
+  for (const snapshot of snapshots) {
+    const gear = snapshot.gear || [];
+    const missing = deriveMissingEnchantsFromGear(gear);
+    const temporary = deriveTemporaryEnchantIssuesFromGear(gear, playerType);
+    const gems = deriveLowQualityGemIssuesFromGear(gear);
+
+    missingPermanent.push(...missing.missingPermanent);
+    missingTemporary.push(...missing.missingTemporary);
+    activeTemporaryEnchants.push(...temporary.activeTemporaryEnchants);
+    suboptimalTemporaryEnchants.push(...temporary.suboptimalTemporaryEnchants);
+    commonQualityGems.push(...gems.commonQualityGems);
+    uncommonQualityGems.push(...gems.uncommonQualityGems);
+  }
+
+  const uniqueMissingPermanent = dedupeBy(missingPermanent, issue => `${issue.itemId}:${issue.slot}:perm`);
+  const uniqueMissingTemporary = dedupeBy(missingTemporary, issue => `${issue.itemId}:${issue.slot}:temp`);
+  const uniqueActiveTemporary = dedupeBy(activeTemporaryEnchants, issue => `${issue.itemId}:${issue.slot}:${issue.enchantId}`);
+  const uniqueSuboptimalTemporary = dedupeBy(suboptimalTemporaryEnchants, issue => `${issue.itemId}:${issue.slot}:${issue.enchantId}`);
+  const summarizedCommonGems = summarizeGemIssues(commonQualityGems);
+  const summarizedUncommonGems = summarizeGemIssues(uncommonQualityGems);
+
+  return {
+    hasGearData: true,
+    gearIssueSummary: {
+      missingPermanentEnchantCount: uniqueMissingPermanent.length,
+      missingTemporaryEnchantCount: uniqueMissingTemporary.length,
+      suboptimalTemporaryEnchantCount: uniqueSuboptimalTemporary.length,
+      lowQualityGemCount: summarizedCommonGems.reduce((sum, issue) => sum + issue.count, 0)
+        + summarizedUncommonGems.reduce((sum, issue) => sum + issue.count, 0),
+    },
+    missingEnchants: {
+      missingPermanent: uniqueMissingPermanent,
+      missingTemporary: uniqueMissingTemporary,
+    },
+    temporaryEnchantIssues: {
+      activeTemporaryEnchants: uniqueActiveTemporary,
+      suboptimalTemporaryEnchants: uniqueSuboptimalTemporary,
+    },
+    gemIssues: {
+      commonQualityGems,
+      uncommonQualityGems,
+      rareQualityGems: [],
+    },
+  };
+}
+
+function sortMetricTags(tags) {
+  return [...tags].sort((a, b) => {
+    const aZero = Number(a.sortValue || 0) === 0;
+    const bZero = Number(b.sortValue || 0) === 0;
+    if (aZero !== bZero) return aZero ? 1 : -1;
+
+    const toneDelta = (PILL_TONE_ORDER[a.tone] ?? 99) - (PILL_TONE_ORDER[b.tone] ?? 99);
+    if (toneDelta !== 0) return toneDelta;
+
+    const valueDelta = Number(b.sortValue || 0) - Number(a.sortValue || 0);
+    if (valueDelta !== 0) return valueDelta;
+
+    return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
+  });
 }
 
 function aggregateAbilityBreakdown(fights, field, playerId) {
@@ -494,6 +864,49 @@ function aggregateAbilityBreakdown(fights, field, playerId) {
   }
 
   return [...grouped.values()].sort((a, b) => b.total - a.total);
+}
+
+function getPlayerAbilityTotalFromFights(fights, playerId, abilityIds) {
+  if (!playerId) return 0;
+
+  let total = 0;
+
+  for (const fight of fights || []) {
+    const entry = (fight.damageDoneEntries || []).find(candidate => String(candidate?.id) === String(playerId));
+    if (!entry) continue;
+
+    for (const ability of entry.abilities || []) {
+      const guid = ability?.guid != null ? String(ability.guid) : "";
+      if (abilityIds.has(guid)) {
+        total += Number(ability?.total || 0);
+      }
+    }
+  }
+
+  return total;
+}
+
+function getAbilityEntryCountsByPlayer(fights, abilityIds) {
+  const totalsByPlayerId = new Map();
+
+  for (const fight of fights || []) {
+    for (const entry of fight.damageDoneEntries || []) {
+      let entryTotal = 0;
+
+      for (const ability of entry.abilities || []) {
+        const guid = ability?.guid != null ? String(ability.guid) : "";
+        if (abilityIds.has(guid)) {
+          entryTotal += Number(ability?.total || 0);
+        }
+      }
+
+      if (entryTotal > 0) {
+        totalsByPlayerId.set(String(entry.id), (totalsByPlayerId.get(String(entry.id)) || 0) + entryTotal);
+      }
+    }
+  }
+
+  return totalsByPlayerId;
 }
 
 function normalizeEncounterEventTimestamp(timestamp, fight) {
@@ -541,7 +954,8 @@ function formatEventSummary(event) {
   const amount = getEventAmount(event, isHealingLikeEvent(event) ? "healing" : "damage");
   const actor = getSourceName(event);
   const ability = getAbilityName(event, "Unknown");
-  return `${actor} - ${ability}${amount ? ` (${amount.toLocaleString()})` : ""}`;
+  const prefix = actor && actor !== "Unknown Source" ? `${actor} - ` : "";
+  return `${prefix}${ability}${amount ? ` (${amount.toLocaleString()})` : ""}`;
 }
 
 function buildDeathDetailRows(fights, playerId) {
@@ -618,6 +1032,20 @@ function formatMetricValue(value) {
   return Number(value || 0).toLocaleString();
 }
 
+function formatPercent(value) {
+  if (!Number.isFinite(value)) return "0%";
+  if (value >= 100) return `${Math.round(value)}%`;
+  if (value >= 10) return `${value.toFixed(1)}%`;
+  return `${value.toFixed(2)}%`;
+}
+
+function formatPerSecond(total, activeTimeMs) {
+  const totalNumber = Number(total || 0);
+  const activeMs = Number(activeTimeMs || 0);
+  if (!Number.isFinite(totalNumber) || !Number.isFinite(activeMs) || activeMs <= 0) return "0";
+  return Math.round(totalNumber / (activeMs / 1000)).toLocaleString();
+}
+
 function getFightTypeLabel(fight) {
   return fight.encounterId > 0 ? "Encounter" : "Trash";
 }
@@ -653,6 +1081,15 @@ function filterFights(fights, mode, selectedFightId, outcome = "") {
     if (mode === "trash" && isEncounter) return false;
     if (isEncounter && outcome === "kills" && !fight.kill) return false;
     if (isEncounter && outcome === "wipes" && fight.kill) return false;
+    if (selectedFightId === ALL_VISIBLE_ENCOUNTERS_ID) {
+      return isEncounter;
+    }
+    if (selectedFightId === ALL_KILLS_ENCOUNTERS_ID) {
+      return isEncounter && fight.kill;
+    }
+    if (selectedFightId === ALL_WIPES_ENCOUNTERS_ID) {
+      return isEncounter && !fight.kill;
+    }
     if (selectedFightId && String(fight.id) !== String(selectedFightId)) return false;
 
     return true;
@@ -750,6 +1187,8 @@ export default function RpbPage() {
 
   const [reportUrl, setReportUrl] = useState("");
   const [profileApiKey, setProfileApiKey] = useState("");
+  const [profileV2ClientId, setProfileV2ClientId] = useState("");
+  const [profileV2ClientSecret, setProfileV2ClientSecret] = useState("");
   const [raids, setRaids] = useState([]);
   const [selectedRaid, setSelectedRaid] = useState(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
@@ -804,7 +1243,7 @@ export default function RpbPage() {
 
     loadRaids();
     return () => { cancelled = true; };
-  }, [navigate, raidId]);
+  }, [navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -839,14 +1278,13 @@ export default function RpbPage() {
 
     async function loadProfileApiKey() {
       if (auth.loading) return;
-      if (!auth.authenticated || !auth.user?.discordId) {
-        return;
-      }
 
       try {
-        const profile = await fetchUserProfile(auth.user.discordId);
+        const profile = await fetchUserProfile(auth.user?.discordId || LOCAL_SANDBOX_PROFILE_ID);
         if (!cancelled) {
           setProfileApiKey(profile?.wclV1ApiKey || "");
+          setProfileV2ClientId(profile?.wclV2ClientId || "");
+          setProfileV2ClientSecret(profile?.wclV2ClientSecret || "");
         }
       } catch {
         if (!cancelled) return;
@@ -860,6 +1298,11 @@ export default function RpbPage() {
   const selectedPlayer = useMemo(() => {
     return selectedRaid?.players?.find(player => String(player.id) === String(selectedPlayerId)) || null;
   }, [selectedRaid, selectedPlayerId]);
+  const isPlayerDetailOpen = !!selectedPlayerId && !!selectedPlayer;
+
+  function toggleSelectedPlayer(playerId) {
+    setSelectedPlayerId(current => (String(current) === String(playerId) ? "" : String(playerId)));
+  }
 
   const raidAnalytics = selectedRaid?.analytics || {
     playersMissingEnchants: [],
@@ -879,8 +1322,72 @@ export default function RpbPage() {
   const filteredFights = useMemo(() => {
     return filterFights(selectedRaid?.fights || [], filterMode, selectedFightId, fightOutcomeFilter);
   }, [selectedRaid, filterMode, selectedFightId, fightOutcomeFilter]);
+  const filteredPlayerAnalyticsById = useMemo(() => {
+    const next = new Map();
 
-  const filteredFightIds = useMemo(() => new Set(filteredFights.map(fight => String(fight.id))), [filteredFights]);
+    for (const player of selectedRaid?.players || []) {
+      next.set(String(player.id), derivePlayerAnalyticsFromFights(filteredFights, player.id, player.type));
+    }
+
+    return next;
+  }, [filteredFights, selectedRaid]);
+  const filteredEngineeringTotalsByPlayerId = useMemo(() => {
+    return getAbilityEntryCountsByPlayer(filteredFights, ENGINEERING_DAMAGE_ABILITY_IDS);
+  }, [filteredFights]);
+  const filteredOilTotalsByPlayerId = useMemo(() => {
+    return getAbilityEntryCountsByPlayer(filteredFights, OIL_OF_IMMOLATION_ABILITY_IDS);
+  }, [filteredFights]);
+  const filteredRaidAnalytics = useMemo(() => {
+    const playersWithIssues = [];
+    const playersWithEngineeringDamage = [];
+    const playersWithOilDamage = [];
+
+    for (const player of selectedRaid?.players || []) {
+      const analytics = filteredPlayerAnalyticsById.get(String(player.id));
+      if (!analytics) continue;
+
+      const totalIssues =
+        Number(analytics.gearIssueSummary?.missingPermanentEnchantCount || 0)
+        + Number(analytics.gearIssueSummary?.missingTemporaryEnchantCount || 0)
+        + Number(analytics.gearIssueSummary?.suboptimalTemporaryEnchantCount || 0)
+        + Number(analytics.gearIssueSummary?.lowQualityGemCount || 0);
+
+      if (totalIssues > 0) {
+        playersWithIssues.push({
+          playerId: String(player.id),
+          name: player.name,
+          type: player.type,
+          gearIssueSummary: analytics.gearIssueSummary,
+          totalIssues,
+        });
+      }
+
+      const engineeringTotal = Number(filteredEngineeringTotalsByPlayerId.get(String(player.id)) || 0);
+      if (engineeringTotal > 0) {
+        playersWithEngineeringDamage.push({
+          playerId: String(player.id),
+          name: player.name,
+          total: engineeringTotal,
+        });
+      }
+
+      const oilTotal = Number(filteredOilTotalsByPlayerId.get(String(player.id)) || 0);
+      if (oilTotal > 0) {
+        playersWithOilDamage.push({
+          playerId: String(player.id),
+          name: player.name,
+          total: oilTotal,
+        });
+      }
+    }
+
+    return {
+      ...raidAnalytics,
+      playersMissingEnchants: playersWithIssues.sort((a, b) => b.totalIssues - a.totalIssues),
+      engineeringDamageTaken: playersWithEngineeringDamage.sort((a, b) => b.total - a.total),
+      oilOfImmolationDamageTaken: playersWithOilDamage.sort((a, b) => b.total - a.total),
+    };
+  }, [filteredEngineeringTotalsByPlayerId, filteredOilTotalsByPlayerId, filteredPlayerAnalyticsById, raidAnalytics, selectedRaid]);
   const sortedRaids = useMemo(() => {
     return [...raids].sort((a, b) => new Date(b.start || b.importedAt || 0) - new Date(a.start || a.importedAt || 0));
   }, [raids]);
@@ -889,6 +1396,36 @@ export default function RpbPage() {
   const selectedPlayerDamageBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "damageDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerHealingBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "healingDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerDeathRows = useMemo(() => buildDeathDetailRows(filteredFights, selectedPlayerId), [filteredFights, selectedPlayerId]);
+  const selectedPlayerSliceTotals = useMemo(() => {
+    return getPlayerSliceTotals(filteredFights, selectedPlayerId, selectedPlayer?.role || "");
+  }, [filteredFights, selectedPlayer?.role, selectedPlayerId]);
+  const selectedPlayerAnalytics = useMemo(() => {
+    if (!selectedPlayer) return null;
+
+    const filteredAnalytics = filteredPlayerAnalyticsById.get(String(selectedPlayer.id));
+    const persistedAnalytics = selectedPlayer.analytics || {};
+
+    return {
+      ...persistedAnalytics,
+      ...filteredAnalytics,
+      gearIssueSummary: {
+        ...(persistedAnalytics.gearIssueSummary || {}),
+        ...(filteredAnalytics?.gearIssueSummary || {}),
+      },
+      missingEnchants: {
+        ...(persistedAnalytics.missingEnchants || {}),
+        ...(filteredAnalytics?.missingEnchants || {}),
+      },
+      temporaryEnchantIssues: {
+        ...(persistedAnalytics.temporaryEnchantIssues || {}),
+        ...(filteredAnalytics?.temporaryEnchantIssues || {}),
+      },
+      gemIssues: {
+        ...(persistedAnalytics.gemIssues || {}),
+        ...(filteredAnalytics?.gemIssues || {}),
+      },
+    };
+  }, [filteredPlayerAnalyticsById, selectedPlayer]);
 
   const filteredPlayers = useMemo(() => {
     const visiblePlayers = (selectedRaid?.players || []).filter(player => {
@@ -899,7 +1436,7 @@ export default function RpbPage() {
   }, [selectedRaid]);
 
   const selectedPlayerIssueGroups = useMemo(() => {
-    if (!selectedPlayer?.analytics) {
+    if (!selectedPlayerAnalytics) {
       return {
         missingPermanent: [],
         missingTemporary: [],
@@ -911,22 +1448,139 @@ export default function RpbPage() {
     }
 
     return {
-      missingPermanent: dedupeBy(selectedPlayer.analytics.missingEnchants?.missingPermanent, issue => `${issue.itemId}:${issue.slot}:perm`),
-      missingTemporary: dedupeBy(selectedPlayer.analytics.missingEnchants?.missingTemporary, issue => `${issue.itemId}:${issue.slot}:temp`),
-      suboptimalTemporary: dedupeBy(selectedPlayer.analytics.temporaryEnchantIssues?.suboptimalTemporaryEnchants, issue => `${issue.itemId}:${issue.slot}:${issue.enchantId}`),
-      commonGems: summarizeGemIssues(selectedPlayer.analytics.gemIssues?.commonQualityGems),
-      uncommonGems: summarizeGemIssues(selectedPlayer.analytics.gemIssues?.uncommonQualityGems),
-      rareGems: summarizeGemIssues(selectedPlayer.analytics.gemIssues?.rareQualityGems),
+      missingPermanent: dedupeBy(selectedPlayerAnalytics.missingEnchants?.missingPermanent, issue => `${issue.itemId}:${issue.slot}:perm`),
+      missingTemporary: dedupeBy(selectedPlayerAnalytics.missingEnchants?.missingTemporary, issue => `${issue.itemId}:${issue.slot}:temp`),
+      suboptimalTemporary: dedupeBy(selectedPlayerAnalytics.temporaryEnchantIssues?.suboptimalTemporaryEnchants, issue => `${issue.itemId}:${issue.slot}:${issue.enchantId}`),
+      commonGems: summarizeGemIssues(selectedPlayerAnalytics.gemIssues?.commonQualityGems),
+      uncommonGems: summarizeGemIssues(selectedPlayerAnalytics.gemIssues?.uncommonQualityGems),
+      rareGems: summarizeGemIssues(selectedPlayerAnalytics.gemIssues?.rareQualityGems),
     };
-  }, [selectedPlayer]);
+  }, [selectedPlayerAnalytics]);
 
   const selectedFightSnapshot = useMemo(() => {
+    if (!selectedFightId || selectedFightId === ALL_VISIBLE_ENCOUNTERS_ID || selectedFightId === ALL_KILLS_ENCOUNTERS_ID || selectedFightId === ALL_WIPES_ENCOUNTERS_ID) {
+      return null;
+    }
     return getSelectedFightPlayerSnapshot(selectedRaid?.fights || [], selectedFightId, selectedPlayerId);
   }, [selectedRaid, selectedFightId, selectedPlayerId]);
+
+  const encounterSelectionOptions = useMemo(() => {
+    const options = [];
+    if (fightOutcomeFilter === "kills") {
+      options.push({ id: ALL_KILLS_ENCOUNTERS_ID, label: "All Kills", kind: "all-kills", kill: true });
+    }
+    if (fightOutcomeFilter === "wipes") {
+      options.push({ id: ALL_WIPES_ENCOUNTERS_ID, label: "All Wipes", kind: "all-wipes", kill: false });
+    }
+
+    return [...options, ...encounterOptions];
+  }, [encounterOptions, fightOutcomeFilter]);
 
   const selectedFightGear = useMemo(() => {
     return buildFightGearDisplayRows(selectedFightSnapshot?.gear || []);
   }, [selectedFightSnapshot]);
+
+  const selectedPlayerMetricTags = useMemo(() => {
+    if (!selectedPlayer || !selectedPlayerAnalytics) return [];
+
+    const gearSummary = selectedPlayerAnalytics.gearIssueSummary || {};
+    const visibleFightCount = selectedPlayerSliceTotals.visibleFights;
+    const activeTimeMs = selectedPlayerSliceTotals.activeTimeMs || 0;
+    const availableTimeMs = selectedPlayerSliceTotals.availableTimeMs || 0;
+    const activeTimePercent = availableTimeMs > 0 ? (activeTimeMs / availableTimeMs) * 100 : 0;
+    const deaths = selectedPlayerDeathRows.length;
+    const engineeringDamageDone = getPlayerAbilityTotalFromFights(filteredFights, selectedPlayer.id, ENGINEERING_DAMAGE_ABILITY_IDS)
+      || selectedPlayer.analytics?.engineeringDamageTaken
+      || 0;
+    const oilDamage = getPlayerAbilityTotalFromFights(filteredFights, selectedPlayer.id, OIL_OF_IMMOLATION_ABILITY_IDS)
+      || selectedPlayer.analytics?.oilOfImmolationDamageTaken
+      || 0;
+    const trackedCasts = selectedPlayer.trackedCastCount || 0;
+    const friendlyFire = selectedPlayer.hostilePlayerDamage || 0;
+    const buffAuraCount = selectedPlayer.analytics?.buffAuraCount || 0;
+    const drumsCastCount = selectedPlayer.analytics?.drumsCastCount || 0;
+
+    return sortMetricTags([
+      {
+        label: "Missing Permanent Enchants",
+        value: gearSummary.missingPermanentEnchantCount || 0,
+        tone: (gearSummary.missingPermanentEnchantCount || 0) > 0 ? "danger" : "neutral",
+        sortValue: gearSummary.missingPermanentEnchantCount || 0,
+      },
+      {
+        label: "Missing Temporary Enchants",
+        value: gearSummary.missingTemporaryEnchantCount || 0,
+        tone: (gearSummary.missingTemporaryEnchantCount || 0) > 0 ? "danger" : "neutral",
+        sortValue: gearSummary.missingTemporaryEnchantCount || 0,
+      },
+      {
+        label: "Low Quality Gems",
+        value: gearSummary.lowQualityGemCount || 0,
+        tone: (gearSummary.lowQualityGemCount || 0) > 0 ? "danger" : "neutral",
+        sortValue: gearSummary.lowQualityGemCount || 0,
+      },
+      {
+        label: "Suboptimal Weapon Enchants",
+        value: gearSummary.suboptimalTemporaryEnchantCount || 0,
+        tone: (gearSummary.suboptimalTemporaryEnchantCount || 0) > 0 ? "danger" : "neutral",
+        sortValue: gearSummary.suboptimalTemporaryEnchantCount || 0,
+      },
+      {
+        label: "Deaths",
+        value: deaths,
+        tone: deaths > 0 ? "warning" : "neutral",
+        sortValue: deaths,
+      },
+      {
+        label: "Friendly Fire",
+        value: friendlyFire,
+        tone: friendlyFire > 0 ? "warning" : "neutral",
+        sortValue: friendlyFire,
+      },
+      {
+        label: "Engineering Damage Done",
+        value: engineeringDamageDone,
+        tone: engineeringDamageDone > 0 ? "warning" : "neutral",
+        sortValue: engineeringDamageDone,
+      },
+      {
+        label: "Oil of Immolation",
+        value: oilDamage,
+        tone: oilDamage > 0 ? "warning" : "neutral",
+        sortValue: oilDamage,
+      },
+      {
+        label: "Tracked Casts",
+        value: trackedCasts,
+        tone: trackedCasts > 0 ? "info" : "neutral",
+        sortValue: trackedCasts,
+      },
+      {
+        label: "Tracked Buff Auras",
+        value: buffAuraCount,
+        tone: buffAuraCount > 0 ? "info" : "neutral",
+        sortValue: buffAuraCount,
+      },
+      {
+        label: "Drums Casts",
+        value: drumsCastCount,
+        tone: drumsCastCount > 0 ? "info" : "neutral",
+        sortValue: drumsCastCount,
+      },
+      {
+        label: "Visible Fights",
+        value: visibleFightCount,
+        tone: visibleFightCount > 0 ? "info" : "neutral",
+        sortValue: visibleFightCount,
+      },
+      {
+        label: "Active Time %",
+        value: formatPercent(activeTimePercent),
+        tone: activeTimePercent > 0 ? "success" : "neutral",
+        sortValue: activeTimePercent,
+      },
+    ]);
+  }, [filteredFights, selectedPlayer, selectedPlayerAnalytics, selectedPlayerDeathRows.length, selectedPlayerSliceTotals]);
 
   useEffect(() => {
     let cancelled = false;
@@ -962,10 +1616,22 @@ export default function RpbPage() {
 
   useEffect(() => {
     if (!selectedFightId) return;
-    if (!filteredFights.some(fight => String(fight.id) === String(selectedFightId))) {
+
+    const validSpecialSelections = new Set([ALL_KILLS_ENCOUNTERS_ID, ALL_WIPES_ENCOUNTERS_ID, ALL_VISIBLE_ENCOUNTERS_ID]);
+    if (validSpecialSelections.has(selectedFightId)) {
+      if (
+        (selectedFightId === ALL_KILLS_ENCOUNTERS_ID && fightOutcomeFilter === "kills")
+        || (selectedFightId === ALL_WIPES_ENCOUNTERS_ID && fightOutcomeFilter === "wipes")
+        || selectedFightId === ALL_VISIBLE_ENCOUNTERS_ID
+      ) {
+        return;
+      }
+    }
+
+    if (!encounterSelectionOptions.some(option => String(option.id) === String(selectedFightId))) {
       setSelectedFightId("");
     }
-  }, [filteredFights, selectedFightId]);
+  }, [encounterSelectionOptions, fightOutcomeFilter, selectedFightId]);
 
   useEffect(() => {
     if (!filteredPlayers.length) {
@@ -973,8 +1639,9 @@ export default function RpbPage() {
       return;
     }
 
+    if (!selectedPlayerId) return;
     if (!filteredPlayers.some(player => String(player.id) === String(selectedPlayerId))) {
-      setSelectedPlayerId(filteredPlayers[0].id);
+      setSelectedPlayerId("");
     }
   }, [filteredPlayers, selectedPlayerId]);
 
@@ -997,7 +1664,7 @@ export default function RpbPage() {
     setImportProgress({
       open: true,
       completed: 0,
-      total: 15,
+      total: 16,
       percent: 0,
       message: "Preparing import...",
     });
@@ -1013,6 +1680,7 @@ export default function RpbPage() {
         { key: "oil", label: "Loading oil of immolation damage data from Warcraft Logs..." },
         { key: "buffs", label: "Loading buff and consumable data from Warcraft Logs..." },
         { key: "drums", label: "Loading drums usage data from Warcraft Logs..." },
+        { key: "reportRankings", label: "Loading report rankings from Warcraft Logs..." },
         { key: "raiderData", label: "Loading detailed raider snapshots from Warcraft Logs..." },
         { key: "damageByFight", label: "Loading encounter damage snapshots from Warcraft Logs..." },
         { key: "healingByFight", label: "Loading encounter healing snapshots from Warcraft Logs..." },
@@ -1026,15 +1694,22 @@ export default function RpbPage() {
         setImportProgress({
           open: true,
           completed: index,
-          total: 15,
-          percent: Math.round((index / 15) * 100),
+          total: 16,
+          percent: Math.round((index / 16) * 100),
           message: step.label,
         });
 
         const response = await fetch(`/api/rpb-import`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "step", step: step.key, reportUrl, apiKey: profileApiKey }),
+          body: JSON.stringify({
+            action: "step",
+            step: step.key,
+            reportUrl,
+            apiKey: profileApiKey,
+            wclV2ClientId: profileV2ClientId,
+            wclV2ClientSecret: profileV2ClientSecret,
+          }),
         });
 
         const data = await response.json();
@@ -1044,16 +1719,16 @@ export default function RpbPage() {
         setImportProgress({
           open: true,
           completed: index + 1,
-          total: 15,
-          percent: Math.round(((index + 1) / 15) * 100),
+          total: 16,
+          percent: Math.round(((index + 1) / 16) * 100),
           message: `${step.label.replace("Loading", "Loaded")}`,
         });
       }
 
       setImportProgress({
         open: true,
-        completed: 14,
-        total: 15,
+        completed: 15,
+        total: 16,
         percent: 93,
         message: "Assembling raid data...",
       });
@@ -1069,8 +1744,8 @@ export default function RpbPage() {
 
       setImportProgress({
         open: true,
-        completed: 14,
-        total: 15,
+        completed: 15,
+        total: 16,
         percent: 97,
         message: "Saving imported raid...",
       });
@@ -1081,8 +1756,8 @@ export default function RpbPage() {
       setReportUrl("");
       setImportProgress({
         open: true,
-        completed: 15,
-        total: 15,
+        completed: 16,
+        total: 16,
         percent: 100,
         message: "Import complete.",
       });
@@ -1246,6 +1921,18 @@ export default function RpbPage() {
               Encounter Outcome
             </div>
             <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
+              <button
+                onClick={() => {
+                  setFightOutcomeFilter("");
+                  setSelectedFightId("");
+                }}
+                style={{
+                  ...btnStyle(!fightOutcomeFilter && !selectedFightId ? "primary" : "default", !fightOutcomeFilter && !selectedFightId),
+                  height: 30,
+                }}
+              >
+                All Kills and Wipes
+              </button>
               {[
                 { id: "kills", label: "Kills" },
                 { id: "wipes", label: "Wipes" },
@@ -1280,11 +1967,16 @@ export default function RpbPage() {
               Encounter Selection
             </div>
             <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
-              {encounterOptions.map(option => {
+              {encounterSelectionOptions.map(option => {
                 const active = String(selectedFightId) === String(option.id);
-                const toneColor = option.kill ? intent.success : intent.danger;
-                const inactiveBackground = option.kill ? "rgba(75, 170, 109, 0.14)" : "rgba(205, 78, 78, 0.14)";
-                const activeBackground = option.kill ? "rgba(75, 170, 109, 0.24)" : "rgba(205, 78, 78, 0.24)";
+                const isAggregateOption = option.kind && option.kind.startsWith("all");
+                const toneColor = isAggregateOption ? accent.blue : (option.kill ? intent.success : intent.danger);
+                const inactiveBackground = isAggregateOption
+                  ? "rgba(61, 125, 202, 0.14)"
+                  : (option.kill ? "rgba(75, 170, 109, 0.14)" : "rgba(205, 78, 78, 0.14)");
+                const activeBackground = isAggregateOption
+                  ? "rgba(61, 125, 202, 0.24)"
+                  : (option.kill ? "rgba(75, 170, 109, 0.24)" : "rgba(205, 78, 78, 0.24)");
                 return (
                   <button
                     key={option.id}
@@ -1294,24 +1986,16 @@ export default function RpbPage() {
                       height: 30,
                       background: active ? activeBackground : inactiveBackground,
                       borderColor: active ? toneColor : `${toneColor}66`,
-                      color: option.kill ? "#d7ffdf" : "#ffd5d5",
+                      color: isAggregateOption ? "#d6e7ff" : (option.kill ? "#d7ffdf" : "#ffd5d5"),
                     }}
                   >
                     {option.label}
                   </button>
                 );
               })}
-              {selectedFightId && (
-                <button
-                  onClick={() => setSelectedFightId("")}
-                  style={{ ...btnStyle("default", false), height: 30 }}
-                >
-                  Clear Encounter
-                </button>
-              )}
             </div>
             <div style={{ fontSize: fontSize.xs, color: text.muted }}>
-              Visible encounters are listed as individual pulls, like Warcraft Logs. Only one encounter can be selected at a time.
+              Visible encounters are listed as individual pulls, like Warcraft Logs. Aggregate buttons only show the outcome that is currently selected.
             </div>
           </div>
 
@@ -1325,7 +2009,7 @@ export default function RpbPage() {
                 return (
                   <button
                     key={player.id}
-                    onClick={() => setSelectedPlayerId(player.id)}
+                    onClick={() => toggleSelectedPlayer(player.id)}
                     style={{
                       ...btnStyle(active ? "primary" : "default", active),
                       height: 30,
@@ -1353,7 +2037,7 @@ export default function RpbPage() {
         padding: space[4],
       }}>
         <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
-          {loadingRaid && (
+          {loadingRaid && !selectedRaid && (
             <div style={{ ...panelStyle, padding: space[6], display: "flex", justifyContent: "center" }}>
               <LoadingSpinner size={24} />
             </div>
@@ -1365,7 +2049,7 @@ export default function RpbPage() {
             </div>
           )}
 
-          {!loadingRaid && selectedRaid && (
+          {selectedRaid && (
             <>
               <div style={{ ...panelStyle, padding: space[4], display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: space[3] }}>
                 <div>
@@ -1386,16 +2070,21 @@ export default function RpbPage() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.2fr) minmax(340px, 0.8fr)", gap: space[4] }}>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isPlayerDetailOpen ? "minmax(0, 1.2fr) minmax(360px, 0.8fr)" : "minmax(0, 1fr)",
+                gap: space[4],
+                alignItems: "start",
+              }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
                   <div style={{ ...panelStyle }}>
                     <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       Raid Analytics
                     </div>
                     <div style={{ padding: space[4], display: "flex", flexWrap: "wrap", gap: space[2] }}>
-                      <MetricTag label="Players Missing Enchants" value={raidAnalytics.playersMissingEnchants.length} tone="danger" />
-                      <MetricTag label="Engineering Damage Entries" value={raidAnalytics.engineeringDamageTaken.length} tone="warning" />
-                      <MetricTag label="Oil Damage Entries" value={raidAnalytics.oilOfImmolationDamageTaken.length} tone="warning" />
+                      <MetricTag label="Players Missing Enchants" value={filteredRaidAnalytics.playersMissingEnchants.length} tone="danger" />
+                      <MetricTag label="Engineering Damage Done Entries" value={filteredRaidAnalytics.engineeringDamageTaken.length} tone="warning" />
+                      <MetricTag label="Oil Damage Entries" value={filteredRaidAnalytics.oilOfImmolationDamageTaken.length} tone="warning" />
                       <MetricTag label="Players With Buff Data" value={raidAnalytics.playersWithBuffData.length} tone="info" />
                       <MetricTag label="Players Using Drums" value={raidAnalytics.playersUsingDrums.length} tone="info" />
                       <MetricTag label="Suboptimal Weapon Enchants" value={raidAnalytics.playersWithSuboptimalWeaponEnchants.length} tone="danger" />
@@ -1408,7 +2097,8 @@ export default function RpbPage() {
                     </div>
                     <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[3] }}>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: space[2] }}>
-                        <MetricTag label="Visible Encounters" value={filteredFights.filter(fight => fight.encounterId > 0).length} tone="info" />
+                        <MetricTag label="Visible Pulls" value={filteredFights.length} tone="info" />
+                        <MetricTag label="Boss Encounters" value={filteredFights.filter(fight => fight.encounterId > 0).length} tone="info" />
                         <MetricTag label="Profiles" value={aggregatedSliceEntries.length} tone="info" />
                         <MetricTag label="Parse Scores" value="Pending v2 rankings" tone="neutral" />
                       </div>
@@ -1433,13 +2123,16 @@ export default function RpbPage() {
                             Select encounters and re-import a raid with boss data to populate encounter slices.
                           </div>
                         )}
-                        {aggregatedSliceEntries.slice(0, 16).map(entry => {
+                        {aggregatedSliceEntries.map(entry => {
                           const maxValue = aggregatedSliceEntries[0]?.total || 1;
                           const active = String(entry.id) === String(selectedPlayerId);
+                          const perSecondValue = sliceType === "deaths"
+                            ? ""
+                            : formatPerSecond(entry.total, entry.activeTime);
                           return (
                             <button
                               key={`damage-${entry.id}`}
-                              onClick={() => setSelectedPlayerId(entry.id)}
+                              onClick={() => toggleSelectedPlayer(entry.id)}
                               style={{
                                 background: active ? `${accent.blue}10` : "transparent",
                                 border: `1px solid ${active ? accent.blue : border.subtle}`,
@@ -1447,12 +2140,22 @@ export default function RpbPage() {
                                 padding: space[3],
                                 textAlign: "left",
                                 cursor: "pointer",
-                              }}
-                            >
-                              <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 8 }}>
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 8 }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: space[2], minWidth: 0 }}>
+                                {entry.parsePercent != null && sliceType !== "deaths" && (
+                                  <span style={{ color: getScoreColor(entry.parsePercent) || text.muted, fontWeight: fontWeight.bold, fontSize: fontSize.xs }}>
+                                    {Math.round(entry.parsePercent)}
+                                  </span>
+                                )}
                                 <span style={{ color: getClassColor(entry.type), fontWeight: fontWeight.semibold }}>{entry.name}</span>
-                                <span style={{ color: text.secondary }}>{entry.total.toLocaleString()}</span>
-                              </div>
+                              </span>
+                              <span style={{ color: text.secondary }}>
+                                {entry.total.toLocaleString()}
+                                {sliceType !== "deaths" ? ` (${perSecondValue})` : ""}
+                              </span>
+                            </div>
                               <div style={{ height: 10, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}` }}>
                                 <div style={{
                                   width: `${Math.max(3, Math.round((entry.total / maxValue) * 100))}%`,
@@ -1467,40 +2170,34 @@ export default function RpbPage() {
                       </div>
                     </div>
                   </div>
-
                 </div>
 
-                <div style={{ ...panelStyle, minWidth: 0 }}>
-                  <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Player Detail
-                  </div>
-
-                  {!selectedPlayer && (
-                    <div style={{ padding: space[4], color: text.muted }}>
-                      Select a player to inspect their persisted raid record.
+                {isPlayerDetailOpen && (
+                  <div style={{ ...panelStyle, minWidth: 0, overflow: "hidden" }}>
+                    <div style={{
+                      padding: space[4],
+                      borderBottom: `1px solid ${border.subtle}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: space[3],
+                    }}>
+                      <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        Player Detail
+                      </div>
+                      <button onClick={() => setSelectedPlayerId("")} style={{ ...btnStyle("default"), height: 30 }}>
+                        Close
+                      </button>
                     </div>
-                  )}
-
-                  {selectedPlayer && (
                     <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[4] }}>
                       <div>
                         <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: getClassColor(selectedPlayer.type) }}>{selectedPlayer.name}</div>
                       </div>
 
                       <div style={{ display: "flex", flexWrap: "wrap", gap: space[2] }}>
-                        <MetricTag label="Missing Permanent Enchants" value={selectedPlayer.analytics?.gearIssueSummary?.missingPermanentEnchantCount || 0} tone={(selectedPlayer.analytics?.gearIssueSummary?.missingPermanentEnchantCount || 0) > 0 ? "danger" : "neutral"} />
-                        <MetricTag label="Missing Temporary Enchants" value={selectedPlayer.analytics?.gearIssueSummary?.missingTemporaryEnchantCount || 0} tone={(selectedPlayer.analytics?.gearIssueSummary?.missingTemporaryEnchantCount || 0) > 0 ? "danger" : "neutral"} />
-                        <MetricTag label="Low Quality Gems" value={selectedPlayer.analytics?.gearIssueSummary?.lowQualityGemCount || 0} tone={(selectedPlayer.analytics?.gearIssueSummary?.lowQualityGemCount || 0) > 0 ? "danger" : "neutral"} />
-                        <MetricTag label="Suboptimal Weapon Enchants" value={selectedPlayer.analytics?.gearIssueSummary?.suboptimalTemporaryEnchantCount || 0} tone={(selectedPlayer.analytics?.gearIssueSummary?.suboptimalTemporaryEnchantCount || 0) > 0 ? "danger" : "neutral"} />
-                        <MetricTag label="Deaths" value={selectedPlayer.deaths} tone={selectedPlayer.deaths > 0 ? "warning" : "neutral"} />
-                        <MetricTag label="Tracked Casts" value={selectedPlayer.trackedCastCount} tone="info" />
-                        <MetricTag label="Friendly Fire" value={selectedPlayer.hostilePlayerDamage} tone={selectedPlayer.hostilePlayerDamage > 0 ? "warning" : "neutral"} />
-                        <MetricTag label="Engineering Damage Taken" value={selectedPlayer.analytics?.engineeringDamageTaken || 0} tone={(selectedPlayer.analytics?.engineeringDamageTaken || 0) > 0 ? "warning" : "neutral"} />
-                        <MetricTag label="Oil of Immolation" value={selectedPlayer.analytics?.oilOfImmolationDamageTaken || 0} tone={(selectedPlayer.analytics?.oilOfImmolationDamageTaken || 0) > 0 ? "warning" : "neutral"} />
-                        <MetricTag label="Tracked Buff Auras" value={selectedPlayer.analytics?.buffAuraCount || 0} tone="info" />
-                        <MetricTag label="Drums Casts" value={selectedPlayer.analytics?.drumsCastCount || 0} tone="info" />
-                        <MetricTag label="Visible Fights" value={filteredFightIds.size} tone="neutral" />
-                        <MetricTag label="Active Time" value={formatDuration(selectedPlayer.activeTimeMs)} tone="neutral" />
+                        {selectedPlayerMetricTags.map(tag => (
+                          <MetricTag key={tag.label} label={tag.label} value={tag.value} tone={tag.tone} />
+                        ))}
                       </div>
 
                       {sliceType === "deaths" && (
@@ -1611,7 +2308,7 @@ export default function RpbPage() {
                                 No {sliceType} ability breakdown found for this player in the current filtered fights.
                               </div>
                             )}
-                            {(sliceType === "healing" ? selectedPlayerHealingBreakdown : selectedPlayerDamageBreakdown).slice(0, 20).map(ability => (
+                            {(sliceType === "healing" ? selectedPlayerHealingBreakdown : selectedPlayerDamageBreakdown).map(ability => (
                               <div
                                 key={`${sliceType}-${ability.key}`}
                                 style={{
@@ -1652,7 +2349,7 @@ export default function RpbPage() {
                       <div>
                         <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Detected Gear Issues</div>
                         <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                          {!selectedPlayer.analytics?.hasGearData && (
+                          {!selectedPlayerAnalytics?.hasGearData && (
                             <div style={{ fontSize: fontSize.sm, color: intent.warning }}>
                               No gear snapshot was detected for this player in the current imported datasets. Re-importing the raid usually fixes this when Warcraft Logs exposes combatant gear info for the selected report.
                             </div>
@@ -1696,7 +2393,7 @@ export default function RpbPage() {
                             selectedPlayerIssueGroups.rareGems.length
                           ) && (
                             <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                              {selectedPlayer.analytics?.hasGearData
+                              {selectedPlayerAnalytics?.hasGearData
                                 ? "No baseline enchant or gem issues detected."
                                 : "No gear issues shown because no gear snapshot is currently attached to this player."}
                             </div>
@@ -1707,12 +2404,12 @@ export default function RpbPage() {
                       <div>
                         <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Detected temporary weapon enchants</div>
                         <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                          {(selectedPlayer.analytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).map(issue => (
+                          {(selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).map(issue => (
                             <div key={`active-temp-${issue.slot}-${issue.itemId}-${issue.enchantId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
                               {issue.slotLabel}: <WowheadSpellLink spellId={issue.enchantId}>{issue.enchantName}</WowheadSpellLink>
                             </div>
                           ))}
-                          {!(selectedPlayer.analytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).length && (
+                          {!(selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).length && (
                             <div style={{ fontSize: fontSize.sm, color: text.muted }}>
                               No active temporary weapon enchant was captured for this player.
                             </div>
@@ -1902,9 +2599,9 @@ export default function RpbPage() {
                         </pre>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+              )}
+            </div>
             </>
           )}
         </div>

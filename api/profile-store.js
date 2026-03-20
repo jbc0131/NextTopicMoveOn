@@ -31,6 +31,8 @@ export default async function handler(req, res) {
         mainCharacterName: req.body?.mainCharacterName || "",
         alts: Array.isArray(req.body?.alts) ? req.body.alts : [],
         wclV1ApiKey: req.body?.wclV1ApiKey || "",
+        wclV2ClientId: req.body?.wclV2ClientId || "",
+        wclV2ClientSecret: req.body?.wclV2ClientSecret || "",
         updatedAt: new Date().toISOString(),
       };
 

@@ -58,6 +58,7 @@ const RPB_RAIDS_COL = collection(db, "rpb-raids");
 const RPB_LOCAL_STORAGE_KEY = "rpb_raids_v1";
 const USER_PROFILES_COL = collection(db, "user-profiles");
 const USER_PROFILES_LOCAL_STORAGE_KEY = "ntmo_user_profiles_v1";
+export const LOCAL_SANDBOX_PROFILE_ID = "local-sandbox-profile";
 
 function rpbRaidDoc(raidId) {
   return doc(db, "rpb-raids", raidId);
@@ -123,6 +124,12 @@ function upsertLocalUserProfile(discordId, profile) {
   const profiles = readLocalUserProfiles();
   profiles[String(discordId)] = profile;
   writeLocalUserProfiles(profiles);
+}
+
+function readLocalUserProfile(discordId) {
+  if (!discordId) return null;
+  const profiles = readLocalUserProfiles();
+  return profiles[String(discordId)] || null;
 }
 
 function chunkItems(items, size = 450) {
@@ -281,33 +288,56 @@ export async function saveRpbRaidImport(raid) {
     importedAt: raid.importedAt || new Date().toISOString(),
   });
 
-  const response = await fetch("/api/rpb-store", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  upsertLocalRpbRaid(payload);
 
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Failed to save RPB raid import");
-  return data;
+  try {
+    const response = await fetch("/api/rpb-store", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to save RPB raid import");
+    return data;
+  } catch {
+    return { persistence: "local", raid: payload };
+  }
 }
 
 export async function fetchRpbRaidList(maxCount = 25) {
-  const response = await fetch(`/api/rpb-store?maxCount=${encodeURIComponent(String(maxCount))}`);
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Failed to load RPB raid list");
-  return data.raids || [];
+  try {
+    const response = await fetch(`/api/rpb-store?maxCount=${encodeURIComponent(String(maxCount))}`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to load RPB raid list");
+
+    if (Array.isArray(data.raids)) {
+      for (const raid of data.raids) {
+        upsertLocalRpbRaid(raid);
+      }
+    }
+    return data.raids || [];
+  } catch {
+    return readLocalRpbRaids().slice(0, maxCount);
+  }
 }
 
 export async function fetchRpbRaid(raidId) {
-  const response = await fetch(`/api/rpb-store?raidId=${encodeURIComponent(String(raidId))}`);
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || "Failed to load RPB raid");
+  const normalizedRaidId = String(raidId || "").trim();
+  if (!normalizedRaidId) return null;
+
+  try {
+    const response = await fetch(`/api/rpb-store?raidId=${encodeURIComponent(normalizedRaidId)}`);
+    if (response.status === 404) {
+      return readLocalRpbRaids().find(raid => raid.id === normalizedRaidId) || null;
+    }
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to load RPB raid");
+    if (data) upsertLocalRpbRaid(data);
+    return data || null;
+  } catch {
+    return readLocalRpbRaids().find(raid => raid.id === normalizedRaidId) || null;
   }
-  const data = await response.json();
-  return data || null;
 }
 
 export async function fetchRpbRaidFights(raidId) {
@@ -332,30 +362,55 @@ export async function fetchRpbRaidBundle(raidId) {
 }
 
 export async function fetchUserProfile(discordId) {
-  if (!discordId) return null;
-  const response = await fetch(`/api/profile-store?discordId=${encodeURIComponent(String(discordId))}`);
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Failed to load profile");
-  return data.profile || null;
+  const normalizedDiscordId = String(discordId || LOCAL_SANDBOX_PROFILE_ID).trim();
+  if (!normalizedDiscordId) return null;
+
+  try {
+    const response = await fetch(`/api/profile-store?discordId=${encodeURIComponent(normalizedDiscordId)}`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to load profile");
+
+    if (data.profile) {
+      upsertLocalUserProfile(normalizedDiscordId, data.profile);
+    }
+    return data.profile || readLocalUserProfile(normalizedDiscordId);
+  } catch {
+    return readLocalUserProfile(normalizedDiscordId);
+  }
 }
 
 export async function saveUserProfile(discordId, profile) {
-  if (!discordId) throw new Error("discordId is required");
+  const normalizedDiscordId = String(discordId || LOCAL_SANDBOX_PROFILE_ID).trim();
+  if (!normalizedDiscordId) throw new Error("discordId is required");
 
   const payload = sanitize({
-    discordId: String(discordId),
+    discordId: normalizedDiscordId,
     mainCharacterName: profile?.mainCharacterName || "",
     alts: Array.isArray(profile?.alts) ? profile.alts : [],
     wclV1ApiKey: profile?.wclV1ApiKey || "",
+    wclV2ClientId: profile?.wclV2ClientId || "",
+    wclV2ClientSecret: profile?.wclV2ClientSecret || "",
+    updatedAt: new Date().toISOString(),
   });
-  const response = await fetch("/api/profile-store", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Failed to save profile");
-  return data;
+
+  upsertLocalUserProfile(payload.discordId, payload);
+
+  try {
+    const response = await fetch("/api/profile-store", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to save profile");
+
+    if (data.profile) {
+      upsertLocalUserProfile(payload.discordId, data.profile);
+    }
+    return data;
+  } catch {
+    return { persistence: "local", profile: payload };
+  }
 }
 
 // ── Dashboard — lightweight summary reads ─────────────────────────────────────

@@ -2,6 +2,8 @@ import { deriveRpbAnalytics } from "./rpbAnalytics.js";
 import { buildCacheKey, getJsonCache, setJsonCache } from "./upstashRedis.js";
 
 const BASE_URL = "https://classic.warcraftlogs.com/v1";
+const WCL_V2_TOKEN_URL = "https://classic.warcraftlogs.com/oauth/token";
+const WCL_V2_API_URL = "https://classic.warcraftlogs.com/api/v2/client";
 
 const PLAYER_TYPES = new Set([
   "Warrior", "Paladin", "Hunter", "Rogue", "Priest",
@@ -15,6 +17,35 @@ const ENGINEERING_DAMAGE_FILTER =
 const DRUMS_CAST_FILTER =
   "ability.id IN (35478,35476,35475,351355,351358,351360)";
 const WCL_CACHE_TTL_SECONDS = 60 * 15;
+let cachedV2Token = null;
+let cachedV2TokenExpiresAt = 0;
+
+async function getWclV2AccessToken(clientIdOverride = "", clientSecretOverride = "") {
+  if (cachedV2Token && Date.now() < cachedV2TokenExpiresAt) return cachedV2Token;
+
+  const clientId = clientIdOverride || process.env.WCL_CLIENT_ID;
+  const clientSecret = clientSecretOverride || process.env.WCL_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+  const res = await fetch(WCL_V2_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  });
+
+  if (!res.ok) {
+    throw new Error(`WCL v2 token fetch failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  cachedV2Token = data.access_token;
+  cachedV2TokenExpiresAt = Date.now() + Math.max(0, (Number(data.expires_in || 0) - 300)) * 1000;
+  return cachedV2Token;
+}
 
 async function fetchBossSummarySnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
@@ -51,14 +82,134 @@ async function fetchBossSummarySnapshots(reportId, apiKeyOverride = "") {
   };
 }
 
-async function fetchBossDamageSnapshots(reportId, apiKeyOverride = "") {
-  const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
-  const bossFights = (fightsData.fights || []).filter(fight =>
-    (fight.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
+function makeRankingAlias(metric, fightId) {
+  return `fight_${metric}_${String(fightId).replace(/[^a-zA-Z0-9_]/g, "_")}`;
+}
+
+function getRankingPercentile(node) {
+  const candidates = [
+    node?.percentile,
+    node?.rank?.percentile,
+    node?.ranks?.percentile,
+    node?.ranks?.rank?.percentile,
+  ];
+
+  for (const value of candidates) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0 && numeric <= 100) return numeric;
+  }
+
+  return null;
+}
+
+function collectRankingRows(node, rows = []) {
+  if (!node) return rows;
+  if (Array.isArray(node)) {
+    for (const item of node) collectRankingRows(item, rows);
+    return rows;
+  }
+  if (typeof node !== "object") return rows;
+
+  const percentile = getRankingPercentile(node);
+  const name = typeof node?.name === "string"
+    ? node.name
+    : (typeof node?.playerName === "string" ? node.playerName : (typeof node?.characterName === "string" ? node.characterName : ""));
+  const id = node?.id ?? node?.playerID ?? node?.playerId ?? node?.characterID ?? node?.characterId ?? null;
+
+  if (name && percentile != null) {
+    rows.push({ id: id != null ? String(id) : "", name, percentile });
+  }
+
+  for (const value of Object.values(node)) {
+    if (value && typeof value === "object") {
+      collectRankingRows(value, rows);
+    }
+  }
+
+  return rows;
+}
+
+function normalizeRankingRows(rawRanking) {
+  const byId = {};
+  const byName = {};
+  const rows = collectRankingRows(rawRanking, []);
+
+  for (const row of rows) {
+    if (row.id) {
+      byId[row.id] = Math.max(Number(byId[row.id] || 0), row.percentile);
+    }
+    if (row.name) {
+      byName[row.name] = Math.max(Number(byName[row.name] || 0), row.percentile);
+    }
+  }
+
+  return { byId, byName };
+}
+
+async function fetchReportRankings(reportId, fightsData = {}, clientIdOverride = "", clientSecretOverride = "") {
+  const token = await getWclV2AccessToken(clientIdOverride, clientSecretOverride);
+  if (!token) {
+    return { available: false, fights: {} };
+  }
+
+  const encounterFights = (fightsData.fights || []).filter(fight =>
+    (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
 
+  if (!encounterFights.length) {
+    return { available: true, fights: {} };
+  }
+
+  const rankingFields = encounterFights.flatMap(fight => ([
+    `${makeRankingAlias("damage", fight.id)}: rankings(compare: Parses, fightIDs: [${Number(fight.id)}], playerMetric: dps)`,
+    `${makeRankingAlias("healing", fight.id)}: rankings(compare: Parses, fightIDs: [${Number(fight.id)}], playerMetric: hps)`,
+  ])).join("\n");
+
+  const query = `{
+    reportData {
+      report(code: "${reportId}", allowUnlisted: true) {
+        ${rankingFields}
+      }
+    }
+  }`;
+
+  const res = await fetch(WCL_V2_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`WCL v2 rankings query failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  const report = data?.data?.reportData?.report || {};
+  const fights = {};
+
+  for (const fight of encounterFights) {
+    fights[String(fight.id)] = {
+      damage: normalizeRankingRows(report?.[makeRankingAlias("damage", fight.id)]),
+      healing: normalizeRankingRows(report?.[makeRankingAlias("healing", fight.id)]),
+    };
+  }
+
+  return { available: true, fights };
+}
+
+function getSnapshotEligibleFights(fights = []) {
+  return (fights || []).filter(fight => getDurationMs(fight.start_time, fight.end_time) > 0);
+}
+
+async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
+  const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
+  const snapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
+
   const snapshots = [];
-  for (const fight of bossFights) {
+  for (const fight of snapshotFights) {
     const damageDone = await wclFetch(`/report/tables/damage-done/${reportId}`, {
       start: fight.start_time ?? 0,
       end: fight.end_time ?? 0,
@@ -76,14 +227,12 @@ async function fetchBossDamageSnapshots(reportId, apiKeyOverride = "") {
   return { snapshots };
 }
 
-async function fetchBossHealingSnapshots(reportId, apiKeyOverride = "") {
+async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
-  const bossFights = (fightsData.fights || []).filter(fight =>
-    (fight.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
-  );
+  const snapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
 
   const snapshots = [];
-  for (const fight of bossFights) {
+  for (const fight of snapshotFights) {
     const healing = await wclFetch(`/report/tables/healing/${reportId}`, {
       start: fight.start_time ?? 0,
       end: fight.end_time ?? 0,
@@ -101,14 +250,12 @@ async function fetchBossHealingSnapshots(reportId, apiKeyOverride = "") {
   return { snapshots };
 }
 
-async function fetchBossDeathsSnapshots(reportId, apiKeyOverride = "") {
+async function fetchFightDeathsSnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
-  const bossFights = (fightsData.fights || []).filter(fight =>
-    (fight.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
-  );
+  const snapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
 
   const snapshots = [];
-  for (const fight of bossFights) {
+  for (const fight of snapshotFights) {
     const deaths = await wclFetch(`/report/tables/deaths/${reportId}`, {
       start: fight.start_time ?? 0,
       end: fight.end_time ?? 0,
@@ -265,6 +412,33 @@ function normalizeAbilityEntry(ability) {
   };
 }
 
+function getEntryParsePercent(entry) {
+  const candidates = [
+    entry?.rankPercent,
+    entry?.rankPercentile,
+    entry?.parsePercent,
+    entry?.percentile,
+    entry?.ranks?.rankPercent,
+    entry?.ranks?.rankPercentile,
+    entry?.ranks?.percentile,
+    entry?.ranks?.historical?.rankPercent,
+    entry?.ranks?.historical?.rankPercentile,
+    entry?.ranks?.historical?.percentile,
+    entry?.ranks?.overall?.rankPercent,
+    entry?.ranks?.overall?.rankPercentile,
+    entry?.ranks?.overall?.percentile,
+  ];
+
+  for (const value of candidates) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) continue;
+    if (numeric > 0 && numeric <= 1) return numeric * 100;
+    if (numeric > 0 && numeric <= 100) return numeric;
+  }
+
+  return null;
+}
+
 function normalizeDeathEvent(event) {
   if (!event) return null;
 
@@ -339,7 +513,13 @@ function getResolvedReportId({ reportUrl, reportId: rawReportId }) {
   return reportId;
 }
 
-export async function fetchRpbImportStep(action, { reportUrl, reportId: rawReportId, apiKey = "" }) {
+export async function fetchRpbImportStep(action, {
+  reportUrl,
+  reportId: rawReportId,
+  apiKey = "",
+  wclV2ClientId = "",
+  wclV2ClientSecret = "",
+}) {
   const reportId = getResolvedReportId({ reportUrl, reportId: rawReportId });
 
   switch (action) {
@@ -378,11 +558,11 @@ export async function fetchRpbImportStep(action, { reportUrl, reportId: rawRepor
         end: 999999999999,
       }, apiKey);
     case "engineering":
-      return wclFetch(`/report/tables/damage-taken/${reportId}`, {
+      return wclFetch(`/report/tables/damage-done/${reportId}`, {
         start: 0,
         end: 999999999999,
         hostility: 1,
-        by: "target",
+        by: "source",
         filter: ENGINEERING_DAMAGE_FILTER,
       }, apiKey);
     case "oil":
@@ -409,14 +589,25 @@ export async function fetchRpbImportStep(action, { reportUrl, reportId: rawRepor
         by: "source",
         filter: DRUMS_CAST_FILTER,
       }, apiKey);
+    case "reportRankings":
+      try {
+        return await fetchReportRankings(
+          reportId,
+          await fetchRpbImportStep("fights", { reportId, apiKey }),
+          wclV2ClientId,
+          wclV2ClientSecret,
+        );
+      } catch {
+        return { available: false, fights: {} };
+      }
     case "raiderData":
       return fetchBossSummarySnapshots(reportId, apiKey);
     case "damageByFight":
-      return fetchBossDamageSnapshots(reportId, apiKey);
+      return fetchFightDamageSnapshots(reportId, apiKey);
     case "healingByFight":
-      return fetchBossHealingSnapshots(reportId, apiKey);
+      return fetchFightHealingSnapshots(reportId, apiKey);
     case "deathsByFight":
-      return fetchBossDeathsSnapshots(reportId, apiKey);
+      return fetchFightDeathsSnapshots(reportId, apiKey);
     default:
       throw new Error(`Unknown RPB import step: ${action}`);
   }
@@ -438,6 +629,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
       const healingSnapshot = (datasets.healingByFight?.snapshots || []).find(snapshot => snapshot.fightId === String(normalizedFight.id));
       const deathsSnapshot = (datasets.deathsByFight?.snapshots || []).find(snapshot => snapshot.fightId === String(normalizedFight.id));
       const raiderSnapshot = (datasets.raiderData?.summaries || []).find(snapshot => snapshot.fightId === String(normalizedFight.id));
+      const rankingSnapshot = datasets.reportRankings?.fights?.[String(normalizedFight.id)] || {};
 
       return {
         ...normalizedFight,
@@ -450,6 +642,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
             type: entry.type || "",
             total: entry.total ?? 0,
             activeTime: entry.activeTime ?? 0,
+            parsePercent: rankingSnapshot.damage?.byId?.[String(entry.id)] ?? rankingSnapshot.damage?.byName?.[entry.name] ?? getEntryParsePercent(entry),
             abilities: (entry.abilities || []).map(normalizeAbilityEntry).filter(Boolean),
           })),
         healingDoneEntries: (healingSnapshot?.healing?.entries || [])
@@ -460,6 +653,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
             type: entry.type || "",
             total: entry.total ?? 0,
             activeTime: entry.activeTime ?? 0,
+            parsePercent: rankingSnapshot.healing?.byId?.[String(entry.id)] ?? rankingSnapshot.healing?.byName?.[entry.name] ?? getEntryParsePercent(entry),
             abilities: (entry.abilities || []).map(normalizeAbilityEntry).filter(Boolean),
           })),
         deathEntries: (deathsSnapshot?.deaths?.entries || [])
@@ -512,7 +706,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
 
 export async function importRpbRaid({ reportUrl, reportId: rawReportId, apiKey = "" }) {
   const input = { reportUrl, reportId: rawReportId, apiKey };
-  const [fights, summary, deaths, tracked, hostile, fullCasts, engineering, oil, buffs, drums, raiderData, damageByFight, healingByFight, deathsByFight] = await Promise.all([
+  const [fights, summary, deaths, tracked, hostile, fullCasts, engineering, oil, buffs, drums, reportRankings, raiderData, damageByFight, healingByFight, deathsByFight] = await Promise.all([
     fetchRpbImportStep("fights", input),
     fetchRpbImportStep("summary", input),
     fetchRpbImportStep("deaths", input),
@@ -523,6 +717,7 @@ export async function importRpbRaid({ reportUrl, reportId: rawReportId, apiKey =
     fetchRpbImportStep("oil", input),
     fetchRpbImportStep("buffs", input),
     fetchRpbImportStep("drums", input),
+    fetchRpbImportStep("reportRankings", input),
     fetchRpbImportStep("raiderData", input),
     fetchRpbImportStep("damageByFight", input),
     fetchRpbImportStep("healingByFight", input),
@@ -531,6 +726,6 @@ export async function importRpbRaid({ reportUrl, reportId: rawReportId, apiKey =
 
   return assembleRpbRaid(
     { reportUrl, reportId: rawReportId },
-    { fights, summary, deaths, tracked, hostile, fullCasts, engineering, oil, buffs, drums, raiderData, damageByFight, healingByFight, deathsByFight }
+    { fights, summary, deaths, tracked, hostile, fullCasts, engineering, oil, buffs, drums, reportRankings, raiderData, damageByFight, healingByFight, deathsByFight }
   );
 }

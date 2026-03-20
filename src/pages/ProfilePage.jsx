@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, LoadingSpinner, toast } from "../shared/components";
 import { useAuth } from "../shared/auth";
-import { fetchUserProfile, saveUserProfile } from "../shared/firebase";
+import { fetchUserProfile, LOCAL_SANDBOX_PROFILE_ID, saveUserProfile } from "../shared/firebase";
 import {
   panelStyle, inputStyle, btnStyle, surface, border, text, fontSize, fontWeight, radius, space,
 } from "../shared/theme";
@@ -30,30 +30,33 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showV2ClientId, setShowV2ClientId] = useState(false);
+  const [showV2ClientSecret, setShowV2ClientSecret] = useState(false);
   const [form, setForm] = useState({
     mainCharacterName: "",
     alts: [""],
     wclV1ApiKey: "",
+    wclV2ClientId: "",
+    wclV2ClientSecret: "",
   });
+  const profileStorageId = auth.user?.discordId || LOCAL_SANDBOX_PROFILE_ID;
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadProfile() {
       if (auth.loading) return;
-      if (!auth.authenticated || !auth.user?.discordId) {
-        if (!cancelled) setLoading(false);
-        return;
-      }
 
       setLoading(true);
       try {
-        const profile = await fetchUserProfile(auth.user.discordId);
+        const profile = await fetchUserProfile(profileStorageId);
         if (!cancelled) {
           setForm({
             mainCharacterName: profile?.mainCharacterName || "",
             alts: (profile?.alts || []).length ? profile.alts : [""],
             wclV1ApiKey: profile?.wclV1ApiKey || "",
+            wclV2ClientId: profile?.wclV2ClientId || "",
+            wclV2ClientSecret: profile?.wclV2ClientSecret || "",
           });
         }
       } catch (error) {
@@ -67,19 +70,19 @@ export default function ProfilePage() {
 
     loadProfile();
     return () => { cancelled = true; };
-  }, [auth.authenticated, auth.isAdmin, auth.loading, auth.user]);
+  }, [auth.authenticated, auth.isAdmin, auth.loading, auth.user, profileStorageId]);
 
   const normalizedAlts = useMemo(() => form.alts.map(value => value.trim()).filter(Boolean), [form.alts]);
 
   async function handleSave() {
-    if (!auth.user?.discordId) return;
-
     setSaving(true);
     try {
-      const result = await saveUserProfile(auth.user.discordId, {
+      const result = await saveUserProfile(profileStorageId, {
         mainCharacterName: form.mainCharacterName.trim(),
         alts: normalizedAlts,
         wclV1ApiKey: form.wclV1ApiKey.trim(),
+        wclV2ClientId: form.wclV2ClientId.trim(),
+        wclV2ClientSecret: form.wclV2ClientSecret.trim(),
       });
 
       toast({
@@ -107,14 +110,28 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleCopyField(value, successMessage) {
+    try {
+      await navigator.clipboard.writeText(value || "");
+      toast({ message: successMessage, type: "success" });
+    } catch {
+      toast({ message: "Clipboard copy failed.", type: "warning" });
+    }
+  }
+
   return (
     <AppShell>
       <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[4] }}>
         <div style={{ ...panelStyle, padding: space[4], display: "flex", flexDirection: "column", gap: space[2] }}>
           <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: text.primary }}>Profile</div>
           <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-            Save your character info here. Admins can also store their Warcraft Logs v1 API key for imports.
+            Save your character info here. Admins can also store their Warcraft Logs v1 and v2 credentials for imports.
           </div>
+          {profileStorageId === LOCAL_SANDBOX_PROFILE_ID && (
+            <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+              Sandbox mode: this profile is being saved locally in your browser for testing.
+            </div>
+          )}
         </div>
 
         {loading && (
@@ -212,6 +229,81 @@ export default function ProfilePage() {
                   fresh.warcraftlogs.com/profile
                 </a>
                 {" "}and edit it at the bottom of that page.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+              <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Warcraft Logs v2 Credentials</div>
+
+              <div style={{ display: "flex", gap: space[2], alignItems: "center" }}>
+                <input
+                  value={form.wclV2ClientId}
+                  onChange={event => setForm(prev => ({ ...prev, wclV2ClientId: event.target.value }))}
+                  placeholder="Client ID"
+                  type={showV2ClientId ? "text" : "password"}
+                  style={{ ...inputStyle, height: 38, flex: 1, fontFamily: "monospace" }}
+                />
+                <button
+                  onClick={() => setShowV2ClientId(value => !value)}
+                  style={{ ...btnStyle("default"), height: 38 }}
+                  title={showV2ClientId ? "Hide client ID" : "Show client ID"}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <EyeIcon open={showV2ClientId} />
+                    <span>{showV2ClientId ? "Hide" : "Show"}</span>
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleCopyField(form.wclV2ClientId, "Copied WCL v2 client ID.")}
+                  style={{ ...btnStyle("default"), height: 38 }}
+                  title="Copy client ID"
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <CopyIcon />
+                    <span>Copy</span>
+                  </span>
+                </button>
+              </div>
+
+              <div style={{ display: "flex", gap: space[2], alignItems: "center" }}>
+                <input
+                  value={form.wclV2ClientSecret}
+                  onChange={event => setForm(prev => ({ ...prev, wclV2ClientSecret: event.target.value }))}
+                  placeholder="Client Secret"
+                  type={showV2ClientSecret ? "text" : "password"}
+                  style={{ ...inputStyle, height: 38, flex: 1, fontFamily: "monospace" }}
+                />
+                <button
+                  onClick={() => setShowV2ClientSecret(value => !value)}
+                  style={{ ...btnStyle("default"), height: 38 }}
+                  title={showV2ClientSecret ? "Hide client secret" : "Show client secret"}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <EyeIcon open={showV2ClientSecret} />
+                    <span>{showV2ClientSecret ? "Hide" : "Show"}</span>
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleCopyField(form.wclV2ClientSecret, "Copied WCL v2 client secret.")}
+                  style={{ ...btnStyle("default"), height: 38 }}
+                  title="Copy client secret"
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <CopyIcon />
+                    <span>Copy</span>
+                  </span>
+                </button>
+              </div>
+
+              <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                Store your Warcraft Logs v2 client ID and client secret here for newer API integrations.
+              </div>
+              <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                If you need to create or manage them, visit{" "}
+                <a href="https://fresh.warcraftlogs.com/profile" target="_blank" rel="noreferrer" style={{ color: text.primary }}>
+                  fresh.warcraftlogs.com/profile
+                </a>
+                {" "}and edit them at the bottom of that page.
               </div>
             </div>
 
