@@ -321,57 +321,59 @@ function getDefaultSelectedFightId(raid) {
 }
 
 function getRaidAwardWinner(raid, role, parseField) {
-  const matchesLeaderBucket = player => {
-    const damageParse = Number(player?.damageParsePercent || player?.awardParse || 0);
-    const healingParse = Number(player?.healingParsePercent || player?.oppositeParse || 0);
-
-    if (role === "DPS") return player?.role === "DPS" && damageParse > 0;
-    if (role === "Healer") return player?.role === "Healer" && healingParse > 0;
-    return false;
-  };
-
   const persistedLeader = role === "DPS" ? raid?.topDpsLeader : raid?.topHealerLeader;
-  if (persistedLeader?.name && (Number(persistedLeader?.parsePercent) > 0 || Number(persistedLeader?.averageValue) > 0)) {
+  if (persistedLeader?.name && Number(persistedLeader?.parsePercent) > 0) {
     return {
       ...persistedLeader,
       awardParse: Number(persistedLeader.parsePercent || 0),
-      awardValue: Number(persistedLeader.averageValue || 0),
     };
   }
 
-  const candidates = (raid?.players || []).map(player => {
-    const awardParse = Number(player?.[parseField]);
-    const oppositeParse = Number(player?.[parseField === "damageParsePercent" ? "healingParsePercent" : "damageParsePercent"]);
-    const summary = player?.summary || {};
-    const computedAverage = Number(player?.summaryTotal || 0) > 0 && Number(player?.activeTimeMs || 0) > 0
-      ? (Number(player.summaryTotal || 0) / (Number(player.activeTimeMs || 0) / 1000))
-      : null;
-    const awardValue = [
-      player?.summaryAverage,
-      summary?.average,
-      summary?.avg,
-      computedAverage,
-    ].map(value => Number(value)).find(value => Number.isFinite(value) && value > 0) ?? null;
-    return {
-      ...player,
-      awardParse: Number.isFinite(awardParse) && awardParse > 0 ? awardParse : null,
-      oppositeParse: Number.isFinite(oppositeParse) && oppositeParse > 0 ? oppositeParse : null,
-      awardValue: Number.isFinite(Number(awardValue)) && Number(awardValue) > 0 ? Number(awardValue) : null,
-    };
-  }).filter(player => {
-    if (!(Number.isFinite(Number(player?.awardParse)) && Number(player.awardParse) > 0)) return false;
-    if (!matchesLeaderBucket(player)) return false;
-    return true;
-  });
+  const playersById = new Map((raid?.players || []).map(player => [String(player?.id || ""), player]));
+  const grouped = new Map();
+  const entryKey = role === "Healer" ? "healingDoneEntries" : "damageDoneEntries";
+
+  for (const fight of raid?.fights || []) {
+    if (!fight?.kill || !(Number(fight?.encounterId) > 0)) continue;
+
+    for (const entry of fight?.[entryKey] || []) {
+      const parsePercent = Number(entry?.parsePercent);
+      if (!(Number.isFinite(parsePercent) && parsePercent > 0)) continue;
+
+      const player = playersById.get(String(entry?.id || ""));
+      if (!player || player?.role !== role) continue;
+
+      const key = String(player.id);
+      const existing = grouped.get(key) || {
+        id: key,
+        name: player?.name || entry?.name || "Unknown Player",
+        type: player?.type || entry?.type || "",
+        role: player?.role || role,
+        totalParse: 0,
+        count: 0,
+        bestParse: 0,
+      };
+
+      existing.totalParse += parsePercent;
+      existing.count += 1;
+      existing.bestParse = Math.max(existing.bestParse, parsePercent);
+      grouped.set(key, existing);
+    }
+  }
+
+  const candidates = [...grouped.values()].map(player => ({
+    ...player,
+    awardParse: player.count > 0 ? (player.totalParse / player.count) : null,
+  })).filter(player => Number.isFinite(Number(player?.awardParse)) && Number(player.awardParse) > 0);
 
   if (!candidates.length) return null;
 
   return [...candidates].sort((left, right) => {
-    const valueDiff = Number(right?.awardValue || 0) - Number(left?.awardValue || 0);
-    if (valueDiff !== 0) return valueDiff;
     const parseDiff = Number(right?.awardParse || 0) - Number(left?.awardParse || 0);
     if (parseDiff !== 0) return parseDiff;
-    return Number(right?.summaryTotal || 0) - Number(left?.summaryTotal || 0);
+    const bestDiff = Number(right?.bestParse || 0) - Number(left?.bestParse || 0);
+    if (bestDiff !== 0) return bestDiff;
+    return String(left?.name || "").localeCompare(String(right?.name || ""), "en", { sensitivity: "base" });
   })[0];
 }
 

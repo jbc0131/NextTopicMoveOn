@@ -12,76 +12,60 @@ function getReportSpeedPercent(raid) {
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
-function getReportAverageValue(player, role) {
-  const summary = player?.summary || {};
-  const summaryTotal = Number(player?.summaryTotal || 0);
-  const activeTimeMs = Number(player?.activeTimeMs || 0);
-  const candidates = [
-    player?.summaryAverage,
-    summary?.average,
-    summary?.avg,
-    activeTimeMs > 0 ? (summaryTotal / (activeTimeMs / 1000)) : null,
-  ];
+function getKillParseLeader(raid, role, entryKey) {
+  const playersById = new Map(
+    (raid?.players || []).map(player => [String(player?.id || ""), player])
+  );
+  const grouped = new Map();
 
-  for (const candidate of candidates) {
-    const value = Number(candidate);
-    if (Number.isFinite(value) && value > 0) return value;
+  for (const fight of raid?.fights || []) {
+    if (!fight?.kill || !(Number(fight?.encounterId) > 0)) continue;
+
+    for (const entry of fight?.[entryKey] || []) {
+      const parsePercent = Number(entry?.parsePercent);
+      if (!(Number.isFinite(parsePercent) && parsePercent > 0)) continue;
+
+      const player = playersById.get(String(entry?.id || ""));
+      if (!player || player?.role !== role) continue;
+
+      const key = String(player.id);
+      const existing = grouped.get(key) || {
+        id: key,
+        name: String(player?.name || entry?.name || "").trim(),
+        type: player?.type || entry?.type || "",
+        role: player?.role || "",
+        totalParse: 0,
+        count: 0,
+        bestParse: 0,
+      };
+
+      existing.totalParse += parsePercent;
+      existing.count += 1;
+      existing.bestParse = Math.max(existing.bestParse, parsePercent);
+      grouped.set(key, existing);
+    }
   }
 
-  return null;
-}
-
-function matchesLeaderBucket(player, role) {
-  const damageParse = Number(player?.damageParsePercent || 0);
-  const healingParse = Number(player?.healingParsePercent || 0);
-
-  if (role === "DPS") {
-    return player?.role === "DPS" && damageParse > 0;
-  }
-
-  if (role === "Healer") {
-    return player?.role === "Healer" && healingParse > 0;
-  }
-
-  return false;
-}
-
-function getReportParseLeader(raid, role, parseField) {
-  const candidates = (raid?.players || []).map(player => {
-    const parsePercent = Number(player?.[parseField]);
-    const summaryTotal = Number(player?.summaryTotal || 0);
-    return {
-      name: String(player?.name || "").trim(),
-      type: player?.type || "",
-      role: player?.role || "",
-      damageParsePercent: Number(player?.damageParsePercent || 0),
-      healingParsePercent: Number(player?.healingParsePercent || 0),
-      parsePercent: Number.isFinite(parsePercent) && parsePercent > 0 ? parsePercent : null,
-      averageValue: getReportAverageValue(player, role),
-      summaryTotal,
-    };
-  }).filter(player => {
-    if (!player.name) return false;
-    if (!(Number.isFinite(Number(player.parsePercent)) && Number(player.parsePercent) > 0)) return false;
-    if (!matchesLeaderBucket(player, role)) return false;
-    return true;
-  });
+  const candidates = [...grouped.values()].map(player => ({
+    ...player,
+    parsePercent: player.count > 0 ? (player.totalParse / player.count) : null,
+  })).filter(player => Number.isFinite(Number(player.parsePercent)) && Number(player.parsePercent) > 0);
 
   if (!candidates.length) return null;
 
   const winner = [...candidates].sort((left, right) => {
-    const averageDiff = Number(right?.averageValue || 0) - Number(left?.averageValue || 0);
-    if (averageDiff !== 0) return averageDiff;
     const parseDiff = Number(right?.parsePercent || 0) - Number(left?.parsePercent || 0);
     if (parseDiff !== 0) return parseDiff;
-    return Number(right?.summaryTotal || 0) - Number(left?.summaryTotal || 0);
+    const bestDiff = Number(right?.bestParse || 0) - Number(left?.bestParse || 0);
+    if (bestDiff !== 0) return bestDiff;
+    return String(left?.name || "").localeCompare(String(right?.name || ""), "en", { sensitivity: "base" });
   })[0];
 
   return {
     name: winner.name,
     type: winner.type,
     parsePercent: winner.parsePercent,
-    averageValue: winner.averageValue,
+    role: winner.role,
   };
 }
 
@@ -100,8 +84,8 @@ function getRaidSummary(raid) {
     fightCount: (raid.fights || []).length,
     playerCount: (raid.players || []).length,
     reportSpeedPercent: getReportSpeedPercent(raid),
-    topDpsLeader: getReportParseLeader(raid, "DPS", "damageParsePercent"),
-    topHealerLeader: getReportParseLeader(raid, "Healer", "healingParsePercent"),
+    topDpsLeader: getKillParseLeader(raid, "DPS", "damageDoneEntries"),
+    topHealerLeader: getKillParseLeader(raid, "Healer", "healingDoneEntries"),
     source: "redis",
     analytics: raid.analytics || null,
   };
@@ -121,8 +105,8 @@ function getRaidMeta(raid) {
     teamTag: normalizeTeamTag(raid.teamTag),
     analytics: raid.analytics || null,
     reportSpeedPercent: getReportSpeedPercent(raid),
-    topDpsLeader: getReportParseLeader(raid, "DPS", "damageParsePercent"),
-    topHealerLeader: getReportParseLeader(raid, "Healer", "healingParsePercent"),
+    topDpsLeader: getKillParseLeader(raid, "DPS", "damageDoneEntries"),
+    topHealerLeader: getKillParseLeader(raid, "Healer", "healingDoneEntries"),
     importPayload: raid.importPayload || null,
     source: "redis",
   };
