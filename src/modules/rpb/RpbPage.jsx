@@ -322,24 +322,30 @@ function getDefaultSelectedFightId(raid) {
 
 function getRaidAwardWinner(raid, role, parseField) {
   const persistedLeader = role === "DPS" ? raid?.topDpsLeader : raid?.topHealerLeader;
-  if (persistedLeader?.name && Number(persistedLeader?.parsePercent) > 0) {
+  if (persistedLeader?.name && Number(persistedLeader?.averageValue) > 0) {
     return {
       ...persistedLeader,
-      awardParse: Number(persistedLeader.parsePercent),
+      awardValue: Number(persistedLeader.averageValue),
     };
   }
 
   const candidates = (raid?.players || []).map(player => {
     const awardParse = Number(player?.[parseField]);
+    const awardValue = Number(player?.summaryTotal || 0) > 0 && Number(player?.activeTimeMs || 0) > 0
+      ? (Number(player.summaryTotal || 0) / (Number(player.activeTimeMs || 0) / 1000))
+      : null;
     return {
       ...player,
       awardParse: Number.isFinite(awardParse) && awardParse > 0 ? awardParse : null,
+      awardValue: Number.isFinite(Number(awardValue)) && Number(awardValue) > 0 ? Number(awardValue) : null,
     };
-  }).filter(player => player?.role === role && Number.isFinite(Number(player?.awardParse)) && Number(player.awardParse) > 0);
+  }).filter(player => player?.role === role && Number.isFinite(Number(player?.awardValue)) && Number(player.awardValue) > 0);
 
   if (!candidates.length) return null;
 
   return [...candidates].sort((left, right) => {
+    const valueDiff = Number(right?.awardValue || 0) - Number(left?.awardValue || 0);
+    if (valueDiff !== 0) return valueDiff;
     const parseDiff = Number(right?.awardParse || 0) - Number(left?.awardParse || 0);
     if (parseDiff !== 0) return parseDiff;
     return Number(right?.summaryTotal || 0) - Number(left?.summaryTotal || 0);
@@ -3313,9 +3319,9 @@ export default function RpbPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: "flex-start" }}>
                     {topDps && (
                       <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <span style={{ color: "#e5cc80" }}>Crown DPS</span>
-                        <span style={{ color: getScoreColor(topDps.awardParse) || (active ? "#dce9ff" : text.muted), fontWeight: fontWeight.bold }}>
-                          {Math.round(Number(topDps.awardParse || 0))}
+                        <span style={{ color: "#e5cc80" }}>👑 DPS</span>
+                        <span style={{ color: active ? "#f6f8ff" : text.primary, fontWeight: fontWeight.bold }}>
+                          {formatMetricValue(Math.round(Number(topDps.awardValue || 0)))}
                         </span>
                         <span style={{ color: getClassColor(topDps.type), fontWeight: fontWeight.semibold }}>
                           {topDps.name}
@@ -3324,9 +3330,9 @@ export default function RpbPage() {
                     )}
                     {topHealer && (
                       <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <span style={{ color: "#e5cc80" }}>Crown Heal</span>
-                        <span style={{ color: getScoreColor(topHealer.awardParse) || (active ? "#dce9ff" : text.muted), fontWeight: fontWeight.bold }}>
-                          {Math.round(Number(topHealer.awardParse || 0))}
+                        <span style={{ color: "#e5cc80" }}>👑 Heal</span>
+                        <span style={{ color: active ? "#f6f8ff" : text.primary, fontWeight: fontWeight.bold }}>
+                          {formatMetricValue(Math.round(Number(topHealer.awardValue || 0)))}
                         </span>
                         <span style={{ color: getClassColor(topHealer.type), fontWeight: fontWeight.semibold }}>
                           {topHealer.name}
