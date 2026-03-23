@@ -54,10 +54,9 @@ function getReportParseLeader(raid, role, parseField) {
       name: String(player?.name || "").trim(),
       type: player?.type || "",
       role: player?.role || "",
+      damageParsePercent: Number(player?.damageParsePercent || 0),
+      healingParsePercent: Number(player?.healingParsePercent || 0),
       parsePercent: Number.isFinite(parsePercent) && parsePercent > 0 ? parsePercent : null,
-      oppositeParsePercent: Number.isFinite(Number(player?.[parseField === "damageParsePercent" ? "healingParsePercent" : "damageParsePercent"]))
-        ? Number(player?.[parseField === "damageParsePercent" ? "healingParsePercent" : "damageParsePercent"])
-        : null,
       averageValue: getReportAverageValue(player, role),
       summaryTotal,
     };
