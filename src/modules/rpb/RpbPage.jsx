@@ -321,15 +321,36 @@ function getDefaultSelectedFightId(raid) {
 }
 
 function getRaidAwardWinner(raid, role, parseField) {
-  const candidates = (raid?.players || []).filter(player => {
-    const value = Number(player?.[parseField]);
-    return player?.role === role && Number.isFinite(value) && value > 0;
-  });
+  const fightField = parseField === "damageParsePercent" ? "damageDoneEntries" : "healingDoneEntries";
+  const fightParseByPlayerId = new Map();
+
+  for (const fight of raid?.fights || []) {
+    for (const entry of fight?.[fightField] || []) {
+      const value = Number(entry?.parsePercent);
+      if (!Number.isFinite(value) || value <= 0) continue;
+      const current = fightParseByPlayerId.get(String(entry.id));
+      if (current == null || value > current) {
+        fightParseByPlayerId.set(String(entry.id), value);
+      }
+    }
+  }
+
+  const candidates = (raid?.players || []).map(player => {
+    const persistedParse = Number(player?.[parseField]);
+    const fallbackParse = Number(fightParseByPlayerId.get(String(player?.id)));
+    const awardParse = Number.isFinite(persistedParse) && persistedParse > 0
+      ? persistedParse
+      : (Number.isFinite(fallbackParse) && fallbackParse > 0 ? fallbackParse : null);
+    return {
+      ...player,
+      awardParse,
+    };
+  }).filter(player => player?.role === role && Number.isFinite(Number(player?.awardParse)) && Number(player.awardParse) > 0);
 
   if (!candidates.length) return null;
 
   return [...candidates].sort((left, right) => {
-    const parseDiff = Number(right?.[parseField] || 0) - Number(left?.[parseField] || 0);
+    const parseDiff = Number(right?.awardParse || 0) - Number(left?.awardParse || 0);
     if (parseDiff !== 0) return parseDiff;
     return Number(right?.summaryTotal || 0) - Number(left?.summaryTotal || 0);
   })[0];
@@ -3280,8 +3301,8 @@ export default function RpbPage() {
                     {topDps && (
                       <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <span style={{ color: "#e5cc80" }}>Crown DPS</span>
-                        <span style={{ color: getScoreColor(topDps.damageParsePercent) || (active ? "#dce9ff" : text.muted), fontWeight: fontWeight.bold }}>
-                          {Math.round(Number(topDps.damageParsePercent || 0))}
+                        <span style={{ color: getScoreColor(topDps.awardParse) || (active ? "#dce9ff" : text.muted), fontWeight: fontWeight.bold }}>
+                          {Math.round(Number(topDps.awardParse || 0))}
                         </span>
                         <span style={{ color: getClassColor(topDps.type), fontWeight: fontWeight.semibold }}>
                           {topDps.name}
@@ -3291,8 +3312,8 @@ export default function RpbPage() {
                     {topHealer && (
                       <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <span style={{ color: "#e5cc80" }}>Crown Heal</span>
-                        <span style={{ color: getScoreColor(topHealer.healingParsePercent) || (active ? "#dce9ff" : text.muted), fontWeight: fontWeight.bold }}>
-                          {Math.round(Number(topHealer.healingParsePercent || 0))}
+                        <span style={{ color: getScoreColor(topHealer.awardParse) || (active ? "#dce9ff" : text.muted), fontWeight: fontWeight.bold }}>
+                          {Math.round(Number(topHealer.awardParse || 0))}
                         </span>
                         <span style={{ color: getClassColor(topHealer.type), fontWeight: fontWeight.semibold }}>
                           {topHealer.name}
@@ -3301,7 +3322,7 @@ export default function RpbPage() {
                     )}
                     {!topDps && !topHealer && (
                       <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>
-                        {raid.playerCount || 0} players • {raid.fightCount || 0} fights
+                        No parse leaders yet
                       </span>
                     )}
                   </div>
