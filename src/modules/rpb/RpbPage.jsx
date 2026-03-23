@@ -2002,8 +2002,6 @@ export default function RpbPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingRaid, setLoadingRaid] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [remoteAbilityBreakdowns, setRemoteAbilityBreakdowns] = useState({});
-  const [loadingRemoteAbilityBreakdown, setLoadingRemoteAbilityBreakdown] = useState(false);
   const [teamFilter, setTeamFilter] = useState("");
   const [openRaidMenuId, setOpenRaidMenuId] = useState("");
   const [tagModalState, setTagModalState] = useState({ open: false, raid: null, value: "" });
@@ -2359,22 +2357,15 @@ export default function RpbPage() {
   const selectedPlayerHealingBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "healingDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSummaryDamageBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "damage"), [selectedPlayer?.summary]);
   const selectedPlayerSummaryHealingBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "healing"), [selectedPlayer?.summary]);
-  const remoteBreakdownKey = useMemo(
-    () => makeRemoteBreakdownKey(selectedRaid?.reportId, selectedPlayerId, sliceType, filteredFights),
-    [filteredFights, selectedPlayerId, selectedRaid?.reportId, sliceType]
-  );
   const importedBreakdownExists = sliceType === "healing"
     ? hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
     : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown);
-  const prefersRemoteBreakdown = !!profileApiKey.trim() && sliceType !== "deaths" && !importedBreakdownExists;
-  const hasRemoteBreakdownForSelection = Object.prototype.hasOwnProperty.call(remoteAbilityBreakdowns, remoteBreakdownKey);
-  const remotePlayerAbilityBreakdown = remoteAbilityBreakdowns[remoteBreakdownKey] || [];
-  const visiblePlayerDamageBreakdown = prefersRemoteBreakdown
-    ? (hasRemoteBreakdownForSelection ? remotePlayerAbilityBreakdown : [])
-    : (hasVisibleBreakdownStats(selectedPlayerDamageBreakdown) ? selectedPlayerDamageBreakdown : selectedPlayerSummaryDamageBreakdown);
-  const visiblePlayerHealingBreakdown = prefersRemoteBreakdown
-    ? (hasRemoteBreakdownForSelection ? remotePlayerAbilityBreakdown : [])
-    : (hasVisibleBreakdownStats(selectedPlayerHealingBreakdown) ? selectedPlayerHealingBreakdown : selectedPlayerSummaryHealingBreakdown);
+  const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
+    ? selectedPlayerDamageBreakdown
+    : selectedPlayerSummaryDamageBreakdown;
+  const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
+    ? selectedPlayerHealingBreakdown
+    : selectedPlayerSummaryHealingBreakdown;
   const selectedPlayerDeathRows = useMemo(() => buildDeathDetailRows(filteredFights, selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSliceTotals = useMemo(() => {
     return getPlayerSliceTotals(filteredFights, selectedPlayerId, selectedPlayer?.role || "");
@@ -2689,67 +2680,6 @@ export default function RpbPage() {
       setSelectedPlayerId("");
     }
   }, [filteredPlayers, selectedPlayerId]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadRemoteAbilityBreakdown() {
-      if (sliceType === "deaths") return;
-      if (importedBreakdownExists) return;
-      if (!selectedRaid?.reportId || !selectedPlayerId || !profileApiKey.trim()) return;
-      if (!filteredFights.length) return;
-
-      setLoadingRemoteAbilityBreakdown(true);
-      try {
-        const response = await fetch("/api/rpb-import", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "step",
-            step: "playerAbilityBreakdown",
-            reportId: selectedRaid.reportId,
-            apiKey: profileApiKey,
-            sourceId: selectedPlayerId,
-            fightIds: filteredFights.map(fight => String(fight.id)),
-            mode: sliceType,
-          }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Failed to load ability breakdown");
-
-        if (!cancelled) {
-          setRemoteAbilityBreakdowns(prev => ({
-            ...prev,
-            [remoteBreakdownKey]: data.entries || [],
-          }));
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setRemoteAbilityBreakdowns(prev => ({
-            ...prev,
-            [remoteBreakdownKey]: [],
-          }));
-          toast({ message: `Failed to load detailed player breakdown: ${error.message}`, type: "warning", duration: 5000 });
-        }
-      } finally {
-        if (!cancelled) setLoadingRemoteAbilityBreakdown(false);
-      }
-    }
-
-    loadRemoteAbilityBreakdown();
-    return () => { cancelled = true; };
-  }, [
-    filteredFights,
-    importedBreakdownExists,
-    profileApiKey,
-    remoteBreakdownKey,
-    selectedPlayerDamageBreakdown.length,
-    selectedPlayerHealingBreakdown.length,
-    selectedPlayerId,
-    selectedRaid?.reportId,
-    sliceType,
-  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -3931,9 +3861,7 @@ export default function RpbPage() {
                             )}
                             {!(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) && (
                               <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                                {loadingRemoteAbilityBreakdown
-                                  ? `Loading ${sliceType} ability breakdown from Warcraft Logs...`
-                                  : `No ${sliceType} ability breakdown found for this player in the current filtered fights.`}
+                                {`No ${sliceType} ability breakdown found for this player in the current filtered fights.`}
                               </div>
                             )}
                             {(sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
