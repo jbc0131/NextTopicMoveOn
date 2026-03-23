@@ -321,6 +321,14 @@ function getDefaultSelectedFightId(raid) {
 }
 
 function getRaidAwardWinner(raid, role, parseField) {
+  const persistedLeader = role === "DPS" ? raid?.topDpsLeader : raid?.topHealerLeader;
+  if (persistedLeader?.name && Number(persistedLeader?.parsePercent) > 0) {
+    return {
+      ...persistedLeader,
+      awardParse: Number(persistedLeader.parsePercent),
+    };
+  }
+
   const candidates = (raid?.players || []).map(player => {
     const awardParse = Number(player?.[parseField]);
     return {
@@ -3536,27 +3544,6 @@ export default function RpbPage() {
 
           {selectedRaid && (
             <>
-              <div style={{ ...panelStyle, padding: space[4], display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: space[3] }}>
-                <div>
-                  <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>Report</div>
-                  <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap" }}>
-                    <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: text.primary }}>{selectedRaid.title}</div>
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>Zone</div>
-                  <div style={{ marginTop: 6, color: text.primary }}>{selectedRaid.zone || "Unknown"}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>Imported</div>
-                  <div style={{ marginTop: 6, color: text.primary }}>{formatDate(selectedRaid.importedAt)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>Filtered View</div>
-                  <div style={{ marginTop: 6, color: text.primary }}>{filteredPlayers.length} players • {filteredFights.length} fights</div>
-                </div>
-              </div>
-
               <div style={{
                 display: "grid",
                 gridTemplateColumns: isPlayerDetailOpen ? "minmax(0, 1.2fr) minmax(360px, 0.8fr)" : "minmax(0, 1fr)",

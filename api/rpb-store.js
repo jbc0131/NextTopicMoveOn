@@ -12,6 +12,33 @@ function getReportSpeedPercent(raid) {
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
+function getReportParseLeader(raid, role, parseField) {
+  const candidates = (raid?.players || []).map(player => {
+    const parsePercent = Number(player?.[parseField]);
+    return {
+      name: String(player?.name || "").trim(),
+      type: player?.type || "",
+      role: player?.role || "",
+      parsePercent: Number.isFinite(parsePercent) && parsePercent > 0 ? parsePercent : null,
+      summaryTotal: Number(player?.summaryTotal || 0),
+    };
+  }).filter(player => player.name && player.role === role && Number.isFinite(Number(player.parsePercent)) && Number(player.parsePercent) > 0);
+
+  if (!candidates.length) return null;
+
+  const winner = [...candidates].sort((left, right) => {
+    const parseDiff = Number(right?.parsePercent || 0) - Number(left?.parsePercent || 0);
+    if (parseDiff !== 0) return parseDiff;
+    return Number(right?.summaryTotal || 0) - Number(left?.summaryTotal || 0);
+  })[0];
+
+  return {
+    name: winner.name,
+    type: winner.type,
+    parsePercent: winner.parsePercent,
+  };
+}
+
 function getRaidSummary(raid) {
   return {
     id: raid.id,
@@ -27,6 +54,8 @@ function getRaidSummary(raid) {
     fightCount: (raid.fights || []).length,
     playerCount: (raid.players || []).length,
     reportSpeedPercent: getReportSpeedPercent(raid),
+    topDpsLeader: getReportParseLeader(raid, "DPS", "damageParsePercent"),
+    topHealerLeader: getReportParseLeader(raid, "Healer", "healingParsePercent"),
     source: "redis",
     analytics: raid.analytics || null,
   };
@@ -46,6 +75,8 @@ function getRaidMeta(raid) {
     teamTag: normalizeTeamTag(raid.teamTag),
     analytics: raid.analytics || null,
     reportSpeedPercent: getReportSpeedPercent(raid),
+    topDpsLeader: getReportParseLeader(raid, "DPS", "damageParsePercent"),
+    topHealerLeader: getReportParseLeader(raid, "Healer", "healingParsePercent"),
     importPayload: raid.importPayload || null,
     source: "redis",
   };
