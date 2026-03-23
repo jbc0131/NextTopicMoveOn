@@ -50,10 +50,10 @@ function getReportParseLeader(raid, role, parseField) {
   if (!candidates.length) return null;
 
   const winner = [...candidates].sort((left, right) => {
-    const parseDiff = Number(right?.parsePercent || 0) - Number(left?.parsePercent || 0);
-    if (parseDiff !== 0) return parseDiff;
     const averageDiff = Number(right?.averageValue || 0) - Number(left?.averageValue || 0);
     if (averageDiff !== 0) return averageDiff;
+    const parseDiff = Number(right?.parsePercent || 0) - Number(left?.parsePercent || 0);
+    if (parseDiff !== 0) return parseDiff;
     return Number(right?.summaryTotal || 0) - Number(left?.summaryTotal || 0);
   })[0];
 

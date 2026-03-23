@@ -353,10 +353,10 @@ function getRaidAwardWinner(raid, role, parseField) {
   if (!candidates.length) return null;
 
   return [...candidates].sort((left, right) => {
-    const parseDiff = Number(right?.awardParse || 0) - Number(left?.awardParse || 0);
-    if (parseDiff !== 0) return parseDiff;
     const valueDiff = Number(right?.awardValue || 0) - Number(left?.awardValue || 0);
     if (valueDiff !== 0) return valueDiff;
+    const parseDiff = Number(right?.awardParse || 0) - Number(left?.awardParse || 0);
+    if (parseDiff !== 0) return parseDiff;
     return Number(right?.summaryTotal || 0) - Number(left?.summaryTotal || 0);
   })[0];
 }
