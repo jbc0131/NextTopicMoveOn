@@ -59,7 +59,7 @@ function getRaidKeys(raidId) {
   };
 }
 
-async function saveRaidBundle(raid) {
+export async function saveRaidBundle(raid) {
   assertRedisConfigured();
   const keys = getRaidKeys(raid.id);
   const summary = getRaidSummary(raid);

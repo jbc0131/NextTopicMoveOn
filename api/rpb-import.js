@@ -1,5 +1,6 @@
 import { assembleRpbRaid, fetchRpbImportStep, importRpbRaid, parseReportId } from "../RPB/server/rpbImportService.js";
 import { acquireLock, buildCacheKey, releaseLock } from "../RPB/server/upstashRedis.js";
+import { saveRaidBundle } from "./rpb-store.js";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -31,6 +32,17 @@ export default async function handler(req, res) {
     if (req.body?.action === "assemble") {
       const raid = assembleRpbRaid(req.body || {}, req.body.datasets || {});
       return res.status(200).json(raid);
+    }
+
+    if (req.body?.action === "assembleAndSave") {
+      const raid = assembleRpbRaid(req.body || {}, req.body.datasets || {});
+      raid.teamTag = req.body?.teamTag || "";
+      const summary = await saveRaidBundle(raid);
+      return res.status(200).json({
+        persistence: "remote",
+        raidId: raid.id,
+        summary,
+      });
     }
 
     const raid = await importRpbRaid(req.body || {});

@@ -6,7 +6,6 @@ import {
   fetchRpbRaidBundle,
   deleteRpbRaidImport,
   fetchRpbRaidList,
-  saveRpbRaidImport,
   fetchUserProfile,
   LOCAL_SANDBOX_PROFILE_ID,
   updateRpbRaidImport,
@@ -2967,17 +2966,27 @@ export default function RpbPage() {
 
       updateImportProgressState(totalUnits - 1, "Saving imported raid...", "Persisting raid bundle, fights, players, analytics, and ability rows");
 
-      const saveResult = await saveRpbRaidImport(assembledRaid);
+      const saveResponse = await fetch(`/api/rpb-import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "assembleAndSave",
+          reportUrl,
+          datasets,
+          teamTag: assembledRaid.teamTag || "",
+        }),
+      });
+
+      const saveResult = await saveResponse.json();
+      if (!saveResponse.ok) throw new Error(saveResult.error || "Failed to save imported raid");
       const savedRaidId = saveResult.raidId || assembledRaid.id;
       const nextRaids = await fetchRpbRaidList();
       setRaids(nextRaids);
       setReportUrl("");
       updateImportProgressState(totalUnits, "Import complete.", "RPB payload is ready for saved-raid browsing");
       toast({
-        message: saveResult.persistence === "local"
-          ? `Warcraft Logs import succeeded for ${assembledRaid.title}, but remote storage failed. Saved locally in this browser only.`
-          : `Imported ${assembledRaid.title}`,
-        type: saveResult.persistence === "local" ? "warning" : "success",
+        message: `Imported ${assembledRaid.title}`,
+        type: "success",
         duration: 7000,
       });
       navigate(`/rpb/${savedRaidId}`);
