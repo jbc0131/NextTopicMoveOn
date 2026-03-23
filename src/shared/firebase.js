@@ -361,6 +361,61 @@ export async function fetchRpbRaidBundle(raidId) {
   return { ...raid, fights, players };
 }
 
+export async function updateRpbRaidImport(raidId, updates) {
+  const normalizedRaidId = String(raidId || "").trim();
+  if (!normalizedRaidId) throw new Error("raidId is required");
+
+  const existingLocalRaid = readLocalRpbRaids().find(raid => raid.id === normalizedRaidId) || null;
+  if (existingLocalRaid) {
+    upsertLocalRpbRaid(sanitize({
+      ...existingLocalRaid,
+      ...updates,
+    }));
+  }
+
+  try {
+    const response = await fetch("/api/rpb-store", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        raidId: normalizedRaidId,
+        updates: sanitize(updates || {}),
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to update RPB raid");
+    if (data.raid) upsertLocalRpbRaid(data.raid);
+    return data;
+  } catch {
+    return {
+      persistence: "local",
+      raidId: normalizedRaidId,
+      raid: existingLocalRaid ? sanitize({ ...existingLocalRaid, ...updates }) : null,
+    };
+  }
+}
+
+export async function deleteRpbRaidImport(raidId) {
+  const normalizedRaidId = String(raidId || "").trim();
+  if (!normalizedRaidId) throw new Error("raidId is required");
+
+  const nextLocalRaids = readLocalRpbRaids().filter(raid => raid.id !== normalizedRaidId);
+  writeLocalRpbRaids(nextLocalRaids);
+
+  try {
+    const response = await fetch(`/api/rpb-store?raidId=${encodeURIComponent(normalizedRaidId)}`, {
+      method: "DELETE",
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to delete RPB raid");
+    return data;
+  } catch {
+    return { persistence: "local", raidId: normalizedRaidId };
+  }
+}
+
 export async function fetchUserProfile(discordId) {
   const normalizedDiscordId = String(discordId || LOCAL_SANDBOX_PROFILE_ID).trim();
   if (!normalizedDiscordId) return null;
