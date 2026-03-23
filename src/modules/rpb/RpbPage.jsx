@@ -3335,7 +3335,7 @@ export default function RpbPage() {
                     {topDps && (
                       <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <span style={{ color: "#e5cc80" }}>👑 DPS</span>
-                        <span style={{ color: active ? "#f6f8ff" : text.primary, fontWeight: fontWeight.bold }}>
+                        <span style={{ color: getScoreColor(topDps.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold }}>
                           {formatMetricValue(Math.round(Number(topDps.awardValue || topDps.awardParse || 0)))}
                         </span>
                         <span style={{ color: getClassColor(topDps.type), fontWeight: fontWeight.semibold }}>
@@ -3346,7 +3346,7 @@ export default function RpbPage() {
                     {topHealer && (
                       <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <span style={{ color: "#e5cc80" }}>👑 Heal</span>
-                        <span style={{ color: active ? "#f6f8ff" : text.primary, fontWeight: fontWeight.bold }}>
+                        <span style={{ color: getScoreColor(topHealer.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold }}>
                           {formatMetricValue(Math.round(Number(topHealer.awardValue || topHealer.awardParse || 0)))}
                         </span>
                         <span style={{ color: getClassColor(topHealer.type), fontWeight: fontWeight.semibold }}>
