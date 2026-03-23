@@ -1937,7 +1937,7 @@ function RenameReportModal({ open, value, onChange, onConfirm, onCancel }) {
   );
 }
 
-function RaidActionsMenu({ raid, onRename, onTag, onDeleteTag, onDelete }) {
+function RaidActionsMenu({ raid, onRename, onTag, onDeleteTag, onReimport, onDelete }) {
   const teamTag = normalizeTeamTag(raid?.teamTag);
 
   const itemStyle = {
@@ -1986,6 +1986,10 @@ function RaidActionsMenu({ raid, onRename, onTag, onDeleteTag, onDelete }) {
       <button onClick={onRename} style={itemStyle}>
         <span aria-hidden="true">✎</span>
         <span>Rename Report</span>
+      </button>
+      <button onClick={onReimport} style={itemStyle}>
+        <span aria-hidden="true">↻</span>
+        <span>Reimport Report</span>
       </button>
       <button onClick={onDelete} style={{ ...itemStyle, color: intent.danger }}>
         <span aria-hidden="true">🗑</span>
@@ -2911,9 +2915,9 @@ export default function RpbPage() {
     });
   }
 
-  async function handleImport(event) {
-    event.preventDefault();
-    if (!reportUrl.trim()) {
+  async function runImportFlow(reportInput, options = {}) {
+    const normalizedReportInput = String(reportInput || "").trim();
+    if (!normalizedReportInput) {
       toast({ message: "Enter a Warcraft Logs report URL or report ID.", type: "warning" });
       return;
     }
@@ -2972,7 +2976,7 @@ export default function RpbPage() {
           body: JSON.stringify({
             action: "step",
             step: step.key,
-            reportUrl,
+            reportUrl: normalizedReportInput,
             apiKey: profileApiKey,
             wclV2ClientId: profileV2ClientId,
             wclV2ClientSecret: profileV2ClientSecret,
@@ -2990,13 +2994,15 @@ export default function RpbPage() {
       const assembleResponse = await fetch(`/api/rpb-import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "assemble", reportUrl, datasets }),
+        body: JSON.stringify({ action: "assemble", reportUrl: normalizedReportInput, datasets }),
       });
 
       const assembledRaid = await assembleResponse.json();
       if (!assembleResponse.ok) throw new Error(assembledRaid.error || "Failed to assemble raid");
 
-      if (isAdmin) {
+      if (options.presetTeamTag !== undefined) {
+        assembledRaid.teamTag = normalizeTeamTag(options.presetTeamTag);
+      } else if (isAdmin) {
         updateImportProgressState((steps.length * 2) + 3, "Waiting for team tag selection...", "Admin confirmation required before persisting the raid");
 
         const selectedTeamTag = await new Promise(resolve => {
@@ -3018,7 +3024,7 @@ export default function RpbPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "assembleAndSave",
-          reportUrl,
+          reportUrl: normalizedReportInput,
           datasets,
           teamTag: assembledRaid.teamTag || "",
         }),
@@ -3032,7 +3038,7 @@ export default function RpbPage() {
       setReportUrl("");
       updateImportProgressState(totalUnits, "Import complete.", "RPB payload is ready for saved-raid browsing");
       toast({
-        message: `Imported ${assembledRaid.title}`,
+        message: options.successMessage || `Imported ${assembledRaid.title}`,
         type: "success",
         duration: 7000,
       });
@@ -3053,6 +3059,20 @@ export default function RpbPage() {
     } finally {
       setImporting(false);
     }
+  }
+
+  async function handleImport(event) {
+    event.preventDefault();
+    await runImportFlow(reportUrl);
+  }
+
+  async function handleReimportRaid(targetRaid) {
+    if (!targetRaid?.reportId) return;
+    setOpenRaidMenuId("");
+    await runImportFlow(targetRaid.reportId, {
+      presetTeamTag: targetRaid.teamTag || "",
+      successMessage: `Reimported ${targetRaid.title || targetRaid.reportId}`,
+    });
   }
 
   if (auth.loading) {
@@ -3260,6 +3280,9 @@ export default function RpbPage() {
                         onDeleteTag={async () => {
                           setOpenRaidMenuId("");
                           await mutateRaidMetadata(raid.id, { teamTag: "" }, "Removed report tag.");
+                        }}
+                        onReimport={() => {
+                          handleReimportRaid(raid);
                         }}
                         onDelete={() => {
                           setOpenRaidMenuId("");
