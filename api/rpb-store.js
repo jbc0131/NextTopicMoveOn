@@ -1,6 +1,16 @@
-import { assertRedisConfigured, buildCacheKey, getJsonCache, setJsonCache } from "../RPB/server/upstashRedis.js";
+import { assertRedisConfigured, buildCacheKey, deleteKey, getJsonCache, setJsonCache } from "../RPB/server/upstashRedis.js";
 
 const RPB_INDEX_KEY = buildCacheKey("rpb", ["index"]);
+
+function normalizeTeamTag(value) {
+  const normalized = String(value || "").trim();
+  return normalized || "";
+}
+
+function getReportSpeedPercent(raid) {
+  const value = Number(raid?.reportSpeedPercent ?? raid?.importPayload?.reportSpeed?.reportSpeedPercent ?? raid?.importPayload?.reportRankings?.reportSpeedPercent);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
 
 function getRaidSummary(raid) {
   return {
@@ -13,8 +23,10 @@ function getRaidSummary(raid) {
     end: raid.end ?? null,
     importedAt: raid.importedAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    teamTag: normalizeTeamTag(raid.teamTag),
     fightCount: (raid.fights || []).length,
     playerCount: (raid.players || []).length,
+    reportSpeedPercent: getReportSpeedPercent(raid),
     source: "redis",
     analytics: raid.analytics || null,
   };
@@ -30,7 +42,11 @@ function getRaidMeta(raid) {
     start: raid.start ?? null,
     end: raid.end ?? null,
     importedAt: raid.importedAt ?? new Date().toISOString(),
+    updatedAt: raid.updatedAt ?? new Date().toISOString(),
+    teamTag: normalizeTeamTag(raid.teamTag),
     analytics: raid.analytics || null,
+    reportSpeedPercent: getReportSpeedPercent(raid),
+    importPayload: raid.importPayload || null,
     source: "redis",
   };
 }
@@ -84,9 +100,48 @@ async function getRaidBundle(raidId) {
   };
 }
 
+async function updateRaidBundle(raidId, updates) {
+  assertRedisConfigured();
+  const existingRaid = await getRaidBundle(raidId);
+  if (!existingRaid) return null;
+
+  const nextRaid = {
+    ...existingRaid,
+    ...updates,
+    id: existingRaid.id,
+    updatedAt: new Date().toISOString(),
+    teamTag: normalizeTeamTag(updates.teamTag ?? existingRaid.teamTag),
+    fights: Array.isArray(updates.fights) ? updates.fights : (existingRaid.fights || []),
+    players: Array.isArray(updates.players) ? updates.players : (existingRaid.players || []),
+  };
+
+  await saveRaidBundle(nextRaid);
+  return nextRaid;
+}
+
+async function deleteRaidBundle(raidId) {
+  assertRedisConfigured();
+  const keys = getRaidKeys(raidId);
+  const currentIndex = (await getJsonCache(RPB_INDEX_KEY)) || [];
+  const nextIndex = currentIndex.filter(entry => entry?.id !== raidId);
+
+  const results = await Promise.all([
+    deleteKey(keys.meta),
+    deleteKey(keys.fights),
+    deleteKey(keys.players),
+    setJsonCache(RPB_INDEX_KEY, nextIndex),
+  ]);
+
+  if (results.some(result => !result)) {
+    throw new Error("Failed to delete RPB data from Redis.");
+  }
+
+  return true;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -122,6 +177,27 @@ export default async function handler(req, res) {
 
       const summary = await saveRaidBundle(normalizedRaid);
       return res.status(200).json({ raidId: normalizedRaid.id, persistence: "remote", summary });
+    }
+
+    if (req.method === "PATCH") {
+      const raidId = String(req.body?.raidId || "").trim();
+      const updates = req.body?.updates || {};
+      if (!raidId) return res.status(400).json({ error: "Raid ID is required" });
+
+      const raid = await updateRaidBundle(raidId, updates);
+      if (!raid) return res.status(404).json({ error: "Raid not found" });
+      return res.status(200).json({ persistence: "remote", raidId, raid, summary: getRaidSummary(raid) });
+    }
+
+    if (req.method === "DELETE") {
+      const raidId = String(req.query?.raidId || req.body?.raidId || "").trim();
+      if (!raidId) return res.status(400).json({ error: "Raid ID is required" });
+
+      const existingRaid = await getRaidBundle(raidId);
+      if (!existingRaid) return res.status(404).json({ error: "Raid not found" });
+
+      await deleteRaidBundle(raidId);
+      return res.status(200).json({ persistence: "remote", raidId });
     }
 
     return res.status(405).json({ error: "Method not allowed" });

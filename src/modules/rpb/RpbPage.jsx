@@ -1,18 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getLoginUrl, useAuth } from "../../shared/auth";
 import { getScoreColor } from "../../shared/useWarcraftLogs";
 import {
   fetchRpbRaidBundle,
+  deleteRpbRaidImport,
   fetchRpbRaidList,
   saveRpbRaidImport,
   fetchUserProfile,
   LOCAL_SANDBOX_PROFILE_ID,
+  updateRpbRaidImport,
 } from "../../shared/firebase";
 import {
   surface, border, text, accent, intent, font, fontSize, fontWeight, radius, space, btnStyle, inputStyle, panelStyle,
 } from "../../shared/theme";
-import { AppShell, LoadingSpinner, toast } from "../../shared/components";
+import { AppShell, ConfirmDialog, LoadingSpinner, toast } from "../../shared/components";
 
 const CLASS_COLORS = {
   Druid: "#FF7D0A",
@@ -143,6 +145,35 @@ const ENGINEERING_DAMAGE_ABILITY_IDS = new Set([
 ]);
 
 const OIL_OF_IMMOLATION_ABILITY_IDS = new Set(["11351"]);
+const FLASK_IDS = new Set([
+  "17626", "17627", "17628", "28518", "28519", "28520", "42735", "42736",
+]);
+const BATTLE_ELIXIR_IDS = new Set([
+  "28497", "33720", "28521", "33726", "17537", "17538", "38954", "33721", "54452",
+]);
+const GUARDIAN_ELIXIR_IDS = new Set([
+  "39625", "39626", "17539", "28502", "28509", "39627", "28503", "11348",
+]);
+const HEARTHSTONE_CAST_IDS = new Set(["8690", "556"]);
+const HEARTHSTONE_NAME_TOKENS = ["hearthstone", "astral recall"];
+const POTION_NAME_TOKENS = ["potion"];
+const FOOD_AURA_NAME_TOKENS = [
+  "well fed",
+  "blackened",
+  "spicy hot talbuk",
+  "grilled mudfish",
+  "poached bluefish",
+  "golden fish sticks",
+  "skullfish soup",
+  "feltail delight",
+  "ravager dog",
+  "roasted clefthoof",
+  "warp burger",
+  "crunchy serpent",
+  "mok'nathal shortribs",
+  "sporeling snack",
+  "fisherman's feast",
+];
 
 const GEAR_SLOT_LABELS = {
   0: "Head",
@@ -208,12 +239,37 @@ const PILL_TONE_ORDER = {
   neutral: 4,
 };
 
+const TEAM_TAG_OPTIONS = [
+  { id: "", label: "All Teams", shortLabel: "Unassigned", tone: "neutral", emoji: "" },
+  { id: "Team Dick", label: "🍆 Team Dick", shortLabel: "🍆 Team Dick", tone: "teamDick", emoji: "🍆" },
+  { id: "Team Balls", label: "🍒 Team Balls", shortLabel: "🍒 Team Balls", tone: "teamBalls", emoji: "🍒" },
+];
+
+function normalizeTeamTag(value) {
+  const normalized = String(value || "").trim();
+  if (normalized === "Team Dick" || normalized === "Team Balls") return normalized;
+  return "";
+}
+
+function getTeamOption(teamTag) {
+  return TEAM_TAG_OPTIONS.find(option => option.id === normalizeTeamTag(teamTag)) || TEAM_TAG_OPTIONS[0];
+}
+
+function getTeamScheduleLabel(teamTag) {
+  const normalized = normalizeTeamTag(teamTag);
+  if (normalized === "Team Dick") return "Tuesday";
+  if (normalized === "Team Balls") return "Thursday";
+  return "";
+}
+
 function tagStyle(tone = "neutral") {
   const tones = {
     danger: { background: "rgba(205, 78, 78, 0.18)", borderColor: "rgba(205, 78, 78, 0.45)", color: "#ffd5d5" },
     warning: { background: "rgba(222, 166, 53, 0.18)", borderColor: "rgba(222, 166, 53, 0.45)", color: "#ffe6b3" },
     info: { background: "rgba(61, 125, 202, 0.18)", borderColor: "rgba(61, 125, 202, 0.45)", color: "#d6e7ff" },
     success: { background: "rgba(75, 170, 109, 0.18)", borderColor: "rgba(75, 170, 109, 0.45)", color: "#d7ffdf" },
+    teamDick: { background: "rgba(191, 156, 255, 0.22)", borderColor: "rgba(191, 156, 255, 0.55)", color: "#f1e5ff" },
+    teamBalls: { background: "rgba(255, 146, 167, 0.22)", borderColor: "rgba(255, 146, 167, 0.55)", color: "#ffe2e8" },
     neutral: { background: "rgba(255,255,255,0.06)", borderColor: border.subtle, color: text.secondary },
   };
 
@@ -231,12 +287,77 @@ function tagStyle(tone = "neutral") {
   };
 }
 
-function MetricTag({ label, value, tone = "neutral" }) {
+function parseTagStyle(score) {
+  const color = getScoreColor(score) || text.secondary;
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "8px 12px",
+    borderRadius: 999,
+    border: `1px solid ${color}66`,
+    background: `${color}22`,
+    color,
+    fontSize: fontSize.sm,
+    lineHeight: 1.2,
+    fontWeight: fontWeight.semibold,
+  };
+}
+
+function parseInlineStyle(score) {
+  return {
+    color: getScoreColor(score) || text.secondary,
+    fontWeight: fontWeight.bold,
+  };
+}
+
+function teamFilterButtonStyle(option, active) {
+  if (option.id === "Team Dick") {
+    return {
+      ...btnStyle("default", false),
+      height: 30,
+      background: "rgba(191, 156, 255, 0.22)",
+      borderColor: active ? "rgba(191, 156, 255, 0.9)" : "rgba(191, 156, 255, 0.55)",
+      color: "#f1e5ff",
+      boxShadow: active ? "inset 0 0 0 1px rgba(255,255,255,0.08)" : "none",
+    };
+  }
+
+  if (option.id === "Team Balls") {
+    return {
+      ...btnStyle("default", false),
+      height: 30,
+      background: "rgba(255, 146, 167, 0.22)",
+      borderColor: active ? "rgba(255, 146, 167, 0.9)" : "rgba(255, 146, 167, 0.55)",
+      color: "#ffe2e8",
+      boxShadow: active ? "inset 0 0 0 1px rgba(255,255,255,0.08)" : "none",
+    };
+  }
+
+  return {
+    ...btnStyle(active ? "primary" : "default", active),
+    height: 30,
+  };
+}
+
+function MetricTag({ label, value, tone = "neutral", active = false, onClick = null }) {
+  const interactive = typeof onClick === "function";
   return (
-    <div style={tagStyle(tone)}>
+    <button
+      type="button"
+      onClick={onClick || undefined}
+      style={{
+        ...tagStyle(tone),
+        cursor: interactive ? "pointer" : "default",
+        boxShadow: active ? "inset 0 0 0 1px rgba(255,255,255,0.14)" : "none",
+        opacity: interactive && !active ? 0.9 : 1,
+      }}
+      disabled={!interactive}
+      aria-pressed={interactive ? active : undefined}
+    >
       <span style={{ opacity: 0.82 }}>{label}:</span>
       <span style={{ fontWeight: fontWeight.semibold }}>{value}</span>
-    </div>
+    </button>
   );
 }
 
@@ -308,6 +429,34 @@ function WowheadSpellLink({ spellId, children }) {
     >
       {children}
     </a>
+  );
+}
+
+function WowheadSpellAbility({ spellId, name }) {
+  const label = name || "Unknown Ability";
+  if (!spellId) {
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: space[2], minWidth: 0 }}>
+        <span
+          aria-hidden="true"
+          style={{
+            width: 18,
+            height: 18,
+            borderRadius: radius.sm,
+            background: `${accent.blue}22`,
+            border: `1px solid ${accent.blue}55`,
+            flexShrink: 0,
+          }}
+        />
+        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      </span>
+    );
+  }
+
+  return (
+    <WowheadSpellLink spellId={spellId}>
+      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+    </WowheadSpellLink>
   );
 }
 
@@ -504,12 +653,14 @@ function deriveLowQualityGemIssuesFromGear(gear = []) {
   const uncommonQualityGems = [];
 
   for (const item of gear) {
-    for (const gem of item?.gems || []) {
+    for (const [gemIndex, gem] of (item?.gems || []).entries()) {
       const gemId = gem?.id != null ? String(gem.id) : "";
       const gemRecord = {
         itemId: item?.id ?? null,
         itemName: item?.name || "Unknown Item",
+        slot: Number(item?.slot ?? -1),
         gemId: gem?.id ?? null,
+        gemIndex,
         gemItemLevel: gem?.itemLevel ?? null,
       };
 
@@ -629,6 +780,184 @@ function summarizeGemIssues(gems) {
   return [...grouped.values()];
 }
 
+function collectAbilityRows(node, rows = []) {
+  if (!node) return rows;
+  if (Array.isArray(node)) {
+    node.forEach(entry => collectAbilityRows(entry, rows));
+    return rows;
+  }
+  if (typeof node !== "object") return rows;
+
+  const guid = node?.guid ?? node?.gameID ?? node?.abilityGameID ?? node?.id ?? null;
+  const name = node?.name || node?.abilityName || node?.ability?.name || "";
+  const totalUses = Number(node?.totalUses ?? node?.uses ?? node?.total ?? node?.casts ?? 0);
+  if ((guid != null || name) && Number.isFinite(totalUses) && totalUses > 0) {
+    rows.push({
+      guid: guid != null ? String(guid) : "",
+      name,
+      totalUses,
+    });
+  }
+
+  Object.values(node).forEach(value => {
+    if (value && typeof value === "object") {
+      collectAbilityRows(value, rows);
+    }
+  });
+  return rows;
+}
+
+function countMatchingCasts(node, { ids = null, nameTokens = [] } = {}) {
+  return collectAbilityRows(node).reduce((sum, row) => {
+    const normalizedName = String(row.name || "").toLowerCase();
+    const matchesId = ids ? ids.has(String(row.guid || "")) : false;
+    const matchesName = nameTokens.some(token => normalizedName.includes(token));
+    return matchesId || matchesName ? sum + Number(row.totalUses || 0) : sum;
+  }, 0);
+}
+
+function normalizeAura(aura) {
+  return {
+    guid: aura?.guid != null ? String(aura.guid) : "",
+    name: aura?.name || "Unknown Aura",
+    totalUses: aura?.totalUses ?? 0,
+    totalUptime: aura?.totalUptime ?? 0,
+  };
+}
+
+function isFlaskAura(aura) {
+  const guid = String(aura?.guid || "");
+  const name = String(aura?.name || "").toLowerCase();
+  return FLASK_IDS.has(guid) || name.includes("flask of");
+}
+
+function isBattleElixirAura(aura) {
+  const guid = String(aura?.guid || "");
+  const name = String(aura?.name || "").toLowerCase();
+  return BATTLE_ELIXIR_IDS.has(guid) || (name.includes("elixir") && (
+    name.includes("adept") || name.includes("major agility") || name.includes("major firepower")
+    || name.includes("major shadow power") || name.includes("major frost power")
+    || name.includes("onslaught") || name.includes("demonslaying") || name.includes("mastery")
+  ));
+}
+
+function isGuardianElixirAura(aura) {
+  const guid = String(aura?.guid || "");
+  const name = String(aura?.name || "").toLowerCase();
+  return GUARDIAN_ELIXIR_IDS.has(guid) || (name.includes("elixir") && (
+    name.includes("draenic wisdom") || name.includes("major mageblood") || name.includes("major defense")
+    || name.includes("major fortitude") || name.includes("ironskin") || name.includes("gift of arthas")
+  ));
+}
+
+function isScrollAura(aura) {
+  const name = String(aura?.name || "").toLowerCase();
+  return name.includes("scroll of");
+}
+
+function isFoodAura(aura) {
+  const name = String(aura?.name || "").toLowerCase();
+  return FOOD_AURA_NAME_TOKENS.some(token => name.includes(token));
+}
+
+function getConsumableCoverage(buffSnapshot, playerId, playerName) {
+  const entries = buffSnapshot?.buffs?.entries || buffSnapshot?.entries || [];
+  const playerEntry = entries.find(entry =>
+    String(entry?.id || "") === String(playerId) || entry?.name === playerName
+  );
+  const auras = (playerEntry?.auras || []).map(normalizeAura);
+  const hasFlask = auras.some(isFlaskAura);
+  const hasBattleElixir = auras.some(isBattleElixirAura);
+  const hasGuardianElixir = auras.some(isGuardianElixirAura);
+  const hasScroll = auras.some(isScrollAura);
+  const hasFood = auras.some(isFoodAura);
+  return {
+    hasFlask,
+    hasBattleElixir,
+    hasGuardianElixir,
+    hasScroll,
+    hasFood,
+    covered: hasFlask || (hasBattleElixir && hasGuardianElixir),
+    scrollAuras: auras.filter(isScrollAura),
+    foodAuras: auras.filter(isFoodAura),
+    elixirAuras: auras.filter(aura => isFlaskAura(aura) || isBattleElixirAura(aura) || isGuardianElixirAura(aura)),
+  };
+}
+
+function extractReportSpeedPercent(reportRankings) {
+  const value = Number(reportRankings?.reportSpeedPercent);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function getRaidReportSpeedPercent(raid) {
+  const direct = Number(raid?.reportSpeedPercent);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  return extractReportSpeedPercent(raid?.importPayload?.reportSpeed) ?? extractReportSpeedPercent(raid?.importPayload?.reportRankings);
+}
+
+function hasHydratedSpeedScores(raid) {
+  if (!raid) return false;
+  const reportSpeedPercent = getRaidReportSpeedPercent(raid);
+  const fightSpeedPercents = (raid.fights || [])
+    .map(fight => Number(fight?.speedParsePercent))
+    .filter(value => Number.isFinite(value));
+
+  if (reportSpeedPercent > 0) return true;
+  return fightSpeedPercents.some(value => value > 0);
+}
+
+function isRecentReport(reportStart) {
+  if (!reportStart) return false;
+  const reportDate = new Date(reportStart);
+  if (Number.isNaN(reportDate.getTime())) return false;
+  const diffMs = Date.now() - reportDate.getTime();
+  return diffMs >= 0 && diffMs <= 7 * 24 * 60 * 60 * 1000;
+}
+
+function buildConsumableSliceEntries(players, analyticsByPlayerId, filterIds = null) {
+  const rows = [];
+
+  for (const player of players || []) {
+    const analytics = analyticsByPlayerId.get(String(player.id));
+    if (!analytics) continue;
+    if (filterIds && !filterIds.has(String(player.id))) continue;
+
+    const totalFights = Number(analytics.totalConsumableFights || 0);
+    const scrollIssues = Number(analytics.scrollIssueCount || 0);
+    const elixirIssues = Number(analytics.elixirIssueCount || 0);
+    const foodIssues = Number(analytics.foodIssueCount || 0);
+    const scrollCovered = Number(analytics.scrollCoverageCount || 0);
+    const elixirCovered = Number(analytics.elixirCoverageCount || 0);
+    const foodCovered = Number(analytics.foodCoverageCount || 0);
+    const totalIssues = scrollIssues + elixirIssues + foodIssues;
+    const totalRequired = totalFights * 3;
+    const totalCovered = scrollCovered + elixirCovered + foodCovered;
+
+    rows.push({
+      id: String(player.id),
+      name: player.name || "Unknown Player",
+      type: player.type || "",
+      total: totalCovered,
+      totalRequired,
+      totalFights,
+      scrollCoverageCount: scrollCovered,
+      elixirCoverageCount: elixirCovered,
+      foodCoverageCount: foodCovered,
+      scrollIssues,
+      elixirIssues,
+      foodIssues,
+      totalIssues,
+    });
+  }
+
+  return rows.sort((a, b) => {
+    const aPct = a.totalRequired > 0 ? a.total / a.totalRequired : 0;
+    const bPct = b.totalRequired > 0 ? b.total / b.totalRequired : 0;
+    if (bPct !== aPct) return bPct - aPct;
+    return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+  });
+}
+
 function aggregateDamageEntries(fights) {
   const grouped = new Map();
 
@@ -654,7 +983,7 @@ function aggregateDamageEntries(fights) {
   return [...grouped.values()].sort((a, b) => b.total - a.total);
 }
 
-function aggregateMetricEntries(fights, field) {
+function aggregateMetricEntries(fights, field, overallParseByPlayerId = null, useOverallParse = false) {
   const grouped = new Map();
 
   for (const fight of fights || []) {
@@ -668,21 +997,106 @@ function aggregateMetricEntries(fights, field) {
         activeTime: 0,
         fights: 0,
         parsePercent: null,
+        parseTotal: 0,
+        parseCount: 0,
       };
 
-      existing.total += entry.total || 0;
+      const entryTotal = field === "deathEntries"
+        ? getDeathEntryTotal(entry)
+        : Number(entry.total || 0);
+      existing.total += entryTotal;
       existing.activeTime += entry.activeTime || 0;
       existing.fights += 1;
       if (Number.isFinite(Number(entry.parsePercent))) {
-        existing.parsePercent = existing.parsePercent == null
-          ? Number(entry.parsePercent)
-          : Math.max(existing.parsePercent, Number(entry.parsePercent));
+        existing.parseTotal += Number(entry.parsePercent);
+        existing.parseCount += 1;
+        existing.parsePercent = existing.parseTotal / existing.parseCount;
       }
       grouped.set(key, existing);
     }
   }
 
+  if (useOverallParse && overallParseByPlayerId) {
+    for (const entry of grouped.values()) {
+      if (overallParseByPlayerId.has(String(entry.id))) {
+        entry.parsePercent = overallParseByPlayerId.get(String(entry.id));
+      }
+    }
+  }
+
   return [...grouped.values()].sort((a, b) => b.total - a.total);
+}
+
+function getDeathEntryTotal(entry) {
+  if (!entry) return 0;
+  const directTotal = Number(entry.total || 0);
+  if (directTotal > 0) return directTotal;
+  return Array.isArray(entry.events) ? entry.events.length : 0;
+}
+
+function applyRankingsToRaidFights(raid, rankings) {
+  if (!raid?.fights?.length) return raid;
+  if (!rankings?.fights) return raid;
+
+  const nextFights = raid.fights.map(fight => {
+    const rankingSnapshot = rankings.fights[String(fight.id)] || {};
+    const damageDoneEntries = (fight.damageDoneEntries || []).map(entry => ({
+      ...entry,
+      parsePercent: rankingSnapshot.damage?.byId?.[String(entry.id)] ?? rankingSnapshot.damage?.byName?.[entry.name] ?? entry.parsePercent ?? null,
+    }));
+    const healingDoneEntries = (fight.healingDoneEntries || []).map(entry => ({
+      ...entry,
+      parsePercent: rankingSnapshot.healing?.byId?.[String(entry.id)] ?? rankingSnapshot.healing?.byName?.[entry.name] ?? entry.parsePercent ?? null,
+    }));
+
+    return {
+      ...fight,
+      damageDoneEntries,
+      healingDoneEntries,
+    };
+  });
+
+  const nextPlayers = (raid.players || []).map(player => ({
+    ...player,
+    damageParsePercent: rankings?.overall?.damage?.byId?.[String(player.id)] ?? rankings?.overall?.damage?.byName?.[player.name] ?? player.damageParsePercent ?? null,
+    healingParsePercent: rankings?.overall?.healing?.byId?.[String(player.id)] ?? rankings?.overall?.healing?.byName?.[player.name] ?? player.healingParsePercent ?? null,
+  }));
+
+  return {
+    ...raid,
+    fights: nextFights,
+    players: nextPlayers,
+    importPayload: {
+      ...(raid.importPayload || {}),
+      reportRankings: rankings,
+    },
+  };
+}
+
+function applySpeedToRaidFights(raid, speedData) {
+  if (!raid?.fights?.length) return raid;
+
+  const nextFights = raid.fights.map(fight => {
+    const speedSnapshot = speedData?.fights?.[String(fight.id)] || {};
+    return {
+      ...fight,
+      speedParsePercent: Number.isFinite(Number(speedSnapshot?.speedParsePercent))
+        ? Number(speedSnapshot.speedParsePercent)
+        : (Number.isFinite(Number(fight.speedParsePercent)) ? Number(fight.speedParsePercent) : null),
+    };
+  });
+
+  return {
+    ...raid,
+    fights: nextFights,
+    reportSpeedPercent: Number.isFinite(Number(speedData?.reportSpeedPercent))
+      ? Number(speedData.reportSpeedPercent)
+      : (Number.isFinite(Number(raid.reportSpeedPercent)) ? Number(raid.reportSpeedPercent) : null),
+    importPayload: {
+      ...(raid.importPayload || {}),
+      reportSpeed: speedData || {},
+    },
+  };
 }
 
 function getPlayerSliceTotals(fights, playerId, playerRole = "") {
@@ -715,7 +1129,7 @@ function getPlayerSliceTotals(fights, playerId, playerRole = "") {
     }
 
     activeTimeMs += Number(activeTimeEntry?.activeTime || 0);
-    deaths += Number(deathEntry?.total || 0);
+    deaths += getDeathEntryTotal(deathEntry);
   }
 
   return {
@@ -726,8 +1140,9 @@ function getPlayerSliceTotals(fights, playerId, playerRole = "") {
   };
 }
 
-function derivePlayerAnalyticsFromFights(fights, playerId, playerType = "") {
+function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", playerType = "", importPayload = null) {
   const snapshots = [];
+  const visibleFightIds = new Set((fights || []).map(fight => String(fight?.id || "")).filter(Boolean));
 
   for (const fight of fights || []) {
     const snapshot = getSelectedFightPlayerSnapshot([fight], fight.id, playerId);
@@ -756,6 +1171,12 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerType = "") {
         uncommonQualityGems: [],
         rareQualityGems: [],
       },
+      consumableCoverage: [],
+      coveredConsumableFights: 0,
+      totalConsumableFights: 0,
+      consumableIssueCount: 0,
+      potionUseCount: 0,
+      hearthstoneCount: 0,
     };
   }
 
@@ -784,8 +1205,28 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerType = "") {
   const uniqueMissingTemporary = dedupeBy(missingTemporary, issue => `${issue.itemId}:${issue.slot}:temp`);
   const uniqueActiveTemporary = dedupeBy(activeTemporaryEnchants, issue => `${issue.itemId}:${issue.slot}:${issue.enchantId}`);
   const uniqueSuboptimalTemporary = dedupeBy(suboptimalTemporaryEnchants, issue => `${issue.itemId}:${issue.slot}:${issue.enchantId}`);
-  const summarizedCommonGems = summarizeGemIssues(commonQualityGems);
-  const summarizedUncommonGems = summarizeGemIssues(uncommonQualityGems);
+  const uniqueCommonGems = dedupeBy(commonQualityGems, issue => `${issue.itemId}:${issue.slot}:${issue.gemId}:${issue.gemIndex}`);
+  const uniqueUncommonGems = dedupeBy(uncommonQualityGems, issue => `${issue.itemId}:${issue.slot}:${issue.gemId}:${issue.gemIndex}`);
+  const summarizedCommonGems = summarizeGemIssues(uniqueCommonGems);
+  const summarizedUncommonGems = summarizeGemIssues(uniqueUncommonGems);
+  const consumableCoverage = ((importPayload?.buffsByFight?.snapshots || [])).filter(snapshot => visibleFightIds.has(String(snapshot?.fightId || ""))).map(snapshot => ({
+    fightId: String(snapshot?.fightId || ""),
+    fightName: snapshot?.fightName || "Unknown Fight",
+    ...getConsumableCoverage(snapshot, playerId, playerName),
+  }));
+  const coveredConsumableFights = consumableCoverage.filter(entry => entry.covered).length;
+  const consumableIssueCount = consumableCoverage.filter(entry => !entry.covered).length;
+  const scrollCoverageCount = consumableCoverage.filter(entry => entry.hasScroll).length;
+  const foodCoverageCount = consumableCoverage.filter(entry => entry.hasFood).length;
+  const elixirCoverageCount = consumableCoverage.filter(entry => entry.covered).length;
+  const scrollIssueCount = consumableCoverage.filter(entry => !entry.hasScroll).length;
+  const foodIssueCount = consumableCoverage.filter(entry => !entry.hasFood).length;
+  const elixirIssueCount = consumableCoverage.filter(entry => !entry.covered).length;
+  const fullCastsEntry = (importPayload?.fullCasts?.entries || []).find(entry =>
+    String(entry?.id || "") === String(playerId) || entry?.name === playerName
+  );
+  const potionUseCount = countMatchingCasts(fullCastsEntry, { nameTokens: POTION_NAME_TOKENS });
+  const hearthstoneCount = countMatchingCasts(fullCastsEntry, { ids: HEARTHSTONE_CAST_IDS, nameTokens: HEARTHSTONE_NAME_TOKENS });
 
   return {
     hasGearData: true,
@@ -805,10 +1246,22 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerType = "") {
       suboptimalTemporaryEnchants: uniqueSuboptimalTemporary,
     },
     gemIssues: {
-      commonQualityGems,
-      uncommonQualityGems,
+      commonQualityGems: uniqueCommonGems,
+      uncommonQualityGems: uniqueUncommonGems,
       rareQualityGems: [],
     },
+    consumableCoverage,
+    coveredConsumableFights,
+    totalConsumableFights: consumableCoverage.length,
+    consumableIssueCount,
+    scrollCoverageCount,
+    foodCoverageCount,
+    elixirCoverageCount,
+    scrollIssueCount,
+    foodIssueCount,
+    elixirIssueCount,
+    potionUseCount,
+    hearthstoneCount,
   };
 }
 
@@ -837,11 +1290,39 @@ function aggregateAbilityBreakdown(fights, field, playerId) {
     const entry = (fight[field] || []).find(candidate => String(candidate?.id) === String(playerId));
     if (!entry) continue;
 
-    for (const ability of entry.abilities || []) {
+    const abilities = [
+      entry.abilities,
+      entry.entries,
+      entry.spells,
+      entry.sources,
+      entry.targets,
+    ].find(value => Array.isArray(value) && value.length > 0)
+      ? [
+        entry.abilities,
+        entry.entries,
+        entry.spells,
+        entry.sources,
+        entry.targets,
+      ].find(value => Array.isArray(value) && value.length > 0)
+      : [{
+        guid: entry.guid ?? entry.id ?? null,
+        icon: entry.icon ?? entry.iconName ?? entry.iconname ?? "",
+        name: field === "healingDoneEntries" ? "All Healing" : "All Damage",
+        total: entry.total ?? 0,
+        activeTime: entry.activeTime ?? entry.uptime ?? 0,
+        hits: entry.hits ?? entry.totalHits ?? entry.hitCount ?? entry.landedHits ?? entry.count ?? 0,
+        casts: entry.casts ?? entry.totalUses ?? entry.uses ?? entry.useCount ?? entry.executeCount ?? 0,
+        crits: entry.crits ?? entry.criticalHits ?? entry.critCount ?? entry.critHits ?? entry.critHitCount ?? 0,
+        overheal: entry.overheal ?? 0,
+        absorbed: entry.absorbed ?? 0,
+      }];
+
+    for (const ability of abilities) {
       const key = String(ability.guid ?? ability.name ?? "unknown");
       const existing = grouped.get(key) || {
         key,
         guid: ability.guid ?? null,
+        icon: ability.icon ?? ability.iconName ?? ability.iconname ?? "",
         name: ability.name || "Unknown Ability",
         total: 0,
         activeTime: 0,
@@ -852,11 +1333,14 @@ function aggregateAbilityBreakdown(fights, field, playerId) {
         absorbed: 0,
       };
 
+      if (!existing.icon) {
+        existing.icon = ability.icon ?? ability.iconName ?? ability.iconname ?? "";
+      }
       existing.total += ability.total || 0;
       existing.activeTime += ability.activeTime || 0;
-      existing.hits += ability.hits || 0;
-      existing.casts += ability.casts || 0;
-      existing.crits += ability.crits || 0;
+      existing.hits += ability.hits ?? ability.totalHits ?? ability.hitCount ?? ability.landedHits ?? ability.count ?? 0;
+      existing.casts += ability.casts ?? ability.totalUses ?? ability.uses ?? ability.useCount ?? ability.executeCount ?? 0;
+      existing.crits += ability.crits ?? ability.criticalHits ?? ability.critCount ?? ability.critHits ?? ability.critHitCount ?? 0;
       existing.overheal += ability.overheal || 0;
       existing.absorbed += ability.absorbed || 0;
       grouped.set(key, existing);
@@ -864,6 +1348,108 @@ function aggregateAbilityBreakdown(fights, field, playerId) {
   }
 
   return [...grouped.values()].sort((a, b) => b.total - a.total);
+}
+
+function collectSummaryStatRows(node, mode, path = "root", rows = []) {
+  if (!node) return rows;
+
+  if (Array.isArray(node)) {
+    node.forEach((entry, index) => collectSummaryStatRows(entry, mode, `${path}[${index}]`, rows));
+    return rows;
+  }
+
+  if (typeof node !== "object") return rows;
+
+  const lowerPath = path.toLowerCase();
+  const isHealingBranch = lowerPath.includes("heal");
+  const isDamageBranch = lowerPath.includes("damage") || lowerPath.includes("dps");
+  const total = Number(node.total ?? node.amount ?? node.effectiveHealing ?? 0);
+  const casts = Number(node.casts ?? node.totalUses ?? node.uses ?? node.useCount ?? node.executeCount ?? 0);
+  const hits = Number(node.hits ?? node.totalHits ?? node.hitCount ?? node.landedHits ?? node.count ?? 0);
+  const crits = Number(node.crits ?? node.criticalHits ?? node.critCount ?? node.critHits ?? node.critHitCount ?? 0);
+  const activeTime = Number(node.activeTime ?? node.uptime ?? node.totalUptime ?? 0);
+  const hasUsableStats = [total, casts, hits, crits, activeTime].some(value => Number.isFinite(value) && value > 0);
+  const name = typeof node.name === "string" ? node.name.trim() : "";
+
+  const modeMatches =
+    mode === "healing"
+      ? (isHealingBranch || (!isDamageBranch && Number(node.overheal ?? 0) > 0))
+      : (!isHealingBranch || isDamageBranch);
+
+  if (name && hasUsableStats && modeMatches) {
+    rows.push({
+      key: `${node.guid ?? node.gameID ?? name}-${path}`,
+      guid: node.guid ?? node.gameID ?? node.abilityGameID ?? null,
+      icon: node.icon || node.iconName || node.iconname || node.abilityIcon || node.ability?.icon || node.ability?.iconName || "",
+      name,
+      total,
+      activeTime,
+      hits,
+      casts,
+      crits,
+      overheal: Number(node.overheal ?? 0),
+      absorbed: Number(node.absorbed ?? 0),
+    });
+  }
+
+  Object.entries(node).forEach(([key, value]) => {
+    if (value && typeof value === "object") {
+      collectSummaryStatRows(value, mode, `${path}.${key}`, rows);
+    }
+  });
+
+  return rows;
+}
+
+function buildSummaryAbilityBreakdown(summary, mode) {
+  const grouped = new Map();
+  const rows = collectSummaryStatRows(summary, mode);
+
+  for (const row of rows) {
+    const key = String(row.guid ?? row.name ?? row.key);
+    const existing = grouped.get(key) || {
+      key,
+      guid: row.guid ?? null,
+      icon: row.icon || "",
+      name: row.name || "Unknown Ability",
+      total: 0,
+      activeTime: 0,
+      hits: 0,
+      casts: 0,
+      crits: 0,
+      overheal: 0,
+      absorbed: 0,
+    };
+
+    if (!existing.icon) {
+      existing.icon = row.icon || "";
+    }
+    existing.total += row.total || 0;
+    existing.activeTime += row.activeTime || 0;
+    existing.hits += row.hits || 0;
+    existing.casts += row.casts || 0;
+    existing.crits += row.crits || 0;
+    existing.overheal += row.overheal || 0;
+    existing.absorbed += row.absorbed || 0;
+    grouped.set(key, existing);
+  }
+
+  return [...grouped.values()]
+    .filter(row => row.total > 0 || row.casts > 0 || row.hits > 0 || row.crits > 0)
+    .sort((a, b) => b.total - a.total);
+}
+
+function makeRemoteBreakdownKey(reportId, playerId, mode, fights) {
+  const fightKey = (fights || []).map(fight => String(fight?.id || "")).filter(Boolean).join(",");
+  return [String(reportId || ""), String(playerId || ""), String(mode || ""), fightKey].join("::");
+}
+
+function hasVisibleBreakdownStats(entries = []) {
+  return (entries || []).some(entry =>
+    Number(entry?.casts || 0) > 0
+    || Number(entry?.hits || 0) > 0
+    || Number(entry?.crits || 0) > 0
+  );
 }
 
 function getPlayerAbilityTotalFromFights(fights, playerId, abilityIds) {
@@ -958,6 +1544,22 @@ function formatEventSummary(event) {
   return `${prefix}${ability}${amount ? ` (${amount.toLocaleString()})` : ""}`;
 }
 
+function EventSummary({ event, emphasizeTime = false }) {
+  const amount = getEventAmount(event, isHealingLikeEvent(event) ? "healing" : "damage");
+  const actor = getSourceName(event);
+  const ability = getAbilityName(event, "Unknown");
+  const prefix = actor && actor !== "Unknown Source" ? `${actor} - ` : "";
+  const spellId = event?.abilityGuid;
+
+  return (
+    <span style={{ color: emphasizeTime ? "#ff8d8d" : "inherit" }}>
+      {prefix}
+      {spellId ? <WowheadSpellLink spellId={spellId}>{ability}</WowheadSpellLink> : ability}
+      {amount ? ` (${amount.toLocaleString()})` : ""}
+    </span>
+  );
+}
+
 function buildDeathDetailRows(fights, playerId) {
   if (!playerId) return [];
 
@@ -982,6 +1584,7 @@ function buildDeathDetailRows(fights, playerId) {
         fightId: String(fight.id),
         fightName: fight.name || "Unknown Fight",
         timestampMs,
+        timestampLabel: formatDuration(timestampMs),
         killingBlow,
         lastHits,
         damageTaken: damageEvents.reduce((sum, event) => sum + getEventAmount(event, "damage"), 0) || Number(deathEvent.damage || 0),
@@ -994,6 +1597,19 @@ function buildDeathDetailRows(fights, playerId) {
     if (a.fightId !== b.fightId) return a.fightName.localeCompare(b.fightName, "en", { sensitivity: "base" });
     return (a.timestampMs ?? 0) - (b.timestampMs ?? 0);
   });
+}
+
+function getPlayerDeathCountFromFights(fights, playerId) {
+  if (!playerId) return 0;
+
+  let total = 0;
+  for (const fight of fights || []) {
+    const entry = (fight.deathEntries || []).find(candidate => String(candidate?.id) === String(playerId));
+    if (!entry) continue;
+    total += getDeathEntryTotal(entry);
+  }
+
+  return total;
 }
 
 function getSelectedFightPlayerSnapshot(fights, fightId, playerId) {
@@ -1067,6 +1683,9 @@ function getEncounterOptions(fights) {
       encounterId: fight.encounterId,
       fightName: fight.name,
       kill: fight.kill,
+      speedParsePercent: fight.kill && Number.isFinite(Number(fight.speedParsePercent)) && Number(fight.speedParsePercent) > 0
+        ? Number(fight.speedParsePercent)
+        : null,
     });
   }
 
@@ -1124,6 +1743,11 @@ function ImportProgressModal({ open, progress }) {
           <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 4 }}>
             {progress.message}
           </div>
+          {!!progress.detail && (
+            <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 8, fontFamily: font.mono }}>
+              {progress.detail}
+            </div>
+          )}
         </div>
 
         <div style={{ height: 12, background: surface.base, border: `1px solid ${border.subtle}`, borderRadius: 999, overflow: "hidden" }}>
@@ -1131,7 +1755,7 @@ function ImportProgressModal({ open, progress }) {
             width: `${progress.percent}%`,
             height: "100%",
             background: accent.blue,
-            transition: "width 0.2s ease",
+            transition: "width 0.45s cubic-bezier(0.22, 1, 0.36, 1)",
           }} />
         </div>
 
@@ -1140,6 +1764,188 @@ function ImportProgressModal({ open, progress }) {
           <span>{progress.percent}%</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function TeamTagModal({ open, title, confirmLabel, value, onChange, onConfirm, onCancel, allowClear = true }) {
+  if (!open) return null;
+
+  const options = allowClear ? TEAM_TAG_OPTIONS.slice(1) : TEAM_TAG_OPTIONS;
+
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 10001,
+      background: "rgba(0,0,0,0.65)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: space[4],
+    }}>
+      <div style={{
+        ...panelStyle,
+        width: 420,
+        maxWidth: "100%",
+        padding: space[6],
+        display: "flex",
+        flexDirection: "column",
+        gap: space[4],
+      }}>
+        <div>
+          <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: text.primary }}>{title}</div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 4 }}>
+            Choose which raid team this report belongs to.
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+          {options.map(option => {
+            const active = normalizeTeamTag(value) === option.id;
+            return (
+              <button
+                key={option.id || "untagged"}
+                onClick={() => onChange(option.id)}
+                style={{
+                  ...btnStyle(active ? "primary" : "default", active),
+                  justifyContent: "space-between",
+                  height: 40,
+                  width: "100%",
+                }}
+              >
+                <span>{option.label}</span>
+                {active && <span aria-hidden="true">✓</span>}
+              </button>
+            );
+          })}
+
+          {allowClear && (
+            <button
+              onClick={() => onChange("")}
+              style={{
+                ...btnStyle(!normalizeTeamTag(value) ? "primary" : "default", !normalizeTeamTag(value)),
+                justifyContent: "space-between",
+                height: 40,
+                width: "100%",
+              }}
+            >
+              <span>No Team Tag</span>
+              {!normalizeTeamTag(value) && <span aria-hidden="true">✓</span>}
+            </button>
+          )}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: space[2] }}>
+          <button onClick={onCancel} style={btnStyle("default")}>Cancel</button>
+          <button onClick={onConfirm} style={btnStyle("primary")}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RenameReportModal({ open, value, onChange, onConfirm, onCancel }) {
+  if (!open) return null;
+
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 10001,
+      background: "rgba(0,0,0,0.65)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: space[4],
+    }}>
+      <div style={{
+        ...panelStyle,
+        width: 420,
+        maxWidth: "100%",
+        padding: space[6],
+        display: "flex",
+        flexDirection: "column",
+        gap: space[4],
+      }}>
+        <div>
+          <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: text.primary }}>Rename Report</div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 4 }}>
+            Update the label shown in Saved Raids.
+          </div>
+        </div>
+
+        <input
+          autoFocus
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          placeholder="Enter report name"
+          style={{ ...inputStyle, height: 40, width: "100%" }}
+        />
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: space[2] }}>
+          <button onClick={onCancel} style={btnStyle("default")}>Cancel</button>
+          <button onClick={onConfirm} style={btnStyle("primary")}>Save Name</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RaidActionsMenu({ raid, onRename, onTag, onDeleteTag, onDelete }) {
+  const teamTag = normalizeTeamTag(raid?.teamTag);
+
+  const itemStyle = {
+    fontSize: fontSize.xs,
+    color: text.secondary,
+    fontFamily: font.sans,
+    textDecoration: "none",
+    padding: `${space[2]}px ${space[2]}px`,
+    borderRadius: radius.sm,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    border: "none",
+    background: "transparent",
+    width: "100%",
+    cursor: "pointer",
+  };
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 34,
+        minWidth: 180,
+        padding: `${space[2]}px`,
+        borderRadius: radius.base,
+        border: `1px solid ${border.subtle}`,
+        background: surface.panel,
+        boxShadow: "0 12px 28px rgba(0,0,0,0.35)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        zIndex: 250,
+      }}
+      onClick={event => event.stopPropagation()}
+    >
+      <button onClick={onTag} style={itemStyle}>
+        <span aria-hidden="true">🏷</span>
+        <span>Add Tag</span>
+      </button>
+      <button onClick={onDeleteTag} disabled={!teamTag} style={{ ...itemStyle, opacity: teamTag ? 1 : 0.45, cursor: teamTag ? "pointer" : "not-allowed" }}>
+        <span aria-hidden="true">⌫</span>
+        <span>Delete Tag</span>
+      </button>
+      <button onClick={onRename} style={itemStyle}>
+        <span aria-hidden="true">✎</span>
+        <span>Rename Report</span>
+      </button>
+      <button onClick={onDelete} style={{ ...itemStyle, color: intent.danger }}>
+        <span aria-hidden="true">🗑</span>
+        <span>Delete Report</span>
+      </button>
     </div>
   );
 }
@@ -1196,20 +2002,39 @@ export default function RpbPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingRaid, setLoadingRaid] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [remoteAbilityBreakdowns, setRemoteAbilityBreakdowns] = useState({});
+  const [loadingRemoteAbilityBreakdown, setLoadingRemoteAbilityBreakdown] = useState(false);
+  const [teamFilter, setTeamFilter] = useState("");
+  const [openRaidMenuId, setOpenRaidMenuId] = useState("");
+  const [tagModalState, setTagModalState] = useState({ open: false, raid: null, value: "" });
+  const [importTagPrompt, setImportTagPrompt] = useState({ open: false, raid: null, value: "", resolve: null });
+  const [renameModalState, setRenameModalState] = useState({ open: false, raid: null, value: "" });
+  const [deleteConfirmRaid, setDeleteConfirmRaid] = useState(null);
+  const [raidAnalyticsFilter, setRaidAnalyticsFilter] = useState("");
   const [filterMode, setFilterMode] = useState("encounters-and-trash");
   const [fightOutcomeFilter, setFightOutcomeFilter] = useState("");
   const [selectedFightId, setSelectedFightId] = useState("");
   const [sliceType, setSliceType] = useState("damage");
+  const syncedRankingsByRaidIdRef = useRef({});
+  const syncedSpeedByRaidIdRef = useRef({});
+  const abilityBreakdownRef = useRef(null);
   const [importProgress, setImportProgress] = useState({
     open: false,
     completed: 0,
-    total: 15,
+    total: 17,
     percent: 0,
     message: "",
+    detail: "",
   });
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
+    window.wowhead_tooltips = {
+      ...(window.wowhead_tooltips || {}),
+      iconizelinks: false,
+      renamelinks: false,
+      colorlinks: false,
+    };
     if (document.querySelector('script[data-wowhead-power="true"]')) return undefined;
 
     const script = document.createElement("script");
@@ -1220,6 +2045,17 @@ export default function RpbPage() {
 
     return () => {};
   }, []);
+
+  useEffect(() => {
+    if (!openRaidMenuId) return undefined;
+
+    function handleWindowClick() {
+      setOpenRaidMenuId("");
+    }
+
+    window.addEventListener("click", handleWindowClick);
+    return () => window.removeEventListener("click", handleWindowClick);
+  }, [openRaidMenuId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1249,9 +2085,17 @@ export default function RpbPage() {
     let cancelled = false;
 
     async function loadRaid() {
-      if (!raidId) {
+      const normalizedTeamFilter = normalizeTeamTag(teamFilter);
+      const visibleRaids = normalizedTeamFilter
+        ? raids.filter(raid => normalizeTeamTag(raid.teamTag) === normalizedTeamFilter)
+        : raids;
+      const noReportsForFilter = !loadingList && !!normalizedTeamFilter && visibleRaids.length === 0;
+      const raidVisibleForFilter = !raidId || !normalizedTeamFilter || visibleRaids.some(raid => raid.id === raidId);
+
+      if (!raidId || noReportsForFilter || !raidVisibleForFilter) {
         setSelectedRaid(null);
         setSelectedPlayerId("");
+        setLoadingRaid(false);
         return;
       }
 
@@ -1271,7 +2115,7 @@ export default function RpbPage() {
 
     loadRaid();
     return () => { cancelled = true; };
-  }, [raidId]);
+  }, [loadingList, raidId, raids, teamFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1311,6 +2155,8 @@ export default function RpbPage() {
     playersWithBuffData: [],
     playersUsingDrums: [],
     playersWithSuboptimalWeaponEnchants: [],
+    playersWithConsumableIssues: [],
+    playersUsingHearthstone: [],
   };
 
   const visibleEncounterSourceFights = useMemo(() => {
@@ -1326,7 +2172,10 @@ export default function RpbPage() {
     const next = new Map();
 
     for (const player of selectedRaid?.players || []) {
-      next.set(String(player.id), derivePlayerAnalyticsFromFights(filteredFights, player.id, player.type));
+      next.set(
+        String(player.id),
+        derivePlayerAnalyticsFromFights(filteredFights, player.id, player.name, player.type, selectedRaid?.importPayload)
+      );
     }
 
     return next;
@@ -1341,6 +2190,8 @@ export default function RpbPage() {
     const playersWithIssues = [];
     const playersWithEngineeringDamage = [];
     const playersWithOilDamage = [];
+    const playersWithConsumableIssues = [];
+    const playersUsingHearthstone = [];
 
     for (const player of selectedRaid?.players || []) {
       const analytics = filteredPlayerAnalyticsById.get(String(player.id));
@@ -1379,6 +2230,26 @@ export default function RpbPage() {
           total: oilTotal,
         });
       }
+
+      const consumableIssues = Number(analytics.consumableIssueCount || 0);
+      if (consumableIssues > 0) {
+        playersWithConsumableIssues.push({
+          playerId: String(player.id),
+          name: player.name,
+          total: consumableIssues,
+          covered: Number(analytics.coveredConsumableFights || 0),
+          totalFights: Number(analytics.totalConsumableFights || 0),
+        });
+      }
+
+      const hearthstoneCount = Number(player.analytics?.hearthstoneCount || analytics.hearthstoneCount || 0);
+      if (hearthstoneCount > 0) {
+        playersUsingHearthstone.push({
+          playerId: String(player.id),
+          name: player.name,
+          total: hearthstoneCount,
+        });
+      }
     }
 
     return {
@@ -1386,15 +2257,124 @@ export default function RpbPage() {
       playersMissingEnchants: playersWithIssues.sort((a, b) => b.totalIssues - a.totalIssues),
       engineeringDamageTaken: playersWithEngineeringDamage.sort((a, b) => b.total - a.total),
       oilOfImmolationDamageTaken: playersWithOilDamage.sort((a, b) => b.total - a.total),
+      playersWithConsumableIssues: playersWithConsumableIssues.sort((a, b) => b.total - a.total),
+      playersUsingHearthstone: playersUsingHearthstone.sort((a, b) => b.total - a.total),
     };
   }, [filteredEngineeringTotalsByPlayerId, filteredOilTotalsByPlayerId, filteredPlayerAnalyticsById, raidAnalytics, selectedRaid]);
+  const raidAnalyticsFilterIds = useMemo(() => {
+    switch (raidAnalyticsFilter) {
+      case "missing-enchants":
+        return new Set(filteredRaidAnalytics.playersMissingEnchants.map(entry => String(entry.playerId)));
+      case "engineering":
+        return new Set(filteredRaidAnalytics.engineeringDamageTaken.map(entry => String(entry.playerId)));
+      case "oil":
+        return new Set(filteredRaidAnalytics.oilOfImmolationDamageTaken.map(entry => String(entry.playerId)));
+      case "buffs":
+        return new Set((filteredRaidAnalytics.playersWithBuffData || raidAnalytics.playersWithBuffData || []).map(entry => String(entry.playerId)));
+      case "drums":
+        return new Set((filteredRaidAnalytics.playersUsingDrums || raidAnalytics.playersUsingDrums || []).map(entry => String(entry.playerId)));
+      case "suboptimal-enchants":
+        return new Set((filteredRaidAnalytics.playersWithSuboptimalWeaponEnchants || raidAnalytics.playersWithSuboptimalWeaponEnchants || []).map(entry => String(entry.playerId)));
+      case "consumables":
+        return new Set((filteredRaidAnalytics.playersWithConsumableIssues || raidAnalytics.playersWithConsumableIssues || []).map(entry => String(entry.playerId)));
+      case "hearthstone":
+        return new Set((filteredRaidAnalytics.playersUsingHearthstone || raidAnalytics.playersUsingHearthstone || []).map(entry => String(entry.playerId)));
+      default:
+        return null;
+    }
+  }, [filteredRaidAnalytics, raidAnalytics, raidAnalyticsFilter]);
   const sortedRaids = useMemo(() => {
     return [...raids].sort((a, b) => new Date(b.start || b.importedAt || 0) - new Date(a.start || a.importedAt || 0));
   }, [raids]);
+  const filteredRaids = useMemo(() => {
+    const normalizedFilter = normalizeTeamTag(teamFilter);
+    if (!normalizedFilter) return sortedRaids;
+    return sortedRaids.filter(raid => normalizeTeamTag(raid.teamTag) === normalizedFilter);
+  }, [sortedRaids, teamFilter]);
+  const noReportsForActiveTeamFilter = !loadingList && !!teamFilter && filteredRaids.length === 0;
+  const hasAnyParseScores = useMemo(() => {
+    return (selectedRaid?.fights || []).some(fight =>
+      [...(fight.damageDoneEntries || []), ...(fight.healingDoneEntries || [])]
+        .some(entry => Number.isFinite(Number(entry?.parsePercent)))
+    );
+  }, [selectedRaid]);
+  const hasSavedReportLevelParses = useMemo(() => {
+    return (selectedRaid?.players || []).some(player =>
+      Number.isFinite(Number(player?.damageParsePercent))
+      || Number.isFinite(Number(player?.healingParsePercent))
+    );
+  }, [selectedRaid]);
+  const reportParseByPlayerId = useMemo(() => {
+    const next = new Map();
+    const field = sliceType === "healing" ? "healingParsePercent" : "damageParsePercent";
+    for (const player of selectedRaid?.players || []) {
+      const value = Number(player?.[field]);
+      if (Number.isFinite(value) && value >= 0) {
+        next.set(String(player.id), value);
+      }
+    }
+
+    if (next.size === 0) {
+      const parseTotals = new Map();
+      const parseCounts = new Map();
+      const fieldName = sliceType === "healing" ? "healingDoneEntries" : "damageDoneEntries";
+
+      for (const fight of selectedRaid?.fights || []) {
+        for (const entry of fight?.[fieldName] || []) {
+          const value = Number(entry?.parsePercent);
+          if (!Number.isFinite(value) || value < 0) continue;
+          const key = String(entry.id);
+          parseTotals.set(key, Number(parseTotals.get(key) || 0) + value);
+          parseCounts.set(key, Number(parseCounts.get(key) || 0) + 1);
+        }
+      }
+
+      for (const [key, total] of parseTotals.entries()) {
+        const count = Number(parseCounts.get(key) || 0);
+        if (count > 0) {
+          next.set(key, total / count);
+        }
+      }
+    }
+
+    return next;
+  }, [selectedRaid, sliceType]);
   const sliceField = sliceType === "healing" ? "healingDoneEntries" : (sliceType === "deaths" ? "deathEntries" : "damageDoneEntries");
-  const aggregatedSliceEntries = useMemo(() => aggregateMetricEntries(filteredFights, sliceField), [filteredFights, sliceField]);
+  const useReportLevelParse = sliceType !== "deaths" && !selectedFightId;
+  const aggregatedSliceEntries = useMemo(
+    () => aggregateMetricEntries(filteredFights, sliceField, reportParseByPlayerId, useReportLevelParse),
+    [filteredFights, reportParseByPlayerId, sliceField, useReportLevelParse]
+  );
+  const visibleAggregatedSliceEntries = useMemo(() => {
+    if (!raidAnalyticsFilterIds) return aggregatedSliceEntries;
+    return aggregatedSliceEntries.filter(entry => raidAnalyticsFilterIds.has(String(entry.id)));
+  }, [aggregatedSliceEntries, raidAnalyticsFilterIds]);
+  const visibleConsumableSliceEntries = useMemo(() => {
+    return buildConsumableSliceEntries(selectedRaid?.players || [], filteredPlayerAnalyticsById, raidAnalyticsFilterIds);
+  }, [filteredPlayerAnalyticsById, raidAnalyticsFilterIds, selectedRaid]);
+  const visibleParsedEntryCount = useMemo(() => {
+    return visibleAggregatedSliceEntries.filter(entry => Number.isFinite(Number(entry.parsePercent))).length;
+  }, [visibleAggregatedSliceEntries]);
   const selectedPlayerDamageBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "damageDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerHealingBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "healingDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
+  const selectedPlayerSummaryDamageBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "damage"), [selectedPlayer?.summary]);
+  const selectedPlayerSummaryHealingBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "healing"), [selectedPlayer?.summary]);
+  const remoteBreakdownKey = useMemo(
+    () => makeRemoteBreakdownKey(selectedRaid?.reportId, selectedPlayerId, sliceType, filteredFights),
+    [filteredFights, selectedPlayerId, selectedRaid?.reportId, sliceType]
+  );
+  const importedBreakdownExists = sliceType === "healing"
+    ? hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
+    : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown);
+  const prefersRemoteBreakdown = !!profileApiKey.trim() && sliceType !== "deaths" && !importedBreakdownExists;
+  const hasRemoteBreakdownForSelection = Object.prototype.hasOwnProperty.call(remoteAbilityBreakdowns, remoteBreakdownKey);
+  const remotePlayerAbilityBreakdown = remoteAbilityBreakdowns[remoteBreakdownKey] || [];
+  const visiblePlayerDamageBreakdown = prefersRemoteBreakdown
+    ? (hasRemoteBreakdownForSelection ? remotePlayerAbilityBreakdown : [])
+    : (hasVisibleBreakdownStats(selectedPlayerDamageBreakdown) ? selectedPlayerDamageBreakdown : selectedPlayerSummaryDamageBreakdown);
+  const visiblePlayerHealingBreakdown = prefersRemoteBreakdown
+    ? (hasRemoteBreakdownForSelection ? remotePlayerAbilityBreakdown : [])
+    : (hasVisibleBreakdownStats(selectedPlayerHealingBreakdown) ? selectedPlayerHealingBreakdown : selectedPlayerSummaryHealingBreakdown);
   const selectedPlayerDeathRows = useMemo(() => buildDeathDetailRows(filteredFights, selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSliceTotals = useMemo(() => {
     return getPlayerSliceTotals(filteredFights, selectedPlayerId, selectedPlayer?.role || "");
@@ -1430,10 +2410,12 @@ export default function RpbPage() {
   const filteredPlayers = useMemo(() => {
     const visiblePlayers = (selectedRaid?.players || []).filter(player => {
       if (!player.fightsPresent) return true;
-      return player.fightsPresent > 0;
+      if (player.fightsPresent <= 0) return false;
+      if (!raidAnalyticsFilterIds) return true;
+      return raidAnalyticsFilterIds.has(String(player.id));
     });
     return sortPlayersForDisplay(visiblePlayers);
-  }, [selectedRaid]);
+  }, [raidAnalyticsFilterIds, selectedRaid]);
 
   const selectedPlayerIssueGroups = useMemo(() => {
     if (!selectedPlayerAnalytics) {
@@ -1488,7 +2470,7 @@ export default function RpbPage() {
     const activeTimeMs = selectedPlayerSliceTotals.activeTimeMs || 0;
     const availableTimeMs = selectedPlayerSliceTotals.availableTimeMs || 0;
     const activeTimePercent = availableTimeMs > 0 ? (activeTimeMs / availableTimeMs) * 100 : 0;
-    const deaths = selectedPlayerDeathRows.length;
+    const deaths = getPlayerDeathCountFromFights(filteredFights, selectedPlayer.id);
     const engineeringDamageDone = getPlayerAbilityTotalFromFights(filteredFights, selectedPlayer.id, ENGINEERING_DAMAGE_ABILITY_IDS)
       || selectedPlayer.analytics?.engineeringDamageTaken
       || 0;
@@ -1499,6 +2481,11 @@ export default function RpbPage() {
     const friendlyFire = selectedPlayer.hostilePlayerDamage || 0;
     const buffAuraCount = selectedPlayer.analytics?.buffAuraCount || 0;
     const drumsCastCount = selectedPlayer.analytics?.drumsCastCount || 0;
+    const coveredConsumableFights = Number(selectedPlayerAnalytics.coveredConsumableFights || 0);
+    const totalConsumableFights = Number(selectedPlayerAnalytics.totalConsumableFights || 0);
+    const consumableIssueCount = Number(selectedPlayerAnalytics.consumableIssueCount || 0);
+    const potionUseCount = Number(selectedPlayerAnalytics.potionUseCount || 0);
+    const hearthstoneCount = Number(selectedPlayerAnalytics.hearthstoneCount || 0);
 
     return sortMetricTags([
       {
@@ -1524,6 +2511,24 @@ export default function RpbPage() {
         value: gearSummary.suboptimalTemporaryEnchantCount || 0,
         tone: (gearSummary.suboptimalTemporaryEnchantCount || 0) > 0 ? "danger" : "neutral",
         sortValue: gearSummary.suboptimalTemporaryEnchantCount || 0,
+      },
+      {
+        label: "Elixir / Flask Coverage",
+        value: totalConsumableFights > 0 ? `${coveredConsumableFights}/${totalConsumableFights}` : "0/0",
+        tone: totalConsumableFights > 0 && consumableIssueCount === 0 ? "success" : (consumableIssueCount > 0 ? "warning" : "neutral"),
+        sortValue: consumableIssueCount > 0 ? consumableIssueCount : coveredConsumableFights,
+      },
+      {
+        label: "Potion Uses",
+        value: potionUseCount,
+        tone: potionUseCount > 0 ? "success" : "neutral",
+        sortValue: potionUseCount,
+      },
+      {
+        label: "Hearthstones",
+        value: hearthstoneCount,
+        tone: hearthstoneCount > 0 ? "warning" : "neutral",
+        sortValue: hearthstoneCount,
       },
       {
         label: "Deaths",
@@ -1581,6 +2586,46 @@ export default function RpbPage() {
       },
     ]);
   }, [filteredFights, selectedPlayer, selectedPlayerAnalytics, selectedPlayerDeathRows.length, selectedPlayerSliceTotals]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const refreshLinks = () => {
+      try {
+        window.$WowheadPower?.refreshLinks?.();
+      } catch {}
+      try {
+        window.WH?.Tooltips?.refreshLinks?.();
+      } catch {}
+      try {
+        window.WH?.Tooltips?.parseLinks?.(document.body);
+      } catch {}
+      try {
+        const abilityRoot = abilityBreakdownRef.current;
+        if (abilityRoot) {
+          const previousConfig = window.wowhead_tooltips || {};
+          window.wowhead_tooltips = {
+            ...previousConfig,
+            iconizelinks: true,
+          };
+          window.WH?.Tooltips?.parseLinks?.(abilityRoot);
+          window.wowhead_tooltips = previousConfig;
+        }
+      } catch {}
+    };
+
+    const timeoutId = window.setTimeout(refreshLinks, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    abilityBreakdownRef,
+    selectedFightGear.length,
+    selectedPlayerDamageBreakdown.length,
+    selectedPlayerHealingBreakdown.length,
+    selectedPlayerId,
+    sliceType,
+    visiblePlayerDamageBreakdown.length,
+    visiblePlayerHealingBreakdown.length,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1645,6 +2690,251 @@ export default function RpbPage() {
     }
   }, [filteredPlayers, selectedPlayerId]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRemoteAbilityBreakdown() {
+      if (sliceType === "deaths") return;
+      if (importedBreakdownExists) return;
+      if (!selectedRaid?.reportId || !selectedPlayerId || !profileApiKey.trim()) return;
+      if (!filteredFights.length) return;
+
+      setLoadingRemoteAbilityBreakdown(true);
+      try {
+        const response = await fetch("/api/rpb-import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "step",
+            step: "playerAbilityBreakdown",
+            reportId: selectedRaid.reportId,
+            apiKey: profileApiKey,
+            sourceId: selectedPlayerId,
+            fightIds: filteredFights.map(fight => String(fight.id)),
+            mode: sliceType,
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Failed to load ability breakdown");
+
+        if (!cancelled) {
+          setRemoteAbilityBreakdowns(prev => ({
+            ...prev,
+            [remoteBreakdownKey]: data.entries || [],
+          }));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRemoteAbilityBreakdowns(prev => ({
+            ...prev,
+            [remoteBreakdownKey]: [],
+          }));
+          toast({ message: `Failed to load detailed player breakdown: ${error.message}`, type: "warning", duration: 5000 });
+        }
+      } finally {
+        if (!cancelled) setLoadingRemoteAbilityBreakdown(false);
+      }
+    }
+
+    loadRemoteAbilityBreakdown();
+    return () => { cancelled = true; };
+  }, [
+    filteredFights,
+    importedBreakdownExists,
+    profileApiKey,
+    remoteBreakdownKey,
+    selectedPlayerDamageBreakdown.length,
+    selectedPlayerHealingBreakdown.length,
+    selectedPlayerId,
+    selectedRaid?.reportId,
+    sliceType,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateParseScores() {
+      if (!selectedRaid?.id || !selectedRaid?.reportId) return;
+      if (hasAnyParseScores && hasSavedReportLevelParses) {
+        syncedRankingsByRaidIdRef.current[selectedRaid.id] = true;
+        return;
+      }
+      if (syncedRankingsByRaidIdRef.current[selectedRaid.id]) return;
+
+      try {
+        const response = await fetch("/api/rpb-import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "step",
+            step: "reportRankings",
+            reportId: selectedRaid.reportId,
+            wclV2ClientId: profileV2ClientId,
+            wclV2ClientSecret: profileV2ClientSecret,
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data?.available) {
+          syncedRankingsByRaidIdRef.current[selectedRaid.id] = true;
+          return;
+        }
+
+        const rankedRaid = applyRankingsToRaidFights(selectedRaid, data);
+        if (cancelled) return;
+
+        syncedRankingsByRaidIdRef.current[selectedRaid.id] = true;
+        setSelectedRaid(rankedRaid);
+        setRaids(prev => prev.map(raid => (
+          raid.id === rankedRaid.id
+            ? { ...raid, analytics: rankedRaid.analytics || raid.analytics }
+            : raid
+        )));
+        await updateRpbRaidImport(rankedRaid.id, {
+          fights: rankedRaid.fights,
+          players: rankedRaid.players,
+          importPayload: rankedRaid.importPayload,
+        });
+      } catch {
+        syncedRankingsByRaidIdRef.current[selectedRaid.id] = true;
+      }
+    }
+
+    hydrateParseScores();
+    return () => { cancelled = true; };
+  }, [hasAnyParseScores, hasSavedReportLevelParses, profileV2ClientId, profileV2ClientSecret, selectedRaid]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateSpeedScores() {
+      if (!selectedRaid?.id || !selectedRaid?.reportId) return;
+      if (hasHydratedSpeedScores(selectedRaid)) {
+        syncedSpeedByRaidIdRef.current[selectedRaid.id] = true;
+        return;
+      }
+      if (syncedSpeedByRaidIdRef.current[selectedRaid.id]) return;
+
+      try {
+        const response = await fetch("/api/rpb-import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "step",
+            step: "reportSpeed",
+            reportId: selectedRaid.reportId,
+            wclV2ClientId: profileV2ClientId,
+            wclV2ClientSecret: profileV2ClientSecret,
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data?.available) {
+          syncedSpeedByRaidIdRef.current[selectedRaid.id] = true;
+          return;
+        }
+
+        const raidWithSpeed = applySpeedToRaidFights(selectedRaid, data);
+        if (cancelled) return;
+
+        syncedSpeedByRaidIdRef.current[selectedRaid.id] = true;
+        setSelectedRaid(raidWithSpeed);
+        setRaids(prev => prev.map(raid => (
+          raid.id === raidWithSpeed.id
+            ? { ...raid, reportSpeedPercent: raidWithSpeed.reportSpeedPercent }
+            : raid
+        )));
+        await updateRpbRaidImport(raidWithSpeed.id, {
+          fights: raidWithSpeed.fights,
+          reportSpeedPercent: raidWithSpeed.reportSpeedPercent,
+          importPayload: raidWithSpeed.importPayload,
+        });
+      } catch {
+        syncedSpeedByRaidIdRef.current[selectedRaid.id] = true;
+      }
+    }
+
+    hydrateSpeedScores();
+    return () => { cancelled = true; };
+  }, [profileV2ClientId, profileV2ClientSecret, selectedRaid]);
+
+  useEffect(() => {
+    if (loadingList) return;
+    if (!teamFilter) return;
+
+    const visibleRaidIds = new Set(filteredRaids.map(raid => raid.id));
+    if (raidId && visibleRaidIds.has(raidId)) return;
+
+    if (filteredRaids[0]?.id) {
+      navigate(`/rpb/${filteredRaids[0].id}`, { replace: true });
+      return;
+    }
+
+    if (raidId) {
+      navigate("/rpb", { replace: true });
+    }
+  }, [filteredRaids, loadingList, navigate, raidId, teamFilter]);
+
+  const isAdmin = auth.isAdmin || auth.fallback;
+
+  async function refreshSelectedRaid(targetRaidId) {
+    if (!targetRaidId) {
+      setSelectedRaid(null);
+      setSelectedPlayerId("");
+      return;
+    }
+
+    const raid = await fetchRpbRaidBundle(targetRaidId);
+    setSelectedRaid(raid);
+    setSelectedPlayerId(current => (raid?.players?.some(player => String(player.id) === String(current)) ? current : (raid?.players?.[0]?.id || "")));
+  }
+
+  async function mutateRaidMetadata(targetRaidId, updates, successMessage) {
+    const result = await updateRpbRaidImport(targetRaidId, updates);
+    const nextRaids = await fetchRpbRaidList();
+    setRaids(nextRaids);
+    if (raidId === targetRaidId) {
+      await refreshSelectedRaid(targetRaidId);
+    }
+    toast({
+      message: result.persistence === "local" ? `${successMessage} Stored locally in this browser only.` : successMessage,
+      type: result.persistence === "local" ? "warning" : "success",
+    });
+  }
+
+  function openRenameModal(raid) {
+    setOpenRaidMenuId("");
+    setRenameModalState({ open: true, raid, value: raid?.title || raid?.reportId || "" });
+  }
+
+  function openTagModal(raid) {
+    setOpenRaidMenuId("");
+    setTagModalState({ open: true, raid, value: normalizeTeamTag(raid?.teamTag) });
+  }
+
+  async function handleDeleteRaid(targetRaid) {
+    if (!targetRaid?.id) return;
+
+    const result = await deleteRpbRaidImport(targetRaid.id);
+    const nextRaids = await fetchRpbRaidList();
+    setRaids(nextRaids);
+
+    if (raidId === targetRaid.id) {
+      const nextVisibleRaids = (normalizeTeamTag(teamFilter)
+        ? nextRaids.filter(raid => normalizeTeamTag(raid.teamTag) === normalizeTeamTag(teamFilter))
+        : nextRaids);
+      navigate(nextVisibleRaids[0]?.id ? `/rpb/${nextVisibleRaids[0].id}` : "/rpb");
+    }
+
+    toast({
+      message: result.persistence === "local"
+        ? "Deleted report locally in this browser only."
+        : "Deleted report from RPB.",
+      type: result.persistence === "local" ? "warning" : "success",
+    });
+  }
+
   async function handleImport(event) {
     event.preventDefault();
     if (!reportUrl.trim()) {
@@ -1661,43 +2951,44 @@ export default function RpbPage() {
     }
 
     setImporting(true);
-    setImportProgress({
-      open: true,
-      completed: 0,
-      total: 16,
-      percent: 0,
-      message: "Preparing import...",
-    });
     try {
       const steps = [
-        { key: "fights", label: "Loading fight list from Warcraft Logs..." },
-        { key: "summary", label: "Loading summary data from Warcraft Logs..." },
-        { key: "deaths", label: "Loading deaths data from Warcraft Logs..." },
-        { key: "tracked", label: "Loading tracked cast data from Warcraft Logs..." },
-        { key: "hostile", label: "Loading friendly-fire data from Warcraft Logs..." },
-        { key: "fullCasts", label: "Loading gear and combatant data from Warcraft Logs..." },
-        { key: "engineering", label: "Loading engineering damage data from Warcraft Logs..." },
-        { key: "oil", label: "Loading oil of immolation damage data from Warcraft Logs..." },
-        { key: "buffs", label: "Loading buff and consumable data from Warcraft Logs..." },
-        { key: "drums", label: "Loading drums usage data from Warcraft Logs..." },
-        { key: "reportRankings", label: "Loading report rankings from Warcraft Logs..." },
-        { key: "raiderData", label: "Loading detailed raider snapshots from Warcraft Logs..." },
-        { key: "damageByFight", label: "Loading encounter damage snapshots from Warcraft Logs..." },
-        { key: "healingByFight", label: "Loading encounter healing snapshots from Warcraft Logs..." },
-        { key: "deathsByFight", label: "Loading encounter death snapshots from Warcraft Logs..." },
+        { key: "fights", label: "Scanning report structure...", detail: "GET /report/fights" },
+        { key: "summary", label: "Pulling summary roster data...", detail: "GET /report/tables/summary" },
+        { key: "deaths", label: "Pulling death recap data...", detail: "GET /report/tables/deaths" },
+        { key: "tracked", label: "Collecting tracked raid cooldown casts...", detail: "GET /report/tables/casts (tracked filter)" },
+        { key: "hostile", label: "Collecting hostile-player damage...", detail: "GET /report/tables/damage-taken (hostility=1)" },
+        { key: "fullCasts", label: "Capturing combatant and gear snapshots...", detail: "GET /report/tables/casts (full report)" },
+        { key: "engineering", label: "Scanning engineering explosives...", detail: "GET /report/tables/damage-done (engineering filter)" },
+        { key: "oil", label: "Scanning oil of immolation ticks...", detail: "GET /report/tables/damage-taken (ability 11351)" },
+        { key: "buffs", label: "Extracting buff and consumable auras...", detail: "GET /report/tables/buffs" },
+        { key: "buffsByFight", label: "Saving consumable coverage per boss fight...", detail: "GET /report/tables/buffs per boss fight" },
+        { key: "drums", label: "Extracting drums usage...", detail: "GET /report/tables/casts (drums filter)" },
+        { key: "reportRankings", label: "Fetching Warcraft Logs parse rankings...", detail: "POST /api/v2/client report.rankings" },
+        { key: "reportSpeed", label: "Fetching report and boss speed rankings...", detail: "POST /api/v2/client report.rankings speed rows" },
+        { key: "raiderData", label: "Capturing boss-pull player snapshots...", detail: "GET /report/tables/summary per boss fight" },
+        { key: "damageByFight", label: "Saving damage ability breakdowns...", detail: "GET /report/tables/damage-done per fight (options=2)" },
+        { key: "healingByFight", label: "Saving healing ability breakdowns...", detail: "GET /report/tables/healing per fight (options=2)" },
+        { key: "deathsByFight", label: "Saving death events per fight...", detail: "GET /report/tables/deaths per fight" },
       ];
+      const totalUnits = (steps.length * 2) + 4;
+      const updateImportProgressState = (completed, message, detail = "") => {
+        setImportProgress({
+          open: true,
+          completed,
+          total: totalUnits,
+          percent: Math.max(0, Math.min(100, Math.round((completed / totalUnits) * 100))),
+          message,
+          detail,
+        });
+      };
 
       const datasets = {};
+      updateImportProgressState(1, "Preparing import payload...", "Initializing staged Warcraft Logs requests");
 
       for (let index = 0; index < steps.length; index++) {
         const step = steps[index];
-        setImportProgress({
-          open: true,
-          completed: index,
-          total: 16,
-          percent: Math.round((index / 16) * 100),
-          message: step.label,
-        });
+        updateImportProgressState((index * 2) + 2, step.label, step.detail);
 
         const response = await fetch(`/api/rpb-import`, {
           method: "POST",
@@ -1715,23 +3006,10 @@ export default function RpbPage() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `Import step failed: ${step.key}`);
         datasets[step.key] = data;
-
-        setImportProgress({
-          open: true,
-          completed: index + 1,
-          total: 16,
-          percent: Math.round(((index + 1) / 16) * 100),
-          message: `${step.label.replace("Loading", "Loaded")}`,
-        });
+        updateImportProgressState((index * 2) + 3, `Stored ${step.label.replace(/\.\.\.$/, "").toLowerCase()}`, step.detail);
       }
 
-      setImportProgress({
-        open: true,
-        completed: 15,
-        total: 16,
-        percent: 93,
-        message: "Assembling raid data...",
-      });
+      updateImportProgressState((steps.length * 2) + 2, "Assembling raid payload...", "Normalizing fights, players, analytics, and saved breakdown rows");
 
       const assembleResponse = await fetch(`/api/rpb-import`, {
         method: "POST",
@@ -1742,25 +3020,28 @@ export default function RpbPage() {
       const assembledRaid = await assembleResponse.json();
       if (!assembleResponse.ok) throw new Error(assembledRaid.error || "Failed to assemble raid");
 
-      setImportProgress({
-        open: true,
-        completed: 15,
-        total: 16,
-        percent: 97,
-        message: "Saving imported raid...",
-      });
+      if (isAdmin) {
+        updateImportProgressState((steps.length * 2) + 3, "Waiting for team tag selection...", "Admin confirmation required before persisting the raid");
+
+        const selectedTeamTag = await new Promise(resolve => {
+          setImportTagPrompt({
+            open: true,
+            raid: { id: "__import__", title: assembledRaid.title || assembledRaid.reportId },
+            value: "",
+            resolve,
+          });
+        });
+
+        assembledRaid.teamTag = selectedTeamTag;
+      }
+
+      updateImportProgressState(totalUnits - 1, "Saving imported raid...", "Persisting raid bundle, fights, players, analytics, and ability rows");
 
       const saveResult = await saveRpbRaidImport(assembledRaid);
       const nextRaids = await fetchRpbRaidList();
       setRaids(nextRaids);
       setReportUrl("");
-      setImportProgress({
-        open: true,
-        completed: 16,
-        total: 16,
-        percent: 100,
-        message: "Import complete.",
-      });
+      updateImportProgressState(totalUnits, "Import complete.", "RPB payload is ready for saved-raid browsing");
       toast({
         message: saveResult.persistence === "local"
           ? `Warcraft Logs import succeeded for ${assembledRaid.title}, but Firestore denied storage. Saved locally in this browser only.`
@@ -1776,9 +3057,10 @@ export default function RpbPage() {
       setImportProgress({
         open: true,
         completed: 0,
-        total: 15,
+        total: 1,
         percent: 0,
         message: `Import failed: ${error.message}`,
+        detail: "",
       });
       toast({ message: `Import failed: ${error.message}`, type: "danger", duration: 5000 });
     } finally {
@@ -1794,13 +3076,79 @@ export default function RpbPage() {
     );
   }
 
-  if (!auth.authenticated) {
+  if (!auth.fallback && !auth.authenticated) {
     return <DiscordLoginGate />;
   }
 
   return (
     <AppShell>
       <ImportProgressModal open={importProgress.open} progress={importProgress} />
+      <TeamTagModal
+        open={importTagPrompt.open}
+        title={`Tag ${importTagPrompt.raid?.title || "Imported Report"}`}
+        confirmLabel="Save Report"
+        value={importTagPrompt.value}
+        onChange={value => setImportTagPrompt(prev => ({ ...prev, value }))}
+        onConfirm={() => {
+          const resolve = importTagPrompt.resolve;
+          const value = normalizeTeamTag(importTagPrompt.value);
+          setImportTagPrompt({ open: false, raid: null, value: "", resolve: null });
+          if (resolve) resolve(value);
+        }}
+        onCancel={() => {
+          const resolve = importTagPrompt.resolve;
+          setImportTagPrompt({ open: false, raid: null, value: "", resolve: null });
+          if (resolve) resolve("");
+        }}
+        allowClear
+      />
+      <TeamTagModal
+        open={tagModalState.open}
+        title={`Tag ${tagModalState.raid?.title || tagModalState.raid?.reportId || "Report"}`}
+        confirmLabel="Save Tag"
+        value={tagModalState.value}
+        onChange={value => setTagModalState(prev => ({ ...prev, value }))}
+        onConfirm={async () => {
+          if (!tagModalState.raid?.id) return;
+          await mutateRaidMetadata(tagModalState.raid.id, { teamTag: normalizeTeamTag(tagModalState.value) }, "Updated report tag.");
+          setTagModalState({ open: false, raid: null, value: "" });
+        }}
+        onCancel={() => setTagModalState({ open: false, raid: null, value: "" })}
+        allowClear
+      />
+      <RenameReportModal
+        open={renameModalState.open}
+        value={renameModalState.value}
+        onChange={value => setRenameModalState(prev => ({ ...prev, value }))}
+        onConfirm={async () => {
+          const nextTitle = renameModalState.value.trim();
+          if (!renameModalState.raid?.id) return;
+          if (!nextTitle) {
+            toast({ message: "Enter a report name before saving.", type: "warning" });
+            return;
+          }
+          await mutateRaidMetadata(renameModalState.raid.id, { title: nextTitle }, "Renamed report.");
+          setRenameModalState({ open: false, raid: null, value: "" });
+        }}
+        onCancel={() => setRenameModalState({ open: false, raid: null, value: "" })}
+      />
+      <ConfirmDialog
+        open={!!deleteConfirmRaid}
+        title="Delete Report"
+        message={(
+          <>
+            Delete <strong style={{ color: text.primary }}>{deleteConfirmRaid?.title || deleteConfirmRaid?.reportId || "this report"}</strong> from RPB? This cannot be undone.
+          </>
+        )}
+        confirmLabel="Delete Report"
+        dangerous
+        onConfirm={async () => {
+          const targetRaid = deleteConfirmRaid;
+          setDeleteConfirmRaid(null);
+          await handleDeleteRaid(targetRaid);
+        }}
+        onCancel={() => setDeleteConfirmRaid(null)}
+      />
 
       <div style={{
         borderBottom: `1px solid ${border.subtle}`,
@@ -1844,6 +3192,24 @@ export default function RpbPage() {
         gap: space[2],
       }}>
         <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          Team Filter
+        </div>
+        <div style={{ display: "flex", gap: space[2], flexWrap: "wrap", alignItems: "flex-start" }}>
+          {TEAM_TAG_OPTIONS.map(option => {
+            const active = normalizeTeamTag(teamFilter) === option.id;
+            return (
+              <button
+                key={option.id || "all"}
+                onClick={() => setTeamFilter(option.id)}
+                style={teamFilterButtonStyle(option, active)}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ height: 2 }} />
+        <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
           Saved Raids
         </div>
         <div style={{ display: "flex", gap: space[2], overflowX: "auto", paddingBottom: 2 }}>
@@ -1857,28 +3223,107 @@ export default function RpbPage() {
               No persisted raids yet.
             </div>
           )}
-          {sortedRaids.map(raid => {
+          {!loadingList && teamFilter && filteredRaids.length === 0 && (
+            <div style={{ padding: `${space[2]}px 0`, color: text.muted }}>
+              No reports with this team tag are available.
+            </div>
+          )}
+          {filteredRaids.map(raid => {
             const active = raid.id === raidId;
+            const teamOption = getTeamOption(raid.teamTag);
+            const teamScheduleLabel = getTeamScheduleLabel(raid.teamTag);
+            const isNew = isRecentReport(raid.start);
+            const reportSpeedPercent = getRaidReportSpeedPercent(raid);
             return (
-              <button
+              <div
                 key={raid.id}
-                onClick={() => navigate(`/rpb/${raid.id}`)}
                 style={{
-                  ...btnStyle(active ? "primary" : "default", active),
+                  position: "relative",
                   minWidth: 220,
-                  height: "auto",
-                  padding: space[3],
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: 4,
+                  flexShrink: 0,
                 }}
               >
-                <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, textAlign: "left" }}>{raid.title || raid.reportId}</span>
-                <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>{raid.zone || "Unknown Zone"}</span>
-                <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>Report date: {formatDateShort(raid.start)}</span>
-                <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>{raid.playerCount || 0} players • {raid.fightCount || 0} fights</span>
-              </button>
+                {isAdmin && (
+                  <div style={{ position: "absolute", top: 8, right: 8, zIndex: 30 }} onClick={event => event.stopPropagation()}>
+                    <button
+                      onClick={event => {
+                        event.stopPropagation();
+                        setOpenRaidMenuId(current => (current === raid.id ? "" : raid.id));
+                      }}
+                      style={{
+                        ...btnStyle("default"),
+                        width: 28,
+                        minWidth: 28,
+                        height: 28,
+                        padding: 0,
+                        justifyContent: "center",
+                        borderRadius: radius.sm,
+                      }}
+                      title="Report actions"
+                    >
+                      ...
+                    </button>
+                    {openRaidMenuId === raid.id && (
+                      <RaidActionsMenu
+                        raid={raid}
+                        onRename={() => openRenameModal(raid)}
+                        onTag={() => openTagModal(raid)}
+                        onDeleteTag={async () => {
+                          setOpenRaidMenuId("");
+                          await mutateRaidMetadata(raid.id, { teamTag: "" }, "Removed report tag.");
+                        }}
+                        onDelete={() => {
+                          setOpenRaidMenuId("");
+                          setDeleteConfirmRaid(raid);
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+
+                <button
+                  onClick={() => navigate(`/rpb/${raid.id}`)}
+                  style={{
+                    ...btnStyle(active ? "primary" : "default", active),
+                    width: "100%",
+                    height: "100%",
+                    minHeight: 132,
+                    padding: space[3],
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: 4,
+                    paddingRight: isAdmin ? 42 : space[3],
+                  }}
+                >
+                  <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, textAlign: "left", paddingRight: isAdmin ? 18 : 0 }}>
+                    {raid.title || raid.reportId}
+                  </span>
+                  <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>{raid.zone || "Unknown Zone"}</span>
+                  <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>Report date: {formatDateShort(raid.start)}</span>
+                  <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>{raid.playerCount || 0} players • {raid.fightCount || 0} fights</span>
+                  <div style={{ marginTop: 6, display: "flex", gap: space[2], flexWrap: "wrap" }}>
+                    {reportSpeedPercent != null && (
+                      <span style={parseTagStyle(reportSpeedPercent)}>
+                        {Math.round(reportSpeedPercent)}
+                      </span>
+                    )}
+                    <span style={tagStyle(teamOption.tone)}>
+                      {teamOption.shortLabel}
+                    </span>
+                    {teamScheduleLabel && (
+                      <span style={tagStyle(teamOption.tone)}>
+                        {teamScheduleLabel}
+                      </span>
+                    )}
+                    {isNew && (
+                      <span style={tagStyle("success")}>
+                        New
+                      </span>
+                    )}
+                  </div>
+                </button>
+              </div>
             );
           })}
         </div>
@@ -1988,8 +3433,14 @@ export default function RpbPage() {
                       borderColor: active ? toneColor : `${toneColor}66`,
                       color: isAggregateOption ? "#d6e7ff" : (option.kill ? "#d7ffdf" : "#ffd5d5"),
                     }}
-                  >
-                    {option.label}
+                    >
+                    <span>{option.label}</span>
+                    {option.speedParsePercent != null && (
+                      <span style={parseInlineStyle(option.speedParsePercent)}>
+                        {" · "}
+                        {Math.round(option.speedParsePercent)}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -2037,13 +3488,19 @@ export default function RpbPage() {
         padding: space[4],
       }}>
         <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
-          {loadingRaid && !selectedRaid && (
+          {loadingRaid && !selectedRaid && !noReportsForActiveTeamFilter && (
             <div style={{ ...panelStyle, padding: space[6], display: "flex", justifyContent: "center" }}>
               <LoadingSpinner size={24} />
             </div>
           )}
 
-          {!loadingRaid && !selectedRaid && (
+          {noReportsForActiveTeamFilter && !selectedRaid && (
+            <div style={{ ...panelStyle, padding: space[6], color: text.muted }}>
+              No reports with this team tag are available.
+            </div>
+          )}
+
+          {!loadingRaid && !selectedRaid && !noReportsForActiveTeamFilter && (
             <div style={{ ...panelStyle, padding: space[6], color: text.muted }}>
               Choose a saved raid or import a new report to begin.
             </div>
@@ -2054,7 +3511,9 @@ export default function RpbPage() {
               <div style={{ ...panelStyle, padding: space[4], display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: space[3] }}>
                 <div>
                   <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>Report</div>
-                  <div style={{ marginTop: 6, fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: text.primary }}>{selectedRaid.title}</div>
+                  <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap" }}>
+                    <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: text.primary }}>{selectedRaid.title}</div>
+                  </div>
                 </div>
                 <div>
                   <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>Zone</div>
@@ -2082,31 +3541,81 @@ export default function RpbPage() {
                       Raid Analytics
                     </div>
                     <div style={{ padding: space[4], display: "flex", flexWrap: "wrap", gap: space[2] }}>
-                      <MetricTag label="Players Missing Enchants" value={filteredRaidAnalytics.playersMissingEnchants.length} tone="danger" />
-                      <MetricTag label="Engineering Damage Done Entries" value={filteredRaidAnalytics.engineeringDamageTaken.length} tone="warning" />
-                      <MetricTag label="Oil Damage Entries" value={filteredRaidAnalytics.oilOfImmolationDamageTaken.length} tone="warning" />
-                      <MetricTag label="Players With Buff Data" value={raidAnalytics.playersWithBuffData.length} tone="info" />
-                      <MetricTag label="Players Using Drums" value={raidAnalytics.playersUsingDrums.length} tone="info" />
-                      <MetricTag label="Suboptimal Weapon Enchants" value={raidAnalytics.playersWithSuboptimalWeaponEnchants.length} tone="danger" />
+                      <MetricTag
+                        label="Players Missing Enchants"
+                        value={filteredRaidAnalytics.playersMissingEnchants.length}
+                        tone="danger"
+                        active={raidAnalyticsFilter === "missing-enchants"}
+                        onClick={() => setRaidAnalyticsFilter(current => current === "missing-enchants" ? "" : "missing-enchants")}
+                      />
+                      <MetricTag
+                        label="Engineering Damage Done Entries"
+                        value={filteredRaidAnalytics.engineeringDamageTaken.length}
+                        tone="warning"
+                        active={raidAnalyticsFilter === "engineering"}
+                        onClick={() => setRaidAnalyticsFilter(current => current === "engineering" ? "" : "engineering")}
+                      />
+                      <MetricTag
+                        label="Oil Damage Entries"
+                        value={filteredRaidAnalytics.oilOfImmolationDamageTaken.length}
+                        tone="warning"
+                        active={raidAnalyticsFilter === "oil"}
+                        onClick={() => setRaidAnalyticsFilter(current => current === "oil" ? "" : "oil")}
+                      />
+                      <MetricTag
+                        label="Players With Buff Data"
+                        value={raidAnalytics.playersWithBuffData.length}
+                        tone="info"
+                        active={raidAnalyticsFilter === "buffs"}
+                        onClick={() => setRaidAnalyticsFilter(current => current === "buffs" ? "" : "buffs")}
+                      />
+                      <MetricTag
+                        label="Players Using Drums"
+                        value={raidAnalytics.playersUsingDrums.length}
+                        tone="info"
+                        active={raidAnalyticsFilter === "drums"}
+                        onClick={() => setRaidAnalyticsFilter(current => current === "drums" ? "" : "drums")}
+                      />
+                      <MetricTag
+                        label="Suboptimal Weapon Enchants"
+                        value={raidAnalytics.playersWithSuboptimalWeaponEnchants.length}
+                        tone="danger"
+                        active={raidAnalyticsFilter === "suboptimal-enchants"}
+                        onClick={() => setRaidAnalyticsFilter(current => current === "suboptimal-enchants" ? "" : "suboptimal-enchants")}
+                      />
+                      <MetricTag
+                        label="Elixir / Flask Issues"
+                        value={filteredRaidAnalytics.playersWithConsumableIssues.reduce((sum, entry) => sum + Number(entry.total || 0), 0)}
+                        tone="warning"
+                        active={raidAnalyticsFilter === "consumables"}
+                        onClick={() => setRaidAnalyticsFilter(current => current === "consumables" ? "" : "consumables")}
+                      />
+                      <MetricTag
+                        label="Hearthstone Uses"
+                        value={filteredRaidAnalytics.playersUsingHearthstone.reduce((sum, entry) => sum + Number(entry.total || 0), 0)}
+                        tone="warning"
+                        active={raidAnalyticsFilter === "hearthstone"}
+                        onClick={() => setRaidAnalyticsFilter(current => current === "hearthstone" ? "" : "hearthstone")}
+                      />
                     </div>
+                    {raidAnalyticsFilter && (
+                      <div style={{ padding: `0 ${space[4]}px ${space[4]}px`, fontSize: fontSize.xs, color: text.muted }}>
+                        Raid analytics filter is active. Click the active pill again to clear it.
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ ...panelStyle }}>
                     <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                      Encounter Damage
+                      Breakdown
                     </div>
                     <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[3] }}>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: space[2] }}>
-                        <MetricTag label="Visible Pulls" value={filteredFights.length} tone="info" />
-                        <MetricTag label="Boss Encounters" value={filteredFights.filter(fight => fight.encounterId > 0).length} tone="info" />
-                        <MetricTag label="Profiles" value={aggregatedSliceEntries.length} tone="info" />
-                        <MetricTag label="Parse Scores" value="Pending v2 rankings" tone="neutral" />
-                      </div>
                       <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
                         {[
                           { id: "damage", label: "Damage" },
                           { id: "healing", label: "Healing" },
                           { id: "deaths", label: "Deaths" },
+                          { id: "consumables", label: "Consumables" },
                         ].map(option => (
                           <button
                             key={option.id}
@@ -2118,13 +3627,58 @@ export default function RpbPage() {
                         ))}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                        {aggregatedSliceEntries.length === 0 && (
+                        {((sliceType === "consumables" ? visibleConsumableSliceEntries : visibleAggregatedSliceEntries).length === 0) && (
                           <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                            Select encounters and re-import a raid with boss data to populate encounter slices.
+                            {raidAnalyticsFilter
+                              ? "No players match the active raid analytics filter in this slice."
+                              : "Select encounters and re-import a raid with boss data to populate encounter slices."}
                           </div>
                         )}
-                        {aggregatedSliceEntries.map(entry => {
-                          const maxValue = aggregatedSliceEntries[0]?.total || 1;
+                        {sliceType === "consumables" && visibleConsumableSliceEntries.map(entry => {
+                          const active = String(entry.id) === String(selectedPlayerId);
+                          const totalRequired = Number(entry.totalRequired || 0);
+                          const totalCovered = Number(entry.total || 0);
+                          const coveragePercent = totalRequired > 0 ? (totalCovered / totalRequired) * 100 : 0;
+                          return (
+                            <button
+                              key={`consumables-${entry.id}`}
+                              onClick={() => toggleSelectedPlayer(entry.id)}
+                              style={{
+                                background: active ? `${accent.blue}10` : "transparent",
+                                border: `1px solid ${active ? accent.blue : border.subtle}`,
+                                borderRadius: radius.base,
+                                padding: space[3],
+                                textAlign: "left",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 10 }}>
+                                <span style={{ color: getClassColor(entry.type), fontWeight: fontWeight.semibold }}>{entry.name}</span>
+                                <span style={{ color: entry.totalIssues > 0 ? "#ffd5d5" : "#d7ffdf", fontWeight: fontWeight.semibold }}>
+                                  {totalCovered}/{totalRequired}
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 8 }}>
+                                <span style={{ fontSize: fontSize.xs, color: text.muted }}>
+                                  Scrolls {entry.scrollCoverageCount}/{entry.totalFights} · Elixirs {entry.elixirCoverageCount}/{entry.totalFights} · Food {entry.foodCoverageCount}/{entry.totalFights}
+                                </span>
+                                <span style={{ fontSize: fontSize.xs, color: entry.totalIssues > 0 ? "#ffb3b3" : text.muted }}>
+                                  {entry.totalIssues} missing
+                                </span>
+                              </div>
+                              <div style={{ height: 10, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}` }}>
+                                <div style={{
+                                  width: `${Math.max(3, Math.round(coveragePercent))}%`,
+                                  height: "100%",
+                                  background: entry.totalIssues > 0 ? intent.warning : intent.success,
+                                  opacity: 0.9,
+                                }} />
+                              </div>
+                            </button>
+                          );
+                        })}
+                        {sliceType !== "consumables" && visibleAggregatedSliceEntries.map(entry => {
+                          const maxValue = visibleAggregatedSliceEntries[0]?.total || 1;
                           const active = String(entry.id) === String(selectedPlayerId);
                           const perSecondValue = sliceType === "deaths"
                             ? ""
@@ -2144,7 +3698,7 @@ export default function RpbPage() {
                           >
                             <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 8 }}>
                               <span style={{ display: "inline-flex", alignItems: "center", gap: space[2], minWidth: 0 }}>
-                                {entry.parsePercent != null && sliceType !== "deaths" && (
+                                {Number(entry.parsePercent) > 0 && sliceType !== "deaths" && (
                                   <span style={{ color: getScoreColor(entry.parsePercent) || text.muted, fontWeight: fontWeight.bold, fontSize: fontSize.xs }}>
                                     {Math.round(entry.parsePercent)}
                                   </span>
@@ -2203,7 +3757,7 @@ export default function RpbPage() {
                       {sliceType === "deaths" && (
                         <div>
                           <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Death recap</div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+                          <div ref={abilityBreakdownRef} style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                             {selectedPlayerDeathRows.length > 0 && (
                               <div
                                 style={{
@@ -2245,18 +3799,20 @@ export default function RpbPage() {
                                 }}
                               >
                                 <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  {formatDuration(row.timestampMs)}
+                                  <span style={{ color: "#ff8d8d", fontWeight: fontWeight.semibold }}>
+                                    {row.timestampLabel || formatDuration(row.timestampMs)}
+                                  </span>
                                 </div>
                                 <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
                                   {row.fightName}
                                 </div>
                                 <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  {formatEventSummary(row.killingBlow)}
+                                  <EventSummary event={row.killingBlow} emphasizeTime />
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                                   {row.lastHits.length > 0 ? row.lastHits.map((hit, index) => (
                                     <div key={`${row.key}-hit-${index}`} style={{ fontSize: fontSize.xs, color: text.muted }}>
-                                      {formatEventSummary(hit)}
+                                      <EventSummary event={hit} />
                                     </div>
                                   )) : (
                                     <div style={{ fontSize: fontSize.xs, color: text.muted }}>
@@ -2276,21 +3832,90 @@ export default function RpbPage() {
                         </div>
                       )}
 
-                      {sliceType !== "deaths" && (
+                      {sliceType === "consumables" && (
+                        <div>
+                          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
+                            Consumable coverage by boss fight
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+                            {(selectedPlayerAnalytics?.consumableCoverage || []).length > 0 && (
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "minmax(0, 1.2fr) 92px 120px 92px 92px",
+                                  gap: space[2],
+                                  padding: `0 ${space[3]}px`,
+                                  fontSize: fontSize.sm,
+                                  fontWeight: fontWeight.bold,
+                                  color: text.primary,
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.06em",
+                                }}
+                              >
+                                <div>Encounter</div>
+                                <div>Scrolls</div>
+                                <div>Elixirs / Flask</div>
+                                <div>Food</div>
+                                <div>Status</div>
+                              </div>
+                            )}
+                            {!(selectedPlayerAnalytics?.consumableCoverage || []).length && (
+                              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                                No boss-fight consumable coverage is attached to this player on the current filtered fights. Re-import the report to populate this view.
+                              </div>
+                            )}
+                            {(selectedPlayerAnalytics?.consumableCoverage || []).map(row => {
+                              const rowIssues = Number(!row.hasScroll) + Number(!row.covered) + Number(!row.hasFood);
+                              return (
+                                <div
+                                  key={`consumable-row-${row.fightId}`}
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "minmax(0, 1.2fr) 92px 120px 92px 92px",
+                                    gap: space[2],
+                                    padding: space[3],
+                                    border: `1px solid ${border.subtle}`,
+                                    borderRadius: radius.base,
+                                    background: surface.card,
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <div style={{ fontSize: fontSize.sm, color: text.primary }}>{row.fightName}</div>
+                                  <div style={{ fontSize: fontSize.sm, color: row.hasScroll ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold }}>
+                                    {row.hasScroll ? "Yes" : "No"}
+                                  </div>
+                                  <div style={{ fontSize: fontSize.sm, color: row.covered ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold }}>
+                                    {row.hasFlask ? "Flask" : (row.covered ? "Battle + Guardian" : "Missing")}
+                                  </div>
+                                  <div style={{ fontSize: fontSize.sm, color: row.hasFood ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold }}>
+                                    {row.hasFood ? "Yes" : "No"}
+                                  </div>
+                                  <div style={{ fontSize: fontSize.sm, color: rowIssues > 0 ? "#ffd5d5" : "#d7ffdf", fontWeight: fontWeight.semibold }}>
+                                    {rowIssues > 0 ? `${rowIssues} issue${rowIssues === 1 ? "" : "s"}` : "Good"}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {(sliceType === "damage" || sliceType === "healing") && (
                         <div>
                           <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
                             {sliceType === "healing" ? "Healing breakdown" : "Damage breakdown"}
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                            {(sliceType === "healing" ? selectedPlayerHealingBreakdown.length : selectedPlayerDamageBreakdown.length) > 0 && (
+                            {(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) > 0 && (
                               <div
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "minmax(0, 1.3fr) 110px 72px 72px 72px 92px",
+                                  gridTemplateColumns: "minmax(0, 1.2fr) 110px 72px 72px 72px 72px 92px",
                                   gap: space[2],
                                   padding: `0 ${space[3]}px`,
-                                  fontSize: fontSize.xs,
-                                  color: text.muted,
+                                  fontSize: fontSize.sm,
+                                  fontWeight: fontWeight.bold,
+                                  color: text.primary,
                                   textTransform: "uppercase",
                                   letterSpacing: "0.06em",
                                 }}
@@ -2300,20 +3925,23 @@ export default function RpbPage() {
                                 <div>Casts</div>
                                 <div>Hits</div>
                                 <div>Crits</div>
+                                <div>Crit %</div>
                                 <div>{sliceType === "healing" ? "Overheal" : "Active"}</div>
                               </div>
                             )}
-                            {!(sliceType === "healing" ? selectedPlayerHealingBreakdown.length : selectedPlayerDamageBreakdown.length) && (
+                            {!(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) && (
                               <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                                No {sliceType} ability breakdown found for this player in the current filtered fights.
+                                {loadingRemoteAbilityBreakdown
+                                  ? `Loading ${sliceType} ability breakdown from Warcraft Logs...`
+                                  : `No ${sliceType} ability breakdown found for this player in the current filtered fights.`}
                               </div>
                             )}
-                            {(sliceType === "healing" ? selectedPlayerHealingBreakdown : selectedPlayerDamageBreakdown).map(ability => (
+                            {(sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
                               <div
                                 key={`${sliceType}-${ability.key}`}
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "minmax(0, 1.3fr) 110px 72px 72px 72px 92px",
+                                  gridTemplateColumns: "minmax(0, 1.2fr) 110px 72px 72px 72px 72px 92px",
                                   gap: space[2],
                                   padding: space[3],
                                   border: `1px solid ${border.subtle}`,
@@ -2322,22 +3950,25 @@ export default function RpbPage() {
                                   alignItems: "center",
                                 }}
                               >
-                                <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  {ability.name}
+                                <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, minWidth: 0 }}>
+                                  <WowheadSpellAbility spellId={ability.guid} name={ability.name} />
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                                <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
                                   {formatMetricValue(ability.total)}
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
                                   {ability.casts || 0} casts
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
                                   {ability.hits || 0} hits
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
                                   {ability.crits || 0} crits
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
+                                  {ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"}
+                                </div>
+                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
                                   {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : `${formatMetricValue(ability.activeTime)} ms`}
                                 </div>
                               </div>

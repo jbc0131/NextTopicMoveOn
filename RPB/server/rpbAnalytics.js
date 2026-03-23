@@ -35,6 +35,22 @@ const ALWAYS_BAD_TEMP_ENCHANT_IDS = new Set([
   "20", "1703", "14", "19", "483", "484",
 ]);
 
+const FLASK_IDS = new Set([
+  "17626", "17627", "17628", "28518", "28519", "28520", "42735", "42736",
+]);
+
+const BATTLE_ELIXIR_IDS = new Set([
+  "28497", "33720", "28521", "33726", "17537", "17538", "38954", "33721", "54452",
+]);
+
+const GUARDIAN_ELIXIR_IDS = new Set([
+  "39625", "39626", "17539", "28502", "28509", "39627", "28503", "11348",
+]);
+
+const HEARTHSTONE_CAST_IDS = new Set(["8690", "556"]);
+const HEARTHSTONE_NAME_TOKENS = ["hearthstone", "astral recall"];
+const POTION_NAME_TOKENS = ["potion"];
+
 function getGearList(entry) {
   if (Array.isArray(entry?.gear)) return entry.gear;
   if (Array.isArray(entry?.combatantInfo?.gear)) return entry.combatantInfo.gear;
@@ -124,6 +140,99 @@ function getTotalValue(entry) {
   if (typeof entry.total === "number") return entry.total;
   if (typeof entry.totalDamage === "number") return entry.totalDamage;
   return 0;
+}
+
+function collectAbilityRows(node, rows = []) {
+  if (!node) return rows;
+  if (Array.isArray(node)) {
+    node.forEach(entry => collectAbilityRows(entry, rows));
+    return rows;
+  }
+  if (typeof node !== "object") return rows;
+
+  const guid = node?.guid ?? node?.gameID ?? node?.abilityGameID ?? node?.id ?? null;
+  const name = node?.name || node?.abilityName || node?.ability?.name || "";
+  const totalUses = Number(node?.totalUses ?? node?.uses ?? node?.total ?? node?.casts ?? 0);
+  if ((guid != null || name) && Number.isFinite(totalUses) && totalUses > 0) {
+    rows.push({
+      guid: guid != null ? String(guid) : "",
+      name,
+      totalUses,
+    });
+  }
+
+  if (Array.isArray(node.abilities)) collectAbilityRows(node.abilities, rows);
+  if (Array.isArray(node.entries)) collectAbilityRows(node.entries, rows);
+  if (Array.isArray(node.spells)) collectAbilityRows(node.spells, rows);
+  if (Array.isArray(node.sources)) collectAbilityRows(node.sources, rows);
+  if (Array.isArray(node.targets)) collectAbilityRows(node.targets, rows);
+  return rows;
+}
+
+function countMatchingCasts(entry, { ids = null, nameTokens = [] } = {}) {
+  const rows = collectAbilityRows(entry);
+  return rows.reduce((sum, row) => {
+    const normalizedName = String(row.name || "").toLowerCase();
+    const matchesId = ids ? ids.has(String(row.guid || "")) : false;
+    const matchesName = nameTokens.some(token => normalizedName.includes(token));
+    return matchesId || matchesName ? sum + Number(row.totalUses || 0) : sum;
+  }, 0);
+}
+
+function normalizeAura(aura) {
+  return {
+    guid: aura?.guid != null ? String(aura.guid) : "",
+    name: aura?.name || "Unknown Aura",
+    totalUses: aura?.totalUses ?? 0,
+    totalUptime: aura?.totalUptime ?? 0,
+  };
+}
+
+function isFlaskAura(aura) {
+  const guid = String(aura?.guid || "");
+  const name = String(aura?.name || "").toLowerCase();
+  return FLASK_IDS.has(guid) || name.includes("flask of");
+}
+
+function isBattleElixirAura(aura) {
+  const guid = String(aura?.guid || "");
+  const name = String(aura?.name || "").toLowerCase();
+  return BATTLE_ELIXIR_IDS.has(guid) || (name.includes("elixir") && (
+    name.includes("adept") || name.includes("major agility") || name.includes("major firepower")
+    || name.includes("major shadow power") || name.includes("major frost power")
+    || name.includes("onslaught") || name.includes("demonslaying") || name.includes("mastery")
+  ));
+}
+
+function isGuardianElixirAura(aura) {
+  const guid = String(aura?.guid || "");
+  const name = String(aura?.name || "").toLowerCase();
+  return GUARDIAN_ELIXIR_IDS.has(guid) || (name.includes("elixir") && (
+    name.includes("draenic wisdom") || name.includes("major mageblood") || name.includes("major defense")
+    || name.includes("major fortitude") || name.includes("ironskin") || name.includes("gift of arthas")
+  ));
+}
+
+function getFightBuffEntry(buffSnapshot, player) {
+  const entries = buffSnapshot?.buffs?.entries || buffSnapshot?.entries || [];
+  return entries.find(entry =>
+    String(entry?.id || "") === String(player.id) || entry?.name === player.name
+  ) || null;
+}
+
+function getConsumableCoverage(buffSnapshot, player) {
+  const entry = getFightBuffEntry(buffSnapshot, player);
+  const auras = (entry?.auras || []).map(normalizeAura);
+  const hasFlask = auras.some(isFlaskAura);
+  const hasBattleElixir = auras.some(isBattleElixirAura);
+  const hasGuardianElixir = auras.some(isGuardianElixirAura);
+  return {
+    hasFlask,
+    hasBattleElixir,
+    hasGuardianElixir,
+    covered: hasFlask || (hasBattleElixir && hasGuardianElixir),
+    auras,
+  };
 }
 
 function getSummaryPlayerEntry(summaryData, player) {
@@ -226,6 +335,7 @@ export function deriveRpbAnalytics(players, datasets) {
   const oilLookup = buildLookup(datasets.oil?.entries || []);
   const buffsLookup = buildLookup(datasets.buffs?.entries || []);
   const drumsLookup = buildLookup(datasets.drums?.entries || []);
+  const bossBuffSnapshots = datasets.buffsByFight?.snapshots || [];
 
   const playerAnalytics = players.map(player => {
     const fullCastsEntry = getEntryForPlayer(fullCastsLookup, player);
@@ -238,12 +348,16 @@ export function deriveRpbAnalytics(players, datasets) {
     const missingEnchants = deriveMissingEnchants(gear);
     const gemIssues = deriveGemIssues(gear);
     const temporaryEnchantIssues = deriveTemporaryEnchantIssues(gear, player.type);
-    const buffAuras = (getEntryForPlayer(buffsLookup, player)?.auras || []).map(aura => ({
-      guid: aura?.guid ?? null,
-      name: aura?.name || "Unknown Aura",
-      totalUses: aura?.totalUses ?? 0,
-      totalUptime: aura?.totalUptime ?? 0,
+    const buffAuras = (getEntryForPlayer(buffsLookup, player)?.auras || []).map(normalizeAura);
+    const consumableCoverage = bossBuffSnapshots.map(snapshot => ({
+      fightId: String(snapshot?.fightId || ""),
+      fightName: snapshot?.fightName || "Unknown Fight",
+      ...getConsumableCoverage(snapshot, player),
     }));
+    const coveredConsumableFights = consumableCoverage.filter(entry => entry.covered).length;
+    const consumableIssueCount = consumableCoverage.filter(entry => !entry.covered).length;
+    const hearthstoneCount = countMatchingCasts(fullCastsEntry, { ids: HEARTHSTONE_CAST_IDS, nameTokens: HEARTHSTONE_NAME_TOKENS });
+    const potionUseCount = countMatchingCasts(fullCastsEntry, { nameTokens: POTION_NAME_TOKENS });
 
     return {
       playerId: String(player.id),
@@ -266,6 +380,12 @@ export function deriveRpbAnalytics(players, datasets) {
       buffAuraCount: buffAuras.length,
       buffAuras,
       drumsCastCount: getTotalValue(getEntryForPlayer(drumsLookup, player)),
+      consumableCoverage,
+      coveredConsumableFights,
+      totalConsumableFights: consumableCoverage.length,
+      consumableIssueCount,
+      potionUseCount,
+      hearthstoneCount,
     };
   });
 
@@ -304,6 +424,12 @@ export function deriveRpbAnalytics(players, datasets) {
       playersWithSuboptimalWeaponEnchants: playerAnalytics
         .filter(player => player.temporaryEnchantIssues.suboptimalTemporaryEnchantCount > 0)
         .sort((a, b) => b.temporaryEnchantIssues.suboptimalTemporaryEnchantCount - a.temporaryEnchantIssues.suboptimalTemporaryEnchantCount),
+      playersWithConsumableIssues: playerAnalytics
+        .filter(player => player.consumableIssueCount > 0)
+        .sort((a, b) => b.consumableIssueCount - a.consumableIssueCount),
+      playersUsingHearthstone: playerAnalytics
+        .filter(player => player.hearthstoneCount > 0)
+        .sort((a, b) => b.hearthstoneCount - a.hearthstoneCount),
     },
   };
 }
