@@ -320,6 +320,21 @@ function getDefaultSelectedFightId(raid) {
   return "";
 }
 
+function getRaidAwardWinner(raid, role, parseField) {
+  const candidates = (raid?.players || []).filter(player => {
+    const value = Number(player?.[parseField]);
+    return player?.role === role && Number.isFinite(value) && value > 0;
+  });
+
+  if (!candidates.length) return null;
+
+  return [...candidates].sort((left, right) => {
+    const parseDiff = Number(right?.[parseField] || 0) - Number(left?.[parseField] || 0);
+    if (parseDiff !== 0) return parseDiff;
+    return Number(right?.summaryTotal || 0) - Number(left?.summaryTotal || 0);
+  })[0];
+}
+
 function teamFilterButtonStyle(option, active) {
   if (option.id === "Team Dick") {
     return {
@@ -3185,6 +3200,8 @@ export default function RpbPage() {
             const teamScheduleLabel = getTeamScheduleLabel(raid.teamTag);
             const isNew = isRecentReport(raid.start);
             const reportSpeedPercent = getRaidReportSpeedPercent(raid);
+            const topDps = getRaidAwardWinner(raid, "DPS", "damageParsePercent");
+            const topHealer = getRaidAwardWinner(raid, "Healer", "healingParsePercent");
             return (
               <div
                 key={raid.id}
@@ -3247,12 +3264,47 @@ export default function RpbPage() {
                     paddingRight: isAdmin ? 42 : space[3],
                   }}
                 >
-                  <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, textAlign: "left", paddingRight: isAdmin ? 18 : 0 }}>
-                    {raid.title || raid.reportId}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap", paddingRight: isAdmin ? 18 : 0 }}>
+                    {isNew && (
+                      <span style={tagStyle("success")}>
+                        New
+                      </span>
+                    )}
+                    <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, textAlign: "left" }}>
+                      {raid.title || raid.reportId}
+                    </span>
+                  </div>
                   <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>{raid.zone || "Unknown Zone"}</span>
                   <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>Report date: {formatDateShort(raid.start)}</span>
-                  <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>{raid.playerCount || 0} players • {raid.fightCount || 0} fights</span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: "flex-start" }}>
+                    {topDps && (
+                      <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <span style={{ color: "#e5cc80" }}>Crown DPS</span>
+                        <span style={{ color: getScoreColor(topDps.damageParsePercent) || (active ? "#dce9ff" : text.muted), fontWeight: fontWeight.bold }}>
+                          {Math.round(Number(topDps.damageParsePercent || 0))}
+                        </span>
+                        <span style={{ color: getClassColor(topDps.type), fontWeight: fontWeight.semibold }}>
+                          {topDps.name}
+                        </span>
+                      </span>
+                    )}
+                    {topHealer && (
+                      <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <span style={{ color: "#e5cc80" }}>Crown Heal</span>
+                        <span style={{ color: getScoreColor(topHealer.healingParsePercent) || (active ? "#dce9ff" : text.muted), fontWeight: fontWeight.bold }}>
+                          {Math.round(Number(topHealer.healingParsePercent || 0))}
+                        </span>
+                        <span style={{ color: getClassColor(topHealer.type), fontWeight: fontWeight.semibold }}>
+                          {topHealer.name}
+                        </span>
+                      </span>
+                    )}
+                    {!topDps && !topHealer && (
+                      <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>
+                        {raid.playerCount || 0} players • {raid.fightCount || 0} fights
+                      </span>
+                    )}
+                  </div>
                   <div style={{ marginTop: 6, display: "flex", gap: space[2], flexWrap: "wrap" }}>
                     {reportSpeedPercent != null && (
                       <span style={parseTagStyle(reportSpeedPercent)}>
@@ -3265,11 +3317,6 @@ export default function RpbPage() {
                     {teamScheduleLabel && (
                       <span style={tagStyle(teamOption.tone)}>
                         {teamScheduleLabel}
-                      </span>
-                    )}
-                    {isNew && (
-                      <span style={tagStyle("success")}>
-                        New
                       </span>
                     )}
                   </div>
