@@ -310,6 +310,16 @@ function parseInlineStyle(score) {
   };
 }
 
+function getDefaultSelectedFightId(raid) {
+  const firstKill = (raid?.fights || []).find(fight => fight?.encounterId > 0 && fight?.kill);
+  if (firstKill?.id != null) return String(firstKill.id);
+
+  const firstEncounter = (raid?.fights || []).find(fight => fight?.encounterId > 0);
+  if (firstEncounter?.id != null) return String(firstEncounter.id);
+
+  return "";
+}
+
 function teamFilterButtonStyle(option, active) {
   if (option.id === "Team Dick") {
     return {
@@ -2101,6 +2111,7 @@ export default function RpbPage() {
         const raid = await fetchRpbRaidBundle(raidId);
         if (!cancelled) {
           setSelectedRaid(raid);
+          setSelectedFightId(getDefaultSelectedFightId(raid));
           setSelectedPlayerId(raid?.players?.[0]?.id || "");
         }
       } catch (error) {
@@ -3371,6 +3382,8 @@ export default function RpbPage() {
                       height: 30,
                       background: active ? activeBackground : inactiveBackground,
                       borderColor: active ? toneColor : `${toneColor}66`,
+                      borderWidth: active ? 2 : 1,
+                      boxShadow: active ? `0 0 0 2px ${toneColor}33` : "none",
                       color: isAggregateOption ? "#d6e7ff" : (option.kill ? "#d7ffdf" : "#ffd5d5"),
                     }}
                     >
@@ -3403,6 +3416,9 @@ export default function RpbPage() {
                     style={{
                       ...btnStyle(active ? "primary" : "default", active),
                       height: 30,
+                      borderWidth: active ? 2 : 1,
+                      boxShadow: active ? `0 0 0 2px ${getClassColor(player.type)}33` : "none",
+                      borderColor: active ? getClassColor(player.type) : border.subtle,
                       color: getClassColor(player.type),
                       fontWeight: fontWeight.semibold,
                     }}
@@ -3584,7 +3600,8 @@ export default function RpbPage() {
                               onClick={() => toggleSelectedPlayer(entry.id)}
                               style={{
                                 background: active ? `${accent.blue}10` : "transparent",
-                                border: `1px solid ${active ? accent.blue : border.subtle}`,
+                                border: `${active ? 2 : 1}px solid ${active ? accent.blue : border.subtle}`,
+                                boxShadow: active ? `0 0 0 2px ${accent.blue}33` : "none",
                                 borderRadius: radius.base,
                                 padding: space[3],
                                 textAlign: "left",
@@ -3628,7 +3645,8 @@ export default function RpbPage() {
                               onClick={() => toggleSelectedPlayer(entry.id)}
                               style={{
                                 background: active ? `${accent.blue}10` : "transparent",
-                                border: `1px solid ${active ? accent.blue : border.subtle}`,
+                                border: `${active ? 2 : 1}px solid ${active ? accent.blue : border.subtle}`,
+                                boxShadow: active ? `0 0 0 2px ${accent.blue}33` : "none",
                                 borderRadius: radius.base,
                                 padding: space[3],
                                 textAlign: "left",
