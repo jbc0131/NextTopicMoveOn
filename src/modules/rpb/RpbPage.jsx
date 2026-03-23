@@ -10,7 +10,7 @@ import {
   fetchUserProfile,
   LOCAL_SANDBOX_PROFILE_ID,
   updateRpbRaidImport,
-} from "../../shared/firebase";
+} from "../../shared/rpbRedis";
 import {
   surface, border, text, accent, intent, font, fontSize, fontWeight, radius, space, btnStyle, inputStyle, panelStyle,
 } from "../../shared/theme";
