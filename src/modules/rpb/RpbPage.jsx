@@ -321,29 +321,11 @@ function getDefaultSelectedFightId(raid) {
 }
 
 function getRaidAwardWinner(raid, role, parseField) {
-  const fightField = parseField === "damageParsePercent" ? "damageDoneEntries" : "healingDoneEntries";
-  const fightParseByPlayerId = new Map();
-
-  for (const fight of raid?.fights || []) {
-    for (const entry of fight?.[fightField] || []) {
-      const value = Number(entry?.parsePercent);
-      if (!Number.isFinite(value) || value <= 0) continue;
-      const current = fightParseByPlayerId.get(String(entry.id));
-      if (current == null || value > current) {
-        fightParseByPlayerId.set(String(entry.id), value);
-      }
-    }
-  }
-
   const candidates = (raid?.players || []).map(player => {
-    const persistedParse = Number(player?.[parseField]);
-    const fallbackParse = Number(fightParseByPlayerId.get(String(player?.id)));
-    const awardParse = Number.isFinite(persistedParse) && persistedParse > 0
-      ? persistedParse
-      : (Number.isFinite(fallbackParse) && fallbackParse > 0 ? fallbackParse : null);
+    const awardParse = Number(player?.[parseField]);
     return {
       ...player,
-      awardParse,
+      awardParse: Number.isFinite(awardParse) && awardParse > 0 ? awardParse : null,
     };
   }).filter(player => player?.role === role && Number.isFinite(Number(player?.awardParse)) && Number(player.awardParse) > 0);
 
