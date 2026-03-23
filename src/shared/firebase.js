@@ -54,23 +54,10 @@ function tfSnapshotsCol(teamId) {
   return collection(db, "raid", teamId, "25man-snapshots");
 }
 
-const RPB_RAIDS_COL = collection(db, "rpb-raids");
 const RPB_LOCAL_STORAGE_KEY = "rpb_raids_v1";
 const USER_PROFILES_COL = collection(db, "user-profiles");
 const USER_PROFILES_LOCAL_STORAGE_KEY = "ntmo_user_profiles_v1";
 export const LOCAL_SANDBOX_PROFILE_ID = "local-sandbox-profile";
-
-function rpbRaidDoc(raidId) {
-  return doc(db, "rpb-raids", raidId);
-}
-
-function rpbFightsCol(raidId) {
-  return collection(db, "rpb-raids", raidId, "fights");
-}
-
-function rpbPlayersCol(raidId) {
-  return collection(db, "rpb-raids", raidId, "players");
-}
 
 function userProfileDoc(discordId) {
   return doc(db, "user-profiles", String(discordId));
