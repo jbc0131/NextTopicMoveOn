@@ -12,29 +12,48 @@ function getReportSpeedPercent(raid) {
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
+function getReportAverageValue(player, role) {
+  const summary = player?.summary || {};
+  const summaryTotal = Number(player?.summaryTotal || 0);
+  const activeTimeMs = Number(player?.activeTimeMs || 0);
+  const candidates = [
+    player?.summaryAverage,
+    summary?.average,
+    summary?.avg,
+    role === "Healer" ? summary?.hps : summary?.dps,
+    role === "Healer" ? summary?.hpsReduced : summary?.dpsReduced,
+    activeTimeMs > 0 ? (summaryTotal / (activeTimeMs / 1000)) : null,
+  ];
+
+  for (const candidate of candidates) {
+    const value = Number(candidate);
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+
+  return null;
+}
+
 function getReportParseLeader(raid, role, parseField) {
   const candidates = (raid?.players || []).map(player => {
     const parsePercent = Number(player?.[parseField]);
     const summaryTotal = Number(player?.summaryTotal || 0);
-    const activeTimeMs = Number(player?.activeTimeMs || 0);
-    const averageValue = activeTimeMs > 0 ? (summaryTotal / (activeTimeMs / 1000)) : 0;
     return {
       name: String(player?.name || "").trim(),
       type: player?.type || "",
       role: player?.role || "",
       parsePercent: Number.isFinite(parsePercent) && parsePercent > 0 ? parsePercent : null,
-      averageValue: Number.isFinite(averageValue) && averageValue > 0 ? averageValue : null,
+      averageValue: getReportAverageValue(player, role),
       summaryTotal,
     };
-  }).filter(player => player.name && player.role === role && Number.isFinite(Number(player.averageValue)) && Number(player.averageValue) > 0);
+  }).filter(player => player.name && player.role === role && Number.isFinite(Number(player.parsePercent)) && Number(player.parsePercent) > 0);
 
   if (!candidates.length) return null;
 
   const winner = [...candidates].sort((left, right) => {
-    const averageDiff = Number(right?.averageValue || 0) - Number(left?.averageValue || 0);
-    if (averageDiff !== 0) return averageDiff;
     const parseDiff = Number(right?.parsePercent || 0) - Number(left?.parsePercent || 0);
     if (parseDiff !== 0) return parseDiff;
+    const averageDiff = Number(right?.averageValue || 0) - Number(left?.averageValue || 0);
+    if (averageDiff !== 0) return averageDiff;
     return Number(right?.summaryTotal || 0) - Number(left?.summaryTotal || 0);
   })[0];
 
