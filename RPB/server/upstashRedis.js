@@ -30,6 +30,26 @@ async function upstashFetch(command, args = [], options = {}) {
   return response.json();
 }
 
+async function upstashCommand(args = []) {
+  if (!canUseRedis()) return null;
+
+  const response = await fetch(REDIS_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${REDIS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(args),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Upstash ${response.status}: ${text}`);
+  }
+
+  return response.json();
+}
+
 export async function getJsonCache(key) {
   if (!canUseRedis()) return null;
 
@@ -46,17 +66,10 @@ export async function setJsonCache(key, value, ttlSeconds) {
   if (!canUseRedis()) return false;
 
   try {
-    const args = ttlSeconds > 0 ? [key, "EX", ttlSeconds] : [key];
-    const path = ["set", ...args].map(sanitizeKeyPart).join("/");
-    const response = await fetch(`${REDIS_URL}/${path}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${REDIS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(value),
-    });
-    if (!response.ok) throw new Error(await response.text());
+    const args = ["SET", key, JSON.stringify(value)];
+    if (ttlSeconds > 0) args.push("EX", String(ttlSeconds));
+    const response = await upstashCommand(args);
+    if (response?.result !== "OK") throw new Error("Unexpected Upstash SET result");
     return true;
   } catch {
     return false;
@@ -78,7 +91,7 @@ export async function acquireLock(key, ttlSeconds = 120) {
   if (!canUseRedis()) return true;
 
   try {
-    const response = await upstashFetch("set", [key, "1", "NX", "EX", ttlSeconds]);
+    const response = await upstashCommand(["SET", key, "1", "NX", "EX", String(ttlSeconds)]);
     return response?.result === "OK";
   } catch {
     return true;
