@@ -36,11 +36,11 @@ function matchesLeaderBucket(player, role) {
   const healingParse = Number(player?.healingParsePercent || 0);
 
   if (role === "DPS") {
-    return damageParse > 0 && damageParse >= healingParse;
+    return player?.role === "DPS" && damageParse > 0;
   }
 
   if (role === "Healer") {
-    return healingParse > 0 && healingParse >= damageParse;
+    return player?.role === "Healer" && healingParse > 0;
   }
 
   return false;

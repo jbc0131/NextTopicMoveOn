@@ -325,8 +325,8 @@ function getRaidAwardWinner(raid, role, parseField) {
     const damageParse = Number(player?.damageParsePercent || player?.awardParse || 0);
     const healingParse = Number(player?.healingParsePercent || player?.oppositeParse || 0);
 
-    if (role === "DPS") return damageParse > 0 && damageParse >= healingParse;
-    if (role === "Healer") return healingParse > 0 && healingParse >= damageParse;
+    if (role === "DPS") return player?.role === "DPS" && damageParse > 0;
+    if (role === "Healer") return player?.role === "Healer" && healingParse > 0;
     return false;
   };
 
