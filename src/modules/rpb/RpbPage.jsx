@@ -2968,18 +2968,19 @@ export default function RpbPage() {
       updateImportProgressState(totalUnits - 1, "Saving imported raid...", "Persisting raid bundle, fights, players, analytics, and ability rows");
 
       const saveResult = await saveRpbRaidImport(assembledRaid);
+      const savedRaidId = saveResult.raidId || assembledRaid.id;
       const nextRaids = await fetchRpbRaidList();
       setRaids(nextRaids);
       setReportUrl("");
       updateImportProgressState(totalUnits, "Import complete.", "RPB payload is ready for saved-raid browsing");
       toast({
         message: saveResult.persistence === "local"
-          ? `Warcraft Logs import succeeded for ${assembledRaid.title}, but Firestore denied storage. Saved locally in this browser only.`
+          ? `Warcraft Logs import succeeded for ${assembledRaid.title}, but remote storage failed. Saved locally in this browser only.`
           : `Imported ${assembledRaid.title}`,
         type: saveResult.persistence === "local" ? "warning" : "success",
         duration: 7000,
       });
-      navigate(`/rpb/${saveResult.raidId}`);
+      navigate(`/rpb/${savedRaidId}`);
       setTimeout(() => {
         setImportProgress(prev => ({ ...prev, open: false }));
       }, 500);

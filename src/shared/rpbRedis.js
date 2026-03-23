@@ -90,7 +90,7 @@ export async function saveRpbRaidImport(raid) {
     if (!response.ok) throw new Error(data.error || "Failed to save RPB raid import");
     return data;
   } catch {
-    return { persistence: "local", raid: payload };
+    return { persistence: "local", raidId: payload.id, raid: payload };
   }
 }
 
