@@ -20,8 +20,6 @@ function getReportAverageValue(player, role) {
     player?.summaryAverage,
     summary?.average,
     summary?.avg,
-    role === "Healer" ? summary?.hps : summary?.dps,
-    role === "Healer" ? summary?.hpsReduced : summary?.dpsReduced,
     activeTimeMs > 0 ? (summaryTotal / (activeTimeMs / 1000)) : null,
   ];
 
@@ -42,10 +40,19 @@ function getReportParseLeader(raid, role, parseField) {
       type: player?.type || "",
       role: player?.role || "",
       parsePercent: Number.isFinite(parsePercent) && parsePercent > 0 ? parsePercent : null,
+      oppositeParsePercent: Number.isFinite(Number(player?.[parseField === "damageParsePercent" ? "healingParsePercent" : "damageParsePercent"]))
+        ? Number(player?.[parseField === "damageParsePercent" ? "healingParsePercent" : "damageParsePercent"])
+        : null,
       averageValue: getReportAverageValue(player, role),
       summaryTotal,
     };
-  }).filter(player => player.name && player.role === role && Number.isFinite(Number(player.parsePercent)) && Number(player.parsePercent) > 0);
+  }).filter(player => {
+    if (!player.name || player.role !== role) return false;
+    if (!(Number.isFinite(Number(player.parsePercent)) && Number(player.parsePercent) > 0)) return false;
+    if (role === "DPS" && Number(player.oppositeParsePercent || 0) > Number(player.parsePercent || 0)) return false;
+    if (role === "Healer" && Number(player.oppositeParsePercent || 0) > Number(player.parsePercent || 0)) return false;
+    return true;
+  });
 
   if (!candidates.length) return null;
 

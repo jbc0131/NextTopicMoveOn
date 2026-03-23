@@ -325,12 +325,14 @@ function getRaidAwardWinner(raid, role, parseField) {
   if (persistedLeader?.name && (Number(persistedLeader?.parsePercent) > 0 || Number(persistedLeader?.averageValue) > 0)) {
     return {
       ...persistedLeader,
+      awardParse: Number(persistedLeader.parsePercent || 0),
       awardValue: Number(persistedLeader.averageValue || 0),
     };
   }
 
   const candidates = (raid?.players || []).map(player => {
     const awardParse = Number(player?.[parseField]);
+    const oppositeParse = Number(player?.[parseField === "damageParsePercent" ? "healingParsePercent" : "damageParsePercent"]);
     const summary = player?.summary || {};
     const computedAverage = Number(player?.summaryTotal || 0) > 0 && Number(player?.activeTimeMs || 0) > 0
       ? (Number(player.summaryTotal || 0) / (Number(player.activeTimeMs || 0) / 1000))
@@ -339,16 +341,20 @@ function getRaidAwardWinner(raid, role, parseField) {
       player?.summaryAverage,
       summary?.average,
       summary?.avg,
-      role === "Healer" ? summary?.hps : summary?.dps,
-      role === "Healer" ? summary?.hpsReduced : summary?.dpsReduced,
       computedAverage,
     ].map(value => Number(value)).find(value => Number.isFinite(value) && value > 0) ?? null;
     return {
       ...player,
       awardParse: Number.isFinite(awardParse) && awardParse > 0 ? awardParse : null,
+      oppositeParse: Number.isFinite(oppositeParse) && oppositeParse > 0 ? oppositeParse : null,
       awardValue: Number.isFinite(Number(awardValue)) && Number(awardValue) > 0 ? Number(awardValue) : null,
     };
-  }).filter(player => player?.role === role && Number.isFinite(Number(player?.awardParse)) && Number(player.awardParse) > 0);
+  }).filter(player => {
+    if (player?.role !== role) return false;
+    if (!(Number.isFinite(Number(player?.awardParse)) && Number(player.awardParse) > 0)) return false;
+    if (Number(player.oppositeParse || 0) > Number(player.awardParse || 0)) return false;
+    return true;
+  });
 
   if (!candidates.length) return null;
 
