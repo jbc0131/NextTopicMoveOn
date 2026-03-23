@@ -3364,13 +3364,12 @@ export default function RpbPage() {
                       color: isAggregateOption ? "#d6e7ff" : (option.kill ? "#d7ffdf" : "#ffd5d5"),
                     }}
                     >
-                    <span>{option.label}</span>
                     {option.speedParsePercent != null && (
                       <span style={parseInlineStyle(option.speedParsePercent)}>
-                        {" · "}
                         {Math.round(option.speedParsePercent)}
                       </span>
                     )}
+                    <span>{option.label}</span>
                   </button>
                 );
               })}
