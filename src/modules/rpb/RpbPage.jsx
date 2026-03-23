@@ -321,6 +321,15 @@ function getDefaultSelectedFightId(raid) {
 }
 
 function getRaidAwardWinner(raid, role, parseField) {
+  const matchesLeaderBucket = player => {
+    const damageParse = Number(player?.damageParsePercent || player?.awardParse || 0);
+    const healingParse = Number(player?.healingParsePercent || player?.oppositeParse || 0);
+
+    if (role === "DPS") return damageParse > 0 && damageParse >= healingParse;
+    if (role === "Healer") return healingParse > 0 && healingParse >= damageParse;
+    return false;
+  };
+
   const persistedLeader = role === "DPS" ? raid?.topDpsLeader : raid?.topHealerLeader;
   if (persistedLeader?.name && (Number(persistedLeader?.parsePercent) > 0 || Number(persistedLeader?.averageValue) > 0)) {
     return {
@@ -350,9 +359,8 @@ function getRaidAwardWinner(raid, role, parseField) {
       awardValue: Number.isFinite(Number(awardValue)) && Number(awardValue) > 0 ? Number(awardValue) : null,
     };
   }).filter(player => {
-    if (player?.role !== role) return false;
     if (!(Number.isFinite(Number(player?.awardParse)) && Number(player.awardParse) > 0)) return false;
-    if (Number(player.oppositeParse || 0) > Number(player.awardParse || 0)) return false;
+    if (!matchesLeaderBucket(player)) return false;
     return true;
   });
 
@@ -3336,7 +3344,7 @@ export default function RpbPage() {
                       <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <span style={{ color: "#e5cc80" }}>👑 DPS</span>
                         <span style={{ color: getScoreColor(topDps.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold }}>
-                          {formatMetricValue(Math.round(Number(topDps.awardValue || topDps.awardParse || 0)))}
+                          {Math.round(Number(topDps.awardParse || 0))}
                         </span>
                         <span style={{ color: getClassColor(topDps.type), fontWeight: fontWeight.semibold }}>
                           {topDps.name}
@@ -3347,7 +3355,7 @@ export default function RpbPage() {
                       <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <span style={{ color: "#e5cc80" }}>👑 Heal</span>
                         <span style={{ color: getScoreColor(topHealer.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold }}>
-                          {formatMetricValue(Math.round(Number(topHealer.awardValue || topHealer.awardParse || 0)))}
+                          {Math.round(Number(topHealer.awardParse || 0))}
                         </span>
                         <span style={{ color: getClassColor(topHealer.type), fontWeight: fontWeight.semibold }}>
                           {topHealer.name}

@@ -31,6 +31,21 @@ function getReportAverageValue(player, role) {
   return null;
 }
 
+function matchesLeaderBucket(player, role) {
+  const damageParse = Number(player?.damageParsePercent || 0);
+  const healingParse = Number(player?.healingParsePercent || 0);
+
+  if (role === "DPS") {
+    return damageParse > 0 && damageParse >= healingParse;
+  }
+
+  if (role === "Healer") {
+    return healingParse > 0 && healingParse >= damageParse;
+  }
+
+  return false;
+}
+
 function getReportParseLeader(raid, role, parseField) {
   const candidates = (raid?.players || []).map(player => {
     const parsePercent = Number(player?.[parseField]);
@@ -47,10 +62,9 @@ function getReportParseLeader(raid, role, parseField) {
       summaryTotal,
     };
   }).filter(player => {
-    if (!player.name || player.role !== role) return false;
+    if (!player.name) return false;
     if (!(Number.isFinite(Number(player.parsePercent)) && Number(player.parsePercent) > 0)) return false;
-    if (role === "DPS" && Number(player.oppositeParsePercent || 0) > Number(player.parsePercent || 0)) return false;
-    if (role === "Healer" && Number(player.oppositeParsePercent || 0) > Number(player.parsePercent || 0)) return false;
+    if (!matchesLeaderBucket(player, role)) return false;
     return true;
   });
 
