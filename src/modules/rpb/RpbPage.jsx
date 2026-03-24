@@ -4059,12 +4059,9 @@ export default function RpbPage() {
                                 <div style={{
                                   width: `${Math.max(maxAffectedTargets > 0 ? 4 : 0, Math.round(affectedPercent))}%`,
                                   height: "100%",
-                                  background: intent.info,
+                                  background: getClassColor(entry.type),
                                   opacity: 0.9,
                                 }} />
-                              </div>
-                              <div style={{ marginTop: 6, fontSize: fontSize.xs, color: text.muted }}>
-                                {`${formatMetricValue(entry.affectedTargets)}/${formatMetricValue(maxAffectedTargets)} affected (${Math.round(affectedPercent)}%)`}
                               </div>
                             </button>
                           );
