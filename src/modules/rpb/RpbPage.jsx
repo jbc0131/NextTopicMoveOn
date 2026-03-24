@@ -339,6 +339,20 @@ function getRaidAwardWinner(raid, role, parseField) {
   };
 }
 
+async function readApiJson(response) {
+  const text = await response.text();
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (!response.ok) {
+      throw new Error(text.trim() || `Request failed with status ${response.status}`);
+    }
+    throw new Error("Received a non-JSON response from the server.");
+  }
+}
+
 function teamFilterButtonStyle(option, active) {
   if (option.id === "Team Dick") {
     return {
@@ -2667,7 +2681,7 @@ export default function RpbPage() {
 
       try {
         const response = await fetch(`/api/rpb-item-meta?ids=${encodeURIComponent(missingIds.join(","))}`);
-        const data = await response.json();
+        const data = await readApiJson(response);
         if (!response.ok) throw new Error(data.error || "Failed to resolve item metadata");
         if (!cancelled) {
           setItemMetaById(prev => ({ ...prev, ...(data.items || {}) }));
@@ -2738,7 +2752,7 @@ export default function RpbPage() {
           }),
         });
 
-        const data = await response.json();
+        const data = await readApiJson(response);
         if (!response.ok || !data?.available) {
           syncedRankingsByRaidIdRef.current[selectedRaid.id] = true;
           return;
@@ -2792,7 +2806,7 @@ export default function RpbPage() {
           }),
         });
 
-        const data = await response.json();
+        const data = await readApiJson(response);
         if (!response.ok || !data?.available) {
           syncedSpeedByRaidIdRef.current[selectedRaid.id] = true;
           return;
@@ -2980,7 +2994,7 @@ export default function RpbPage() {
         body: JSON.stringify({ action: "assemble", reportUrl: normalizedReportInput, datasets }),
       });
 
-      const assembledRaid = await assembleResponse.json();
+      const assembledRaid = await readApiJson(assembleResponse);
       if (!assembleResponse.ok) throw new Error(assembledRaid.error || "Failed to assemble raid");
 
       if (options.presetTeamTag !== undefined) {
@@ -3013,7 +3027,7 @@ export default function RpbPage() {
         }),
       });
 
-      const saveResult = await saveResponse.json();
+      const saveResult = await readApiJson(saveResponse);
       if (!saveResponse.ok) throw new Error(saveResult.error || "Failed to save imported raid");
       const savedRaidId = saveResult.raidId || assembledRaid.id;
       const nextRaids = await fetchRpbRaidList();
