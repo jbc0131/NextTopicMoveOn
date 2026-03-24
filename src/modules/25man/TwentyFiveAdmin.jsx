@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   surface, border, text, accent, intent, font, fontSize,
   fontWeight, radius, space, btnStyle, inputStyle, layout,
@@ -176,27 +176,63 @@ function AssignmentPanel({ title, icon, subtitle, bossImage, rows, assignments, 
 }
 
 // ── Manual add player ─────────────────────────────────────────────────────────
-function ManualAddPlayer({ onAdd }) {
-  const [open,  setOpen]  = useState(false);
-  const [name,  setName]  = useState("");
-  const [cls,   setCls]   = useState("Warrior");
-  const [spec,  setSpec]  = useState("Arms");
-  const [error, setError] = useState("");
+function ManualAddPlayer({ onAdd, roster }) {
+  const [open,       setOpen]       = useState(false);
+  const [name,       setName]       = useState("");
+  const [cls,        setCls]        = useState("Warrior");
+  const [spec,       setSpec]       = useState("Arms");
+  const [linkId,     setLinkId]     = useState("");
+  const [linkSearch, setLinkSearch] = useState("");
+  const [linkFocus,  setLinkFocus]  = useState(false);
+  const [error,      setError]      = useState("");
+  const linkRef = useRef(null);
 
   const specs = CLASS_SPECS[cls] || [];
   const handleClass = c => { setCls(c); setSpec(CLASS_SPECS[c][0].specName); };
 
+  // Deduplicated roster for the link dropdown
+  const linkOptions = useMemo(() => {
+    const seen = new Set();
+    return (roster || []).filter(p => {
+      if (p.manual) return false;
+      const key = p._discordId || p.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [roster]);
+
+  const filteredOptions = useMemo(() => {
+    if (!linkSearch.trim()) return linkOptions;
+    const q = linkSearch.toLowerCase();
+    return linkOptions.filter(p => p.name.toLowerCase().includes(q));
+  }, [linkOptions, linkSearch]);
+
+  const selectedPlayer = linkId ? linkOptions.find(p => (p._discordId || p.id) === linkId) : null;
+
+  const handleSelectLink = (p) => {
+    setLinkId(p._discordId || p.id);
+    setLinkSearch(p.name);
+    setLinkFocus(false);
+  };
+
+  const handleClearLink = () => {
+    setLinkId(""); setLinkSearch(""); linkRef.current?.focus();
+  };
+
   const handleAdd = () => {
     if (!name.trim()) { setError("Enter a name"); return; }
-    onAdd({
+    const player = {
       id:        `manual_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name:      name.trim(),
       className: cls,
       specName:  spec,
       color:     CLASS_COLORS[cls] || "#aaa",
       manual:    true,
-    });
-    setName(""); setCls("Warrior"); setSpec("Arms"); setError(""); setOpen(false);
+    };
+    if (linkId) player._discordId = linkId;
+    onAdd(player);
+    setName(""); setCls("Warrior"); setSpec("Arms"); setLinkId(""); setLinkSearch(""); setError(""); setOpen(false);
   };
 
   if (!open) return (
@@ -234,9 +270,53 @@ function ManualAddPlayer({ onAdd }) {
           </option>
         ))}
       </select>
+      <div style={{ position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <input
+            ref={linkRef}
+            value={linkSearch}
+            onChange={e => { setLinkSearch(e.target.value); setLinkId(""); }}
+            onFocus={() => setLinkFocus(true)}
+            onBlur={() => setTimeout(() => setLinkFocus(false), 150)}
+            placeholder="Link to Discord (optional)"
+            style={{ ...inputStyle, width: "100%", fontSize: fontSize.xs, color: selectedPlayer ? accent.blue : text.primary }}
+          />
+          {(linkId || linkSearch) && (
+            <button onClick={handleClearLink} style={{ background: "none", border: "none", color: text.muted, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px", flexShrink: 0 }} title="Clear">×</button>
+          )}
+        </div>
+        {selectedPlayer && (
+          <div style={{ fontSize: 9, color: accent.blue, fontFamily: font.sans, marginTop: 2 }}>
+            Linked to {selectedPlayer.name}
+          </div>
+        )}
+        {linkFocus && !linkId && filteredOptions.length > 0 && (
+          <div style={{
+            position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
+            background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.sm,
+            maxHeight: 120, overflowY: "auto", marginTop: 2,
+          }}>
+            {filteredOptions.map(p => (
+              <div
+                key={p._discordId || p.id}
+                onMouseDown={() => handleSelectLink(p)}
+                style={{
+                  padding: `3px ${space[2]}px`, cursor: "pointer", fontSize: fontSize.xs,
+                  fontFamily: font.sans, color: CLASS_COLORS[getClass(p)] || text.primary,
+                  background: "transparent",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = surface.overlay}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                {p.name}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div style={{ display: "flex", gap: space[1] }}>
         <button onClick={handleAdd} style={{ ...btnStyle("success"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Add</button>
-        <button onClick={() => { setOpen(false); setError(""); setName(""); }} style={{ ...btnStyle("default"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Cancel</button>
+        <button onClick={() => { setOpen(false); setError(""); setName(""); setLinkId(""); setLinkSearch(""); }} style={{ ...btnStyle("default"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Cancel</button>
       </div>
     </div>
   );
@@ -266,7 +346,7 @@ function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter,
             parseScore={getScoreForPlayer(wclScores, s, activeTab)}
             parseColor={getScoreColor(getScoreForPlayer(wclScores, s, activeTab))} />
         ))}
-        <ManualAddPlayer onAdd={onAddManual} />
+        <ManualAddPlayer onAdd={onAddManual} roster={roster} />
       </div>
     </div>
   );
