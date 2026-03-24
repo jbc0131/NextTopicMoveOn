@@ -1177,7 +1177,6 @@ function getRaidReportSpeedPercent(raid) {
     if (fightSpeedPercents.length > 0) {
       return fightSpeedPercents.reduce((sum, value) => sum + value, 0) / fightSpeedPercents.length;
     }
-    return null;
   }
 
   const direct = Number(raid?.reportSpeedPercent);
