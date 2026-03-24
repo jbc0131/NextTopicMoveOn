@@ -1184,18 +1184,6 @@ function getRaidReportSpeedPercent(raid) {
   return extractReportSpeedPercent(raid?.importPayload?.reportSpeed) ?? extractReportSpeedPercent(raid?.importPayload?.reportRankings);
 }
 
-function hasHydratedSpeedScores(raid) {
-  if (!raid) return false;
-  if ((raid?.importPayload?.reportSpeed?.compareMode || "") !== "Rankings") return false;
-  const reportSpeedPercent = getRaidReportSpeedPercent(raid);
-  const fightSpeedPercents = (raid.fights || [])
-    .map(fight => Number(fight?.speedParsePercent))
-    .filter(value => Number.isFinite(value));
-
-  if (reportSpeedPercent > 0) return true;
-  return fightSpeedPercents.some(value => value > 0);
-}
-
 function isRecentReport(reportStart) {
   if (!reportStart) return false;
   const reportDate = new Date(reportStart);
@@ -1411,27 +1399,6 @@ function applyRankingsToRaidFights(raid, rankings) {
       reportRankings: rankings,
     },
   };
-}
-
-function raidNeedsParseHydration(raid) {
-  if (!raid?.players?.length || !raid?.fights?.length) return false;
-  if ((raid?.importPayload?.reportRankings?.compareMode || "") !== "Rankings") return true;
-
-  const damageByPlayerId = buildParseFallbackByMetric(raid.fights, "damageDoneEntries");
-  const healingByPlayerId = buildParseFallbackByMetric(raid.fights, "healingDoneEntries");
-
-  return (raid.players || []).some(player => {
-    const playerId = String(player?.id || "");
-    if (!playerId) return false;
-
-    const hasFightDamageParse = damageByPlayerId.has(playerId);
-    const hasFightHealingParse = healingByPlayerId.has(playerId);
-    const hasReportDamageParse = Number.isFinite(Number(player?.damageParsePercent));
-    const hasReportHealingParse = Number.isFinite(Number(player?.healingParsePercent));
-
-    return (hasFightDamageParse && !hasReportDamageParse)
-      || (hasFightHealingParse && !hasReportHealingParse);
-  });
 }
 
 function applySpeedToRaidFights(raid, speedData) {
@@ -1790,11 +1757,6 @@ function buildSummaryAbilityBreakdown(summary, mode) {
     .sort((a, b) => b.total - a.total);
 }
 
-function makeRemoteBreakdownKey(reportId, playerId, mode, fights) {
-  const fightKey = (fights || []).map(fight => String(fight?.id || "")).filter(Boolean).join(",");
-  return [String(reportId || ""), String(playerId || ""), String(mode || ""), fightKey].join("::");
-}
-
 function hasVisibleBreakdownStats(entries = []) {
   return (entries || []).some(entry =>
     Number(entry?.total || 0) > 0
@@ -2103,7 +2065,30 @@ function filterFights(fights, mode, selectedFightId, outcome = "") {
 }
 
 function ImportProgressModal({ open, progress }) {
+  const [displayPercent, setDisplayPercent] = useState(0);
+
+  useEffect(() => {
+    if (!open) {
+      setDisplayPercent(0);
+      return undefined;
+    }
+
+    const target = Math.max(0, Math.min(100, Number(progress?.percent || 0)));
+    const tick = () => {
+      setDisplayPercent(current => {
+        const delta = target - current;
+        if (Math.abs(delta) < 0.35) return target;
+        return current + (delta * 0.18);
+      });
+    };
+
+    const intervalId = window.setInterval(tick, 48);
+    tick();
+    return () => window.clearInterval(intervalId);
+  }, [open, progress?.percent]);
+
   if (!open) return null;
+  const visibleSteps = (progress.steps || []).slice(0, 10);
 
   return (
     <div style={{
@@ -2139,17 +2124,75 @@ function ImportProgressModal({ open, progress }) {
 
         <div style={{ height: 12, background: surface.base, border: `1px solid ${border.subtle}`, borderRadius: 999, overflow: "hidden" }}>
           <div style={{
-            width: `${progress.percent}%`,
+            width: `${displayPercent}%`,
             height: "100%",
-            background: accent.blue,
-            transition: "width 0.45s cubic-bezier(0.22, 1, 0.36, 1)",
+            background: "linear-gradient(90deg, #3d7dca 0%, #5fb3ff 55%, #87d7ff 100%)",
+            transition: "width 0.18s linear",
           }} />
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: fontSize.sm, color: text.muted }}>
           <span>{progress.completed} / {progress.total} steps</span>
-          <span>{progress.percent}%</span>
+          <span>{Math.round(displayPercent)}%</span>
         </div>
+
+        {!!visibleSteps.length && (
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: space[2],
+            padding: space[3],
+            border: `1px solid ${border.subtle}`,
+            borderRadius: radius.base,
+            background: "rgba(14, 24, 38, 0.72)",
+          }}>
+            <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              Staged API Calls
+            </div>
+            {visibleSteps.map(step => {
+              const isActive = step.key === progress.activeStepKey;
+              const isDone = !!step.completed;
+              const tone = isDone ? "#7fd6a3" : (isActive ? "#8fc8ff" : text.muted);
+              return (
+                <div
+                  key={step.key}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "18px minmax(0, 1fr)",
+                    gap: space[2],
+                    alignItems: "start",
+                  }}
+                >
+                  <div style={{ color: tone, fontSize: fontSize.sm, lineHeight: 1.2 }}>
+                    {isDone ? "●" : (isActive ? "◉" : "○")}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: fontSize.sm, color: isDone || isActive ? text.primary : text.secondary }}>
+                      {step.label}
+                    </div>
+                    <div style={{ fontSize: fontSize.xs, color: tone, fontFamily: font.mono, marginTop: 2, whiteSpace: "pre-wrap" }}>
+                      {step.detail}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!!progress.subdetail && (
+          <div style={{
+            fontSize: fontSize.xs,
+            color: "#8fc8ff",
+            fontFamily: font.mono,
+            padding: `${space[2]}px ${space[3]}px`,
+            borderRadius: radius.base,
+            background: "rgba(61, 125, 202, 0.12)",
+            border: `1px solid rgba(61, 125, 202, 0.24)`,
+          }}>
+            {progress.subdetail}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2407,13 +2450,6 @@ export default function RpbPage() {
   const [fightOutcomeFilter, setFightOutcomeFilter] = useState("");
   const [selectedFightId, setSelectedFightId] = useState("");
   const [sliceType, setSliceType] = useState("damage");
-  const [remoteAbilityBreakdownState, setRemoteAbilityBreakdownState] = useState({
-    key: "",
-    entries: [],
-    loading: false,
-  });
-  const syncedRankingsByRaidIdRef = useRef({});
-  const syncedSpeedByRaidIdRef = useRef({});
   const abilityBreakdownRef = useRef(null);
   const [importProgress, setImportProgress] = useState({
     open: false,
@@ -2422,6 +2458,9 @@ export default function RpbPage() {
     percent: 0,
     message: "",
     detail: "",
+    subdetail: "",
+    activeStepKey: "",
+    steps: [],
   });
 
   useEffect(() => {
@@ -2711,19 +2750,6 @@ export default function RpbPage() {
     return sortedRaids.filter(raid => normalizeTeamTag(raid.teamTag) === normalizedFilter);
   }, [sortedRaids, teamFilter]);
   const noReportsForActiveTeamFilter = !loadingList && !!teamFilter && filteredRaids.length === 0;
-  const hasAnyParseScores = useMemo(() => {
-    return (selectedRaid?.fights || []).some(fight =>
-      [...(fight.damageDoneEntries || []), ...(fight.healingDoneEntries || [])]
-        .some(entry => Number.isFinite(Number(entry?.parsePercent)))
-    );
-  }, [selectedRaid]);
-  const hasSavedReportLevelParses = useMemo(() => {
-    return (selectedRaid?.players || []).some(player =>
-      Number.isFinite(Number(player?.damageParsePercent))
-      || Number.isFinite(Number(player?.healingParsePercent))
-    );
-  }, [selectedRaid]);
-  const needsParseHydration = useMemo(() => raidNeedsParseHydration(selectedRaid), [selectedRaid]);
   const sliceField = sliceType === "healing" ? "healingDoneEntries" : (sliceType === "deaths" ? "deathEntries" : "damageDoneEntries");
   const showKillParseForSlice = useMemo(() => (
     sliceType !== "deaths"
@@ -2754,41 +2780,12 @@ export default function RpbPage() {
   const selectedPlayerHealingBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "healingDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSummaryDamageBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "damage"), [selectedPlayer?.summary]);
   const selectedPlayerSummaryHealingBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "healing"), [selectedPlayer?.summary]);
-  const breakdownFightIds = useMemo(() => {
-    if (!selectedFightId || selectedFightId === ALL_VISIBLE_ENCOUNTERS_ID || selectedFightId === ALL_KILLS_ENCOUNTERS_ID || selectedFightId === ALL_WIPES_ENCOUNTERS_ID) {
-      return (filteredFights || []).map(fight => String(fight?.id || "")).filter(Boolean);
-    }
-    return [String(selectedFightId)];
-  }, [filteredFights, selectedFightId]);
-  const remoteBreakdownKey = useMemo(() => (
-    (sliceType === "damage" || sliceType === "healing") && selectedRaid?.reportId && selectedPlayerId
-      ? makeRemoteBreakdownKey(
-        selectedRaid.reportId,
-        selectedPlayerId,
-        sliceType,
-        breakdownFightIds.map(id => ({ id }))
-      )
-      : ""
-  ), [breakdownFightIds, selectedPlayerId, selectedRaid?.reportId, sliceType]);
-  const remoteAbilityBreakdown = remoteBreakdownKey === remoteAbilityBreakdownState.key
-    ? (remoteAbilityBreakdownState.entries || [])
-    : [];
-  const remoteAbilityBreakdownLoading = remoteBreakdownKey === remoteAbilityBreakdownState.key
-    && !!remoteAbilityBreakdownState.loading;
-  const preferRemoteAbilityBreakdown = !!(remoteBreakdownKey && profileApiKey.trim());
-  const importedBreakdownExists = sliceType === "healing"
-    ? hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
-    : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown);
-  const visiblePlayerDamageBreakdown = preferRemoteAbilityBreakdown
-    ? (remoteAbilityBreakdownLoading ? [] : remoteAbilityBreakdown)
-    : (hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
-      ? selectedPlayerDamageBreakdown
-      : selectedPlayerSummaryDamageBreakdown);
-  const visiblePlayerHealingBreakdown = preferRemoteAbilityBreakdown
-    ? (remoteAbilityBreakdownLoading ? [] : remoteAbilityBreakdown)
-    : (hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
-      ? selectedPlayerHealingBreakdown
-      : selectedPlayerSummaryHealingBreakdown);
+  const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
+    ? selectedPlayerDamageBreakdown
+    : selectedPlayerSummaryDamageBreakdown;
+  const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
+    ? selectedPlayerHealingBreakdown
+    : selectedPlayerSummaryHealingBreakdown;
   const selectedPlayerDeathRows = useMemo(() => buildDeathDetailRows(filteredFights, selectedPlayerId), [filteredFights, selectedPlayerId]);
   const defaultVisiblePlayerId = useMemo(() => {
     const source = sliceType === "consumables"
@@ -3093,168 +3090,6 @@ export default function RpbPage() {
   }, [defaultVisiblePlayerId, filteredPlayers, selectedPlayerId]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function hydrateParseScores() {
-      if (!selectedRaid?.id || !selectedRaid?.reportId) return;
-      if (hasAnyParseScores && hasSavedReportLevelParses && !needsParseHydration) {
-        syncedRankingsByRaidIdRef.current[selectedRaid.id] = true;
-        return;
-      }
-      if (syncedRankingsByRaidIdRef.current[selectedRaid.id]) return;
-
-      try {
-        const response = await fetch("/api/rpb-import", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "step",
-            step: "reportRankings",
-            reportId: selectedRaid.reportId,
-            wclV2ClientId: profileV2ClientId,
-            wclV2ClientSecret: profileV2ClientSecret,
-          }),
-        });
-
-        const data = await readApiJson(response);
-        if (!response.ok || !data?.available) {
-          syncedRankingsByRaidIdRef.current[selectedRaid.id] = true;
-          return;
-        }
-
-        const rankedRaid = applyRankingsToRaidFights(selectedRaid, data);
-        if (cancelled) return;
-
-        syncedRankingsByRaidIdRef.current[selectedRaid.id] = true;
-        setSelectedRaid(rankedRaid);
-        setRaids(prev => prev.map(raid => (
-          raid.id === rankedRaid.id
-            ? { ...raid, analytics: rankedRaid.analytics || raid.analytics }
-            : raid
-        )));
-        await updateRpbRaidImport(rankedRaid.id, {
-          fights: rankedRaid.fights,
-          players: rankedRaid.players,
-          importPayload: rankedRaid.importPayload,
-        });
-      } catch {
-        syncedRankingsByRaidIdRef.current[selectedRaid.id] = true;
-      }
-    }
-
-    hydrateParseScores();
-    return () => { cancelled = true; };
-  }, [hasAnyParseScores, hasSavedReportLevelParses, needsParseHydration, profileV2ClientId, profileV2ClientSecret, selectedRaid]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function hydrateSpeedScores() {
-      if (!selectedRaid?.id || !selectedRaid?.reportId) return;
-      if (hasHydratedSpeedScores(selectedRaid)) {
-        syncedSpeedByRaidIdRef.current[selectedRaid.id] = true;
-        return;
-      }
-      if (syncedSpeedByRaidIdRef.current[selectedRaid.id]) return;
-
-      try {
-        const response = await fetch("/api/rpb-import", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "step",
-            step: "reportSpeed",
-            reportId: selectedRaid.reportId,
-            wclV2ClientId: profileV2ClientId,
-            wclV2ClientSecret: profileV2ClientSecret,
-          }),
-        });
-
-        const data = await readApiJson(response);
-        if (!response.ok || !data?.available) {
-          syncedSpeedByRaidIdRef.current[selectedRaid.id] = true;
-          return;
-        }
-
-        const raidWithSpeed = applySpeedToRaidFights(selectedRaid, data);
-        if (cancelled) return;
-
-        syncedSpeedByRaidIdRef.current[selectedRaid.id] = true;
-        setSelectedRaid(raidWithSpeed);
-        setRaids(prev => prev.map(raid => (
-          raid.id === raidWithSpeed.id
-            ? { ...raid, reportSpeedPercent: raidWithSpeed.reportSpeedPercent }
-            : raid
-        )));
-        await updateRpbRaidImport(raidWithSpeed.id, {
-          fights: raidWithSpeed.fights,
-          reportSpeedPercent: raidWithSpeed.reportSpeedPercent,
-          importPayload: raidWithSpeed.importPayload,
-        });
-      } catch {
-        syncedSpeedByRaidIdRef.current[selectedRaid.id] = true;
-      }
-    }
-
-    hydrateSpeedScores();
-    return () => { cancelled = true; };
-  }, [profileV2ClientId, profileV2ClientSecret, selectedRaid]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function hydrateRemoteAbilityBreakdown() {
-      if (!(sliceType === "damage" || sliceType === "healing")) return;
-      if (!selectedRaid?.reportId || !selectedPlayerId || !remoteBreakdownKey || !profileApiKey.trim()) {
-        setRemoteAbilityBreakdownState({ key: remoteBreakdownKey, entries: [], loading: false });
-        return;
-      }
-
-      setRemoteAbilityBreakdownState(prev => (
-        prev.key === remoteBreakdownKey && prev.loading
-          ? prev
-          : { key: remoteBreakdownKey, entries: [], loading: true }
-      ));
-
-      try {
-        const response = await fetch("/api/rpb-import", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "step",
-            step: "playerAbilityBreakdown",
-            reportId: selectedRaid.reportId,
-            apiKey: profileApiKey,
-            sourceId: selectedPlayerId,
-            fightIds: breakdownFightIds,
-            mode: sliceType,
-          }),
-        });
-
-        const data = await readApiJson(response);
-        if (!response.ok) throw new Error(data.error || "Failed to load player ability breakdown");
-        if (cancelled) return;
-
-        setRemoteAbilityBreakdownState({
-          key: remoteBreakdownKey,
-          entries: Array.isArray(data?.entries) ? data.entries : [],
-          loading: false,
-        });
-      } catch {
-        if (cancelled) return;
-        setRemoteAbilityBreakdownState({
-          key: remoteBreakdownKey,
-          entries: [],
-          loading: false,
-        });
-      }
-    }
-
-    hydrateRemoteAbilityBreakdown();
-    return () => { cancelled = true; };
-  }, [breakdownFightIds, profileApiKey, remoteBreakdownKey, selectedPlayerId, selectedRaid?.reportId, sliceType]);
-
-  useEffect(() => {
     if (loadingList) return;
     if (!teamFilter) return;
 
@@ -3367,8 +3202,13 @@ export default function RpbPage() {
         { key: "healingByFight", label: "Saving healing ability breakdowns...", detail: "GET /report/tables/healing per fight (options=2)" },
         { key: "deathsByFight", label: "Saving death events per fight...", detail: "GET /report/tables/deaths per fight" },
       ];
+      const getProgressSteps = (activeStepKey = "", completedKeys = new Set()) => steps.map(step => ({
+        ...step,
+        completed: completedKeys.has(step.key),
+        active: step.key === activeStepKey,
+      }));
       const totalUnits = (steps.length * 2) + 4;
-      const updateImportProgressState = (completed, message, detail = "") => {
+      const updateImportProgressState = (completed, message, detail = "", extra = {}) => {
         setImportProgress({
           open: true,
           completed,
@@ -3376,15 +3216,26 @@ export default function RpbPage() {
           percent: Math.max(0, Math.min(100, Math.round((completed / totalUnits) * 100))),
           message,
           detail,
+          subdetail: extra.subdetail || "",
+          activeStepKey: extra.activeStepKey || "",
+          steps: extra.steps || [],
         });
       };
 
       const datasets = {};
-      updateImportProgressState(1, "Preparing import payload...", "Initializing staged Warcraft Logs requests");
+      const completedStepKeys = new Set();
+      updateImportProgressState(1, "Preparing import payload...", "Initializing staged Warcraft Logs requests", {
+        subdetail: "Import will stage every Warcraft Logs call first, then save a single payload-backed raid bundle.",
+        steps: getProgressSteps("", completedStepKeys),
+      });
 
       for (let index = 0; index < steps.length; index++) {
         const step = steps[index];
-        updateImportProgressState((index * 2) + 2, step.label, step.detail);
+        updateImportProgressState((index * 2) + 2, step.label, step.detail, {
+          subdetail: `Stage ${index + 1} of ${steps.length}`,
+          activeStepKey: step.key,
+          steps: getProgressSteps(step.key, completedStepKeys),
+        });
 
         const response = await fetch(`/api/rpb-import`, {
           method: "POST",
@@ -3402,10 +3253,18 @@ export default function RpbPage() {
         const data = await readApiJson(response);
         if (!response.ok) throw new Error(data.error || `Import step failed: ${step.key}`);
         datasets[step.key] = data;
-        updateImportProgressState((index * 2) + 3, `Stored ${step.label.replace(/\.\.\.$/, "").toLowerCase()}`, step.detail);
+        completedStepKeys.add(step.key);
+        updateImportProgressState((index * 2) + 3, `Stored ${step.label.replace(/\.\.\.$/, "").toLowerCase()}`, step.detail, {
+          subdetail: `Captured ${step.key} into the saved import payload`,
+          activeStepKey: step.key,
+          steps: getProgressSteps(step.key, completedStepKeys),
+        });
       }
 
-      updateImportProgressState((steps.length * 2) + 2, "Assembling raid payload...", "Normalizing fights, players, analytics, and saved breakdown rows");
+      updateImportProgressState((steps.length * 2) + 2, "Assembling raid payload...", "Normalizing fights, players, analytics, and saved breakdown rows", {
+        subdetail: "Converting staged Warcraft Logs responses into persisted raid, fight, player, and breakdown data",
+        steps: getProgressSteps("", completedStepKeys),
+      });
 
       const assembleResponse = await fetch(`/api/rpb-import`, {
         method: "POST",
@@ -3419,7 +3278,10 @@ export default function RpbPage() {
       if (options.presetTeamTag !== undefined) {
         assembledRaid.teamTag = normalizeTeamTag(options.presetTeamTag);
       } else if (isAdmin) {
-        updateImportProgressState((steps.length * 2) + 3, "Waiting for team tag selection...", "Admin confirmation required before persisting the raid");
+        updateImportProgressState((steps.length * 2) + 3, "Waiting for team tag selection...", "Admin confirmation required before persisting the raid", {
+          subdetail: "Choose the team tag before the import is finalized",
+          steps: getProgressSteps("", completedStepKeys),
+        });
 
         const selectedTeamTag = await new Promise(resolve => {
           setImportTagPrompt({
@@ -3438,7 +3300,10 @@ export default function RpbPage() {
         teamTag: assembledRaid.teamTag,
       });
 
-      updateImportProgressState(totalUnits - 1, "Saving imported raid...", "Persisting raid bundle, fights, players, analytics, and ability rows");
+      updateImportProgressState(totalUnits - 1, "Saving imported raid...", "Persisting raid bundle, fights, players, analytics, and ability rows", {
+        subdetail: "Writing the fully payload-backed raid bundle to Redis",
+        steps: getProgressSteps("", completedStepKeys),
+      });
 
       const saveResponse = await fetch(`/api/rpb-import`, {
         method: "POST",
@@ -3458,7 +3323,10 @@ export default function RpbPage() {
       const nextRaids = await fetchRpbRaidList();
       setRaids(nextRaids);
       setReportUrl("");
-      updateImportProgressState(totalUnits, "Import complete.", "RPB payload is ready for saved-raid browsing");
+      updateImportProgressState(totalUnits, "Import complete.", "RPB payload is ready for saved-raid browsing", {
+        subdetail: "Saved raid views now resolve from persisted payload data only",
+        steps: getProgressSteps("", new Set(steps.map(step => step.key))),
+      });
       toast({
         message: options.successMessage || `Imported ${assembledRaid.title}`,
         type: "success",
@@ -3476,6 +3344,9 @@ export default function RpbPage() {
         percent: 0,
         message: `Import failed: ${error.message}`,
         detail: "",
+        subdetail: "",
+        activeStepKey: "",
+        steps: [],
       });
       toast({ message: `Import failed: ${error.message}`, type: "danger", duration: 5000 });
     } finally {
