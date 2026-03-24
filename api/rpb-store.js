@@ -127,6 +127,12 @@ function formatKillLines(fights) {
   });
 }
 
+function formatOverallSpeedLine(raid) {
+  const score = Number(raid?.reportSpeedPercent ?? raid?.importPayload?.reportSpeed?.reportSpeedPercent ?? 0);
+  if (!Number.isFinite(score) || score <= 0) return "Overall Speed Parse: ⬜ unavailable";
+  return `Overall Speed Parse: ${getParseSquare(score)} ${Math.round(score)}`;
+}
+
 function buildReportLine(raid) {
   const teamTag = normalizeTeamTag(raid?.teamTag);
   const emoji = TEAM_EMOJI_BY_TAG.get(teamTag) || "";
@@ -140,6 +146,8 @@ function buildEmbedDescription(raid, raidUrl, reportUrl) {
     buildReportLine(raid),
     "",
     ...killLines,
+    "",
+    formatOverallSpeedLine(raid),
     "",
     `🔗 [NTMO Combat Analytics](${raidUrl})`,
     `🔗 [Warcraft Logs Link](${reportUrl})`,
