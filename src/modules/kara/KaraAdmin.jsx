@@ -1,5 +1,5 @@
 // KaraAdmin v3 — teamless, no teamId prop
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   surface, border, text, accent, intent, font, fontSize,
   fontWeight, radius, space, btnStyle, inputStyle, layout,
@@ -255,27 +255,42 @@ function ConflictModal({ conflicts, resolved, onChange, onConfirm }) {
 }
 
 // ── Manual add player ─────────────────────────────────────────────────────────
-function ManualAddPlayer({ onAdd }) {
-  const [open,  setOpen]  = useState(false);
-  const [name,  setName]  = useState("");
-  const [cls,   setCls]   = useState("Warrior");
-  const [spec,  setSpec]  = useState("Arms");
-  const [error, setError] = useState("");
+function ManualAddPlayer({ onAdd, rosterTue, rosterThu }) {
+  const [open,    setOpen]    = useState(false);
+  const [name,    setName]    = useState("");
+  const [cls,     setCls]     = useState("Warrior");
+  const [spec,    setSpec]    = useState("Arms");
+  const [linkId,  setLinkId]  = useState("");
+  const [error,   setError]   = useState("");
 
   const specs = CLASS_SPECS[cls] || [];
   const handleClass = c => { setCls(c); setSpec(CLASS_SPECS[c][0].specName); };
 
+  // Deduplicated roster for the link dropdown
+  const linkOptions = useMemo(() => {
+    const seen = new Set();
+    return [...(rosterTue || []), ...(rosterThu || [])].filter(p => {
+      if (p.manual) return false;
+      const key = p._discordId || p.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [rosterTue, rosterThu]);
+
   const handleAdd = () => {
     if (!name.trim()) { setError("Enter a name"); return; }
-    onAdd({
+    const player = {
       id:        `manual_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name:      name.trim(),
       className: cls,
       specName:  spec,
       color:     CLASS_COLORS[cls] || "#aaa",
       manual:    true,
-    });
-    setName(""); setCls("Warrior"); setSpec("Arms"); setError(""); setOpen(false);
+    };
+    if (linkId) player._discordId = linkId;
+    onAdd(player);
+    setName(""); setCls("Warrior"); setSpec("Arms"); setLinkId(""); setError(""); setOpen(false);
   };
 
   if (!open) return (
@@ -313,9 +328,17 @@ function ManualAddPlayer({ onAdd }) {
           </option>
         ))}
       </select>
+      <select value={linkId} onChange={e => setLinkId(e.target.value)} style={{ ...inputStyle, fontSize: fontSize.xs, cursor: "pointer", color: linkId ? accent.blue : text.muted }}>
+        <option value="" style={{ background: surface.base, color: text.muted }}>Link to Discord (optional)</option>
+        {linkOptions.map(p => (
+          <option key={p._discordId || p.id} value={p._discordId || p.id} style={{ background: surface.base, color: CLASS_COLORS[getClass(p)] || text.primary }}>
+            {p.name}
+          </option>
+        ))}
+      </select>
       <div style={{ display: "flex", gap: space[1] }}>
         <button onClick={handleAdd} style={{ ...btnStyle("success"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Add</button>
-        <button onClick={() => { setOpen(false); setError(""); setName(""); }} style={{ ...btnStyle("default"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Cancel</button>
+        <button onClick={() => { setOpen(false); setError(""); setName(""); setLinkId(""); }} style={{ ...btnStyle("default"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Cancel</button>
       </div>
     </div>
   );
@@ -405,7 +428,7 @@ function KaraRosterPanel({ karaNight, setKaraNight, rosterTue, rosterThu, assign
             </div>
           );
         })}
-        <ManualAddPlayer onAdd={onAddManual} />
+        <ManualAddPlayer onAdd={onAddManual} rosterTue={rosterTue} rosterThu={rosterThu} />
       </div>
     </div>
   );
@@ -724,8 +747,8 @@ export default function KaraAdmin() {
       const g2Ids = team.g2.flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
       if (!g1Ids.length && !g2Ids.length) return;
       lines.push(`🏰 **Team ${i + 1}**`);
-      if (g1Ids.length) { lines.push(`> **Group 1**`); g1Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • <@${p.id}>`); }); }
-      if (g2Ids.length) { lines.push(`> **Group 2**`); g2Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • <@${p.id}>`); }); }
+      if (g1Ids.length) { lines.push(`> **Group 1**`); g1Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • <@${p._discordId || p.id}>`); }); }
+      if (g2Ids.length) { lines.push(`> **Group 2**`); g2Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • <@${p._discordId || p.id}>`); }); }
       lines.push("");
     });
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
