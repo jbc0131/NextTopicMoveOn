@@ -706,20 +706,37 @@ async function fetchFightBuffSnapshots(reportId, apiKeyOverride = "") {
   const snapshotFights = (fightsData.fights || []).filter(fight =>
     (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
+  const players = (fightsData.friendlies || []).filter(player =>
+    PLAYER_TYPES.has(player?.type) && player?.id != null && player?.name
+  );
 
   const snapshots = [];
   for (const fight of snapshotFights) {
-    const buffs = await wclFetch(`/report/tables/buffs/${reportId}`, {
-      start: fight.start_time ?? 0,
-      end: fight.end_time ?? 0,
-      by: "target",
-    }, apiKeyOverride);
+    const entries = await Promise.all(players.map(async player => {
+      const buffs = await wclFetch(`/report/tables/buffs/${reportId}`, {
+        start: fight.start_time ?? 0,
+        end: fight.end_time ?? 0,
+        targetid: player.id,
+      }, apiKeyOverride);
+
+      return {
+        id: String(player.id),
+        name: player.name || "Unknown Player",
+        type: player.type || "",
+        auras: buffs?.auras || [],
+      };
+    }));
 
     snapshots.push({
       fightId: String(fight.id),
       encounterId: fight.boss || 0,
       fightName: fight.name || "Unknown Fight",
-      buffs,
+      buffs: {
+        entries,
+        startTime: fight.start_time ?? 0,
+        endTime: fight.end_time ?? 0,
+        totalTime: getDurationMs(fight.start_time, fight.end_time),
+      },
     });
   }
 
