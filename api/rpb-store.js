@@ -8,6 +8,10 @@ const TEAM_EMOJI_BY_TAG = new Map([
   ["Team Dick", "🍆"],
   ["Team Balls", "🍒"],
 ]);
+const TEAM_ROLE_MENTION_BY_TAG = new Map([
+  ["Team Balls", "<@&1475981188865982495>"],
+  ["Team Dick", "<@&1475979740023361627>"],
+]);
 
 function normalizeTeamTag(value) {
   const normalized = String(value || "").trim();
@@ -137,8 +141,8 @@ function buildEmbedDescription(raid, raidUrl, reportUrl) {
     "",
     ...killLines,
     "",
-    `[NTMO Combat Analytics](${raidUrl})`,
-    `[Warcraft Logs Link](${reportUrl})`,
+    `🔗 [NTMO Combat Analytics](${raidUrl})`,
+    `🔗 [Warcraft Logs Link](${reportUrl})`,
   ].join("\n");
 }
 
@@ -147,6 +151,7 @@ async function sendNewRaidWebhook(raid, summary) {
 
   const raidUrl = `${RPB_PUBLIC_BASE_URL.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid?.id || ""))}`;
   const reportUrl = raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
+  const roleMention = TEAM_ROLE_MENTION_BY_TAG.get(normalizeTeamTag(raid?.teamTag)) || "";
   const embed = {
     title: "There is a new RPB available!",
     url: raidUrl || undefined,
@@ -163,6 +168,7 @@ async function sendNewRaidWebhook(raid, summary) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      content: roleMention,
       embeds: [embed],
     }),
   });
