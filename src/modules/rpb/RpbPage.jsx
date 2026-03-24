@@ -4417,11 +4417,9 @@ export default function RpbPage() {
                                     {formatAuraList(row.scrollNames)}
                                   </div>
                                   <div style={{ fontSize: fontSize.sm, color: row.hasElixirCoverage ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
-                                    {row.hasFlask
+                                    {`${row.elixirUnitsCovered || 0}/${row.elixirUnitsRequired || 0} · ${row.hasFlask
                                       ? formatAuraList(row.flaskNames)
-                                      : (row.hasElixirCoverage
-                                        ? formatAuraList([...(row.battleElixirNames || []), ...(row.guardianElixirNames || [])])
-                                        : "Missing")}
+                                      : formatAuraList([...(row.battleElixirNames || []), ...(row.guardianElixirNames || [])])}`}
                                   </div>
                                   <div style={{ fontSize: fontSize.sm, color: row.hasFood ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
                                     {formatAuraList(row.foodNames)}
