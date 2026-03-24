@@ -2509,11 +2509,22 @@ export default function RpbPage() {
   const selectedPlayerHealingBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "healingDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSummaryDamageBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "damage"), [selectedPlayer?.summary]);
   const selectedPlayerSummaryHealingBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "healing"), [selectedPlayer?.summary]);
+  const breakdownFightIds = useMemo(() => {
+    if (!selectedFightId || selectedFightId === ALL_VISIBLE_ENCOUNTERS_ID || selectedFightId === ALL_KILLS_ENCOUNTERS_ID || selectedFightId === ALL_WIPES_ENCOUNTERS_ID) {
+      return (filteredFights || []).map(fight => String(fight?.id || "")).filter(Boolean);
+    }
+    return [String(selectedFightId)];
+  }, [filteredFights, selectedFightId]);
   const remoteBreakdownKey = useMemo(() => (
     (sliceType === "damage" || sliceType === "healing") && selectedRaid?.reportId && selectedPlayerId
-      ? makeRemoteBreakdownKey(selectedRaid.reportId, selectedPlayerId, sliceType, filteredFights)
+      ? makeRemoteBreakdownKey(
+        selectedRaid.reportId,
+        selectedPlayerId,
+        sliceType,
+        breakdownFightIds.map(id => ({ id }))
+      )
       : ""
-  ), [filteredFights, selectedPlayerId, selectedRaid?.reportId, sliceType]);
+  ), [breakdownFightIds, selectedPlayerId, selectedRaid?.reportId, sliceType]);
   const remoteAbilityBreakdown = remoteBreakdownKey ? (remoteAbilityBreakdownsByKey[remoteBreakdownKey] || []) : [];
   const importedBreakdownExists = sliceType === "healing"
     ? hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
@@ -2970,7 +2981,7 @@ export default function RpbPage() {
             reportId: selectedRaid.reportId,
             apiKey: profileApiKey,
             sourceId: selectedPlayerId,
-            fightIds: (filteredFights || []).map(fight => String(fight?.id || "")).filter(Boolean),
+            fightIds: breakdownFightIds,
             mode: sliceType,
           }),
         });
@@ -2994,7 +3005,7 @@ export default function RpbPage() {
 
     hydrateRemoteAbilityBreakdown();
     return () => { cancelled = true; };
-  }, [filteredFights, profileApiKey, remoteAbilityBreakdownsByKey, remoteBreakdownKey, selectedPlayerId, selectedRaid?.reportId, sliceType]);
+  }, [breakdownFightIds, profileApiKey, remoteAbilityBreakdownsByKey, remoteBreakdownKey, selectedPlayerId, selectedRaid?.reportId, sliceType]);
 
   useEffect(() => {
     if (loadingList) return;
