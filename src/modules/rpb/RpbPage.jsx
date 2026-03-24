@@ -2980,7 +2980,7 @@ export default function RpbPage() {
           }),
         });
 
-        const data = await response.json();
+        const data = await readApiJson(response);
         if (!response.ok) throw new Error(data.error || `Import step failed: ${step.key}`);
         datasets[step.key] = data;
         updateImportProgressState((index * 2) + 3, `Stored ${step.label.replace(/\.\.\.$/, "").toLowerCase()}`, step.detail);
