@@ -2337,6 +2337,7 @@ export default function RpbPage() {
   const [raids, setRaids] = useState([]);
   const [selectedRaid, setSelectedRaid] = useState(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const suppressAutoSelectPlayerRef = useRef(false);
   const [itemMetaById, setItemMetaById] = useState({});
   const [loadingList, setLoadingList] = useState(true);
   const [loadingRaid, setLoadingRaid] = useState(false);
@@ -2488,7 +2489,16 @@ export default function RpbPage() {
   const isPlayerDetailOpen = !!selectedPlayerId && !!selectedPlayer;
 
   function toggleSelectedPlayer(playerId) {
-    setSelectedPlayerId(current => (String(current) === String(playerId) ? "" : String(playerId)));
+    setSelectedPlayerId(current => {
+      const isClosing = String(current) === String(playerId);
+      suppressAutoSelectPlayerRef.current = isClosing;
+      return isClosing ? "" : String(playerId);
+    });
+  }
+
+  function closeSelectedPlayer() {
+    suppressAutoSelectPlayerRef.current = true;
+    setSelectedPlayerId("");
   }
 
   const raidAnalytics = selectedRaid?.analytics || {
@@ -3045,11 +3055,13 @@ export default function RpbPage() {
     }
 
     if (!selectedPlayerId) {
+      if (suppressAutoSelectPlayerRef.current) return;
       setSelectedPlayerId(defaultVisiblePlayerId);
       return;
     }
 
     if (!filteredPlayers.some(player => String(player.id) === String(selectedPlayerId))) {
+      suppressAutoSelectPlayerRef.current = false;
       setSelectedPlayerId(defaultVisiblePlayerId);
     }
   }, [defaultVisiblePlayerId, filteredPlayers, selectedPlayerId]);
@@ -4209,7 +4221,7 @@ export default function RpbPage() {
                       <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                         Player Detail
                       </div>
-                      <button onClick={() => setSelectedPlayerId("")} style={{ ...btnStyle("default"), height: 30 }}>
+                      <button onClick={closeSelectedPlayer} style={{ ...btnStyle("default"), height: 30 }}>
                         Close
                       </button>
                     </div>
