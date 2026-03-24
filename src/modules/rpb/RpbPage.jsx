@@ -427,6 +427,7 @@ function MetricTag({ label, value, tone = "neutral", active = false, onClick = n
         cursor: interactive ? "pointer" : "default",
         ...(active ? (activeStyles[tone] || activeStyles.neutral) : {}),
         opacity: interactive && !active ? 0.9 : 1,
+        outline: "none",
       }}
       disabled={!interactive}
       aria-pressed={interactive ? active : undefined}
@@ -2071,6 +2072,8 @@ function RaidActionsMenu({ raid, onRename, onTag, onDeleteTag, onReimport, onDel
         display: "flex",
         flexDirection: "column",
         gap: 4,
+        overflow: "visible",
+        maxHeight: "none",
         zIndex: 250,
       }}
       onClick={event => event.stopPropagation()}
@@ -2257,7 +2260,7 @@ export default function RpbPage() {
         if (!cancelled) {
           setSelectedRaid(raid);
           setSelectedFightId(getDefaultSelectedFightId(raid));
-          setSelectedPlayerId(raid?.players?.[0]?.id || "");
+          setSelectedPlayerId("");
         }
       } catch (error) {
         if (!cancelled) toast({ message: `Failed to load raid: ${error.message}`, type: "danger" });
@@ -2549,6 +2552,10 @@ export default function RpbPage() {
       ? selectedPlayerHealingBreakdown
       : selectedPlayerSummaryHealingBreakdown);
   const selectedPlayerDeathRows = useMemo(() => buildDeathDetailRows(filteredFights, selectedPlayerId), [filteredFights, selectedPlayerId]);
+  const defaultVisiblePlayerId = useMemo(() => {
+    const source = sliceType === "consumables" ? visibleConsumableSliceEntries : visibleAggregatedSliceEntries;
+    return source?.[0]?.id ? String(source[0].id) : "";
+  }, [sliceType, visibleAggregatedSliceEntries, visibleConsumableSliceEntries]);
   const selectedPlayerSliceTotals = useMemo(() => {
     return getPlayerSliceTotals(filteredFights, selectedPlayerId, selectedPlayer?.role || "");
   }, [filteredFights, selectedPlayer?.role, selectedPlayerId]);
@@ -2668,22 +2675,10 @@ export default function RpbPage() {
         sortValue: gearSummary.missingPermanentEnchantCount || 0,
       },
       {
-        label: "Missing Temporary Enchants",
-        value: gearSummary.missingTemporaryEnchantCount || 0,
-        tone: (gearSummary.missingTemporaryEnchantCount || 0) > 0 ? "danger" : "neutral",
-        sortValue: gearSummary.missingTemporaryEnchantCount || 0,
-      },
-      {
         label: "Low Quality Gems",
         value: gearSummary.lowQualityGemCount || 0,
         tone: (gearSummary.lowQualityGemCount || 0) > 0 ? "danger" : "neutral",
         sortValue: gearSummary.lowQualityGemCount || 0,
-      },
-      {
-        label: "Suboptimal Weapon Enchants",
-        value: gearSummary.suboptimalTemporaryEnchantCount || 0,
-        tone: (gearSummary.suboptimalTemporaryEnchantCount || 0) > 0 ? "danger" : "neutral",
-        sortValue: gearSummary.suboptimalTemporaryEnchantCount || 0,
       },
       {
         label: "Elixir / Flask Coverage",
@@ -2722,22 +2717,10 @@ export default function RpbPage() {
         sortValue: engineeringDamageDone,
       },
       {
-        label: "Oil of Immolation",
-        value: oilDamage,
-        tone: oilDamage > 0 ? "warning" : "neutral",
-        sortValue: oilDamage,
-      },
-      {
         label: "Tracked Casts",
         value: trackedCasts,
         tone: trackedCasts > 0 ? "info" : "neutral",
         sortValue: trackedCasts,
-      },
-      {
-        label: "Tracked Buff Auras",
-        value: buffAuraCount,
-        tone: buffAuraCount > 0 ? "info" : "neutral",
-        sortValue: buffAuraCount,
       },
       {
         label: "Drums Casts",
@@ -2852,16 +2835,20 @@ export default function RpbPage() {
   }, [encounterSelectionOptions, fightOutcomeFilter, selectedFightId]);
 
   useEffect(() => {
-    if (!filteredPlayers.length) {
+    if (!filteredPlayers.length || !defaultVisiblePlayerId) {
       setSelectedPlayerId("");
       return;
     }
 
-    if (!selectedPlayerId) return;
-    if (!filteredPlayers.some(player => String(player.id) === String(selectedPlayerId))) {
-      setSelectedPlayerId("");
+    if (!selectedPlayerId) {
+      setSelectedPlayerId(defaultVisiblePlayerId);
+      return;
     }
-  }, [filteredPlayers, selectedPlayerId]);
+
+    if (!filteredPlayers.some(player => String(player.id) === String(selectedPlayerId))) {
+      setSelectedPlayerId(defaultVisiblePlayerId);
+    }
+  }, [defaultVisiblePlayerId, filteredPlayers, selectedPlayerId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -3053,7 +3040,7 @@ export default function RpbPage() {
 
     const raid = await fetchRpbRaidBundle(targetRaidId);
     setSelectedRaid(raid);
-    setSelectedPlayerId(current => (raid?.players?.some(player => String(player.id) === String(current)) ? current : (raid?.players?.[0]?.id || "")));
+      setSelectedPlayerId("");
   }
 
   async function mutateRaidMetadata(targetRaidId, updates, successMessage) {
@@ -3799,32 +3786,11 @@ export default function RpbPage() {
                         onClick={() => setRaidAnalyticsFilter(current => current === "engineering" ? "" : "engineering")}
                       />
                       <MetricTag
-                        label="Oil Damage Entries"
-                        value={filteredRaidAnalytics.oilOfImmolationDamageTaken.length}
-                        tone="warning"
-                        active={raidAnalyticsFilter === "oil"}
-                        onClick={() => setRaidAnalyticsFilter(current => current === "oil" ? "" : "oil")}
-                      />
-                      <MetricTag
-                        label="Players With Buff Data"
-                        value={raidAnalytics.playersWithBuffData.length}
-                        tone="info"
-                        active={raidAnalyticsFilter === "buffs"}
-                        onClick={() => setRaidAnalyticsFilter(current => current === "buffs" ? "" : "buffs")}
-                      />
-                      <MetricTag
                         label="Players Using Drums"
                         value={raidAnalytics.playersUsingDrums.length}
                         tone="info"
                         active={raidAnalyticsFilter === "drums"}
                         onClick={() => setRaidAnalyticsFilter(current => current === "drums" ? "" : "drums")}
-                      />
-                      <MetricTag
-                        label="Suboptimal Weapon Enchants"
-                        value={raidAnalytics.playersWithSuboptimalWeaponEnchants.length}
-                        tone="danger"
-                        active={raidAnalyticsFilter === "suboptimal-enchants"}
-                        onClick={() => setRaidAnalyticsFilter(current => current === "suboptimal-enchants" ? "" : "suboptimal-enchants")}
                       />
                       <MetricTag
                         label="Elixir / Flask Issues"
