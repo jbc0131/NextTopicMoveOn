@@ -1294,7 +1294,7 @@ function aggregateMetricEntries(fights, field, overallParseByPlayerId = null, us
 
   if (useOverallParse && overallParseByPlayerId) {
     for (const entry of grouped.values()) {
-      if (overallParseByPlayerId.has(String(entry.id))) {
+      if (entry.parseCount === 0 && overallParseByPlayerId.has(String(entry.id))) {
         entry.parsePercent = overallParseByPlayerId.get(String(entry.id));
       }
     }
