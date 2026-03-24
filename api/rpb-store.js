@@ -4,6 +4,10 @@ import { getRaidCardLeaders } from "../src/modules/rpb/leaderboard.js";
 const RPB_INDEX_KEY = buildCacheKey("rpb", ["index"]);
 const DISCORD_RPB_WEBHOOK_URL = process.env.DISCORD_RPB_WEBHOOK_URL || "";
 const RPB_PUBLIC_BASE_URL = process.env.AUTH_DOMAIN || "https://nexttopicmoveon.com";
+const TEAM_EMOJI_BY_TAG = new Map([
+  ["Team Dick", "🍆"],
+  ["Team Balls", "🍒"],
+]);
 
 function normalizeTeamTag(value) {
   const normalized = String(value || "").trim();
@@ -86,46 +90,69 @@ function formatFightDuration(durationMs) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function formatFightList(fights, kill) {
-  const items = (Array.isArray(fights) ? fights : [])
-    .filter(fight => Boolean(fight) && Boolean(fight.kill) === kill && Number(fight.encounterId) > 0)
-    .map(fight => `${fight.name || "Unknown Fight"} (${formatFightDuration(getFightDurationMs(fight))})`);
-
-  return items.length ? items.join("\n") : "None";
+function formatFightDurationLong(durationMs) {
+  const totalSeconds = Math.max(0, Math.round(Number(durationMs || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds}s`;
 }
 
-function buildEmbedDescription(raid) {
-  const kills = formatFightList(raid?.fights, true);
-  const wipes = formatFightList(raid?.fights, false);
+function getParseSquare(value) {
+  const score = Math.round(Number(value || 0));
+  if (!Number.isFinite(score) || score <= 24) return "⬜";
+  if (score === 100) return "🟫";
+  if (score >= 99) return "🟥";
+  if (score >= 95) return "🟧";
+  if (score >= 75) return "🟪";
+  if (score >= 50) return "🟩";
+  return "🟦";
+}
+
+function formatKillLines(fights) {
+  const kills = (Array.isArray(fights) ? fights : [])
+    .filter(fight => Boolean(fight?.kill) && Number(fight?.encounterId) > 0);
+
+  if (!kills.length) return ["No boss kills recorded."];
+
+  return kills.map(fight => {
+    const speedParsePercent = Number(fight?.speedParsePercent || 0);
+    const parseLabel = Number.isFinite(speedParsePercent) && speedParsePercent > 0
+      ? `${getParseSquare(speedParsePercent)} ${Math.round(speedParsePercent)} speed parse`
+      : "⬜ no speed parse";
+    return `${fight?.name || "Unknown Fight"}: ${parseLabel}, in ${formatFightDurationLong(getFightDurationMs(fight))}.`;
+  });
+}
+
+function buildReportLine(raid) {
+  const teamTag = normalizeTeamTag(raid?.teamTag);
+  const emoji = TEAM_EMOJI_BY_TAG.get(teamTag) || "";
+  const label = teamTag || raid?.title || "Unassigned Report";
+  return emoji ? `${emoji} ${label}` : label;
+}
+
+function buildEmbedDescription(raid, raidUrl, reportUrl) {
+  const killLines = formatKillLines(raid?.fights || []);
   return [
-    "Test webhook embed for a newly saved RPB report.",
+    buildReportLine(raid),
     "",
-    `**Kills**`,
-    kills,
+    ...killLines,
     "",
-    `**Wipes**`,
-    wipes,
+    `[NTMO Combat Analytics](${raidUrl})`,
+    `[Warcraft Logs Link](${reportUrl})`,
   ].join("\n");
 }
 
 async function sendNewRaidWebhook(raid, summary) {
   if (!DISCORD_RPB_WEBHOOK_URL) return false;
 
-  const teamTag = normalizeTeamTag(raid?.teamTag);
   const raidUrl = `${RPB_PUBLIC_BASE_URL.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid?.id || ""))}`;
   const reportUrl = raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
   const embed = {
-    title: raid?.title || "New RPB Report Uploaded",
+    title: "There is a new RPB available!",
     url: raidUrl || undefined,
-    description: buildEmbedDescription(raid),
+    description: buildEmbedDescription(raid, raidUrl, reportUrl),
     color: 3447003,
-    fields: [
-      teamTag ? { name: "Team", value: teamTag, inline: true } : null,
-      summary?.playerCount != null ? { name: "Players", value: String(summary.playerCount), inline: true } : null,
-      summary?.fightCount != null ? { name: "Boss Fights", value: String(summary.fightCount), inline: true } : null,
-      reportUrl ? { name: "Warcraft Logs", value: `[Open Report](${reportUrl})`, inline: false } : null,
-      raidUrl ? { name: "RPB", value: `[Open Report](${raidUrl})`, inline: false } : null,
-    ].filter(Boolean),
+    fields: [],
     footer: {
       text: raid?.reportId ? `Report ID: ${raid.reportId}` : "RPB webhook test",
     },
@@ -136,7 +163,6 @@ async function sendNewRaidWebhook(raid, summary) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      content: "RPB webhook embed test",
       embeds: [embed],
     }),
   });
@@ -154,7 +180,6 @@ export async function saveRaidBundle(raid, options = {}) {
   const summary = getRaidSummary(raid);
   const meta = getRaidMeta(raid);
   const currentIndex = (await getJsonCache(RPB_INDEX_KEY)) || [];
-  const isNewRaid = !currentIndex.some(entry => entry?.id === raid.id);
   const nextIndex = [summary, ...currentIndex.filter(entry => entry?.id !== raid.id)]
     .sort((a, b) => new Date(b.importedAt || 0) - new Date(a.importedAt || 0))
     .slice(0, 100);
@@ -170,7 +195,7 @@ export async function saveRaidBundle(raid, options = {}) {
     throw new Error("Failed to write RPB data to Redis.");
   }
 
-  if (options?.notifyIfNew && isNewRaid) {
+  if (options?.notifyIfNew) {
     try {
       await sendNewRaidWebhook(raid, summary);
     } catch (error) {
