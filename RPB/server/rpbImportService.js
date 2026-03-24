@@ -232,17 +232,18 @@ async function fetchReportRankings(reportId, fightsData = {}, clientIdOverride =
   if (!encounterFights.length) {
     return {
       available: true,
+      compareMode: "Rankings",
       fights: {},
       overall: { damage: { byId: {}, byName: {} }, healing: { byId: {}, byName: {} } },
     };
   }
 
   const rankingFields = [
-    'overall_damage: rankings(compare: Parses, playerMetric: dps)',
-    'overall_healing: rankings(compare: Parses, playerMetric: hps)',
+    'overall_damage: rankings(compare: Rankings, playerMetric: dps)',
+    'overall_healing: rankings(compare: Rankings, playerMetric: hps)',
     ...encounterFights.flatMap(fight => ([
-    `${makeRankingAlias("damage", fight.id)}: rankings(compare: Parses, fightIDs: [${Number(fight.id)}], playerMetric: dps)`,
-    `${makeRankingAlias("healing", fight.id)}: rankings(compare: Parses, fightIDs: [${Number(fight.id)}], playerMetric: hps)`,
+    `${makeRankingAlias("damage", fight.id)}: rankings(compare: Rankings, fightIDs: [${Number(fight.id)}], playerMetric: dps)`,
+    `${makeRankingAlias("healing", fight.id)}: rankings(compare: Rankings, fightIDs: [${Number(fight.id)}], playerMetric: hps)`,
     ])),
   ].join("\n");
 
@@ -280,6 +281,7 @@ async function fetchReportRankings(reportId, fightsData = {}, clientIdOverride =
 
   return {
     available: true,
+    compareMode: "Rankings",
     fights,
     overall: {
       damage: normalizeRankingRows(report?.overall_damage),

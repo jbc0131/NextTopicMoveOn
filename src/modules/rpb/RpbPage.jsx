@@ -1394,6 +1394,7 @@ function applyRankingsToRaidFights(raid, rankings) {
 
 function raidNeedsParseHydration(raid) {
   if (!raid?.players?.length || !raid?.fights?.length) return false;
+  if ((raid?.importPayload?.reportRankings?.compareMode || "") !== "Rankings") return true;
 
   const damageByPlayerId = buildParseFallbackByMetric(raid.fights, "damageDoneEntries");
   const healingByPlayerId = buildParseFallbackByMetric(raid.fights, "healingDoneEntries");
