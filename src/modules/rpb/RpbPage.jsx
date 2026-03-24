@@ -3594,7 +3594,20 @@ export default function RpbPage() {
                     <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       Raid Analytics
                     </div>
-                    <div style={{ padding: space[4], display: "flex", flexWrap: "wrap", gap: space[2] }}>
+                    <div style={{ padding: space[4], display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => setRaidAnalyticsFilter("")}
+                        disabled={!raidAnalyticsFilter}
+                        style={{
+                          ...btnStyle(raidAnalyticsFilter ? "default" : "ghost", false),
+                          height: 30,
+                          opacity: raidAnalyticsFilter ? 1 : 0.55,
+                          borderColor: raidAnalyticsFilter ? "rgba(255,255,255,0.22)" : border.subtle,
+                        }}
+                      >
+                        Clear Filter
+                      </button>
                       <MetricTag
                         label="Gear Issues"
                         value={filteredRaidAnalytics.playersMissingEnchants.length}
@@ -3652,11 +3665,6 @@ export default function RpbPage() {
                         onClick={() => setRaidAnalyticsFilter(current => current === "hearthstone" ? "" : "hearthstone")}
                       />
                     </div>
-                    {raidAnalyticsFilter && (
-                      <div style={{ padding: `0 ${space[4]}px ${space[4]}px`, fontSize: fontSize.xs, color: text.muted }}>
-                        Raid analytics filter is active. Click the active pill again to clear it.
-                      </div>
-                    )}
                   </div>
 
                   <div style={{ ...panelStyle }}>
