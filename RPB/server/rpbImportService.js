@@ -548,11 +548,13 @@ export async function fetchPlayerAbilityBreakdown({
         start: fight.start_time ?? 0,
         end: fight.end_time ?? 0,
         sourceid: normalizedSourceId,
+        by: "ability",
       }, apiKey),
       wclFetch(path, {
         start: fight.start_time ?? 0,
         end: fight.end_time ?? 0,
         sourceid: normalizedSourceId,
+        by: "ability",
         options: 2,
       }, apiKey),
     ]);
