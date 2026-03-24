@@ -908,6 +908,42 @@ function countMatchingCasts(node, { ids = null, nameTokens = [] } = {}) {
   }, 0);
 }
 
+function countMatchingAbilityUses(node, { nameTokens = [] } = {}) {
+  if (!node) return 0;
+
+  if (Array.isArray(node)) {
+    return node.reduce((sum, entry) => sum + countMatchingAbilityUses(entry, { nameTokens }), 0);
+  }
+
+  if (typeof node !== "object") return 0;
+
+  const normalizedName = String(node?.name || node?.abilityName || node?.ability?.name || "").toLowerCase();
+  const matchesName = nameTokens.some(token => normalizedName.includes(token));
+  const directCount = Number(
+    node?.totalUses
+    ?? node?.uses
+    ?? node?.casts
+    ?? node?.useCount
+    ?? node?.executeCount
+    ?? node?.hits
+    ?? node?.totalHits
+    ?? node?.hitCount
+    ?? node?.landedHits
+    ?? node?.count
+    ?? 0
+  );
+  const ownCount = matchesName
+    ? (Number.isFinite(directCount) && directCount > 0 ? directCount : (Number(node?.total || 0) > 0 ? 1 : 0))
+    : 0;
+
+  return ownCount + Object.values(node).reduce((sum, value) => {
+    if (value && typeof value === "object") {
+      return sum + countMatchingAbilityUses(value, { nameTokens });
+    }
+    return sum;
+  }, 0);
+}
+
 function normalizeAura(aura) {
   return {
     guid: aura?.guid != null ? String(aura.guid) : "",
@@ -1381,7 +1417,13 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
     String(entry?.id || "") === String(playerId) || entry?.name === playerName
   );
   const potionUseCount = countMatchingCasts(fullCastsEntry, { nameTokens: POTION_NAME_TOKENS });
-  const hearthstoneCount = countMatchingCasts(fullCastsEntry, { ids: HEALTHSTONE_CAST_IDS, nameTokens: HEALTHSTONE_NAME_TOKENS });
+  const healthstoneCountFromCasts = countMatchingCasts(fullCastsEntry, { ids: HEALTHSTONE_CAST_IDS, nameTokens: HEALTHSTONE_NAME_TOKENS });
+  const healthstoneCountFromHealing = (fights || []).reduce((sum, fight) => {
+    const healingEntry = (fight?.healingDoneEntries || []).find(entry => String(entry?.id) === String(playerId));
+    if (!healingEntry) return sum;
+    return sum + countMatchingAbilityUses(healingEntry?.abilities || healingEntry, { nameTokens: HEALTHSTONE_NAME_TOKENS });
+  }, 0);
+  const hearthstoneCount = Math.max(healthstoneCountFromCasts, healthstoneCountFromHealing);
 
   return {
     hasGearData: true,
