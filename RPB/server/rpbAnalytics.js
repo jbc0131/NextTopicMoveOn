@@ -367,7 +367,9 @@ function getConsumableCoverage(buffSnapshot, player) {
   const hasScroll = scrollAuras.length > 0;
   const hasFood = foodAuras.length > 0;
   const hasElixirCoverage = hasFlask || (hasBattleElixir && hasGuardianElixir);
-  const fullyCovered = hasScroll && hasFood && hasElixirCoverage;
+  const fullyCovered = hasFood && hasElixirCoverage;
+  const elixirUnitsRequired = hasFlask ? 1 : 2;
+  const elixirUnitsCovered = hasFlask ? 1 : (Number(hasBattleElixir) + Number(hasGuardianElixir));
   return {
     hasFlask,
     hasBattleElixir,
@@ -376,6 +378,8 @@ function getConsumableCoverage(buffSnapshot, player) {
     hasFood,
     hasElixirCoverage,
     fullyCovered,
+    elixirUnitsCovered,
+    elixirUnitsRequired,
     covered: hasElixirCoverage,
     flaskNames: getUniqueAuraNames(flaskAuras),
     battleElixirNames: getUniqueAuraNames(battleElixirAuras),
@@ -527,6 +531,8 @@ export function deriveRpbAnalytics(players, datasets) {
     const scrollCoverageCount = consumableCoverage.filter(entry => entry.hasScroll).length;
     const foodCoverageCount = consumableCoverage.filter(entry => entry.hasFood).length;
     const elixirCoverageCount = consumableCoverage.filter(entry => entry.hasElixirCoverage).length;
+    const elixirUnitCoverageCount = consumableCoverage.reduce((sum, entry) => sum + Number(entry.elixirUnitsCovered || 0), 0);
+    const elixirUnitRequirementCount = consumableCoverage.reduce((sum, entry) => sum + Number(entry.elixirUnitsRequired || 0), 0);
     const scrollIssueCount = consumableCoverage.filter(entry => !entry.hasScroll).length;
     const foodIssueCount = consumableCoverage.filter(entry => !entry.hasFood).length;
     const elixirIssueCount = consumableCoverage.filter(entry => !entry.hasElixirCoverage).length;
@@ -577,6 +583,8 @@ export function deriveRpbAnalytics(players, datasets) {
       scrollCoverageCount,
       foodCoverageCount,
       elixirCoverageCount,
+      elixirUnitCoverageCount,
+      elixirUnitRequirementCount,
       scrollIssueCount,
       foodIssueCount,
       elixirIssueCount,

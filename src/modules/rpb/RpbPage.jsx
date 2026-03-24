@@ -1066,7 +1066,9 @@ function getConsumableCoverage(buffSnapshot, playerId, playerName) {
   const hasScroll = auras.some(isScrollAura);
   const hasFood = auras.some(isFoodAura);
   const hasElixirCoverage = hasFlask || (hasBattleElixir && hasGuardianElixir);
-  const fullyCovered = hasScroll && hasFood && hasElixirCoverage;
+  const fullyCovered = hasFood && hasElixirCoverage;
+  const elixirUnitsRequired = hasFlask ? 1 : 2;
+  const elixirUnitsCovered = hasFlask ? 1 : (Number(hasBattleElixir) + Number(hasGuardianElixir));
   return {
     hasFlask,
     hasBattleElixir,
@@ -1075,6 +1077,8 @@ function getConsumableCoverage(buffSnapshot, playerId, playerName) {
     hasFood,
     hasElixirCoverage,
     fullyCovered,
+    elixirUnitsCovered,
+    elixirUnitsRequired,
     covered: hasElixirCoverage,
     flaskAuras,
     battleElixirAuras,
@@ -1189,9 +1193,11 @@ function buildConsumableSliceEntries(players, analyticsByPlayerId, filterIds = n
     const scrollCovered = Number(analytics.scrollCoverageCount || 0);
     const elixirCovered = Number(analytics.elixirCoverageCount || 0);
     const foodCovered = Number(analytics.foodCoverageCount || 0);
-    const totalIssues = scrollIssues + elixirIssues + foodIssues;
-    const totalRequired = totalFights * 3;
-    const totalCovered = scrollCovered + elixirCovered + foodCovered;
+    const elixirUnitCovered = Number(analytics.elixirUnitCoverageCount || 0);
+    const elixirUnitRequired = Number(analytics.elixirUnitRequirementCount || 0);
+    const totalIssues = elixirIssues + foodIssues;
+    const totalRequired = elixirUnitRequired + totalFights;
+    const totalCovered = elixirUnitCovered + foodCovered;
 
     rows.push({
       id: String(player.id),
@@ -1202,6 +1208,8 @@ function buildConsumableSliceEntries(players, analyticsByPlayerId, filterIds = n
       totalFights,
       scrollCoverageCount: scrollCovered,
       elixirCoverageCount: elixirCovered,
+      elixirUnitCoverageCount: elixirUnitCovered,
+      elixirUnitRequirementCount: elixirUnitRequired,
       foodCoverageCount: foodCovered,
       scrollIssues,
       elixirIssues,
@@ -1511,6 +1519,8 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
   const scrollCoverageCount = consumableCoverage.filter(entry => entry.hasScroll).length;
   const foodCoverageCount = consumableCoverage.filter(entry => entry.hasFood).length;
   const elixirCoverageCount = consumableCoverage.filter(entry => entry.hasElixirCoverage).length;
+  const elixirUnitCoverageCount = consumableCoverage.reduce((sum, entry) => sum + Number(entry.elixirUnitsCovered || 0), 0);
+  const elixirUnitRequirementCount = consumableCoverage.reduce((sum, entry) => sum + Number(entry.elixirUnitsRequired || 0), 0);
   const scrollIssueCount = consumableCoverage.filter(entry => !entry.hasScroll).length;
   const foodIssueCount = consumableCoverage.filter(entry => !entry.hasFood).length;
   const elixirIssueCount = consumableCoverage.filter(entry => !entry.hasElixirCoverage).length;
@@ -1562,6 +1572,8 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
     scrollCoverageCount,
     foodCoverageCount,
     elixirCoverageCount,
+    elixirUnitCoverageCount,
+    elixirUnitRequirementCount,
     scrollIssueCount,
     foodIssueCount,
     elixirIssueCount,
@@ -4109,7 +4121,7 @@ export default function RpbPage() {
                               </div>
                               <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 8 }}>
                                 <span style={{ fontSize: fontSize.xs, color: text.muted }}>
-                                  Scrolls {entry.scrollCoverageCount}/{entry.totalFights} · Elixirs {entry.elixirCoverageCount}/{entry.totalFights} · Food {entry.foodCoverageCount}/{entry.totalFights}
+                                  Scrolls {entry.scrollCoverageCount} · Elixirs {entry.elixirUnitCoverageCount}/{entry.elixirUnitRequirementCount} · Food {entry.foodCoverageCount}/{entry.totalFights}
                                 </span>
                                 <span style={{ fontSize: fontSize.xs, color: entry.totalIssues > 0 ? "#ffb3b3" : text.muted }}>
                                   {entry.totalIssues} missing
@@ -4383,7 +4395,7 @@ export default function RpbPage() {
                               </div>
                             )}
                             {(selectedPlayerAnalytics?.consumableCoverage || []).map(row => {
-                              const rowIssues = Number(!row.hasScroll) + Number(!row.hasElixirCoverage) + Number(!row.hasFood);
+                              const rowIssues = Number(!row.hasElixirCoverage) + Number(!row.hasFood);
                               return (
                                 <div
                                   key={`consumable-row-${row.fightId}`}
