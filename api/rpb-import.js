@@ -1,5 +1,6 @@
 import { assembleRpbRaid, fetchRpbImportStep, importRpbRaid, parseReportId } from "../RPB/server/rpbImportService.js";
 import { acquireLock, buildCacheKey, releaseLock } from "../RPB/server/upstashRedis.js";
+import { buildAutoReportTitle } from "../src/modules/rpb/reportTitle.js";
 import { saveRaidBundle } from "./rpb-store.js";
 
 export default async function handler(req, res) {
@@ -37,6 +38,7 @@ export default async function handler(req, res) {
     if (req.body?.action === "assembleAndSave") {
       const raid = assembleRpbRaid(req.body || {}, req.body.datasets || {});
       raid.teamTag = req.body?.teamTag || "";
+      raid.title = buildAutoReportTitle({ start: raid.start, teamTag: raid.teamTag });
       const summary = await saveRaidBundle(raid);
       return res.status(200).json({
         persistence: "remote",

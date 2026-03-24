@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getLoginUrl, useAuth } from "../../shared/auth";
 import { getScoreColor } from "../../shared/useWarcraftLogs";
 import { getRaidCardLeaders } from "./leaderboard.js";
+import { buildAutoReportTitle } from "./reportTitle.js";
 import {
   fetchRpbRaidBundle,
   deleteRpbRaidImport,
@@ -3049,6 +3050,11 @@ export default function RpbPage() {
         assembledRaid.teamTag = selectedTeamTag;
       }
 
+      assembledRaid.title = buildAutoReportTitle({
+        start: assembledRaid.start,
+        teamTag: assembledRaid.teamTag,
+      });
+
       updateImportProgressState(totalUnits - 1, "Saving imported raid...", "Persisting raid bundle, fights, players, analytics, and ability rows");
 
       const saveResponse = await fetch(`/api/rpb-import`, {
@@ -3059,6 +3065,7 @@ export default function RpbPage() {
           reportUrl: normalizedReportInput,
           datasets,
           teamTag: assembledRaid.teamTag || "",
+          title: assembledRaid.title,
         }),
       });
 
@@ -3149,7 +3156,14 @@ export default function RpbPage() {
         onChange={value => setTagModalState(prev => ({ ...prev, value }))}
         onConfirm={async () => {
           if (!tagModalState.raid?.id) return;
-          await mutateRaidMetadata(tagModalState.raid.id, { teamTag: normalizeTeamTag(tagModalState.value) }, "Updated report tag.");
+          const normalizedTeamTag = normalizeTeamTag(tagModalState.value);
+          await mutateRaidMetadata(tagModalState.raid.id, {
+            teamTag: normalizedTeamTag,
+            title: buildAutoReportTitle({
+              start: tagModalState.raid?.start,
+              teamTag: normalizedTeamTag,
+            }),
+          }, "Updated report tag.");
           setTagModalState({ open: false, raid: null, value: "" });
         }}
         onCancel={() => setTagModalState({ open: false, raid: null, value: "" })}
@@ -3311,7 +3325,10 @@ export default function RpbPage() {
                         onTag={() => openTagModal(raid)}
                         onDeleteTag={async () => {
                           setOpenRaidMenuId("");
-                          await mutateRaidMetadata(raid.id, { teamTag: "" }, "Removed report tag.");
+                          await mutateRaidMetadata(raid.id, {
+                            teamTag: "",
+                            title: buildAutoReportTitle({ start: raid.start, teamTag: "" }),
+                          }, "Removed report tag.");
                         }}
                         onReimport={() => {
                           handleReimportRaid(raid);
