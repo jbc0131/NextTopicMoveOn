@@ -1176,9 +1176,10 @@ function getTrackedCastCount(entry) {
 
 function getDeathCount(entry) {
   if (!entry) return 0;
-  if (typeof entry.deaths === "number") return entry.deaths;
-  if (typeof entry.total === "number") return entry.total;
-  if (Array.isArray(entry.events)) return entry.events.length;
+  if (typeof entry.deaths === "number" && entry.deaths > 0) return entry.deaths;
+  if (typeof entry.total === "number" && entry.total > 0) return entry.total;
+  if (entry.timestamp != null || entry.killingBlow || entry.deathWindow != null) return 1;
+  if (Array.isArray(entry.events) && entry.events.length > 0) return 1;
   return 0;
 }
 
@@ -1204,6 +1205,26 @@ function buildLookup(items = []) {
   for (const item of items) {
     if (item?.id != null) byId.set(String(item.id), item);
     if (item?.name) byName.set(item.name, item);
+  }
+
+  return { byId, byName };
+}
+
+function buildDeathCountLookup(items = []) {
+  const byId = new Map();
+  const byName = new Map();
+
+  for (const item of items || []) {
+    const count = getDeathCount(item);
+    if (!(count > 0)) continue;
+
+    if (item?.id != null) {
+      const key = String(item.id);
+      byId.set(key, Number(byId.get(key) || 0) + count);
+    }
+    if (item?.name) {
+      byName.set(item.name, Number(byName.get(item.name) || 0) + count);
+    }
   }
 
   return { byId, byName };
@@ -1394,7 +1415,9 @@ function extractPlayerSnapshots(summaryData = {}) {
 
 function normalizePlayer(friendly, lookups) {
   const summary = lookups.summary.byId.get(String(friendly.id)) || lookups.summary.byName.get(friendly.name) || null;
-  const deaths = lookups.deaths.byId.get(String(friendly.id)) || lookups.deaths.byName.get(friendly.name) || null;
+  const deaths = lookups.deaths.byId.get(String(friendly.id))
+    ?? lookups.deaths.byName.get(friendly.name)
+    ?? 0;
   const tracked = lookups.tracked.byId.get(String(friendly.id)) || lookups.tracked.byName.get(friendly.name) || null;
   const hostile = lookups.hostile.byId.get(String(friendly.id)) || lookups.hostile.byName.get(friendly.name) || null;
   const role = lookups.roles.roleById.get(String(friendly.id)) || lookups.roles.roleByName.get(friendly.name) || "DPS";
@@ -1415,7 +1438,7 @@ function normalizePlayer(friendly, lookups) {
     fightsPresent: friendly.fights?.length || 0,
     summaryTotal: summary?.total ?? 0,
     activeTimeMs: summary?.activeTime ?? summary?.activeTimeReduced ?? 0,
-    deaths: getDeathCount(deaths),
+    deaths: Number(deaths || 0),
     trackedCastCount: getTrackedCastCount(tracked),
     hostilePlayerDamage: getHostileDamage(hostile),
     damageParsePercent,
@@ -1640,7 +1663,22 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
             id: String(entry.id),
             name: entry.name || "Unknown Player",
             type: entry.type || "",
-            total: typeof entry.deaths === "number" ? entry.deaths : (entry.total ?? 0),
+            total: getDeathCount(entry),
+            timestamp: entry.timestamp ?? 0,
+            overkill: entry.overkill ?? 0,
+            deathWindow: entry.deathWindow ?? 0,
+            damageTotal: Number(entry?.damage?.total || 0),
+            healingTotal: Number(entry?.healing?.total || 0),
+            killingBlow: normalizeDeathEvent({
+              timestamp: entry.timestamp ?? 0,
+              type: "death",
+              ability: entry.killingBlow || null,
+              sourceName: entry?.damage?.sources?.[0]?.name || "",
+              amount: Number(entry?.damage?.total || 0),
+              damage: Number(entry?.damage?.total || 0),
+              healing: Number(entry?.healing?.total || 0),
+              overkill: entry.overkill ?? 0,
+            }),
             events: (entry.events || []).map(normalizeDeathEvent).filter(Boolean),
           })),
       };
@@ -1655,7 +1693,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
 
   const lookups = {
     summary: buildLookup(summaryData.entries || []),
-    deaths: buildLookup(deathsData.entries || []),
+    deaths: buildDeathCountLookup(deathsData.entries || []),
     tracked: buildLookup(trackedData.entries || []),
     hostile: buildLookup(hostileData.entries || []),
     roles: buildRoleLookup(summaryData),

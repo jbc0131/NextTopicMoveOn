@@ -386,6 +386,15 @@ function getDefaultSelectedFightId(raid) {
 }
 
 function getRaidAwardWinner(raid, role, parseField) {
+  const fallbackLeaders = getRaidCardLeaders(raid);
+  const fallbackLeader = role === "DPS" ? fallbackLeaders.topDpsLeader : fallbackLeaders.topHealerLeader;
+  if (fallbackLeader?.name && Number(fallbackLeader?.parsePercent) > 0) {
+    return {
+      ...fallbackLeader,
+      awardParse: Number(fallbackLeader.parsePercent || 0),
+    };
+  }
+
   const persistedLeader = role === "DPS" ? raid?.topDpsLeader : raid?.topHealerLeader;
   if (persistedLeader?.name && Number(persistedLeader?.parsePercent) > 0) {
     return {
@@ -394,8 +403,6 @@ function getRaidAwardWinner(raid, role, parseField) {
     };
   }
 
-  const fallbackLeaders = getRaidCardLeaders(raid);
-  const fallbackLeader = role === "DPS" ? fallbackLeaders.topDpsLeader : fallbackLeaders.topHealerLeader;
   if (!fallbackLeader) return null;
   return {
     ...fallbackLeader,
@@ -1335,9 +1342,12 @@ function buildParseFallbackByMetric(fights, field) {
 
 function getDeathEntryTotal(entry) {
   if (!entry) return 0;
+  const explicitDeaths = Number(entry.deaths || 0);
+  if (explicitDeaths > 0) return explicitDeaths;
   const directTotal = Number(entry.total || 0);
   if (directTotal > 0) return directTotal;
-  return Array.isArray(entry.events) ? entry.events.length : 0;
+  if (entry.timestamp != null || entry.killingBlow || entry.deathWindow != null) return 1;
+  return Array.isArray(entry.events) && entry.events.length > 0 ? 1 : 0;
 }
 
 function applyRankingsToRaidFights(raid, rankings) {
@@ -1894,6 +1904,20 @@ function EventSummary({ event, emphasizeTime = false }) {
   );
 }
 
+function getDeathTimelineEventTone(event) {
+  const type = getEventTypeToken(event);
+  if (type === "death") return "#ff8d8d";
+  if (isHealingLikeEvent(event)) return "#9fe3b1";
+  return "#ffd5d5";
+}
+
+function getDeathTimelineEventLabel(event) {
+  const type = getEventTypeToken(event);
+  if (type === "death") return "Death";
+  if (isHealingLikeEvent(event)) return "Healing";
+  return "Damage";
+}
+
 function buildDeathDetailRows(fights, playerId) {
   if (!playerId) return [];
 
@@ -1905,13 +1929,27 @@ function buildDeathDetailRows(fights, playerId) {
 
     for (const deathEvent of entry.events || []) {
       const recapEvents = (deathEvent.events || []).length ? (deathEvent.events || []) : [deathEvent];
-      const damageEvents = recapEvents.filter(isDamageLikeEvent);
-      const healingEvents = recapEvents.filter(isHealingLikeEvent);
-      const killingBlow = [...damageEvents].reverse().find(event => getEventAmount(event, "damage") > 0 || Number(event?.overkill || 0) > 0)
-        || damageEvents[damageEvents.length - 1]
-        || deathEvent;
-      const lastHits = damageEvents.slice(-3).reverse();
-      const timestampMs = normalizeEncounterEventTimestamp(deathEvent.timestamp, fight);
+      const timestampMs = normalizeEncounterEventTimestamp(deathEvent.timestamp ?? entry.timestamp, fight);
+      const timelineEvents = recapEvents
+        .map(event => ({
+          ...event,
+          timestampMs: normalizeEncounterEventTimestamp(event.timestamp, fight),
+        }))
+        .sort((left, right) => Number(left.timestampMs || 0) - Number(right.timestampMs || 0));
+      const finalEvent = timelineEvents[timelineEvents.length - 1] || deathEvent;
+      const deathTimelineEvent = {
+        type: "death",
+        timestamp: deathEvent.timestamp ?? entry.timestamp ?? finalEvent?.timestamp ?? 0,
+        timestampMs,
+        abilityGuid: entry.killingBlow?.abilityGuid ?? finalEvent?.abilityGuid ?? null,
+        abilityName: entry.killingBlow?.abilityName || finalEvent?.abilityName || "Death",
+        sourceName: entry.killingBlow?.sourceName || finalEvent?.sourceName || "",
+        amount: Number(entry.damageTotal || getEventAmount(finalEvent, "damage") || 0),
+        damage: Number(entry.damageTotal || getEventAmount(finalEvent, "damage") || 0),
+        healing: Number(entry.healingTotal || 0),
+        overkill: Number(entry.overkill || finalEvent?.overkill || 0),
+      };
+      timelineEvents.push(deathTimelineEvent);
 
       rows.push({
         key: `${fight.id}-${deathEvent.timestamp}-${rows.length}`,
@@ -1919,10 +1957,7 @@ function buildDeathDetailRows(fights, playerId) {
         fightName: fight.name || "Unknown Fight",
         timestampMs,
         timestampLabel: formatDuration(timestampMs),
-        killingBlow,
-        lastHits,
-        damageTaken: damageEvents.reduce((sum, event) => sum + getEventAmount(event, "damage"), 0) || Number(deathEvent.damage || 0),
-        healingReceived: healingEvents.reduce((sum, event) => sum + getEventAmount(event, "healing"), 0) || Number(deathEvent.healing || 0),
+        events: timelineEvents,
       });
     }
   }
@@ -4218,73 +4253,58 @@ export default function RpbPage() {
                         <div>
                           <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Death recap</div>
                           <div ref={abilityBreakdownRef} style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                            {selectedPlayerDeathRows.length > 0 && (
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "92px minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 1.4fr) 96px 96px",
-                                  gap: space[2],
-                                  padding: `0 ${space[3]}px`,
-                                  fontSize: fontSize.xs,
-                                  color: text.muted,
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.06em",
-                                }}
-                              >
-                                <div>Timer</div>
-                                <div>Encounter</div>
-                                <div>Killing Blow</div>
-                                <div>Last 3 Hits</div>
-                                <div>Damage</div>
-                                <div>Healing</div>
-                              </div>
-                            )}
                             {!selectedPlayerDeathRows.length && (
                               <div style={{ fontSize: fontSize.sm, color: text.muted }}>
                                 No deaths found for this player in the current filtered fights.
                               </div>
                             )}
-                            {selectedPlayerDeathRows.map(row => (
+                            {selectedPlayerDeathRows.map((row, rowIndex) => (
                               <div
                                 key={row.key}
                                 style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "92px minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 1.4fr) 96px 96px",
-                                  gap: space[2],
                                   padding: space[3],
                                   border: `1px solid ${border.subtle}`,
                                   borderRadius: radius.base,
                                   background: surface.card,
-                                  alignItems: "start",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: space[2],
                                 }}
                               >
-                                <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  <span style={{ color: "#ff8d8d", fontWeight: fontWeight.semibold }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], flexWrap: "wrap" }}>
+                                  <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
+                                    {`Death ${rowIndex + 1}`}
+                                  </div>
+                                  <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                                    {row.fightName}
+                                  </div>
+                                  <div style={{ fontSize: fontSize.sm, color: "#ff8d8d", fontWeight: fontWeight.semibold }}>
                                     {row.timestampLabel || formatDuration(row.timestampMs)}
-                                  </span>
+                                  </div>
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  {row.fightName}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  <EventSummary event={row.killingBlow} emphasizeTime />
+                                <div style={{ display: "grid", gridTemplateColumns: "96px 92px minmax(0, 1fr) 108px", gap: space[2], padding: `0 ${space[1]}px`, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                  <div>Time</div>
+                                  <div>Type</div>
+                                  <div>Event</div>
+                                  <div>Amount</div>
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                                  {row.lastHits.length > 0 ? row.lastHits.map((hit, index) => (
-                                    <div key={`${row.key}-hit-${index}`} style={{ fontSize: fontSize.xs, color: text.muted }}>
-                                      <EventSummary event={hit} />
+                                  {row.events.map((event, index) => (
+                                    <div key={`${row.key}-event-${index}`} style={{ display: "grid", gridTemplateColumns: "96px 92px minmax(0, 1fr) 108px", gap: space[2], alignItems: "start", padding: `${space[1]}px ${space[1]}px` }}>
+                                      <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                                        {formatDuration(event.timestampMs ?? normalizeEncounterEventTimestamp(event.timestamp, { startTime: 0, durationMs: 0 }))}
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold }}>
+                                        {getDeathTimelineEventLabel(event)}
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0 }}>
+                                        <EventSummary event={event} emphasizeTime={getEventTypeToken(event) === "death"} />
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                                        {formatMetricValue(getEventAmount(event, isHealingLikeEvent(event) ? "healing" : "damage"))}
+                                      </div>
                                     </div>
-                                  )) : (
-                                    <div style={{ fontSize: fontSize.xs, color: text.muted }}>
-                                      No damage recap captured.
-                                    </div>
-                                  )}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  {formatMetricValue(row.damageTaken)}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  {formatMetricValue(row.healingReceived)}
+                                  ))}
                                 </div>
                               </div>
                             ))}
