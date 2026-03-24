@@ -163,7 +163,7 @@ const FLASK_NAME_TOKENS = [
   "unstable flask of the bandit",
 ];
 const BATTLE_ELIXIR_IDS = new Set([
-  "28497", "33720", "28521", "33726", "17537", "17538", "38954", "33721", "54452",
+  "28491", "28497", "33720", "28521", "33726", "17537", "17538", "38954", "33721", "54452",
 ]);
 const BATTLE_ELIXIR_NAME_TOKENS = [
   "adept's elixir",
@@ -3929,7 +3929,7 @@ export default function RpbPage() {
                 }}
               />
               <MetricTag
-                label="Elixir / Flask Issues"
+                label="Consumable Issues"
                 value={filteredRaidAnalytics.playersWithConsumableIssues.reduce((sum, entry) => sum + Number(entry.total || 0), 0)}
                 tone="warning"
                 active={raidAnalyticsFilter === "consumables"}
