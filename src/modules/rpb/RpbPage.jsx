@@ -4065,7 +4065,7 @@ export default function RpbPage() {
                               <div
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "minmax(0, 1.2fr) 110px 72px 72px 72px 72px 92px",
+                                  gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 64px 72px minmax(96px, 1fr)",
                                   gap: space[2],
                                   padding: `0 ${space[3]}px`,
                                   fontSize: fontSize.sm,
@@ -4094,7 +4094,7 @@ export default function RpbPage() {
                                 key={`${sliceType}-${ability.key}`}
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "minmax(0, 1.2fr) 110px 72px 72px 72px 72px 92px",
+                                  gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 64px 72px minmax(96px, 1fr)",
                                   gap: space[2],
                                   padding: space[3],
                                   border: `1px solid ${border.subtle}`,
@@ -4103,25 +4103,25 @@ export default function RpbPage() {
                                   alignItems: "center",
                                 }}
                               >
-                                <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, minWidth: 0 }}>
+                                <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
                                   <WowheadSpellAbility spellId={ability.guid} name={ability.name} />
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
+                                <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, whiteSpace: "nowrap" }}>
                                   {formatMetricValue(ability.total)}
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
-                                  {ability.casts || 0} casts
+                                <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                                  {ability.casts || 0}
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
-                                  {ability.hits || 0} hits
+                                <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                                  {ability.hits || 0}
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
-                                  {ability.crits || 0} crits
+                                <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                                  {ability.crits || 0}
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
+                                <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
                                   {ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"}
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
+                                <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
                                   {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : `${formatMetricValue(ability.activeTime)} ms`}
                                 </div>
                               </div>
