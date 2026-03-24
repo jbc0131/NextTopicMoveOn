@@ -4061,71 +4061,75 @@ export default function RpbPage() {
                             {sliceType === "healing" ? "Healing breakdown" : "Damage breakdown"}
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                            {(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) > 0 && (
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 64px 72px minmax(96px, 1fr)",
-                                  gap: space[2],
-                                  padding: `0 ${space[3]}px`,
-                                  fontSize: fontSize.sm,
-                                  fontWeight: fontWeight.bold,
-                                  color: text.primary,
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.06em",
-                                }}
-                              >
-                                <div>Ability</div>
-                                <div>Total</div>
-                                <div>Casts</div>
-                                <div>Hits</div>
-                                <div>Crits</div>
-                                <div>Crit %</div>
-                                <div>{sliceType === "healing" ? "Overheal" : "Active"}</div>
-                              </div>
-                            )}
                             {!(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) && (
                               <div style={{ fontSize: fontSize.sm, color: text.muted }}>
                                 {`No ${sliceType} ability breakdown found for this player in the current filtered fights.`}
                               </div>
                             )}
-                            {(sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
-                              <div
-                                key={`${sliceType}-${ability.key}`}
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 64px 72px minmax(96px, 1fr)",
-                                  gap: space[2],
-                                  padding: space[3],
-                                  border: `1px solid ${border.subtle}`,
-                                  borderRadius: radius.base,
-                                  background: surface.card,
-                                  alignItems: "center",
-                                }}
-                              >
-                                <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
-                                  <WowheadSpellAbility spellId={ability.guid} name={ability.name} />
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, whiteSpace: "nowrap" }}>
-                                  {formatMetricValue(ability.total)}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                  {ability.casts || 0}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                  {ability.hits || 0}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                  {ability.crits || 0}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                  {ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                  {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : `${formatMetricValue(ability.activeTime)} ms`}
+                            {(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) > 0 && (
+                              <div style={{ overflowX: "auto", paddingBottom: 2 }}>
+                                <div style={{ display: "flex", flexDirection: "column", gap: space[2], minWidth: 760 }}>
+                                  <div
+                                    style={{
+                                      display: "grid",
+                                      gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 64px 72px minmax(96px, 1fr)",
+                                      gap: space[2],
+                                      padding: `0 ${space[3]}px`,
+                                      fontSize: fontSize.sm,
+                                      fontWeight: fontWeight.bold,
+                                      color: text.primary,
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.06em",
+                                    }}
+                                  >
+                                    <div>Ability</div>
+                                    <div>Total</div>
+                                    <div>Casts</div>
+                                    <div>Hits</div>
+                                    <div>Crits</div>
+                                    <div>Crit %</div>
+                                    <div>{sliceType === "healing" ? "Overheal" : "Active"}</div>
+                                  </div>
+                                  {(sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
+                                    <div
+                                      key={`${sliceType}-${ability.key}`}
+                                      style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 64px 72px minmax(96px, 1fr)",
+                                        gap: space[2],
+                                        padding: space[3],
+                                        border: `1px solid ${border.subtle}`,
+                                        borderRadius: radius.base,
+                                        background: surface.card,
+                                        alignItems: "center",
+                                      }}
+                                    >
+                                      <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
+                                        <WowheadSpellAbility spellId={ability.guid} name={ability.name} />
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, whiteSpace: "nowrap" }}>
+                                        {formatMetricValue(ability.total)}
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                                        {ability.casts || 0}
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                                        {ability.hits || 0}
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                                        {ability.crits || 0}
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                                        {ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"}
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                                        {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : `${formatMetricValue(ability.activeTime)} ms`}
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
-                            ))}
+                            )}
                           </div>
                         </div>
                       )}
