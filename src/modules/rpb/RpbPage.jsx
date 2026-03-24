@@ -1169,6 +1169,17 @@ function extractReportSpeedPercent(reportRankings) {
 }
 
 function getRaidReportSpeedPercent(raid) {
+  const compareMode = String(raid?.importPayload?.reportSpeed?.compareMode || "");
+  if (compareMode !== "Rankings") {
+    const fightSpeedPercents = (raid?.fights || [])
+      .map(fight => Number(fight?.speedParsePercent))
+      .filter(value => Number.isFinite(value) && value > 0);
+    if (fightSpeedPercents.length > 0) {
+      return fightSpeedPercents.reduce((sum, value) => sum + value, 0) / fightSpeedPercents.length;
+    }
+    return null;
+  }
+
   const direct = Number(raid?.reportSpeedPercent);
   if (Number.isFinite(direct) && direct > 0) return direct;
   return extractReportSpeedPercent(raid?.importPayload?.reportSpeed) ?? extractReportSpeedPercent(raid?.importPayload?.reportRankings);
