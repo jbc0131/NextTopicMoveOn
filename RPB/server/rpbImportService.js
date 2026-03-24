@@ -430,6 +430,64 @@ function aggregateLegacyAbilityRows(entries = [], castsByGuid = new Map()) {
     .sort((a, b) => b.total - a.total);
 }
 
+function getNestedAbilityCollection(entry) {
+  return [
+    entry?.abilities,
+    entry?.entries,
+    entry?.sources,
+    entry?.targets,
+    entry?.spells,
+    entry?.subentries,
+  ].find(value => Array.isArray(value) && value.length > 0) || [];
+}
+
+function buildSourceAbilityCastLookups(castsPayload = {}) {
+  const byId = new Map();
+  const byName = new Map();
+
+  for (const sourceEntry of castsPayload?.entries || []) {
+    const nestedRows = getNestedAbilityCollection(sourceEntry);
+    if (!nestedRows.length) continue;
+
+    const castsByGuid = new Map();
+    for (const row of collectRawAbilityRows(nestedRows)) {
+      const key = String(row.guid ?? row.gameID ?? row.abilityGameID ?? row.name ?? "unknown");
+      castsByGuid.set(key, Number(castsByGuid.get(key) || 0) + Number(
+        row.total ?? row.uses ?? row.totalUses ?? row.casts ?? row.useCount ?? row.executeCount ?? 0
+      ));
+    }
+
+    if (sourceEntry?.id != null) byId.set(String(sourceEntry.id), castsByGuid);
+    if (sourceEntry?.name) byName.set(sourceEntry.name, castsByGuid);
+  }
+
+  return { byId, byName };
+}
+
+function enrichFightMetricEntries(entries = [], castsPayload = {}, fallbackLabel = "All Damage") {
+  const castLookups = buildSourceAbilityCastLookups(castsPayload);
+
+  return (entries || []).map(entry => {
+    const castsByGuid = castLookups.byId.get(String(entry?.id))
+      || castLookups.byName.get(entry?.name)
+      || new Map();
+    const abilities = aggregateLegacyAbilityRows(getNestedAbilityCollection(entry), castsByGuid);
+    const totals = abilities.reduce((acc, ability) => ({
+      casts: acc.casts + Number(ability?.casts || 0),
+      hits: acc.hits + Number(ability?.hits || 0),
+      crits: acc.crits + Number(ability?.crits || 0),
+    }), { casts: 0, hits: 0, crits: 0 });
+
+    return {
+      ...entry,
+      abilities: abilities.length > 0 ? abilities : getAbilityRows(entry, fallbackLabel),
+      casts: entry?.casts ?? entry?.totalUses ?? entry?.uses ?? entry?.useCount ?? entry?.executeCount ?? totals.casts,
+      hits: entry?.hits ?? entry?.totalHits ?? entry?.hitCount ?? entry?.landedHits ?? entry?.count ?? totals.hits,
+      crits: entry?.crits ?? entry?.criticalHits ?? entry?.critCount ?? entry?.critHits ?? entry?.critHitCount ?? totals.crits,
+    };
+  });
+}
+
 export async function fetchPlayerAbilityBreakdown({
   reportUrl,
   reportId: rawReportId,
@@ -512,18 +570,28 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
 
   const snapshots = [];
   for (const fight of snapshotFights) {
-    const damageDone = await wclFetch(`/report/tables/damage-done/${reportId}`, {
-      start: fight.start_time ?? 0,
-      end: fight.end_time ?? 0,
-      by: "source",
-      options: 2,
-    }, apiKeyOverride);
+    const [casts, damageDone] = await Promise.all([
+      wclFetch(`/report/tables/casts/${reportId}`, {
+        start: fight.start_time ?? 0,
+        end: fight.end_time ?? 0,
+        by: "source",
+      }, apiKeyOverride),
+      wclFetch(`/report/tables/damage-done/${reportId}`, {
+        start: fight.start_time ?? 0,
+        end: fight.end_time ?? 0,
+        by: "source",
+        options: 2,
+      }, apiKeyOverride),
+    ]);
 
     snapshots.push({
       fightId: String(fight.id),
       encounterId: fight.boss || 0,
       fightName: fight.name || "Unknown Fight",
-      damageDone,
+      damageDone: {
+        ...damageDone,
+        entries: enrichFightMetricEntries(damageDone?.entries || [], casts, "All Damage"),
+      },
     });
   }
 
@@ -536,18 +604,28 @@ async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "") {
 
   const snapshots = [];
   for (const fight of snapshotFights) {
-    const healing = await wclFetch(`/report/tables/healing/${reportId}`, {
-      start: fight.start_time ?? 0,
-      end: fight.end_time ?? 0,
-      by: "source",
-      options: 2,
-    }, apiKeyOverride);
+    const [casts, healing] = await Promise.all([
+      wclFetch(`/report/tables/casts/${reportId}`, {
+        start: fight.start_time ?? 0,
+        end: fight.end_time ?? 0,
+        by: "source",
+      }, apiKeyOverride),
+      wclFetch(`/report/tables/healing/${reportId}`, {
+        start: fight.start_time ?? 0,
+        end: fight.end_time ?? 0,
+        by: "source",
+        options: 2,
+      }, apiKeyOverride),
+    ]);
 
     snapshots.push({
       fightId: String(fight.id),
       encounterId: fight.boss || 0,
       fightName: fight.name || "Unknown Fight",
-      healing,
+      healing: {
+        ...healing,
+        entries: enrichFightMetricEntries(healing?.entries || [], casts, "All Healing"),
+      },
     });
   }
 
