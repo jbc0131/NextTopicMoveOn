@@ -904,6 +904,36 @@ function normalizePlayer(friendly, lookups) {
   };
 }
 
+function buildPlayerParseFallbackByMetric(fights = [], field = "") {
+  const totals = new Map();
+  const counts = new Map();
+
+  for (const fight of fights || []) {
+    if (!(Number(fight?.encounterId) > 0)) continue;
+
+    for (const entry of fight?.[field] || []) {
+      const value = Number(entry?.parsePercent);
+      if (!Number.isFinite(value) || value < 0) continue;
+
+      const key = String(entry.id || "");
+      if (!key) continue;
+
+      totals.set(key, Number(totals.get(key) || 0) + value);
+      counts.set(key, Number(counts.get(key) || 0) + 1);
+    }
+  }
+
+  const averages = new Map();
+  for (const [key, total] of totals.entries()) {
+    const count = Number(counts.get(key) || 0);
+    if (count > 0) {
+      averages.set(key, total / count);
+    }
+  }
+
+  return averages;
+}
+
 function getResolvedReportId({ reportUrl, reportId: rawReportId }) {
   const reportId = parseReportId(reportUrl || rawReportId || "");
   if (!reportId) throw new Error("reportUrl or reportId required");
@@ -1099,6 +1129,9 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
     .filter(friendly => PLAYER_TYPES.has(friendly.type) && friendly.name)
     .sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
 
+  const damageParseFallbackByPlayerId = buildPlayerParseFallbackByMetric(fights, "damageDoneEntries");
+  const healingParseFallbackByPlayerId = buildPlayerParseFallbackByMetric(fights, "healingDoneEntries");
+
   const lookups = {
     summary: buildLookup(summaryData.entries || []),
     deaths: buildLookup(deathsData.entries || []),
@@ -1108,7 +1141,14 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
     reportRankings: datasets.reportRankings || { overall: { damage: { byId: {}, byName: {} }, healing: { byId: {}, byName: {} } } },
   };
 
-  const playersWithBaseMetrics = players.map(player => normalizePlayer(player, lookups));
+  const playersWithBaseMetrics = players.map(player => {
+    const normalized = normalizePlayer(player, lookups);
+    return {
+      ...normalized,
+      damageParsePercent: normalized.damageParsePercent ?? damageParseFallbackByPlayerId.get(String(normalized.id)) ?? null,
+      healingParsePercent: normalized.healingParsePercent ?? healingParseFallbackByPlayerId.get(String(normalized.id)) ?? null,
+    };
+  });
   const analytics = deriveRpbAnalytics(playersWithBaseMetrics, datasets);
   const analyticsByPlayerId = new Map(
     analytics.playerAnalytics.map(entry => [String(entry.playerId), entry])

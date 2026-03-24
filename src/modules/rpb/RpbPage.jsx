@@ -1105,6 +1105,36 @@ function aggregateMetricEntries(fights, field, overallParseByPlayerId = null, us
   return [...grouped.values()].sort((a, b) => b.total - a.total);
 }
 
+function buildParseFallbackByMetric(fights, field) {
+  const next = new Map();
+  const totals = new Map();
+  const counts = new Map();
+
+  for (const fight of fights || []) {
+    if (!(Number(fight?.encounterId) > 0)) continue;
+
+    for (const entry of fight?.[field] || []) {
+      const value = Number(entry?.parsePercent);
+      if (!Number.isFinite(value) || value < 0) continue;
+
+      const key = String(entry?.id || "");
+      if (!key) continue;
+
+      totals.set(key, Number(totals.get(key) || 0) + value);
+      counts.set(key, Number(counts.get(key) || 0) + 1);
+    }
+  }
+
+  for (const [key, total] of totals.entries()) {
+    const count = Number(counts.get(key) || 0);
+    if (count > 0) {
+      next.set(key, total / count);
+    }
+  }
+
+  return next;
+}
+
 function getDeathEntryTotal(entry) {
   if (!entry) return 0;
   const directTotal = Number(entry.total || 0);
@@ -1134,10 +1164,23 @@ function applyRankingsToRaidFights(raid, rankings) {
     };
   });
 
+  const damageParseFallbackByPlayerId = buildParseFallbackByMetric(nextFights, "damageDoneEntries");
+  const healingParseFallbackByPlayerId = buildParseFallbackByMetric(nextFights, "healingDoneEntries");
+
   const nextPlayers = (raid.players || []).map(player => ({
     ...player,
-    damageParsePercent: rankings?.overall?.damage?.byId?.[String(player.id)] ?? rankings?.overall?.damage?.byName?.[player.name] ?? player.damageParsePercent ?? null,
-    healingParsePercent: rankings?.overall?.healing?.byId?.[String(player.id)] ?? rankings?.overall?.healing?.byName?.[player.name] ?? player.healingParsePercent ?? null,
+    damageParsePercent:
+      rankings?.overall?.damage?.byId?.[String(player.id)]
+      ?? rankings?.overall?.damage?.byName?.[player.name]
+      ?? player.damageParsePercent
+      ?? damageParseFallbackByPlayerId.get(String(player.id))
+      ?? null,
+    healingParsePercent:
+      rankings?.overall?.healing?.byId?.[String(player.id)]
+      ?? rankings?.overall?.healing?.byName?.[player.name]
+      ?? player.healingParsePercent
+      ?? healingParseFallbackByPlayerId.get(String(player.id))
+      ?? null,
   }));
 
   return {
