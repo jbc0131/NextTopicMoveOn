@@ -452,6 +452,29 @@ function getNestedAbilityCollection(entry) {
   ].find(value => Array.isArray(value) && value.length > 0) || [];
 }
 
+function findSourceScopedEntry(entries = [], sourceId = "") {
+  const normalizedSourceId = String(sourceId || "").trim();
+  if (!normalizedSourceId) return null;
+
+  for (const entry of entries || []) {
+    if (!entry || typeof entry !== "object") continue;
+
+    const candidateIds = [
+      entry?.id,
+      entry?.sourceID,
+      entry?.sourceId,
+      entry?.playerID,
+      entry?.playerId,
+    ].map(value => String(value ?? "").trim()).filter(Boolean);
+
+    if (candidateIds.includes(normalizedSourceId)) {
+      return entry;
+    }
+  }
+
+  return null;
+}
+
 function buildSourceAbilityCastLookups(castsPayload = {}) {
   const byId = new Map();
   const byName = new Map();
@@ -540,7 +563,9 @@ export async function fetchPlayerAbilityBreakdown({
       castsByGuid.set(key, Number(castsByGuid.get(key) || 0) + Number(row.total ?? row.uses ?? row.totalUses ?? 0));
     }
 
-    const snapshotEntries = aggregateLegacyAbilityRows(statPayload?.entries || [], castsByGuid);
+    const scopedEntry = findSourceScopedEntry(statPayload?.entries || [], normalizedSourceId);
+    const abilityNodes = scopedEntry ? getNestedAbilityCollection(scopedEntry) : (statPayload?.entries || []);
+    const snapshotEntries = aggregateLegacyAbilityRows(abilityNodes, castsByGuid);
 
     snapshots.push({
       fightId: String(fight.id),
