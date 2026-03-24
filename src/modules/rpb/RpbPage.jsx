@@ -3623,7 +3623,7 @@ export default function RpbPage() {
           Available Reports
         </div>
         <div style={{ overflow: "visible", paddingBottom: 2 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: space[2], overflow: "visible", paddingBottom: 2 }}>
+          <div style={{ display: "flex", gap: space[2], overflowX: "auto", overflowY: "visible", paddingBottom: 2 }}>
             {loadingList && (
               <div style={{ padding: `${space[2]}px 0`, color: text.muted }}>
                 Loading raids...
@@ -3644,17 +3644,18 @@ export default function RpbPage() {
               const teamOption = getTeamOption(raid.teamTag);
               const teamScheduleLabel = getTeamScheduleLabel(raid.teamTag);
               const isNewestReport = index === 0;
+              const isLatestLargeReport = index < 2;
               const reportSpeedPercent = getRaidReportSpeedPercent(raid);
               const topDps = getRaidAwardWinner(raid, "DPS", "damageParsePercent");
               const topHealer = getRaidAwardWinner(raid, "Healer", "healingParsePercent");
-              const isExpanded = isNewestReport || active;
+              const isExpanded = isLatestLargeReport || active;
               return (
                 <div
                   key={raid.id}
                   style={{
                     position: "relative",
-                    minWidth: 0,
-                    gridColumn: isExpanded ? "1 / -1" : "span 1",
+                    minWidth: isExpanded ? 220 : 160,
+                    flexShrink: 0,
                   }}
                 >
                 {isAdmin && (
