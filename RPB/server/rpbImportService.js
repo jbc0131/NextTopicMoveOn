@@ -371,11 +371,22 @@ function collectRawAbilityRows(node, rows = []) {
   const hasStatPayload =
     node.total != null
     || node.amount != null
+    || node.hits != null
+    || node.totalHits != null
     || node.hitCount != null
+    || node.landedHits != null
+    || node.count != null
     || node.missCount != null
+    || node.crits != null
+    || node.criticalHits != null
+    || node.critCount != null
+    || node.critHits != null
     || node.critHitCount != null
+    || node.casts != null
     || node.uses != null
-    || node.totalUses != null;
+    || node.totalUses != null
+    || node.useCount != null
+    || node.executeCount != null;
 
   if (hasAbilityIdentity && hasStatPayload) {
     rows.push(node);
@@ -409,13 +420,13 @@ function aggregateLegacyAbilityRows(entries = [], castsByGuid = new Map()) {
 
     existing.total += Number(entry.total ?? entry.amount ?? entry.effectiveHealing ?? 0);
     existing.activeTime += Number(entry.activeTime ?? entry.uptime ?? 0);
-    existing.hits += Number(entry.hitCount ?? entry.hits ?? 0);
+    existing.hits += Number(entry.hitCount ?? entry.hits ?? entry.totalHits ?? entry.landedHits ?? entry.count ?? 0);
     existing.hits += Number(entry.missCount ?? 0);
-    existing.crits += Number(entry.critHitCount ?? entry.criticalHits ?? entry.crits ?? 0);
+    existing.crits += Number(entry.critHitCount ?? entry.criticalHits ?? entry.crits ?? entry.critCount ?? entry.critHits ?? 0);
     existing.overheal += Number(entry.overheal ?? 0);
     existing.absorbed += Number(entry.absorbed ?? 0);
 
-    const directCasts = Number(entry.uses ?? entry.totalUses ?? entry.casts ?? 0);
+    const directCasts = Number(entry.uses ?? entry.totalUses ?? entry.casts ?? entry.useCount ?? entry.executeCount ?? 0);
     if (directCasts > 0) {
       existing.casts += directCasts;
     } else if (castsByGuid.has(key)) {
