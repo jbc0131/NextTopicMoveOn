@@ -425,9 +425,13 @@ function MetricTag({ label, value, tone = "neutral", active = false, onClick = n
       style={{
         ...tagStyle(tone),
         cursor: interactive ? "pointer" : "default",
-        ...(active ? (activeStyles[tone] || activeStyles.neutral) : {}),
+        ...(active
+          ? (activeStyles[tone] || activeStyles.neutral)
+          : { borderColor: tagStyle(tone).border.split(" ").slice(-1)[0], boxShadow: "none" }),
         opacity: interactive && !active ? 0.9 : 1,
         outline: "none",
+        appearance: "none",
+        WebkitAppearance: "none",
       }}
       disabled={!interactive}
       aria-pressed={interactive ? active : undefined}
@@ -4138,7 +4142,7 @@ export default function RpbPage() {
                                     <div>Casts</div>
                                     <div>Hits</div>
                                     <div>Crits</div>
-                                    <div>{sliceType === "healing" ? "Overheal" : "Active"}</div>
+                                    <div>{sliceType === "healing" ? "Overheal" : ""}</div>
                                   </div>
                                   {(sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
                                     <div
@@ -4170,7 +4174,7 @@ export default function RpbPage() {
                                         {`${ability.crits || 0} (${ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"})`}
                                       </div>
                                       <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                        {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : `${formatMetricValue(ability.activeTime)} ms`}
+                                        {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : ""}
                                       </div>
                                     </div>
                                   ))}
