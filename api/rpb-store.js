@@ -68,12 +68,29 @@ function getRaidKeys(raidId) {
   };
 }
 
+function formatFightDuration(durationMs) {
+  const totalSeconds = Math.max(0, Math.round(Number(durationMs || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatFightList(fights, kill) {
+  const items = (Array.isArray(fights) ? fights : [])
+    .filter(fight => Boolean(fight) && Boolean(fight.kill) === kill && Number(fight.encounterId) > 0)
+    .map(fight => `${fight.name || "Unknown Fight"} (${formatFightDuration(fight.durationMs)})`);
+
+  return items.length ? items.join("\n") : "None";
+}
+
 async function sendNewRaidWebhook(raid, summary) {
   if (!DISCORD_RPB_WEBHOOK_URL) return false;
 
   const teamTag = normalizeTeamTag(raid?.teamTag);
   const raidUrl = `${RPB_PUBLIC_BASE_URL.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid?.id || ""))}`;
   const reportUrl = raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
+  const kills = formatFightList(raid?.fights, true);
+  const wipes = formatFightList(raid?.fights, false);
   const embed = {
     title: raid?.title || "New RPB Report Uploaded",
     url: raidUrl || undefined,
@@ -83,6 +100,8 @@ async function sendNewRaidWebhook(raid, summary) {
       teamTag ? { name: "Team", value: teamTag, inline: true } : null,
       summary?.playerCount != null ? { name: "Players", value: String(summary.playerCount), inline: true } : null,
       summary?.fightCount != null ? { name: "Boss Fights", value: String(summary.fightCount), inline: true } : null,
+      { name: "Kills", value: kills, inline: false },
+      { name: "Wipes", value: wipes, inline: false },
       reportUrl ? { name: "Warcraft Logs", value: `[Open Report](${reportUrl})`, inline: false } : null,
       raidUrl ? { name: "RPB", value: `[Open Report](${raidUrl})`, inline: false } : null,
     ].filter(Boolean),
