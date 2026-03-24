@@ -580,7 +580,6 @@ function getGearInventoryType(item) {
 function isShieldOrHeldInOffHandItem(item) {
   return hasGearText(getGearInventoryType(item), ["shield", "hold", "held", "off-hand", "off hand"])
     || hasGearText(getGearItemSubclass(item), ["shield", "idol", "totem", "libram", "miscellaneous", "held"])
-    || hasGearText(getGearItemClass(item), ["armor", "misc"])
     || hasGearText(item?.name, ["shield", "idol", "totem", "libram"]);
 }
 
@@ -3564,7 +3563,7 @@ export default function RpbPage() {
                     </div>
                     <div style={{ padding: space[4], display: "flex", flexWrap: "wrap", gap: space[2] }}>
                       <MetricTag
-                        label="Players Missing Enchants"
+                        label="Gear Issues"
                         value={filteredRaidAnalytics.playersMissingEnchants.length}
                         tone="danger"
                         active={raidAnalyticsFilter === "missing-enchants"}
