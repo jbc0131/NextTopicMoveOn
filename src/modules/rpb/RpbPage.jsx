@@ -2024,6 +2024,13 @@ function formatDuration(ms) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+function formatEncounterSelectionDuration(ms) {
+  const totalSeconds = Math.max(0, Math.floor(Number(ms || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 function formatMetricValue(value) {
   return Number(value || 0).toLocaleString();
 }
@@ -2059,7 +2066,7 @@ function getEncounterOptions(fights) {
     const prefix = fight.kill ? "Kill" : `Wipe ${nextCount}`;
     options.push({
       id: String(fight.id),
-      label: `${prefix}: ${fight.name}`,
+      label: `${prefix}: ${fight.name} (${formatEncounterSelectionDuration(fight.durationMs)})`,
       encounterId: fight.encounterId,
       fightName: fight.name,
       kill: fight.kill,
