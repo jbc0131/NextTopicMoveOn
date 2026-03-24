@@ -3619,11 +3619,11 @@ export default function RpbPage() {
           })}
         </div>
         <div style={{ height: 2 }} />
-        <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-          Saved Raids
+        <div style={{ fontSize: fontSize.lg, color: text.primary, fontWeight: fontWeight.bold, letterSpacing: "0.02em" }}>
+          Available Reports
         </div>
         <div style={{ overflow: "visible", paddingBottom: 2 }}>
-          <div style={{ display: "flex", gap: space[2], overflowX: "auto", overflowY: "visible", paddingBottom: 2 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: space[2], overflow: "visible", paddingBottom: 2 }}>
             {loadingList && (
               <div style={{ padding: `${space[2]}px 0`, color: text.muted }}>
                 Loading raids...
@@ -3639,21 +3639,22 @@ export default function RpbPage() {
                 No reports with this team tag are available.
               </div>
             )}
-            {filteredRaids.map(raid => {
+            {filteredRaids.map((raid, index) => {
               const active = raid.id === raidId;
               const teamOption = getTeamOption(raid.teamTag);
               const teamScheduleLabel = getTeamScheduleLabel(raid.teamTag);
-              const isNew = isRecentReport(raid.start);
+              const isNewestReport = index === 0;
               const reportSpeedPercent = getRaidReportSpeedPercent(raid);
               const topDps = getRaidAwardWinner(raid, "DPS", "damageParsePercent");
               const topHealer = getRaidAwardWinner(raid, "Healer", "healingParsePercent");
+              const isExpanded = isNewestReport || active;
               return (
                 <div
                   key={raid.id}
                   style={{
                     position: "relative",
-                    minWidth: 220,
-                    flexShrink: 0,
+                    minWidth: 0,
+                    gridColumn: isExpanded ? "1 / -1" : "span 1",
                   }}
                 >
                 {isAdmin && (
@@ -3706,71 +3707,74 @@ export default function RpbPage() {
                       ...btnStyle(active ? "primary" : "default", active),
                       width: "100%",
                       height: "100%",
-                      minHeight: 132,
+                      minHeight: isExpanded ? 132 : 72,
                       padding: space[3],
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "flex-start",
-                      gap: 4,
+                      justifyContent: isExpanded ? "flex-start" : "center",
+                      gap: isExpanded ? 4 : 0,
                       paddingRight: isAdmin ? 42 : space[3],
                     }}
                   >
                   <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap", paddingRight: isAdmin ? 18 : 0 }}>
-                    {isNew && (
+                    {isNewestReport && (
                       <span style={tagStyle("success")}>
-                        New
+                        Newest Report
                       </span>
                     )}
-                    <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, textAlign: "left" }}>
+                    <span style={{ fontSize: isExpanded ? fontSize.base : fontSize.sm, fontWeight: fontWeight.bold, textAlign: "left" }}>
                       {raid.title || raid.reportId}
                     </span>
                   </div>
-                  <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>{raid.zone || "Unknown Zone"}</span>
-                  <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>Report date: {formatDateShort(raid.start)}</span>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: "flex-start" }}>
-                    {topDps && (
-                      <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <span style={{ color: "#e5cc80" }}>👑 DPS</span>
-                        <span style={{ color: getScoreColor(topDps.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold }}>
-                          {Math.round(Number(topDps.awardParse || 0))}
+                  {isExpanded && (
+                    <>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+                        {topDps && (
+                          <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <span style={{ color: "#e5cc80" }}>DPS Leader</span>
+                            <span style={{ color: getScoreColor(topDps.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold, fontSize: fontSize.base }}>
+                              {Math.round(Number(topDps.awardParse || 0))}
+                            </span>
+                            <span style={{ color: getClassColor(topDps.type), fontWeight: fontWeight.bold, fontSize: fontSize.sm }}>
+                              {topDps.name}
+                            </span>
+                          </span>
+                        )}
+                        {topHealer && (
+                          <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <span style={{ color: "#e5cc80" }}>Healer Leader</span>
+                            <span style={{ color: getScoreColor(topHealer.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold, fontSize: fontSize.base }}>
+                              {Math.round(Number(topHealer.awardParse || 0))}
+                            </span>
+                            <span style={{ color: getClassColor(topHealer.type), fontWeight: fontWeight.bold, fontSize: fontSize.sm }}>
+                              {topHealer.name}
+                            </span>
+                          </span>
+                        )}
+                        {!topDps && !topHealer && (
+                          <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted }}>
+                            No parse leaders yet
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ marginTop: 6, display: "flex", gap: space[2], flexWrap: "wrap" }}>
+                        {reportSpeedPercent != null && (
+                          <span style={parseTagStyle(reportSpeedPercent)}>
+                            {`Speed Parse: ${Math.round(reportSpeedPercent)}`}
+                          </span>
+                        )}
+                        <span style={tagStyle(teamOption.tone)}>
+                          {teamOption.shortLabel}
                         </span>
-                        <span style={{ color: getClassColor(topDps.type), fontWeight: fontWeight.semibold }}>
-                          {topDps.name}
-                        </span>
-                      </span>
-                    )}
-                    {topHealer && (
-                      <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <span style={{ color: "#e5cc80" }}>👑 Heal</span>
-                        <span style={{ color: getScoreColor(topHealer.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold }}>
-                          {Math.round(Number(topHealer.awardParse || 0))}
-                        </span>
-                        <span style={{ color: getClassColor(topHealer.type), fontWeight: fontWeight.semibold }}>
-                          {topHealer.name}
-                        </span>
-                      </span>
-                    )}
-                    {!topDps && !topHealer && (
-                      <span style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>
-                        No parse leaders yet
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ marginTop: 6, display: "flex", gap: space[2], flexWrap: "wrap" }}>
-                    {reportSpeedPercent != null && (
-                      <span style={parseTagStyle(reportSpeedPercent)}>
-                        {Math.round(reportSpeedPercent)}
-                      </span>
-                    )}
-                    <span style={tagStyle(teamOption.tone)}>
-                      {teamOption.shortLabel}
-                    </span>
-                    {teamScheduleLabel && (
-                      <span style={tagStyle(teamOption.tone)}>
-                        {teamScheduleLabel}
-                      </span>
-                    )}
-                  </div>
+                        {teamScheduleLabel && (
+                          <span style={tagStyle(teamOption.tone)}>
+                            {teamScheduleLabel}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
                   </button>
                 </div>
               );
