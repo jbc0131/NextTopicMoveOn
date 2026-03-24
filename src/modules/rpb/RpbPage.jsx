@@ -3594,20 +3594,23 @@ export default function RpbPage() {
                     <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       Raid Analytics
                     </div>
-                    <div style={{ padding: space[4], display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
+                    <div style={{ padding: `${space[4]}px ${space[4]}px 0`, display: "flex", justifyContent: "flex-start" }}>
                       <button
                         type="button"
                         onClick={() => setRaidAnalyticsFilter("")}
                         disabled={!raidAnalyticsFilter}
                         style={{
-                          ...btnStyle(raidAnalyticsFilter ? "default" : "ghost", false),
-                          height: 30,
-                          opacity: raidAnalyticsFilter ? 1 : 0.55,
-                          borderColor: raidAnalyticsFilter ? "rgba(255,255,255,0.22)" : border.subtle,
+                          ...btnStyle(raidAnalyticsFilter ? "warning" : "default", false),
+                          height: 32,
+                          opacity: raidAnalyticsFilter ? 1 : 0.65,
+                          borderColor: raidAnalyticsFilter ? "rgba(255, 214, 120, 0.98)" : border.subtle,
+                          boxShadow: raidAnalyticsFilter ? "0 0 0 2px rgba(255, 214, 120, 0.18)" : "none",
                         }}
                       >
                         Clear Filter
                       </button>
+                    </div>
+                    <div style={{ padding: space[4], display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
                       <MetricTag
                         label="Gear Issues"
                         value={filteredRaidAnalytics.playersMissingEnchants.length}
