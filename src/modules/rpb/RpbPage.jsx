@@ -1587,9 +1587,13 @@ function makeRemoteBreakdownKey(reportId, playerId, mode, fights) {
 
 function hasVisibleBreakdownStats(entries = []) {
   return (entries || []).some(entry =>
-    Number(entry?.casts || 0) > 0
+    Number(entry?.total || 0) > 0
+    || Number(entry?.casts || 0) > 0
     || Number(entry?.hits || 0) > 0
     || Number(entry?.crits || 0) > 0
+    || Number(entry?.activeTime || 0) > 0
+    || Number(entry?.overheal || 0) > 0
+    || Number(entry?.absorbed || 0) > 0
   );
 }
 
