@@ -254,8 +254,75 @@ function ConflictModal({ conflicts, resolved, onChange, onConfirm }) {
   );
 }
 
+// ── Manual add player ─────────────────────────────────────────────────────────
+function ManualAddPlayer({ onAdd }) {
+  const [open,  setOpen]  = useState(false);
+  const [name,  setName]  = useState("");
+  const [cls,   setCls]   = useState("Warrior");
+  const [spec,  setSpec]  = useState("Arms");
+  const [error, setError] = useState("");
+
+  const specs = CLASS_SPECS[cls] || [];
+  const handleClass = c => { setCls(c); setSpec(CLASS_SPECS[c][0].specName); };
+
+  const handleAdd = () => {
+    if (!name.trim()) { setError("Enter a name"); return; }
+    onAdd({
+      id:        `manual_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name:      name.trim(),
+      className: cls,
+      specName:  spec,
+      color:     CLASS_COLORS[cls] || "#aaa",
+      manual:    true,
+    });
+    setName(""); setCls("Warrior"); setSpec("Arms"); setError(""); setOpen(false);
+  };
+
+  if (!open) return (
+    <button onClick={() => setOpen(true)} style={{
+      width: "100%", background: "transparent",
+      border: `1px dashed ${border.subtle}`, borderRadius: radius.base,
+      color: text.muted, padding: `${space[1]}px`, cursor: "pointer",
+      fontFamily: font.sans, fontSize: fontSize.xs, marginTop: space[1],
+    }}>
+      + Add Player Manually
+    </button>
+  );
+
+  const color = CLASS_COLORS[cls] || "#aaa";
+  return (
+    <div style={{ background: surface.card, border: `1px solid ${border.subtle}`, borderRadius: radius.base, padding: space[2], marginTop: space[1], display: "flex", flexDirection: "column", gap: space[1] }}>
+      <div style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 2 }}>Add Player</div>
+      <input
+        autoFocus value={name}
+        onChange={e => { setName(e.target.value); setError(""); }}
+        onKeyDown={e => e.key === "Enter" && handleAdd()}
+        placeholder="Character name"
+        style={{ ...inputStyle, width: "100%", fontSize: fontSize.xs }}
+      />
+      {error && <div style={{ fontSize: 10, color: intent.danger, fontFamily: font.sans }}>{error}</div>}
+      <select value={cls} onChange={e => handleClass(e.target.value)} style={{ ...inputStyle, color, fontSize: fontSize.xs, cursor: "pointer" }}>
+        {Object.keys(CLASS_SPECS).map(c => (
+          <option key={c} value={c} style={{ color: CLASS_COLORS[c] || "#fff", background: surface.base }}>{c}</option>
+        ))}
+      </select>
+      <select value={spec} onChange={e => setSpec(e.target.value)} style={{ ...inputStyle, fontSize: fontSize.xs, cursor: "pointer" }}>
+        {specs.map(s => (
+          <option key={s.specName} value={s.specName} style={{ background: surface.base }}>
+            {s.specName.replace(/\d+$/, "")} ({s.role})
+          </option>
+        ))}
+      </select>
+      <div style={{ display: "flex", gap: space[1] }}>
+        <button onClick={handleAdd} style={{ ...btnStyle("success"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Add</button>
+        <button onClick={() => { setOpen(false); setError(""); setName(""); }} style={{ ...btnStyle("default"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Roster sidebar ────────────────────────────────────────────────────────────
-function KaraRosterPanel({ karaNight, setKaraNight, rosterTue, rosterThu, assignments, roleFilter, setRoleFilter, onDragStart, onSpecCycle, wclScores, wclLoading, wclError, wclLastFetch, onWclRefetch, onWclNameChange }) {
+function KaraRosterPanel({ karaNight, setKaraNight, rosterTue, rosterThu, assignments, roleFilter, setRoleFilter, onDragStart, onSpecCycle, wclScores, wclLoading, wclError, wclLastFetch, onWclRefetch, onWclNameChange, onAddManual }) {
   const karaKeys       = new Set(KARA_ALL_ROWS.map(r => r.key));
   const activeRoster   = karaNight === "tue" ? rosterTue : rosterThu;
   const karaAssignedIds = new Set(
@@ -338,6 +405,7 @@ function KaraRosterPanel({ karaNight, setKaraNight, rosterTue, rosterThu, assign
             </div>
           );
         })}
+        <ManualAddPlayer onAdd={onAddManual} />
       </div>
     </div>
   );
@@ -799,6 +867,12 @@ export default function KaraAdmin() {
           onWclRefetch={wclRefetch}
           onWclNameChange={handleWclNameChange}
           activeTabForScores="kara"
+          onAddManual={slot => {
+            const nightSlot = { ...slot, karaNight: karaNight };
+            if (karaNight === "tue") setRosterTue(prev => [...prev, nightSlot]);
+            else setRosterThu(prev => [...prev, nightSlot]);
+            setRoster(prev => [...prev, nightSlot]);
+          }}
         />
 
         {/* Assignment area */}
