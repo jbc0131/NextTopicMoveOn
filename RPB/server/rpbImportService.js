@@ -746,8 +746,34 @@ function getDrumTypeLabel(guid) {
   return DRUMS_TYPE_LABELS.get(String(guid || "")) || "Unknown";
 }
 
-function summarizeDrumEvents(castEvents = [], buffEvents = []) {
+function buildDrumCasterLookup(drumsData = {}) {
+  const byGuid = new Map();
+
+  for (const entry of drumsData?.entries || []) {
+    const playerId = String(entry?.id || "");
+    if (!playerId) continue;
+
+    for (const ability of getAbilityRows(entry, "Drums")) {
+      const guid = String(ability?.guid || "");
+      if (!DRUMS_ABILITY_IDS.has(guid)) continue;
+      const casts = Number(ability?.casts || ability?.total || 0);
+      if (casts <= 0) continue;
+      const list = byGuid.get(guid) || [];
+      list.push({
+        playerId,
+        name: entry?.name || "Unknown Player",
+        casts,
+      });
+      byGuid.set(guid, list);
+    }
+  }
+
+  return byGuid;
+}
+
+function summarizeDrumEvents(castEvents = [], buffEvents = [], knownCastersByGuid = new Map()) {
   const byPlayer = new Map();
+  const directCastEventsByGuid = new Map();
 
   const ensurePlayer = (playerId, playerName = "Unknown Player") => {
     const key = String(playerId || "");
@@ -766,20 +792,32 @@ function summarizeDrumEvents(castEvents = [], buffEvents = []) {
     return current;
   };
 
+  const addCastToPlayer = (player, guid, amount = 1) => {
+    player.casts += amount;
+    const breakdownKey = `${guid}:${getDrumTypeLabel(guid)}`;
+    const current = player.abilityBreakdown.get(breakdownKey) || { guid, label: getDrumTypeLabel(guid), casts: 0 };
+    current.casts += amount;
+    player.abilityBreakdown.set(breakdownKey, current);
+  };
+
   for (const event of castEvents || []) {
     if (event?.type !== "cast") continue;
     const guid = String(event?.ability?.guid || "");
     if (!DRUMS_ABILITY_IDS.has(guid)) continue;
     const player = ensurePlayer(event?.sourceID, event?.sourceName);
     if (!player) continue;
-    player.casts += 1;
-    const breakdownKey = `${guid}:${getDrumTypeLabel(guid)}`;
-    const current = player.abilityBreakdown.get(breakdownKey) || { guid, label: getDrumTypeLabel(guid), casts: 0 };
-    current.casts += 1;
-    player.abilityBreakdown.set(breakdownKey, current);
+    addCastToPlayer(player, guid, 1);
+    const directEvents = directCastEventsByGuid.get(guid) || [];
+    directEvents.push({
+      playerId: player.playerId,
+      name: player.name,
+      timestamp: Number(event?.timestamp || 0),
+    });
+    directCastEventsByGuid.set(guid, directEvents);
   }
 
   const clusterByPlayerAndAbility = new Map();
+  const unresolvedClusters = [];
   const sortedBuffs = [...(buffEvents || [])]
     .filter(event => event?.type === "applybuff")
     .sort((left, right) => Number(left?.timestamp || 0) - Number(right?.timestamp || 0));
@@ -787,13 +825,29 @@ function summarizeDrumEvents(castEvents = [], buffEvents = []) {
   for (const event of sortedBuffs) {
     const guid = String(event?.ability?.guid || "");
     if (!DRUMS_ABILITY_IDS.has(guid)) continue;
-    const player = ensurePlayer(event?.sourceID, event?.sourceName);
+    const timestamp = Number(event?.timestamp || 0);
+    const targetId = String(event?.targetID || event?.targetId || event?.target?.id || event?.targetName || "");
+    const sourceId = String(event?.sourceID || "");
+
+    if (!sourceId) {
+      const previous = unresolvedClusters[unresolvedClusters.length - 1];
+      if (previous && previous.guid === guid && Math.abs(timestamp - previous.timestamp) <= 125) {
+        if (targetId) previous.targets.add(targetId);
+      } else {
+        unresolvedClusters.push({
+          guid,
+          timestamp,
+          targets: new Set(targetId ? [targetId] : []),
+        });
+      }
+      continue;
+    }
+
+    const player = ensurePlayer(sourceId, event?.sourceName);
     if (!player) continue;
 
     const clusterKey = `${player.playerId}:${guid}`;
     const previous = clusterByPlayerAndAbility.get(clusterKey);
-    const timestamp = Number(event?.timestamp || 0);
-    const targetId = String(event?.targetID || event?.targetId || event?.target?.id || event?.targetName || "");
     if (previous && Math.abs(timestamp - previous.timestamp) <= 125) {
       if (targetId) previous.targets.add(targetId);
       continue;
@@ -816,6 +870,44 @@ function summarizeDrumEvents(castEvents = [], buffEvents = []) {
     player.affectedTargets += cluster.targets.size;
   }
 
+  for (const cluster of unresolvedClusters) {
+    const guid = String(cluster.guid || "");
+    const directMatches = (directCastEventsByGuid.get(guid) || []).filter(event =>
+      Math.abs(Number(event.timestamp || 0) - Number(cluster.timestamp || 0)) <= 500
+    );
+
+    if (directMatches.length === 1) {
+      const player = ensurePlayer(directMatches[0].playerId, directMatches[0].name);
+      if (player) player.affectedTargets += cluster.targets.size;
+      continue;
+    }
+
+    const inFightCandidates = [...byPlayer.values()].filter(player =>
+      [...player.abilityBreakdown.values()].some(entry => String(entry?.guid || "") === guid)
+    );
+    const reportCandidates = knownCastersByGuid.get(guid) || [];
+    const distinctCandidates = new Map();
+
+    for (const candidate of [...inFightCandidates, ...reportCandidates]) {
+      const playerId = String(candidate?.playerId || "");
+      if (!playerId) continue;
+      if (!distinctCandidates.has(playerId)) {
+        distinctCandidates.set(playerId, {
+          playerId,
+          name: candidate?.name || "Unknown Player",
+        });
+      }
+    }
+
+    if (distinctCandidates.size !== 1) continue;
+
+    const [candidate] = distinctCandidates.values();
+    const player = ensurePlayer(candidate.playerId, candidate.name);
+    if (!player) continue;
+    addCastToPlayer(player, guid, 1);
+    player.affectedTargets += cluster.targets.size;
+  }
+
   return [...byPlayer.values()].map(player => ({
     playerId: player.playerId,
     name: player.name,
@@ -828,6 +920,13 @@ function summarizeDrumEvents(castEvents = [], buffEvents = []) {
 
 async function fetchFightDrumSnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
+  const drumsData = await wclFetch(`/report/tables/casts/${reportId}`, {
+    start: 0,
+    end: 999999999999,
+    by: "source",
+    filter: DRUMS_CAST_FILTER,
+  }, apiKeyOverride);
+  const knownCastersByGuid = buildDrumCasterLookup(drumsData);
   const snapshotFights = (fightsData.fights || []).filter(fight =>
     (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
@@ -849,7 +948,7 @@ async function fetchFightDrumSnapshots(reportId, apiKeyOverride = "") {
       fightId: String(fight.id),
       encounterId: fight.boss || 0,
       fightName: fight.name || "Unknown Fight",
-      players: summarizeDrumEvents(castEvents, buffEvents),
+      players: summarizeDrumEvents(castEvents, buffEvents, knownCastersByGuid),
     });
   }
 
