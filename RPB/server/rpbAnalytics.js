@@ -91,6 +91,9 @@ const SCROLL_AURA_NAMES = new Set([
   "Intellect",
   "Strength",
 ]);
+const SCROLL_NAME_OVERRIDES = new Map([
+  ["33080", "Spirit"],
+]);
 
 const HEALTHSTONE_CAST_IDS = new Set([]);
 const HEALTHSTONE_NAME_TOKENS = [
@@ -343,7 +346,10 @@ function isFoodAura(aura) {
 }
 
 function getUniqueAuraNames(auras) {
-  return [...new Set((auras || []).map(aura => aura?.name).filter(Boolean))];
+  return [...new Set((auras || []).map(aura => {
+    const guid = String(aura?.guid || "");
+    return SCROLL_NAME_OVERRIDES.get(guid) || aura?.name;
+  }).filter(Boolean))];
 }
 
 function getFightBuffEntry(buffSnapshot, player) {
