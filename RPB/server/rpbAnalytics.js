@@ -80,6 +80,17 @@ const GUARDIAN_ELIXIR_NAME_TOKENS = [
   "elixir of ironskin",
   "gift of arthas",
 ];
+const SCROLL_IDS = new Set([
+  "33077", "33078", "33079", "33080", "33081", "33082",
+]);
+const SCROLL_AURA_NAMES = new Set([
+  "Agility",
+  "Spirit",
+  "Armor",
+  "Protection",
+  "Intellect",
+  "Strength",
+]);
 
 const HEALTHSTONE_CAST_IDS = new Set([]);
 const HEALTHSTONE_NAME_TOKENS = [
@@ -321,8 +332,9 @@ function isGuardianElixirAura(aura) {
 }
 
 function isScrollAura(aura) {
+  const guid = String(aura?.guid || "");
   const name = String(aura?.name || "").toLowerCase();
-  return name.includes("scroll of");
+  return SCROLL_IDS.has(guid) || SCROLL_AURA_NAMES.has(aura?.name || "") || name.includes("scroll of");
 }
 
 function isFoodAura(aura) {
