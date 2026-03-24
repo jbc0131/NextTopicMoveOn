@@ -201,12 +201,14 @@ export function getScoreForTab(scores, playerName, activeTab) {
 
 export function getScoreColor(score) {
   if (score == null) return null;
-  if (score === 100)  return "#e5cc80";
-  if (score >= 99)    return "#e268a8";
-  if (score >= 95)    return "#ff8000";
-  if (score >= 75)    return "#a335ee";
-  if (score >= 50)    return "#0070dd";
-  if (score >= 25)    return "#1eff00";
+  const roundedScore = Math.round(Number(score));
+  if (!Number.isFinite(roundedScore)) return null;
+  if (roundedScore === 100) return "#e5cc80";
+  if (roundedScore >= 99)   return "#e268a8";
+  if (roundedScore >= 95)   return "#ff8000";
+  if (roundedScore >= 75)   return "#a335ee";
+  if (roundedScore >= 50)   return "#0070dd";
+  if (roundedScore >= 25)   return "#1eff00";
   return                     "#9d9d9d";
 }
 
