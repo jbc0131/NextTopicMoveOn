@@ -4068,11 +4068,11 @@ export default function RpbPage() {
                             )}
                             {(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) > 0 && (
                               <div style={{ overflowX: "auto", paddingBottom: 2 }}>
-                                <div style={{ display: "flex", flexDirection: "column", gap: space[2], minWidth: 760 }}>
+                                <div style={{ display: "flex", flexDirection: "column", gap: space[2], minWidth: 680 }}>
                                   <div
                                     style={{
                                       display: "grid",
-                                      gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 64px 72px minmax(96px, 1fr)",
+                                      gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)",
                                       gap: space[2],
                                       padding: `0 ${space[3]}px`,
                                       fontSize: fontSize.sm,
@@ -4087,7 +4087,6 @@ export default function RpbPage() {
                                     <div>Casts</div>
                                     <div>Hits</div>
                                     <div>Crits</div>
-                                    <div>Crit %</div>
                                     <div>{sliceType === "healing" ? "Overheal" : "Active"}</div>
                                   </div>
                                   {(sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
@@ -4095,7 +4094,7 @@ export default function RpbPage() {
                                       key={`${sliceType}-${ability.key}`}
                                       style={{
                                         display: "grid",
-                                        gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 64px 72px minmax(96px, 1fr)",
+                                        gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)",
                                         gap: space[2],
                                         padding: space[3],
                                         border: `1px solid ${border.subtle}`,
@@ -4117,10 +4116,7 @@ export default function RpbPage() {
                                         {ability.hits || 0}
                                       </div>
                                       <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                        {ability.crits || 0}
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                        {ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"}
+                                        {`${ability.crits || 0} (${ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"})`}
                                       </div>
                                       <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
                                         {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : `${formatMetricValue(ability.activeTime)} ms`}

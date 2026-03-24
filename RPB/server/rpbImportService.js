@@ -745,6 +745,7 @@ function normalizeAbilityEntry(ability) {
     ?? ability.criticalHits
     ?? ability.critCount
     ?? ability.critHits
+    ?? ability.critHitCount
     ?? 0;
 
   return {
@@ -793,7 +794,7 @@ function getAbilityRows(entry, fallbackLabel) {
     activeTime: entry.activeTime ?? entry.uptime ?? entry.totalUptime ?? 0,
     hits: entry.hits ?? entry.totalHits ?? entry.hitCount ?? entry.count ?? 0,
     casts: entry.casts ?? entry.totalUses ?? entry.uses ?? entry.useCount ?? 0,
-    crits: entry.crits ?? entry.criticalHits ?? entry.critCount ?? entry.critHits ?? 0,
+    crits: entry.crits ?? entry.criticalHits ?? entry.critCount ?? entry.critHits ?? entry.critHitCount ?? 0,
     overheal: entry.overheal ?? 0,
     absorbed: entry.absorbed ?? 0,
   });
