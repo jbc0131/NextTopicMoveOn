@@ -1069,6 +1069,7 @@ function getConsumableCoverage(buffSnapshot, playerId, playerName) {
   const fullyCovered = hasFood && hasElixirCoverage;
   const elixirUnitsRequired = hasFlask ? 1 : 2;
   const elixirUnitsCovered = hasFlask ? 1 : (Number(hasBattleElixir) + Number(hasGuardianElixir));
+  const scrollNames = getUniqueAuraNames(scrollAuras);
   return {
     hasFlask,
     hasBattleElixir,
@@ -1079,6 +1080,7 @@ function getConsumableCoverage(buffSnapshot, playerId, playerName) {
     fullyCovered,
     elixirUnitsCovered,
     elixirUnitsRequired,
+    scrollCount: scrollNames.length,
     covered: hasElixirCoverage,
     flaskAuras,
     battleElixirAuras,
@@ -1088,7 +1090,7 @@ function getConsumableCoverage(buffSnapshot, playerId, playerName) {
     flaskNames: getUniqueAuraNames(flaskAuras),
     battleElixirNames: getUniqueAuraNames(battleElixirAuras),
     guardianElixirNames: getUniqueAuraNames(guardianElixirAuras),
-    scrollNames: getUniqueAuraNames(scrollAuras),
+    scrollNames,
     foodNames: getUniqueAuraNames(foodAuras),
     elixirAuras: [...flaskAuras, ...battleElixirAuras, ...guardianElixirAuras],
   };
@@ -1516,7 +1518,7 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
   }));
   const coveredConsumableFights = consumableCoverage.filter(entry => entry.fullyCovered).length;
   const consumableIssueCount = consumableCoverage.filter(entry => !entry.fullyCovered).length;
-  const scrollCoverageCount = consumableCoverage.filter(entry => entry.hasScroll).length;
+  const scrollCoverageCount = consumableCoverage.reduce((sum, entry) => sum + Number(entry.scrollCount || 0), 0);
   const foodCoverageCount = consumableCoverage.filter(entry => entry.hasFood).length;
   const elixirCoverageCount = consumableCoverage.filter(entry => entry.hasElixirCoverage).length;
   const elixirUnitCoverageCount = consumableCoverage.reduce((sum, entry) => sum + Number(entry.elixirUnitsCovered || 0), 0);
