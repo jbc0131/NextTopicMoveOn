@@ -38,14 +38,48 @@ const ALWAYS_BAD_TEMP_ENCHANT_IDS = new Set([
 const FLASK_IDS = new Set([
   "17626", "17627", "17628", "28518", "28519", "28520", "42735", "42736",
 ]);
+const FLASK_NAME_TOKENS = [
+  "flask of pure death",
+  "flask of relentless assault",
+  "flask of blinding light",
+  "flask of mighty restoration",
+  "flask of supreme power",
+  "flask of fortification",
+  "flask of chromatic wonder",
+  "unstable flask of the sorcerer",
+  "unstable flask of the beast",
+  "unstable flask of the elder",
+  "unstable flask of the bandit",
+];
 
 const BATTLE_ELIXIR_IDS = new Set([
   "28497", "33720", "28521", "33726", "17537", "17538", "38954", "33721", "54452",
 ]);
+const BATTLE_ELIXIR_NAME_TOKENS = [
+  "adept's elixir",
+  "major arcane elixir",
+  "elixir of mastery",
+  "elixir of major agility",
+  "elixir of major firepower",
+  "elixir of major frost power",
+  "elixir of major shadow power",
+  "elixir of onslaught",
+  "elixir of demonslaying",
+  "elixir of healing power",
+  "elixir of major strength",
+];
 
 const GUARDIAN_ELIXIR_IDS = new Set([
   "39625", "39626", "17539", "28502", "28509", "39627", "28503", "11348",
 ]);
+const GUARDIAN_ELIXIR_NAME_TOKENS = [
+  "elixir of draenic wisdom",
+  "elixir of major mageblood",
+  "elixir of major defense",
+  "elixir of major fortitude",
+  "elixir of ironskin",
+  "gift of arthas",
+];
 
 const HEALTHSTONE_CAST_IDS = new Set([]);
 const HEALTHSTONE_NAME_TOKENS = [
@@ -59,6 +93,29 @@ const HEALTHSTONE_NAME_TOKENS = [
   "fel healthstone",
 ];
 const POTION_NAME_TOKENS = ["potion"];
+const FOOD_AURA_NAME_TOKENS = [
+  "well fed",
+  "blackened",
+  "blackened basilisk",
+  "blackened sporefish",
+  "spicy crawdad",
+  "spicy hot talbuk",
+  "grilled mudfish",
+  "poached bluefish",
+  "golden fish sticks",
+  "skullfish soup",
+  "feltail delight",
+  "broiled bloodfin",
+  "buzzard bites",
+  "ravager dog",
+  "roasted clefthoof",
+  "warp burger",
+  "crunchy serpent",
+  "mok'nathal shortribs",
+  "sporeling snack",
+  "fisherman's feast",
+  "stormchops",
+];
 
 function getGearList(entry) {
   if (Array.isArray(entry?.gear)) return entry.gear;
@@ -236,26 +293,45 @@ function normalizeAura(aura) {
 function isFlaskAura(aura) {
   const guid = String(aura?.guid || "");
   const name = String(aura?.name || "").toLowerCase();
-  return FLASK_IDS.has(guid) || name.includes("flask of");
+  return FLASK_IDS.has(guid) || FLASK_NAME_TOKENS.some(token => name.includes(token)) || name.includes("flask of");
 }
 
 function isBattleElixirAura(aura) {
   const guid = String(aura?.guid || "");
   const name = String(aura?.name || "").toLowerCase();
-  return BATTLE_ELIXIR_IDS.has(guid) || (name.includes("elixir") && (
-    name.includes("adept") || name.includes("major agility") || name.includes("major firepower")
-    || name.includes("major shadow power") || name.includes("major frost power")
-    || name.includes("onslaught") || name.includes("demonslaying") || name.includes("mastery")
-  ));
+  return BATTLE_ELIXIR_IDS.has(guid)
+    || BATTLE_ELIXIR_NAME_TOKENS.some(token => name.includes(token))
+    || (name.includes("elixir") && (
+      name.includes("adept") || name.includes("major agility") || name.includes("major firepower")
+      || name.includes("major shadow power") || name.includes("major frost power")
+      || name.includes("onslaught") || name.includes("demonslaying") || name.includes("mastery")
+      || name.includes("major strength") || name.includes("healing power") || name.includes("major arcane")
+    ));
 }
 
 function isGuardianElixirAura(aura) {
   const guid = String(aura?.guid || "");
   const name = String(aura?.name || "").toLowerCase();
-  return GUARDIAN_ELIXIR_IDS.has(guid) || (name.includes("elixir") && (
-    name.includes("draenic wisdom") || name.includes("major mageblood") || name.includes("major defense")
-    || name.includes("major fortitude") || name.includes("ironskin") || name.includes("gift of arthas")
-  ));
+  return GUARDIAN_ELIXIR_IDS.has(guid)
+    || GUARDIAN_ELIXIR_NAME_TOKENS.some(token => name.includes(token))
+    || (name.includes("elixir") && (
+      name.includes("draenic wisdom") || name.includes("major mageblood") || name.includes("major defense")
+      || name.includes("major fortitude") || name.includes("ironskin") || name.includes("gift of arthas")
+    ));
+}
+
+function isScrollAura(aura) {
+  const name = String(aura?.name || "").toLowerCase();
+  return name.includes("scroll of");
+}
+
+function isFoodAura(aura) {
+  const name = String(aura?.name || "").toLowerCase();
+  return FOOD_AURA_NAME_TOKENS.some(token => name.includes(token));
+}
+
+function getUniqueAuraNames(auras) {
+  return [...new Set((auras || []).map(aura => aura?.name).filter(Boolean))];
 }
 
 function getFightBuffEntry(buffSnapshot, player) {
@@ -268,15 +344,45 @@ function getFightBuffEntry(buffSnapshot, player) {
 function getConsumableCoverage(buffSnapshot, player) {
   const entry = getFightBuffEntry(buffSnapshot, player);
   const auras = (entry?.auras || []).map(normalizeAura);
+  const flaskAuras = auras.filter(isFlaskAura);
+  const battleElixirAuras = auras.filter(isBattleElixirAura);
+  const guardianElixirAuras = auras.filter(isGuardianElixirAura);
+  const scrollAuras = auras.filter(isScrollAura);
+  const foodAuras = auras.filter(isFoodAura);
   const hasFlask = auras.some(isFlaskAura);
   const hasBattleElixir = auras.some(isBattleElixirAura);
   const hasGuardianElixir = auras.some(isGuardianElixirAura);
+  const hasScroll = scrollAuras.length > 0;
+  const hasFood = foodAuras.length > 0;
   return {
     hasFlask,
     hasBattleElixir,
     hasGuardianElixir,
+    hasScroll,
+    hasFood,
     covered: hasFlask || (hasBattleElixir && hasGuardianElixir),
+    flaskNames: getUniqueAuraNames(flaskAuras),
+    battleElixirNames: getUniqueAuraNames(battleElixirAuras),
+    guardianElixirNames: getUniqueAuraNames(guardianElixirAuras),
+    scrollNames: getUniqueAuraNames(scrollAuras),
+    foodNames: getUniqueAuraNames(foodAuras),
     auras,
+  };
+}
+
+function getDrumFightCoverage(snapshot, player) {
+  const entry = (snapshot?.players || []).find(candidate =>
+    String(candidate?.playerId || "") === String(player.id) || candidate?.name === player.name
+  );
+  const casts = Number(entry?.casts || 0);
+  const affectedTargets = Number(entry?.affectedTargets || 0);
+  return {
+    fightId: String(snapshot?.fightId || ""),
+    fightName: snapshot?.fightName || "Unknown Fight",
+    casts,
+    affectedTargets,
+    averageAffectedPerCast: casts > 0 ? affectedTargets / casts : Number(entry?.averageAffectedPerCast || 0),
+    abilityBreakdown: entry?.abilityBreakdown || [],
   };
 }
 
@@ -381,6 +487,7 @@ export function deriveRpbAnalytics(players, datasets) {
   const buffsLookup = buildLookup(datasets.buffs?.entries || []);
   const drumsLookup = buildLookup(datasets.drums?.entries || []);
   const bossBuffSnapshots = datasets.buffsByFight?.snapshots || [];
+  const drumsByFightSnapshots = datasets.drumsByFight?.snapshots || [];
 
   const playerAnalytics = players.map(player => {
     const fullCastsEntry = getEntryForPlayer(fullCastsLookup, player);
@@ -401,6 +508,12 @@ export function deriveRpbAnalytics(players, datasets) {
     }));
     const coveredConsumableFights = consumableCoverage.filter(entry => entry.covered).length;
     const consumableIssueCount = consumableCoverage.filter(entry => !entry.covered).length;
+    const scrollCoverageCount = consumableCoverage.filter(entry => entry.hasScroll).length;
+    const foodCoverageCount = consumableCoverage.filter(entry => entry.hasFood).length;
+    const elixirCoverageCount = consumableCoverage.filter(entry => entry.covered).length;
+    const scrollIssueCount = consumableCoverage.filter(entry => !entry.hasScroll).length;
+    const foodIssueCount = consumableCoverage.filter(entry => !entry.hasFood).length;
+    const elixirIssueCount = consumableCoverage.filter(entry => !entry.covered).length;
     const healthstoneCountFromCasts = countMatchingCasts(fullCastsEntry, { ids: HEALTHSTONE_CAST_IDS, nameTokens: HEALTHSTONE_NAME_TOKENS });
     const healthstoneCountFromHealing = (datasets.healingByFight?.snapshots || []).reduce((sum, snapshot) => {
       const healingEntry = (snapshot?.healing?.entries || []).find(entry =>
@@ -411,6 +524,11 @@ export function deriveRpbAnalytics(players, datasets) {
     }, 0);
     const hearthstoneCount = Math.max(healthstoneCountFromCasts, healthstoneCountFromHealing);
     const potionUseCount = countMatchingCasts(fullCastsEntry, { nameTokens: POTION_NAME_TOKENS });
+    const drumsCoverage = drumsByFightSnapshots
+      .map(snapshot => getDrumFightCoverage(snapshot, player))
+      .filter(row => row.casts > 0 || row.affectedTargets > 0);
+    const drumsCastCount = drumsCoverage.reduce((sum, row) => sum + Number(row.casts || 0), 0);
+    const drumsAffectedCount = drumsCoverage.reduce((sum, row) => sum + Number(row.affectedTargets || 0), 0);
 
     return {
       playerId: String(player.id),
@@ -432,11 +550,20 @@ export function deriveRpbAnalytics(players, datasets) {
       oilOfImmolationDamageTaken: getTotalValue(getEntryForPlayer(oilLookup, player)),
       buffAuraCount: buffAuras.length,
       buffAuras,
-      drumsCastCount: getTotalValue(getEntryForPlayer(drumsLookup, player)),
+      drumsCastCount: drumsCastCount || getTotalValue(getEntryForPlayer(drumsLookup, player)),
+      drumsCoverage,
+      drumsAffectedCount,
+      drumsAverageAffected: drumsCastCount > 0 ? drumsAffectedCount / drumsCastCount : 0,
       consumableCoverage,
       coveredConsumableFights,
       totalConsumableFights: consumableCoverage.length,
       consumableIssueCount,
+      scrollCoverageCount,
+      foodCoverageCount,
+      elixirCoverageCount,
+      scrollIssueCount,
+      foodIssueCount,
+      elixirIssueCount,
       potionUseCount,
       hearthstoneCount,
     };

@@ -16,6 +16,15 @@ const ENGINEERING_DAMAGE_FILTER =
   "ability.id IN (23063,13241,17291,30486,4062,19821,15239,19784,12543,30461,30217,39965,4068,19769,4100,30216,22792,30526,4072,19805,27661,23000,11350) AND encounterid != 724";
 const DRUMS_CAST_FILTER =
   "ability.id IN (35478,35476,35475,351355,351358,351360)";
+const DRUMS_ABILITY_IDS = new Set(["35478", "35476", "35475", "351355", "351358", "351360"]);
+const DRUMS_TYPE_LABELS = new Map([
+  ["35475", "War"],
+  ["351360", "War"],
+  ["35476", "Battle"],
+  ["351355", "Battle"],
+  ["35478", "Restoration"],
+  ["351358", "Restoration"],
+]);
 const WCL_CACHE_TTL_SECONDS = 60 * 15;
 let cachedV2Token = null;
 let cachedV2TokenExpiresAt = 0;
@@ -717,6 +726,136 @@ async function fetchFightBuffSnapshots(reportId, apiKeyOverride = "") {
   return { snapshots };
 }
 
+async function fetchAllEventPages(path, params = {}, apiKeyOverride = "") {
+  const events = [];
+  let nextStart = params.start ?? 0;
+  let hasNext = true;
+
+  while (hasNext) {
+    const payload = await wclFetch(path, { ...params, start: nextStart }, apiKeyOverride);
+    events.push(...(payload?.events || []));
+    const nextPageTimestamp = Number(payload?.nextPageTimestamp || 0);
+    hasNext = nextPageTimestamp > 0 && nextPageTimestamp !== nextStart;
+    nextStart = nextPageTimestamp;
+  }
+
+  return events;
+}
+
+function getDrumTypeLabel(guid) {
+  return DRUMS_TYPE_LABELS.get(String(guid || "")) || "Unknown";
+}
+
+function summarizeDrumEvents(castEvents = [], buffEvents = []) {
+  const byPlayer = new Map();
+
+  const ensurePlayer = (playerId, playerName = "Unknown Player") => {
+    const key = String(playerId || "");
+    if (!key) return null;
+    if (!byPlayer.has(key)) {
+      byPlayer.set(key, {
+        playerId: key,
+        name: playerName || "Unknown Player",
+        casts: 0,
+        affectedTargets: 0,
+        abilityBreakdown: new Map(),
+      });
+    }
+    const current = byPlayer.get(key);
+    if (!current.name && playerName) current.name = playerName;
+    return current;
+  };
+
+  for (const event of castEvents || []) {
+    if (event?.type !== "cast") continue;
+    const guid = String(event?.ability?.guid || "");
+    if (!DRUMS_ABILITY_IDS.has(guid)) continue;
+    const player = ensurePlayer(event?.sourceID, event?.sourceName);
+    if (!player) continue;
+    player.casts += 1;
+    const breakdownKey = `${guid}:${getDrumTypeLabel(guid)}`;
+    const current = player.abilityBreakdown.get(breakdownKey) || { guid, label: getDrumTypeLabel(guid), casts: 0 };
+    current.casts += 1;
+    player.abilityBreakdown.set(breakdownKey, current);
+  }
+
+  const clusterByPlayerAndAbility = new Map();
+  const sortedBuffs = [...(buffEvents || [])]
+    .filter(event => event?.type === "applybuff")
+    .sort((left, right) => Number(left?.timestamp || 0) - Number(right?.timestamp || 0));
+
+  for (const event of sortedBuffs) {
+    const guid = String(event?.ability?.guid || "");
+    if (!DRUMS_ABILITY_IDS.has(guid)) continue;
+    const player = ensurePlayer(event?.sourceID, event?.sourceName);
+    if (!player) continue;
+
+    const clusterKey = `${player.playerId}:${guid}`;
+    const previous = clusterByPlayerAndAbility.get(clusterKey);
+    const timestamp = Number(event?.timestamp || 0);
+    const targetId = String(event?.targetID || event?.targetId || event?.target?.id || event?.targetName || "");
+    if (previous && Math.abs(timestamp - previous.timestamp) <= 125) {
+      if (targetId) previous.targets.add(targetId);
+      continue;
+    }
+
+    if (previous) {
+      player.affectedTargets += previous.targets.size;
+    }
+
+    clusterByPlayerAndAbility.set(clusterKey, {
+      timestamp,
+      targets: new Set(targetId ? [targetId] : []),
+    });
+  }
+
+  for (const [clusterKey, cluster] of clusterByPlayerAndAbility.entries()) {
+    const [playerId] = clusterKey.split(":");
+    const player = byPlayer.get(playerId);
+    if (!player) continue;
+    player.affectedTargets += cluster.targets.size;
+  }
+
+  return [...byPlayer.values()].map(player => ({
+    playerId: player.playerId,
+    name: player.name,
+    casts: player.casts,
+    affectedTargets: player.affectedTargets,
+    averageAffectedPerCast: player.casts > 0 ? player.affectedTargets / player.casts : 0,
+    abilityBreakdown: [...player.abilityBreakdown.values()].sort((a, b) => b.casts - a.casts),
+  }));
+}
+
+async function fetchFightDrumSnapshots(reportId, apiKeyOverride = "") {
+  const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
+  const snapshotFights = (fightsData.fights || []).filter(fight =>
+    (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
+  );
+
+  const snapshots = [];
+  for (const fight of snapshotFights) {
+    const params = {
+      start: fight.start_time ?? 0,
+      end: fight.end_time ?? 0,
+      by: "source",
+      filter: DRUMS_CAST_FILTER,
+    };
+    const [castEvents, buffEvents] = await Promise.all([
+      fetchAllEventPages(`/report/events/casts/${reportId}`, params, apiKeyOverride),
+      fetchAllEventPages(`/report/events/buffs/${reportId}`, params, apiKeyOverride),
+    ]);
+
+    snapshots.push({
+      fightId: String(fight.id),
+      encounterId: fight.boss || 0,
+      fightName: fight.name || "Unknown Fight",
+      players: summarizeDrumEvents(castEvents, buffEvents),
+    });
+  }
+
+  return { snapshots };
+}
+
 export function parseReportId(input) {
   if (!input || typeof input !== "string") return "";
   const trimmed = input.trim();
@@ -1135,6 +1274,8 @@ export async function fetchRpbImportStep(action, input = {}) {
         by: "source",
         filter: DRUMS_CAST_FILTER,
       }, apiKey);
+    case "drumsByFight":
+      return fetchFightDrumSnapshots(reportId, apiKey);
     case "reportRankings":
       try {
         return await fetchReportRankings(
@@ -1292,6 +1433,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
       oil: datasets.oil || {},
       buffs: datasets.buffs || {},
       drums: datasets.drums || {},
+      drumsByFight: datasets.drumsByFight || {},
       reportRankings: datasets.reportRankings || {},
       reportSpeed: datasets.reportSpeed || {},
       raiderData: datasets.raiderData || {},
@@ -1311,7 +1453,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
 
 export async function importRpbRaid({ reportUrl, reportId: rawReportId, apiKey = "" }) {
   const input = { reportUrl, reportId: rawReportId, apiKey };
-  const [fights, summary, deaths, tracked, hostile, fullCasts, engineering, oil, buffs, drums, reportRankings, reportSpeed, raiderData, damageByFight, healingByFight, deathsByFight, buffsByFight] = await Promise.all([
+  const [fights, summary, deaths, tracked, hostile, fullCasts, engineering, oil, buffs, drums, drumsByFight, reportRankings, reportSpeed, raiderData, damageByFight, healingByFight, deathsByFight, buffsByFight] = await Promise.all([
     fetchRpbImportStep("fights", input),
     fetchRpbImportStep("summary", input),
     fetchRpbImportStep("deaths", input),
@@ -1322,6 +1464,7 @@ export async function importRpbRaid({ reportUrl, reportId: rawReportId, apiKey =
     fetchRpbImportStep("oil", input),
     fetchRpbImportStep("buffs", input),
     fetchRpbImportStep("drums", input),
+    fetchRpbImportStep("drumsByFight", input),
     fetchRpbImportStep("reportRankings", input),
     fetchRpbImportStep("reportSpeed", input),
     fetchRpbImportStep("raiderData", input),
@@ -1333,6 +1476,6 @@ export async function importRpbRaid({ reportUrl, reportId: rawReportId, apiKey =
 
   return assembleRpbRaid(
     { reportUrl, reportId: rawReportId },
-    { fights, summary, deaths, tracked, hostile, fullCasts, engineering, oil, buffs, drums, reportRankings, reportSpeed, raiderData, damageByFight, healingByFight, deathsByFight, buffsByFight }
+    { fights, summary, deaths, tracked, hostile, fullCasts, engineering, oil, buffs, drums, drumsByFight, reportRankings, reportSpeed, raiderData, damageByFight, healingByFight, deathsByFight, buffsByFight }
   );
 }
