@@ -2162,7 +2162,11 @@ export default function RpbPage() {
   const [fightOutcomeFilter, setFightOutcomeFilter] = useState("");
   const [selectedFightId, setSelectedFightId] = useState("");
   const [sliceType, setSliceType] = useState("damage");
-  const [remoteAbilityBreakdownsByKey, setRemoteAbilityBreakdownsByKey] = useState({});
+  const [remoteAbilityBreakdownState, setRemoteAbilityBreakdownState] = useState({
+    key: "",
+    entries: [],
+    loading: false,
+  });
   const syncedRankingsByRaidIdRef = useRef({});
   const syncedSpeedByRaidIdRef = useRef({});
   const abilityBreakdownRef = useRef(null);
@@ -2525,7 +2529,9 @@ export default function RpbPage() {
       )
       : ""
   ), [breakdownFightIds, selectedPlayerId, selectedRaid?.reportId, sliceType]);
-  const remoteAbilityBreakdown = remoteBreakdownKey ? (remoteAbilityBreakdownsByKey[remoteBreakdownKey] || []) : [];
+  const remoteAbilityBreakdown = remoteBreakdownKey === remoteAbilityBreakdownState.key
+    ? (remoteAbilityBreakdownState.entries || [])
+    : [];
   const importedBreakdownExists = sliceType === "healing"
     ? hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
     : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown);
@@ -2967,9 +2973,16 @@ export default function RpbPage() {
 
     async function hydrateRemoteAbilityBreakdown() {
       if (!(sliceType === "damage" || sliceType === "healing")) return;
-      if (!selectedRaid?.reportId || !selectedPlayerId || !remoteBreakdownKey) return;
-      if (remoteAbilityBreakdownsByKey[remoteBreakdownKey]) return;
-      if (!profileApiKey.trim()) return;
+      if (!selectedRaid?.reportId || !selectedPlayerId || !remoteBreakdownKey || !profileApiKey.trim()) {
+        setRemoteAbilityBreakdownState({ key: remoteBreakdownKey, entries: [], loading: false });
+        return;
+      }
+
+      setRemoteAbilityBreakdownState(prev => (
+        prev.key === remoteBreakdownKey && prev.loading
+          ? prev
+          : { key: remoteBreakdownKey, entries: [], loading: true }
+      ));
 
       try {
         const response = await fetch("/api/rpb-import", {
@@ -2990,22 +3003,24 @@ export default function RpbPage() {
         if (!response.ok) throw new Error(data.error || "Failed to load player ability breakdown");
         if (cancelled) return;
 
-        setRemoteAbilityBreakdownsByKey(prev => ({
-          ...prev,
-          [remoteBreakdownKey]: Array.isArray(data?.entries) ? data.entries : [],
-        }));
+        setRemoteAbilityBreakdownState({
+          key: remoteBreakdownKey,
+          entries: Array.isArray(data?.entries) ? data.entries : [],
+          loading: false,
+        });
       } catch {
         if (cancelled) return;
-        setRemoteAbilityBreakdownsByKey(prev => ({
-          ...prev,
-          [remoteBreakdownKey]: prev[remoteBreakdownKey] || [],
-        }));
+        setRemoteAbilityBreakdownState({
+          key: remoteBreakdownKey,
+          entries: [],
+          loading: false,
+        });
       }
     }
 
     hydrateRemoteAbilityBreakdown();
     return () => { cancelled = true; };
-  }, [breakdownFightIds, profileApiKey, remoteAbilityBreakdownsByKey, remoteBreakdownKey, selectedPlayerId, selectedRaid?.reportId, sliceType]);
+  }, [breakdownFightIds, profileApiKey, remoteBreakdownKey, selectedPlayerId, selectedRaid?.reportId, sliceType]);
 
   useEffect(() => {
     if (loadingList) return;
