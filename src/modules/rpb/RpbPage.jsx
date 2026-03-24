@@ -663,7 +663,10 @@ function deriveMissingEnchantsFromGear(gear = []) {
     const slot = Number(item?.slot);
     if (!ENCHANTABLE_SLOTS.has(slot)) continue;
 
-    if (!getItemEnchantId(item)) {
+    const expectsPermanentEnchant = slot !== 16
+      || (!isShieldOrHeldInOffHandItem(item) && isWeaponGearItem(item));
+
+    if (expectsPermanentEnchant && !getItemEnchantId(item)) {
       missingPermanent.push({
         slot,
         slotLabel: ENCHANTABLE_SLOTS.get(slot),
