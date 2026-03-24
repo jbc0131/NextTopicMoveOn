@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     if (req.body?.action === "assembleAndSave") {
       const raid = assembleRpbRaid(req.body || {}, req.body.datasets || {});
       raid.teamTag = req.body?.teamTag || "";
-      raid.title = buildAutoReportTitle({ start: raid.start, teamTag: raid.teamTag });
+      raid.title = String(req.body?.title || "").trim() || buildAutoReportTitle({ start: raid.start, teamTag: raid.teamTag });
       const summary = await saveRaidBundle(raid);
       return res.status(200).json({
         persistence: "remote",
