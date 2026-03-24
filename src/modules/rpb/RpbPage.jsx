@@ -3409,39 +3409,40 @@ export default function RpbPage() {
         <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
           Saved Raids
         </div>
-        <div style={{ display: "flex", gap: space[2], overflowX: "auto", paddingBottom: 2 }}>
-          {loadingList && (
-            <div style={{ padding: `${space[2]}px 0`, color: text.muted }}>
-              Loading raids...
-            </div>
-          )}
-          {!loadingList && raids.length === 0 && (
-            <div style={{ padding: `${space[2]}px 0`, color: text.muted }}>
-              No persisted raids yet.
-            </div>
-          )}
-          {!loadingList && teamFilter && filteredRaids.length === 0 && (
-            <div style={{ padding: `${space[2]}px 0`, color: text.muted }}>
-              No reports with this team tag are available.
-            </div>
-          )}
-          {filteredRaids.map(raid => {
-            const active = raid.id === raidId;
-            const teamOption = getTeamOption(raid.teamTag);
-            const teamScheduleLabel = getTeamScheduleLabel(raid.teamTag);
-            const isNew = isRecentReport(raid.start);
-            const reportSpeedPercent = getRaidReportSpeedPercent(raid);
-            const topDps = getRaidAwardWinner(raid, "DPS", "damageParsePercent");
-            const topHealer = getRaidAwardWinner(raid, "Healer", "healingParsePercent");
-            return (
-              <div
-                key={raid.id}
-                style={{
-                  position: "relative",
-                  minWidth: 220,
-                  flexShrink: 0,
-                }}
-              >
+        <div style={{ overflow: "visible", paddingBottom: 2 }}>
+          <div style={{ display: "flex", gap: space[2], overflowX: "auto", overflowY: "visible", paddingBottom: 2 }}>
+            {loadingList && (
+              <div style={{ padding: `${space[2]}px 0`, color: text.muted }}>
+                Loading raids...
+              </div>
+            )}
+            {!loadingList && raids.length === 0 && (
+              <div style={{ padding: `${space[2]}px 0`, color: text.muted }}>
+                No persisted raids yet.
+              </div>
+            )}
+            {!loadingList && teamFilter && filteredRaids.length === 0 && (
+              <div style={{ padding: `${space[2]}px 0`, color: text.muted }}>
+                No reports with this team tag are available.
+              </div>
+            )}
+            {filteredRaids.map(raid => {
+              const active = raid.id === raidId;
+              const teamOption = getTeamOption(raid.teamTag);
+              const teamScheduleLabel = getTeamScheduleLabel(raid.teamTag);
+              const isNew = isRecentReport(raid.start);
+              const reportSpeedPercent = getRaidReportSpeedPercent(raid);
+              const topDps = getRaidAwardWinner(raid, "DPS", "damageParsePercent");
+              const topHealer = getRaidAwardWinner(raid, "Healer", "healingParsePercent");
+              return (
+                <div
+                  key={raid.id}
+                  style={{
+                    position: "relative",
+                    minWidth: 220,
+                    flexShrink: 0,
+                  }}
+                >
                 {isAdmin && (
                   <div style={{ position: "absolute", top: 8, right: 8, zIndex: 30 }} onClick={event => event.stopPropagation()}>
                     <button
@@ -3486,21 +3487,21 @@ export default function RpbPage() {
                   </div>
                 )}
 
-                <button
-                  onClick={() => navigate(`/rpb/${raid.id}`)}
-                  style={{
-                    ...btnStyle(active ? "primary" : "default", active),
-                    width: "100%",
-                    height: "100%",
-                    minHeight: 132,
-                    padding: space[3],
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    gap: 4,
-                    paddingRight: isAdmin ? 42 : space[3],
-                  }}
-                >
+                  <button
+                    onClick={() => navigate(`/rpb/${raid.id}`)}
+                    style={{
+                      ...btnStyle(active ? "primary" : "default", active),
+                      width: "100%",
+                      height: "100%",
+                      minHeight: 132,
+                      padding: space[3],
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      gap: 4,
+                      paddingRight: isAdmin ? 42 : space[3],
+                    }}
+                  >
                   <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap", paddingRight: isAdmin ? 18 : 0 }}>
                     {isNew && (
                       <span style={tagStyle("success")}>
@@ -3557,10 +3558,11 @@ export default function RpbPage() {
                       </span>
                     )}
                   </div>
-                </button>
-              </div>
-            );
-          })}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
