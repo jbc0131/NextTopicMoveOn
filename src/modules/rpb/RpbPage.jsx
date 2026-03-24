@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getLoginUrl, useAuth } from "../../shared/auth";
 import { getScoreColor } from "../../shared/useWarcraftLogs";
-import { getRaidCardLeaders } from "./leaderboard.mjs";
+import { getRaidCardLeaders } from "./leaderboard.js";
 import {
   fetchRpbRaidBundle,
   deleteRpbRaidImport,

@@ -1,5 +1,5 @@
 import { assertRedisConfigured, buildCacheKey, deleteKey, getJsonCache, setJsonCache } from "../RPB/server/upstashRedis.js";
-import { getRaidCardLeaders } from "../src/modules/rpb/leaderboard.mjs";
+import { getRaidCardLeaders } from "../src/modules/rpb/leaderboard.js";
 
 const RPB_INDEX_KEY = buildCacheKey("rpb", ["index"]);
 
