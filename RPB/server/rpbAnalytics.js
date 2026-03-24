@@ -47,8 +47,8 @@ const GUARDIAN_ELIXIR_IDS = new Set([
   "39625", "39626", "17539", "28502", "28509", "39627", "28503", "11348",
 ]);
 
-const HEARTHSTONE_CAST_IDS = new Set(["8690", "556"]);
-const HEARTHSTONE_NAME_TOKENS = ["hearthstone", "astral recall"];
+const HEALTHSTONE_CAST_IDS = new Set([]);
+const HEALTHSTONE_NAME_TOKENS = ["healthstone"];
 const POTION_NAME_TOKENS = ["potion"];
 
 function getGearList(entry) {
@@ -356,7 +356,7 @@ export function deriveRpbAnalytics(players, datasets) {
     }));
     const coveredConsumableFights = consumableCoverage.filter(entry => entry.covered).length;
     const consumableIssueCount = consumableCoverage.filter(entry => !entry.covered).length;
-    const hearthstoneCount = countMatchingCasts(fullCastsEntry, { ids: HEARTHSTONE_CAST_IDS, nameTokens: HEARTHSTONE_NAME_TOKENS });
+    const hearthstoneCount = countMatchingCasts(fullCastsEntry, { ids: HEALTHSTONE_CAST_IDS, nameTokens: HEALTHSTONE_NAME_TOKENS });
     const potionUseCount = countMatchingCasts(fullCastsEntry, { nameTokens: POTION_NAME_TOKENS });
 
     return {
