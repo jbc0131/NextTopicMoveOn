@@ -4294,39 +4294,58 @@ export default function RpbPage() {
                                 No drums usage was found for this player in the current filtered fights.
                               </div>
                             )}
-                            {(selectedPlayerAnalytics?.drumsCoverage || []).map(row => (
-                              <div
-                                key={`drum-row-${row.fightId}`}
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "minmax(0, 1.3fr) 84px 112px 96px",
-                                  gap: space[2],
-                                  padding: space[3],
-                                  border: `1px solid ${border.subtle}`,
-                                  borderRadius: radius.base,
-                                  background: surface.card,
-                                  alignItems: "center",
-                                }}
-                              >
-                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
-                                  <div>{row.fightName}</div>
-                                  {row.abilityBreakdown?.length > 0 && (
-                                    <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
-                                      {row.abilityBreakdown.map(entry => `${entry.label} ${entry.casts}`).join(" · ")}
+                            {(selectedPlayerAnalytics?.drumsCoverage || []).map(row => {
+                              const maxAffectedTargets = Math.max(0, Number(row.casts || 0) * 5);
+                              const affectedPercent = maxAffectedTargets > 0
+                                ? Math.min(100, (Number(row.affectedTargets || 0) / maxAffectedTargets) * 100)
+                                : 0;
+                              return (
+                                <div
+                                  key={`drum-row-${row.fightId}`}
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "minmax(0, 1.3fr) 84px 112px 96px",
+                                    gap: space[2],
+                                    padding: space[3],
+                                    border: `1px solid ${border.subtle}`,
+                                    borderRadius: radius.base,
+                                    background: surface.card,
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <div style={{ fontSize: fontSize.sm, color: text.primary, minWidth: 0 }}>
+                                    <div>{row.fightName}</div>
+                                    {row.abilityBreakdown?.length > 0 && (
+                                      <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
+                                        {row.abilityBreakdown.map(entry => `${entry.label} ${entry.casts}`).join(" · ")}
+                                      </div>
+                                    )}
+                                    <div style={{ marginTop: 8 }}>
+                                      <div style={{ height: 8, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}` }}>
+                                        <div style={{
+                                          width: `${Math.max(maxAffectedTargets > 0 ? 4 : 0, Math.round(affectedPercent))}%`,
+                                          height: "100%",
+                                          background: intent.info,
+                                          opacity: 0.9,
+                                        }} />
+                                      </div>
+                                      <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
+                                        {`${formatMetricValue(row.affectedTargets)}/${formatMetricValue(maxAffectedTargets)} affected (${Math.round(affectedPercent)}%)`}
+                                      </div>
                                     </div>
-                                  )}
+                                  </div>
+                                  <div style={{ fontSize: fontSize.sm, color: "#d6e7ff", fontWeight: fontWeight.semibold }}>
+                                    {row.casts}
+                                  </div>
+                                  <div style={{ fontSize: fontSize.sm, color: "#ffffff", fontWeight: fontWeight.bold }}>
+                                    {formatMetricValue(row.affectedTargets)}
+                                  </div>
+                                  <div style={{ fontSize: fontSize.sm, color: "#ffffff", fontWeight: fontWeight.bold }}>
+                                    {row.averageAffectedPerCast > 0 ? row.averageAffectedPerCast.toFixed(1) : "0.0"}
+                                  </div>
                                 </div>
-                                <div style={{ fontSize: fontSize.sm, color: "#d6e7ff", fontWeight: fontWeight.semibold }}>
-                                  {row.casts}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: "#d6e7ff", fontWeight: fontWeight.semibold }}>
-                                  {formatMetricValue(row.affectedTargets)}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  {row.averageAffectedPerCast > 0 ? row.averageAffectedPerCast.toFixed(1) : "0.0"}
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
