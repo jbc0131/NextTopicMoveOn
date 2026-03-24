@@ -5,7 +5,7 @@ import {
 } from "../../shared/theme";
 import {
   getColor, getSpecDisplay, getClass, ROLE_COLORS,
-  GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2,
+  GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, CUBE_TEAMS,
   GENERAL_CURSES, GENERAL_INTERRUPTS,
 } from "../../shared/constants";
 import {
@@ -91,6 +91,43 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, text
                 wclScores={wclScores} activeTab={activeTab} />
         )}
       </BossPanel>
+    </div>
+  );
+}
+
+function PublicCubeTeamsGrid({ assignments, roster, searchName, wclScores, activeTab }) {
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "1fr 1fr", gap: space[3], marginBottom: space[3],
+    }}>
+      {CUBE_TEAMS.map(team => {
+        const teamPlayers = team.rows
+          .flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : [])
+          .map(id => roster.find(s => s.id === id)).filter(Boolean);
+        return (
+          <div key={team.cubeGroup} style={{
+            background: surface.panel, border: `1px solid ${border.subtle}`,
+            borderRadius: radius.lg, overflow: "hidden",
+          }}>
+            <div style={{
+              padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`,
+              display: "flex", alignItems: "center", gap: space[2], background: `${accent.blue}08`,
+            }}>
+              <span style={{ fontSize: fontSize.sm, color: accent.blue, fontFamily: font.sans, fontWeight: fontWeight.bold }}>
+                {team.label}
+              </span>
+              <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, marginLeft: "auto" }}>
+                {teamPlayers.length}/5
+              </span>
+            </div>
+            {team.rows.map(row => (
+              <PublicRow key={row.key} rowCfg={row} ids={assignments[row.key]}
+                textValues={{}} roster={roster} searchName={searchName}
+                wclScores={wclScores} activeTab={activeTab} />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -209,12 +246,13 @@ export default function TwentyFivePublic({ teamId }) {
             ))}
           </div>
 
-          {activeTab === "mags" && (
+          {activeTab === "mags" && (<>
+            <PublicCubeTeamsGrid assignments={viewAssignments} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
             <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
               <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage="mags" rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
               <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage="mags" rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
             </div>
-          )}
+          </>)}
 
           {activeTab === "gruul" && (
             <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>

@@ -5,8 +5,8 @@ import {
 } from "../../shared/theme";
 import {
   getRole, getClass, getColor, getSpecDisplay, CLASS_COLORS, ROLE_COLORS, CLASS_SPECS,
-  GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS,
-  GENERAL_CURSES, GENERAL_INTERRUPTS, CUBE1_KEYS, CUBE2_KEYS, CUBEBU_KEYS,
+  GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS, CUBE_TEAMS,
+  GENERAL_CURSES, GENERAL_INTERRUPTS, CUBE1_KEYS, CUBE2_KEYS, CUBE3_KEYS, CUBE4_KEYS, CUBEBU_KEYS,
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, PlayerBadge, MarkerIcon,
@@ -28,14 +28,18 @@ function getCubeGroupOf(playerId, assignments) {
     if (!idArr.includes(playerId)) continue;
     if (CUBE1_KEYS.includes(k))  return 1;
     if (CUBE2_KEYS.includes(k))  return 2;
-    if (CUBEBU_KEYS.includes(k)) return 3;
+    if (CUBE3_KEYS.includes(k))  return 3;
+    if (CUBE4_KEYS.includes(k))  return 4;
+    if (CUBEBU_KEYS.includes(k)) return 5;
   }
   return null;
 }
 function getCubeGroupOfKey(key) {
   if (CUBE1_KEYS.includes(key))  return 1;
   if (CUBE2_KEYS.includes(key))  return 2;
-  if (CUBEBU_KEYS.includes(key)) return 3;
+  if (CUBE3_KEYS.includes(key))  return 3;
+  if (CUBE4_KEYS.includes(key))  return 4;
+  if (CUBEBU_KEYS.includes(key)) return 5;
   return null;
 }
 
@@ -50,7 +54,7 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
   let conflictError = null;
   const thisGroup = getCubeGroupOfKey(rowCfg.key);
   if (thisGroup !== null) {
-    const groupNames = { 1: "Cube Clicker 1", 2: "Cube Clicker 2", 3: "Backup" };
+    const groupNames = { 1: "Cube Team 1", 2: "Cube Team 2", 3: "Cube Team 3", 4: "Cube Team 4" };
     for (const id of ids) {
       const otherGroup = getCubeGroupOf(id, { ...assignments, [rowCfg.key]: ids.filter(x => x !== id) });
       if (otherGroup !== null && otherGroup !== thisGroup) {
@@ -352,6 +356,47 @@ function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter,
   );
 }
 
+// ── Cube Teams 2x2 Grid ──────────────────────────────────────────────────────
+function CubeTeamsGrid({ assignments, roster, onDrop, onClear, onDragStart }) {
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "1fr 1fr", gap: space[3], marginBottom: space[3],
+    }}>
+      {CUBE_TEAMS.map(team => {
+        const teamPlayers = team.rows
+          .flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : [])
+          .map(id => roster.find(s => s.id === id)).filter(Boolean);
+        return (
+          <div key={team.cubeGroup} style={{
+            background: surface.panel, border: `1px solid ${border.subtle}`,
+            borderRadius: radius.lg, overflow: "hidden",
+          }}>
+            <div style={{
+              padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`,
+              display: "flex", alignItems: "center", gap: space[2], background: `${accent.blue}08`,
+            }}>
+              <span style={{ fontSize: fontSize.sm, color: accent.blue, fontFamily: font.sans, fontWeight: fontWeight.bold }}>
+                {team.label}
+              </span>
+              <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, marginLeft: "auto" }}>
+                {teamPlayers.length}/5
+              </span>
+            </div>
+            {team.rows.map(row => (
+              <AssignmentRow
+                key={row.key} rowCfg={row} assignedIds={assignments[row.key]}
+                textValues={{}} roster={roster}
+                onDrop={onDrop} onClear={onClear} onTextChange={null} onDragStart={onDragStart}
+                assignments={assignments} compact
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main TwentyFiveAdmin ──────────────────────────────────────────────────────
 export default function TwentyFiveAdmin({ teamId }) {
   const night = teamId === "team-balls" ? "thu" : "tue";
@@ -480,7 +525,7 @@ export default function TwentyFiveAdmin({ teamId }) {
       if (targetGroup !== null) {
         const playerCurrentGroup = getCubeGroupOf(playerId, prev);
         if (playerCurrentGroup !== null && playerCurrentGroup !== targetGroup) {
-          const groupNames = { 1: "Cube Clicker 1", 2: "Cube Clicker 2", 3: "Backup Cube Clickers" };
+          const groupNames = { 1: "Cube Team 1", 2: "Cube Team 2", 3: "Cube Team 3", 4: "Cube Team 4" };
           toast({ message: `${dragSlot.name} is already in "${groupNames[playerCurrentGroup]}"`, type: "danger" });
           return prev;
         }
@@ -609,6 +654,7 @@ export default function TwentyFiveAdmin({ teamId }) {
 
             {activeTab === "mags" && <>
               <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
+              <CubeTeamsGrid assignments={viewAssignments} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onDragStart={isLocked ? null : handleDragStart} />
               <div style={{ display: "flex", gap: space[3] }}>
                 <AssignmentPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
                 <AssignmentPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />

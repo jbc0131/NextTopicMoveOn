@@ -203,17 +203,45 @@ export const MAGS_P1 = [
 ];
 
 export const CUBE1_KEYS  = ["m_p2c1a","m_p2c1b","m_p2c1c","m_p2c1d","m_p2c1e"];
-export const CUBE2_KEYS  = [];
+export const CUBE2_KEYS  = ["m_p2c2a","m_p2c2b","m_p2c2c","m_p2c2d","m_p2c2e"];
+export const CUBE3_KEYS  = ["m_p2c3a","m_p2c3b","m_p2c3c","m_p2c3d","m_p2c3e"];
+export const CUBE4_KEYS  = ["m_p2c4a","m_p2c4b","m_p2c4c","m_p2c4d","m_p2c4e"];
 export const CUBEBU_KEYS = [];
-export const ALL_CUBE_KEYS = [...CUBE1_KEYS];
+export const ALL_CUBE_KEYS = [...CUBE1_KEYS, ...CUBE2_KEYS, ...CUBE3_KEYS, ...CUBE4_KEYS];
+
+// Cube clicker team definitions (used by admin/public for 2x2 grid layout)
+export const CUBE_TEAMS = [
+  { label: "Cube Clicker Team 1", cubeGroup: 1, rows: [
+    { key: "m_p2c1a", label: "Clicker", markerKey: "skull",    role: "DPS", cubeGroup: 1 },
+    { key: "m_p2c1b", label: "Clicker", markerKey: "cross",    role: "DPS", cubeGroup: 1 },
+    { key: "m_p2c1c", label: "Clicker", markerKey: "square",   role: "DPS", cubeGroup: 1 },
+    { key: "m_p2c1d", label: "Clicker", markerKey: "moon",     role: "DPS", cubeGroup: 1 },
+    { key: "m_p2c1e", label: "Clicker", markerKey: "triangle", role: "DPS", cubeGroup: 1 },
+  ]},
+  { label: "Cube Clicker Team 2", cubeGroup: 2, rows: [
+    { key: "m_p2c2a", label: "Clicker", markerKey: "skull",    role: "DPS", cubeGroup: 2 },
+    { key: "m_p2c2b", label: "Clicker", markerKey: "cross",    role: "DPS", cubeGroup: 2 },
+    { key: "m_p2c2c", label: "Clicker", markerKey: "square",   role: "DPS", cubeGroup: 2 },
+    { key: "m_p2c2d", label: "Clicker", markerKey: "moon",     role: "DPS", cubeGroup: 2 },
+    { key: "m_p2c2e", label: "Clicker", markerKey: "triangle", role: "DPS", cubeGroup: 2 },
+  ]},
+  { label: "Cube Clicker Team 3", cubeGroup: 3, rows: [
+    { key: "m_p2c3a", label: "Clicker", markerKey: "skull",    role: "DPS", cubeGroup: 3 },
+    { key: "m_p2c3b", label: "Clicker", markerKey: "cross",    role: "DPS", cubeGroup: 3 },
+    { key: "m_p2c3c", label: "Clicker", markerKey: "square",   role: "DPS", cubeGroup: 3 },
+    { key: "m_p2c3d", label: "Clicker", markerKey: "moon",     role: "DPS", cubeGroup: 3 },
+    { key: "m_p2c3e", label: "Clicker", markerKey: "triangle", role: "DPS", cubeGroup: 3 },
+  ]},
+  { label: "Cube Clicker Team 4", cubeGroup: 4, rows: [
+    { key: "m_p2c4a", label: "Clicker", markerKey: "skull",    role: "DPS", cubeGroup: 4 },
+    { key: "m_p2c4b", label: "Clicker", markerKey: "cross",    role: "DPS", cubeGroup: 4 },
+    { key: "m_p2c4c", label: "Clicker", markerKey: "square",   role: "DPS", cubeGroup: 4 },
+    { key: "m_p2c4d", label: "Clicker", markerKey: "moon",     role: "DPS", cubeGroup: 4 },
+    { key: "m_p2c4e", label: "Clicker", markerKey: "triangle", role: "DPS", cubeGroup: 4 },
+  ]},
+];
 
 export const MAGS_P2 = [
-  // Cube Clickers — primary assignment, shown first
-  { key: "m_p2c1a",  label: "Cube Clicker", markerKey: "skull",    role: "DPS", roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
-  { key: "m_p2c1b",  label: "Cube Clicker", markerKey: "cross",    role: "DPS", roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
-  { key: "m_p2c1c",  label: "Cube Clicker", markerKey: "square",   role: "DPS", roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
-  { key: "m_p2c1d",  label: "Cube Clicker", markerKey: "moon",     role: "DPS", roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
-  { key: "m_p2c1e",  label: "Cube Clicker", markerKey: "triangle", role: "DPS", roleLabel: "Cube Clickers", hint: "", cubeGroup: 1 },
   // Tank
   { key: "m_p2mt",   label: "Main Tank",    role: "Tank",   hint: "" },
   // Healers
