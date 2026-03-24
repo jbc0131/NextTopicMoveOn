@@ -98,8 +98,19 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, text
 function PublicCubeTeamsGrid({ assignments, roster, searchName, wclScores, activeTab }) {
   return (
     <div style={{
-      display: "grid", gridTemplateColumns: "1fr 1fr", gap: space[3], marginBottom: space[3],
+      border: `2px solid ${accent.blue}`, borderRadius: radius.lg,
+      padding: space[3], marginBottom: space[3], background: `${accent.blue}06`,
     }}>
+      <div style={{
+        textAlign: "center", marginBottom: space[3],
+        fontSize: fontSize.base, fontFamily: font.sans, fontWeight: fontWeight.bold,
+        color: accent.blue, letterSpacing: "0.05em",
+      }}>
+        CUBE CLICKERS — THE CORE OF WINNING
+      </div>
+      <div style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: space[3],
+      }}>
       {CUBE_TEAMS.map(team => {
         const teamPlayers = team.rows
           .flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : [])
@@ -128,6 +139,7 @@ function PublicCubeTeamsGrid({ assignments, roster, searchName, wclScores, activ
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
