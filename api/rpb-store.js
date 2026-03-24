@@ -68,6 +68,17 @@ function getRaidKeys(raidId) {
   };
 }
 
+function getFightDurationMs(fight) {
+  const durationMs = Number(fight?.durationMs || 0);
+  if (durationMs > 0) return durationMs;
+
+  const startTime = Number(fight?.startTime ?? fight?.start_time ?? 0);
+  const endTime = Number(fight?.endTime ?? fight?.end_time ?? 0);
+  if (endTime > startTime) return endTime - startTime;
+
+  return 0;
+}
+
 function formatFightDuration(durationMs) {
   const totalSeconds = Math.max(0, Math.round(Number(durationMs || 0) / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -78,7 +89,7 @@ function formatFightDuration(durationMs) {
 function formatFightList(fights, kill) {
   const items = (Array.isArray(fights) ? fights : [])
     .filter(fight => Boolean(fight) && Boolean(fight.kill) === kill && Number(fight.encounterId) > 0)
-    .map(fight => `${fight.name || "Unknown Fight"} (${formatFightDuration(fight.durationMs)})`);
+    .map(fight => `${fight.name || "Unknown Fight"} (${formatFightDuration(getFightDurationMs(fight))})`);
 
   return items.length ? items.join("\n") : "None";
 }
