@@ -2532,16 +2532,19 @@ export default function RpbPage() {
   const remoteAbilityBreakdown = remoteBreakdownKey === remoteAbilityBreakdownState.key
     ? (remoteAbilityBreakdownState.entries || [])
     : [];
+  const remoteAbilityBreakdownLoading = remoteBreakdownKey === remoteAbilityBreakdownState.key
+    && !!remoteAbilityBreakdownState.loading;
+  const preferRemoteAbilityBreakdown = !!(remoteBreakdownKey && profileApiKey.trim());
   const importedBreakdownExists = sliceType === "healing"
     ? hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
     : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown);
-  const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(remoteAbilityBreakdown)
-    ? remoteAbilityBreakdown
+  const visiblePlayerDamageBreakdown = preferRemoteAbilityBreakdown
+    ? (remoteAbilityBreakdownLoading ? [] : remoteAbilityBreakdown)
     : (hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
       ? selectedPlayerDamageBreakdown
       : selectedPlayerSummaryDamageBreakdown);
-  const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(remoteAbilityBreakdown)
-    ? remoteAbilityBreakdown
+  const visiblePlayerHealingBreakdown = preferRemoteAbilityBreakdown
+    ? (remoteAbilityBreakdownLoading ? [] : remoteAbilityBreakdown)
     : (hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
       ? selectedPlayerHealingBreakdown
       : selectedPlayerSummaryHealingBreakdown);
