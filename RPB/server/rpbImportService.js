@@ -615,6 +615,29 @@ export async function fetchPlayerAbilityBreakdown({
 async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
   const snapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
+  const friendlyById = new Map((fightsData.friendlies || []).map(friendly => [String(friendly?.id || ""), friendly]));
+  const hunterPetsByFightId = new Map();
+
+  for (const pet of fightsData.friendlyPets || []) {
+    const ownerId = String(pet?.petOwner || pet?.petOwnerId || pet?.ownerID || pet?.ownerId || "");
+    if (!ownerId) continue;
+
+    const owner = friendlyById.get(ownerId);
+    if (owner?.type !== "Hunter") continue;
+
+    for (const fight of pet?.fights || []) {
+      const fightId = String(fight?.id || "");
+      if (!fightId) continue;
+
+      const pets = hunterPetsByFightId.get(fightId) || [];
+      pets.push({
+        id: String(pet?.id || ""),
+        name: pet?.name || "Pet",
+        ownerId,
+      });
+      hunterPetsByFightId.set(fightId, pets);
+    }
+  }
 
   const snapshots = [];
   for (const fight of snapshotFights) {
@@ -631,6 +654,70 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
         options: 2,
       }, apiKeyOverride),
     ]);
+    const hunterPets = hunterPetsByFightId.get(String(fight.id)) || [];
+    const petDamageByOwnerId = new Map();
+
+    if (hunterPets.length > 0) {
+      const petPayloads = await Promise.all(hunterPets.map(async pet => {
+        const petDamage = await wclFetch(`/report/tables/damage-done/${reportId}`, {
+          start: fight.start_time ?? 0,
+          end: fight.end_time ?? 0,
+          sourceid: pet.id,
+        }, apiKeyOverride);
+
+        return {
+          ...pet,
+          entries: petDamage?.entries || [],
+        };
+      }));
+
+      for (const pet of petPayloads) {
+        const total = (pet.entries || []).reduce((sum, entry) => sum + Number(entry?.total || 0), 0);
+        if (total <= 0) continue;
+
+        const abilities = (pet.entries || []).map(entry => normalizeAbilityEntry({
+          guid: `pet:${pet.id}:${entry?.guid ?? entry?.name ?? "unknown"}`,
+          name: `${pet.name}: ${entry?.name || "Unknown Ability"}`,
+          icon: entry?.abilityIcon || entry?.icon || entry?.iconName || "",
+          total: entry?.total ?? 0,
+          activeTime: 0,
+          hits: entry?.hits ?? entry?.totalHits ?? entry?.hitCount ?? entry?.count ?? 0,
+          casts: entry?.casts ?? entry?.totalUses ?? entry?.uses ?? entry?.useCount ?? entry?.executeCount ?? 0,
+          crits: entry?.crits ?? entry?.criticalHits ?? entry?.critCount ?? entry?.critHits ?? entry?.critHitCount ?? 0,
+          overheal: 0,
+          absorbed: entry?.absorbed ?? 0,
+        })).filter(Boolean);
+        const ownerEntry = petDamageByOwnerId.get(pet.ownerId) || {
+          total: 0,
+          abilities: [],
+          casts: 0,
+          hits: 0,
+          crits: 0,
+        };
+
+        ownerEntry.total += total;
+        ownerEntry.abilities.push(...abilities);
+        ownerEntry.casts += abilities.reduce((sum, ability) => sum + Number(ability?.casts || 0), 0);
+        ownerEntry.hits += abilities.reduce((sum, ability) => sum + Number(ability?.hits || 0), 0);
+        ownerEntry.crits += abilities.reduce((sum, ability) => sum + Number(ability?.crits || 0), 0);
+        petDamageByOwnerId.set(pet.ownerId, ownerEntry);
+      }
+    }
+
+    const enrichedEntries = enrichFightMetricEntries(damageDone?.entries || [], casts, "All Damage")
+      .map(entry => {
+        const petContribution = petDamageByOwnerId.get(String(entry?.id || ""));
+        if (!petContribution) return entry;
+
+        return {
+          ...entry,
+          total: Number(entry?.total || 0) + petContribution.total,
+          abilities: [...(entry?.abilities || []), ...petContribution.abilities],
+          casts: Number(entry?.casts || 0) + petContribution.casts,
+          hits: Number(entry?.hits || 0) + petContribution.hits,
+          crits: Number(entry?.crits || 0) + petContribution.crits,
+        };
+      });
 
     snapshots.push({
       fightId: String(fight.id),
@@ -638,7 +725,7 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
       fightName: fight.name || "Unknown Fight",
       damageDone: {
         ...damageDone,
-        entries: enrichFightMetricEntries(damageDone?.entries || [], casts, "All Damage"),
+        entries: enrichedEntries,
       },
     });
   }
