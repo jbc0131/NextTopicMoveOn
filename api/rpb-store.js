@@ -74,19 +74,31 @@ async function sendNewRaidWebhook(raid, summary) {
   const teamTag = normalizeTeamTag(raid?.teamTag);
   const raidUrl = `${RPB_PUBLIC_BASE_URL.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid?.id || ""))}`;
   const reportUrl = raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
-  const content = [
-    "RPB test webhook: new report uploaded",
-    raid?.title ? `Title: ${raid.title}` : "",
-    teamTag ? `Team: ${teamTag}` : "",
-    summary?.playerCount != null ? `Players: ${summary.playerCount}` : "",
-    raidUrl ? `RPB: ${raidUrl}` : "",
-    reportUrl ? `WCL: ${reportUrl}` : "",
-  ].filter(Boolean).join("\n");
+  const embed = {
+    title: raid?.title || "New RPB Report Uploaded",
+    url: raidUrl || undefined,
+    description: "Test webhook embed for a newly saved RPB report.",
+    color: 3447003,
+    fields: [
+      teamTag ? { name: "Team", value: teamTag, inline: true } : null,
+      summary?.playerCount != null ? { name: "Players", value: String(summary.playerCount), inline: true } : null,
+      summary?.fightCount != null ? { name: "Boss Fights", value: String(summary.fightCount), inline: true } : null,
+      reportUrl ? { name: "Warcraft Logs", value: `[Open Report](${reportUrl})`, inline: false } : null,
+      raidUrl ? { name: "RPB", value: `[Open Report](${raidUrl})`, inline: false } : null,
+    ].filter(Boolean),
+    footer: {
+      text: raid?.reportId ? `Report ID: ${raid.reportId}` : "RPB webhook test",
+    },
+    timestamp: new Date(raid?.importedAt || Date.now()).toISOString(),
+  };
 
   const response = await fetch(DISCORD_RPB_WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({
+      content: "RPB webhook embed test",
+      embeds: [embed],
+    }),
   });
 
   if (!response.ok) {
