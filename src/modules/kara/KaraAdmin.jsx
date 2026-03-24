@@ -256,12 +256,15 @@ function ConflictModal({ conflicts, resolved, onChange, onConfirm }) {
 
 // ── Manual add player ─────────────────────────────────────────────────────────
 function ManualAddPlayer({ onAdd, rosterTue, rosterThu }) {
-  const [open,    setOpen]    = useState(false);
-  const [name,    setName]    = useState("");
-  const [cls,     setCls]     = useState("Warrior");
-  const [spec,    setSpec]    = useState("Arms");
-  const [linkId,  setLinkId]  = useState("");
-  const [error,   setError]   = useState("");
+  const [open,       setOpen]       = useState(false);
+  const [name,       setName]       = useState("");
+  const [cls,        setCls]        = useState("Warrior");
+  const [spec,       setSpec]       = useState("Arms");
+  const [linkId,     setLinkId]     = useState("");
+  const [linkSearch, setLinkSearch] = useState("");
+  const [linkFocus,  setLinkFocus]  = useState(false);
+  const [error,      setError]      = useState("");
+  const linkRef = useRef(null);
 
   const specs = CLASS_SPECS[cls] || [];
   const handleClass = c => { setCls(c); setSpec(CLASS_SPECS[c][0].specName); };
@@ -278,6 +281,24 @@ function ManualAddPlayer({ onAdd, rosterTue, rosterThu }) {
     });
   }, [rosterTue, rosterThu]);
 
+  const filteredOptions = useMemo(() => {
+    if (!linkSearch.trim()) return linkOptions;
+    const q = linkSearch.toLowerCase();
+    return linkOptions.filter(p => p.name.toLowerCase().includes(q));
+  }, [linkOptions, linkSearch]);
+
+  const selectedPlayer = linkId ? linkOptions.find(p => (p._discordId || p.id) === linkId) : null;
+
+  const handleSelectLink = (p) => {
+    setLinkId(p._discordId || p.id);
+    setLinkSearch(p.name);
+    setLinkFocus(false);
+  };
+
+  const handleClearLink = () => {
+    setLinkId(""); setLinkSearch(""); linkRef.current?.focus();
+  };
+
   const handleAdd = () => {
     if (!name.trim()) { setError("Enter a name"); return; }
     const player = {
@@ -290,7 +311,7 @@ function ManualAddPlayer({ onAdd, rosterTue, rosterThu }) {
     };
     if (linkId) player._discordId = linkId;
     onAdd(player);
-    setName(""); setCls("Warrior"); setSpec("Arms"); setLinkId(""); setError(""); setOpen(false);
+    setName(""); setCls("Warrior"); setSpec("Arms"); setLinkId(""); setLinkSearch(""); setError(""); setOpen(false);
   };
 
   if (!open) return (
@@ -328,17 +349,53 @@ function ManualAddPlayer({ onAdd, rosterTue, rosterThu }) {
           </option>
         ))}
       </select>
-      <select value={linkId} onChange={e => setLinkId(e.target.value)} style={{ ...inputStyle, fontSize: fontSize.xs, cursor: "pointer", color: linkId ? accent.blue : text.muted }}>
-        <option value="" style={{ background: surface.base, color: text.muted }}>Link to Discord (optional)</option>
-        {linkOptions.map(p => (
-          <option key={p._discordId || p.id} value={p._discordId || p.id} style={{ background: surface.base, color: CLASS_COLORS[getClass(p)] || text.primary }}>
-            {p.name}
-          </option>
-        ))}
-      </select>
+      <div style={{ position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <input
+            ref={linkRef}
+            value={linkSearch}
+            onChange={e => { setLinkSearch(e.target.value); setLinkId(""); }}
+            onFocus={() => setLinkFocus(true)}
+            onBlur={() => setTimeout(() => setLinkFocus(false), 150)}
+            placeholder="Link to Discord (optional)"
+            style={{ ...inputStyle, width: "100%", fontSize: fontSize.xs, color: selectedPlayer ? accent.blue : text.primary }}
+          />
+          {(linkId || linkSearch) && (
+            <button onClick={handleClearLink} style={{ background: "none", border: "none", color: text.muted, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px", flexShrink: 0 }} title="Clear">×</button>
+          )}
+        </div>
+        {selectedPlayer && (
+          <div style={{ fontSize: 9, color: accent.blue, fontFamily: font.sans, marginTop: 2 }}>
+            Linked to {selectedPlayer.name}
+          </div>
+        )}
+        {linkFocus && !linkId && filteredOptions.length > 0 && (
+          <div style={{
+            position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
+            background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.sm,
+            maxHeight: 120, overflowY: "auto", marginTop: 2,
+          }}>
+            {filteredOptions.map(p => (
+              <div
+                key={p._discordId || p.id}
+                onMouseDown={() => handleSelectLink(p)}
+                style={{
+                  padding: `3px ${space[2]}px`, cursor: "pointer", fontSize: fontSize.xs,
+                  fontFamily: font.sans, color: CLASS_COLORS[getClass(p)] || text.primary,
+                  background: "transparent",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = surface.overlay}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                {p.name}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div style={{ display: "flex", gap: space[1] }}>
         <button onClick={handleAdd} style={{ ...btnStyle("success"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Add</button>
-        <button onClick={() => { setOpen(false); setError(""); setName(""); setLinkId(""); }} style={{ ...btnStyle("default"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Cancel</button>
+        <button onClick={() => { setOpen(false); setError(""); setName(""); setLinkId(""); setLinkSearch(""); }} style={{ ...btnStyle("default"), flex: 1, fontSize: fontSize.xs, height: 26 }}>Cancel</button>
       </div>
     </div>
   );
