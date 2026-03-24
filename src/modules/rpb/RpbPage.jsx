@@ -2697,7 +2697,7 @@ export default function RpbPage() {
         sortValue: potionUseCount,
       },
       {
-        label: "Hearthstones",
+        label: "Healthstones",
         value: hearthstoneCount,
         tone: hearthstoneCount > 0 ? "warning" : "neutral",
         sortValue: hearthstoneCount,
@@ -3806,7 +3806,7 @@ export default function RpbPage() {
                         onClick={() => setRaidAnalyticsFilter(current => current === "consumables" ? "" : "consumables")}
                       />
                       <MetricTag
-                        label="Hearthstone Uses"
+                        label="Healthstone Uses"
                         value={filteredRaidAnalytics.playersUsingHearthstone.reduce((sum, entry) => sum + Number(entry.total || 0), 0)}
                         tone="warning"
                         active={raidAnalyticsFilter === "hearthstone"}
