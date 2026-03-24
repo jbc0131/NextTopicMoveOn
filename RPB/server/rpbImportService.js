@@ -212,6 +212,7 @@ function normalizeReportSpeedRows(rawRanking, encounterFights = []) {
   }
 
   return {
+    compareMode: "Rankings",
     fights,
     reportSpeedPercent: reportPercents.length
       ? reportPercents.reduce((sum, value) => sum + value, 0) / reportPercents.length
@@ -303,7 +304,7 @@ async function fetchReportSpeed(reportId, fightsData = {}, clientIdOverride = ""
   const query = `{
     reportData {
       report(code: "${reportId}", allowUnlisted: true) {
-        overall_speed: rankings(compare: Parses, playerMetric: playerspeed)
+        overall_speed: rankings(compare: Rankings, playerMetric: playerspeed)
       }
     }
   }`;

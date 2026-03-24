@@ -1176,6 +1176,7 @@ function getRaidReportSpeedPercent(raid) {
 
 function hasHydratedSpeedScores(raid) {
   if (!raid) return false;
+  if ((raid?.importPayload?.reportSpeed?.compareMode || "") !== "Rankings") return false;
   const reportSpeedPercent = getRaidReportSpeedPercent(raid);
   const fightSpeedPercents = (raid.fights || [])
     .map(fight => Number(fight?.speedParsePercent))
