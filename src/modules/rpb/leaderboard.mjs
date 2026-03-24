@@ -9,7 +9,7 @@ export function getKillParseLeader(raid, role, entryKey) {
 
     for (const entry of fight?.[entryKey] || []) {
       const parsePercent = Number(entry?.parsePercent);
-      if (!(Number.isFinite(parsePercent) && parsePercent > 0)) continue;
+      if (!(Number.isFinite(parsePercent) && parsePercent >= 0)) continue;
 
       const player = playersById.get(String(entry?.id || ""));
       if (!player || player?.role !== role) continue;
@@ -35,7 +35,7 @@ export function getKillParseLeader(raid, role, entryKey) {
   const candidates = [...grouped.values()].map(player => ({
     ...player,
     parsePercent: player.count > 0 ? (player.totalParse / player.count) : null,
-  })).filter(player => Number.isFinite(Number(player.parsePercent)) && Number(player.parsePercent) > 0);
+  })).filter(player => Number.isFinite(Number(player.parsePercent)) && Number(player.parsePercent) >= 0);
 
   if (!candidates.length) return null;
 
