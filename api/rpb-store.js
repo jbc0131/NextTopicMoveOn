@@ -2,6 +2,8 @@ import { assertRedisConfigured, buildCacheKey, deleteKey, getJsonCache, setJsonC
 import { getRaidCardLeaders } from "../src/modules/rpb/leaderboard.js";
 
 const RPB_INDEX_KEY = buildCacheKey("rpb", ["index"]);
+const DISCORD_RPB_WEBHOOK_URL = process.env.DISCORD_RPB_WEBHOOK_URL || "";
+const RPB_PUBLIC_BASE_URL = process.env.AUTH_DOMAIN || "https://nexttopicmoveon.com";
 
 function normalizeTeamTag(value) {
   const normalized = String(value || "").trim();
@@ -66,12 +68,41 @@ function getRaidKeys(raidId) {
   };
 }
 
-export async function saveRaidBundle(raid) {
+async function sendNewRaidWebhook(raid, summary) {
+  if (!DISCORD_RPB_WEBHOOK_URL) return false;
+
+  const teamTag = normalizeTeamTag(raid?.teamTag);
+  const raidUrl = `${RPB_PUBLIC_BASE_URL.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid?.id || ""))}`;
+  const reportUrl = raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
+  const content = [
+    "RPB test webhook: new report uploaded",
+    raid?.title ? `Title: ${raid.title}` : "",
+    teamTag ? `Team: ${teamTag}` : "",
+    summary?.playerCount != null ? `Players: ${summary.playerCount}` : "",
+    raidUrl ? `RPB: ${raidUrl}` : "",
+    reportUrl ? `WCL: ${reportUrl}` : "",
+  ].filter(Boolean).join("\n");
+
+  const response = await fetch(DISCORD_RPB_WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord webhook failed: ${response.status} ${await response.text()}`);
+  }
+
+  return true;
+}
+
+export async function saveRaidBundle(raid, options = {}) {
   assertRedisConfigured();
   const keys = getRaidKeys(raid.id);
   const summary = getRaidSummary(raid);
   const meta = getRaidMeta(raid);
   const currentIndex = (await getJsonCache(RPB_INDEX_KEY)) || [];
+  const isNewRaid = !currentIndex.some(entry => entry?.id === raid.id);
   const nextIndex = [summary, ...currentIndex.filter(entry => entry?.id !== raid.id)]
     .sort((a, b) => new Date(b.importedAt || 0) - new Date(a.importedAt || 0))
     .slice(0, 100);
@@ -85,6 +116,14 @@ export async function saveRaidBundle(raid) {
 
   if (results.some(result => !result)) {
     throw new Error("Failed to write RPB data to Redis.");
+  }
+
+  if (options?.notifyIfNew && isNewRaid) {
+    try {
+      await sendNewRaidWebhook(raid, summary);
+    } catch (error) {
+      console.error("RPB Discord webhook failed:", error);
+    }
   }
 
   return summary;
@@ -182,7 +221,7 @@ export default async function handler(req, res) {
         importedAt: raid.importedAt || new Date().toISOString(),
       };
 
-      const summary = await saveRaidBundle(normalizedRaid);
+      const summary = await saveRaidBundle(normalizedRaid, { notifyIfNew: true });
       return res.status(200).json({ raidId: normalizedRaid.id, persistence: "remote", summary });
     }
 
