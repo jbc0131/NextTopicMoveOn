@@ -713,7 +713,6 @@ async function fetchFightBuffSnapshots(reportId, apiKeyOverride = "") {
       start: fight.start_time ?? 0,
       end: fight.end_time ?? 0,
       by: "target",
-      options: 2,
     }, apiKeyOverride);
 
     snapshots.push({
@@ -1369,7 +1368,6 @@ export async function fetchRpbImportStep(action, input = {}) {
         start: 0,
         end: 999999999999,
         by: "target",
-        options: 2,
         filter: "encounterid != 724",
       }, apiKey);
     case "drums":

@@ -354,13 +354,17 @@ function getConsumableCoverage(buffSnapshot, player) {
   const hasGuardianElixir = auras.some(isGuardianElixirAura);
   const hasScroll = scrollAuras.length > 0;
   const hasFood = foodAuras.length > 0;
+  const hasElixirCoverage = hasFlask || (hasBattleElixir && hasGuardianElixir);
+  const fullyCovered = hasScroll && hasFood && hasElixirCoverage;
   return {
     hasFlask,
     hasBattleElixir,
     hasGuardianElixir,
     hasScroll,
     hasFood,
-    covered: hasFlask || (hasBattleElixir && hasGuardianElixir),
+    hasElixirCoverage,
+    fullyCovered,
+    covered: hasElixirCoverage,
     flaskNames: getUniqueAuraNames(flaskAuras),
     battleElixirNames: getUniqueAuraNames(battleElixirAuras),
     guardianElixirNames: getUniqueAuraNames(guardianElixirAuras),
@@ -506,14 +510,14 @@ export function deriveRpbAnalytics(players, datasets) {
       fightName: snapshot?.fightName || "Unknown Fight",
       ...getConsumableCoverage(snapshot, player),
     }));
-    const coveredConsumableFights = consumableCoverage.filter(entry => entry.covered).length;
-    const consumableIssueCount = consumableCoverage.filter(entry => !entry.covered).length;
+    const coveredConsumableFights = consumableCoverage.filter(entry => entry.fullyCovered).length;
+    const consumableIssueCount = consumableCoverage.filter(entry => !entry.fullyCovered).length;
     const scrollCoverageCount = consumableCoverage.filter(entry => entry.hasScroll).length;
     const foodCoverageCount = consumableCoverage.filter(entry => entry.hasFood).length;
-    const elixirCoverageCount = consumableCoverage.filter(entry => entry.covered).length;
+    const elixirCoverageCount = consumableCoverage.filter(entry => entry.hasElixirCoverage).length;
     const scrollIssueCount = consumableCoverage.filter(entry => !entry.hasScroll).length;
     const foodIssueCount = consumableCoverage.filter(entry => !entry.hasFood).length;
-    const elixirIssueCount = consumableCoverage.filter(entry => !entry.covered).length;
+    const elixirIssueCount = consumableCoverage.filter(entry => !entry.hasElixirCoverage).length;
     const healthstoneCountFromCasts = countMatchingCasts(fullCastsEntry, { ids: HEALTHSTONE_CAST_IDS, nameTokens: HEALTHSTONE_NAME_TOKENS });
     const healthstoneCountFromHealing = (datasets.healingByFight?.snapshots || []).reduce((sum, snapshot) => {
       const healingEntry = (snapshot?.healing?.entries || []).find(entry =>

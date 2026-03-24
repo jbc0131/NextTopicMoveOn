@@ -1053,13 +1053,17 @@ function getConsumableCoverage(buffSnapshot, playerId, playerName) {
   const hasGuardianElixir = auras.some(isGuardianElixirAura);
   const hasScroll = auras.some(isScrollAura);
   const hasFood = auras.some(isFoodAura);
+  const hasElixirCoverage = hasFlask || (hasBattleElixir && hasGuardianElixir);
+  const fullyCovered = hasScroll && hasFood && hasElixirCoverage;
   return {
     hasFlask,
     hasBattleElixir,
     hasGuardianElixir,
     hasScroll,
     hasFood,
-    covered: hasFlask || (hasBattleElixir && hasGuardianElixir),
+    hasElixirCoverage,
+    fullyCovered,
+    covered: hasElixirCoverage,
     flaskAuras,
     battleElixirAuras,
     guardianElixirAuras,
@@ -1490,14 +1494,14 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
     fightName: snapshot?.fightName || "Unknown Fight",
     ...getConsumableCoverage(snapshot, playerId, playerName),
   }));
-  const coveredConsumableFights = consumableCoverage.filter(entry => entry.covered).length;
-  const consumableIssueCount = consumableCoverage.filter(entry => !entry.covered).length;
+  const coveredConsumableFights = consumableCoverage.filter(entry => entry.fullyCovered).length;
+  const consumableIssueCount = consumableCoverage.filter(entry => !entry.fullyCovered).length;
   const scrollCoverageCount = consumableCoverage.filter(entry => entry.hasScroll).length;
   const foodCoverageCount = consumableCoverage.filter(entry => entry.hasFood).length;
-  const elixirCoverageCount = consumableCoverage.filter(entry => entry.covered).length;
+  const elixirCoverageCount = consumableCoverage.filter(entry => entry.hasElixirCoverage).length;
   const scrollIssueCount = consumableCoverage.filter(entry => !entry.hasScroll).length;
   const foodIssueCount = consumableCoverage.filter(entry => !entry.hasFood).length;
-  const elixirIssueCount = consumableCoverage.filter(entry => !entry.covered).length;
+  const elixirIssueCount = consumableCoverage.filter(entry => !entry.hasElixirCoverage).length;
   const fullCastsEntry = (importPayload?.fullCasts?.entries || []).find(entry =>
     String(entry?.id || "") === String(playerId) || entry?.name === playerName
   );
@@ -2849,7 +2853,7 @@ export default function RpbPage() {
         sortValue: gearSummary.lowQualityGemCount || 0,
       },
       {
-        label: "Elixir / Flask Coverage",
+        label: "Consumable Coverage",
         value: totalConsumableFights > 0 ? `${coveredConsumableFights}/${totalConsumableFights}` : "0/0",
         tone: totalConsumableFights > 0 && consumableIssueCount === 0 ? "success" : (consumableIssueCount > 0 ? "warning" : "neutral"),
         sortValue: consumableIssueCount > 0 ? consumableIssueCount : coveredConsumableFights,
@@ -4367,7 +4371,7 @@ export default function RpbPage() {
                               </div>
                             )}
                             {(selectedPlayerAnalytics?.consumableCoverage || []).map(row => {
-                              const rowIssues = Number(!row.hasScroll) + Number(!row.covered) + Number(!row.hasFood);
+                              const rowIssues = Number(!row.hasScroll) + Number(!row.hasElixirCoverage) + Number(!row.hasFood);
                               return (
                                 <div
                                   key={`consumable-row-${row.fightId}`}
@@ -4386,10 +4390,10 @@ export default function RpbPage() {
                                   <div style={{ fontSize: fontSize.sm, color: row.hasScroll ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
                                     {formatAuraList(row.scrollNames)}
                                   </div>
-                                  <div style={{ fontSize: fontSize.sm, color: row.covered ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
+                                  <div style={{ fontSize: fontSize.sm, color: row.hasElixirCoverage ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
                                     {row.hasFlask
                                       ? formatAuraList(row.flaskNames)
-                                      : (row.covered
+                                      : (row.hasElixirCoverage
                                         ? formatAuraList([...(row.battleElixirNames || []), ...(row.guardianElixirNames || [])])
                                         : "Missing")}
                                   </div>
