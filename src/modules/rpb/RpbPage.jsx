@@ -156,7 +156,16 @@ const GUARDIAN_ELIXIR_IDS = new Set([
   "39625", "39626", "17539", "28502", "28509", "39627", "28503", "11348",
 ]);
 const HEALTHSTONE_CAST_IDS = new Set([]);
-const HEALTHSTONE_NAME_TOKENS = ["healthstone"];
+const HEALTHSTONE_NAME_TOKENS = [
+  "minor healthstone",
+  "lesser healthstone",
+  "healthstone",
+  "greater healthstone",
+  "major healthstone",
+  "master healthstone",
+  "demonic healthstone",
+  "fel healthstone",
+];
 const POTION_NAME_TOKENS = ["potion"];
 const FOOD_AURA_NAME_TOKENS = [
   "well fed",

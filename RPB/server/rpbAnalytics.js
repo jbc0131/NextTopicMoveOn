@@ -48,7 +48,16 @@ const GUARDIAN_ELIXIR_IDS = new Set([
 ]);
 
 const HEALTHSTONE_CAST_IDS = new Set([]);
-const HEALTHSTONE_NAME_TOKENS = ["healthstone"];
+const HEALTHSTONE_NAME_TOKENS = [
+  "minor healthstone",
+  "lesser healthstone",
+  "healthstone",
+  "greater healthstone",
+  "major healthstone",
+  "master healthstone",
+  "demonic healthstone",
+  "fel healthstone",
+];
 const POTION_NAME_TOKENS = ["potion"];
 
 function getGearList(entry) {
