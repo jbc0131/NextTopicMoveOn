@@ -384,6 +384,39 @@ function teamFilterButtonStyle(option, active) {
 
 function MetricTag({ label, value, tone = "neutral", active = false, onClick = null }) {
   const interactive = typeof onClick === "function";
+  const activeStyles = {
+    success: {
+      background: "rgba(75, 170, 109, 0.32)",
+      borderColor: "rgba(110, 220, 145, 0.98)",
+      boxShadow: "0 0 0 2px rgba(110, 220, 145, 0.28), inset 0 0 0 1px rgba(255,255,255,0.16)",
+      color: "#effff3",
+    },
+    warning: {
+      background: "rgba(201, 154, 60, 0.34)",
+      borderColor: "rgba(255, 214, 120, 0.98)",
+      boxShadow: "0 0 0 2px rgba(255, 214, 120, 0.24), inset 0 0 0 1px rgba(255,255,255,0.16)",
+      color: "#fff7e1",
+    },
+    danger: {
+      background: "rgba(205, 78, 78, 0.34)",
+      borderColor: "rgba(255, 134, 134, 0.98)",
+      boxShadow: "0 0 0 2px rgba(255, 134, 134, 0.24), inset 0 0 0 1px rgba(255,255,255,0.16)",
+      color: "#fff0f0",
+    },
+    info: {
+      background: "rgba(61, 125, 202, 0.34)",
+      borderColor: "rgba(131, 185, 255, 0.98)",
+      boxShadow: "0 0 0 2px rgba(131, 185, 255, 0.24), inset 0 0 0 1px rgba(255,255,255,0.16)",
+      color: "#eef6ff",
+    },
+    neutral: {
+      background: "rgba(120, 128, 145, 0.28)",
+      borderColor: "rgba(188, 197, 216, 0.95)",
+      boxShadow: "0 0 0 2px rgba(188, 197, 216, 0.18), inset 0 0 0 1px rgba(255,255,255,0.14)",
+      color: "#f4f7fd",
+    },
+  };
+
   return (
     <button
       type="button"
@@ -391,7 +424,7 @@ function MetricTag({ label, value, tone = "neutral", active = false, onClick = n
       style={{
         ...tagStyle(tone),
         cursor: interactive ? "pointer" : "default",
-        boxShadow: active ? "inset 0 0 0 1px rgba(255,255,255,0.14)" : "none",
+        ...(active ? (activeStyles[tone] || activeStyles.neutral) : {}),
         opacity: interactive && !active ? 0.9 : 1,
       }}
       disabled={!interactive}
