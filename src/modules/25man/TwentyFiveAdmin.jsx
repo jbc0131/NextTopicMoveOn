@@ -10,7 +10,7 @@ import {
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, PlayerBadge, MarkerIcon,
-  StatusChip, EmptyState, ConfirmDialog, WarningBar, toast, SaveStatus,
+  StatusChip, EmptyState, ConfirmDialog, toast, SaveStatus,
   ParseScoresPanel,
 } from "../../shared/components";
 import {
@@ -665,7 +665,6 @@ export default function TwentyFiveAdmin({ teamId }) {
             </div>
 
             {activeTab === "mags" && <>
-              <WarningBar text="CUBES: All 5 clickers must click simultaneously  |  Blast Nova every ~2 min  |  Kill channelers simultaneously" />
               <CubeTeamsGrid assignments={viewAssignments} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onDragStart={isLocked ? null : handleDragStart} />
               <div style={{ display: "flex", gap: space[3] }}>
                 <AssignmentPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
@@ -674,7 +673,6 @@ export default function TwentyFiveAdmin({ teamId }) {
             </>}
 
             {activeTab === "gruul" && <>
-              <WarningBar text="COUNCIL: Kill order — Krosh → Olm → Kiggler → Blindeye → Maulgar  |  Spellbreaker chain on Krosh" />
               <div style={{ display: "flex", gap: space[3] }}>
                 <AssignmentPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar} rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
                 <AssignmentPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul} rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
