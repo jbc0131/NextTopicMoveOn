@@ -25,6 +25,7 @@ const DRUMS_TYPE_LABELS = new Map([
   ["35478", "Restoration"],
   ["351358", "Restoration"],
 ]);
+const DRUMS_PREPULL_LOOKBACK_MS = 30 * 1000;
 const WCL_CACHE_TTL_SECONDS = 60 * 15;
 let cachedV2Token = null;
 let cachedV2TokenExpiresAt = 0;
@@ -933,15 +934,20 @@ async function fetchFightDrumSnapshots(reportId, apiKeyOverride = "") {
 
   const snapshots = [];
   for (const fight of snapshotFights) {
-    const params = {
-      start: fight.start_time ?? 0,
+    const castParams = {
+      start: Math.max(0, Number(fight.start_time ?? 0) - DRUMS_PREPULL_LOOKBACK_MS),
       end: fight.end_time ?? 0,
       by: "source",
       filter: DRUMS_CAST_FILTER,
     };
+    const buffParams = {
+      start: Math.max(0, Number(fight.start_time ?? 0) - DRUMS_PREPULL_LOOKBACK_MS),
+      end: fight.end_time ?? 0,
+      filter: DRUMS_CAST_FILTER,
+    };
     const [castEvents, buffEvents] = await Promise.all([
-      fetchAllEventPages(`/report/events/casts/${reportId}`, params, apiKeyOverride),
-      fetchAllEventPages(`/report/events/buffs/${reportId}`, params, apiKeyOverride),
+      fetchAllEventPages(`/report/events/casts/${reportId}`, castParams, apiKeyOverride),
+      fetchAllEventPages(`/report/events/buffs/${reportId}`, buffParams, apiKeyOverride),
     ]);
 
     snapshots.push({
