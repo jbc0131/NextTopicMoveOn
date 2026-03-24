@@ -550,6 +550,28 @@ export async function fetchPlayerAbilityBreakdown({
   const requestedFightIds = new Set((fightIds || []).map(value => String(value)).filter(Boolean));
   const eligibleFights = getSnapshotEligibleFights(fightsData.fights || [])
     .filter(fight => requestedFightIds.size === 0 || requestedFightIds.has(String(fight.id)));
+  const friendlyById = new Map((fightsData.friendlies || []).map(friendly => [String(friendly?.id || ""), friendly]));
+  const selectedFriendly = friendlyById.get(normalizedSourceId) || null;
+  const hunterPetsByFightId = new Map();
+
+  if (mode === "damage" && selectedFriendly?.type === "Hunter") {
+    for (const pet of fightsData.friendlyPets || []) {
+      const ownerId = String(pet?.petOwner || pet?.petOwnerId || pet?.ownerID || pet?.ownerId || "");
+      if (ownerId !== normalizedSourceId) continue;
+
+      for (const fight of pet?.fights || []) {
+        const fightId = String(fight?.id || "");
+        if (!fightId) continue;
+
+        const pets = hunterPetsByFightId.get(fightId) || [];
+        pets.push({
+          id: String(pet?.id || ""),
+          name: pet?.name || "Pet",
+        });
+        hunterPetsByFightId.set(fightId, pets);
+      }
+    }
+  }
 
   const path = mode === "healing" ? `/report/tables/healing/${reportId}` : `/report/tables/damage-done/${reportId}`;
   const snapshots = [];
@@ -578,6 +600,40 @@ export async function fetchPlayerAbilityBreakdown({
     const scopedEntry = findSourceScopedEntry(statPayload?.entries || [], normalizedSourceId);
     const abilityNodes = scopedEntry ? getNestedAbilityCollection(scopedEntry) : (statPayload?.entries || []);
     const snapshotEntries = aggregateLegacyAbilityRows(abilityNodes, castsByGuid);
+    const hunterPets = hunterPetsByFightId.get(String(fight.id)) || [];
+
+    if (mode === "damage" && hunterPets.length > 0) {
+      const petPayloads = await Promise.all(hunterPets.map(async pet => {
+        const petDamage = await wclFetch(`/report/tables/damage-done/${reportId}`, {
+          start: fight.start_time ?? 0,
+          end: fight.end_time ?? 0,
+          sourceid: pet.id,
+        }, apiKey);
+
+        return {
+          ...pet,
+          entries: petDamage?.entries || [],
+        };
+      }));
+
+      for (const pet of petPayloads) {
+        for (const entry of pet.entries || []) {
+          const normalized = normalizeAbilityEntry({
+            guid: `pet:${pet.id}:${entry?.guid ?? entry?.name ?? "unknown"}`,
+            name: `${pet.name}: ${entry?.name || "Unknown Ability"}`,
+            icon: entry?.abilityIcon || entry?.icon || entry?.iconName || "",
+            total: entry?.total ?? 0,
+            activeTime: 0,
+            hits: entry?.hits ?? entry?.totalHits ?? entry?.hitCount ?? entry?.count ?? 0,
+            casts: entry?.casts ?? entry?.totalUses ?? entry?.uses ?? entry?.useCount ?? entry?.executeCount ?? 0,
+            crits: entry?.crits ?? entry?.criticalHits ?? entry?.critCount ?? entry?.critHits ?? entry?.critHitCount ?? 0,
+            overheal: 0,
+            absorbed: entry?.absorbed ?? 0,
+          });
+          if (normalized) snapshotEntries.push(normalized);
+        }
+      }
+    }
 
     snapshots.push({
       fightId: String(fight.id),
