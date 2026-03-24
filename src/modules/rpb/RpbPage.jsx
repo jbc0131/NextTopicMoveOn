@@ -1194,6 +1194,26 @@ function applyRankingsToRaidFights(raid, rankings) {
   };
 }
 
+function raidNeedsParseHydration(raid) {
+  if (!raid?.players?.length || !raid?.fights?.length) return false;
+
+  const damageByPlayerId = buildParseFallbackByMetric(raid.fights, "damageDoneEntries");
+  const healingByPlayerId = buildParseFallbackByMetric(raid.fights, "healingDoneEntries");
+
+  return (raid.players || []).some(player => {
+    const playerId = String(player?.id || "");
+    if (!playerId) return false;
+
+    const hasFightDamageParse = damageByPlayerId.has(playerId);
+    const hasFightHealingParse = healingByPlayerId.has(playerId);
+    const hasReportDamageParse = Number.isFinite(Number(player?.damageParsePercent));
+    const hasReportHealingParse = Number.isFinite(Number(player?.healingParsePercent));
+
+    return (hasFightDamageParse && !hasReportDamageParse)
+      || (hasFightHealingParse && !hasReportHealingParse);
+  });
+}
+
 function applySpeedToRaidFights(raid, speedData) {
   if (!raid?.fights?.length) return raid;
 
@@ -2428,6 +2448,7 @@ export default function RpbPage() {
       || Number.isFinite(Number(player?.healingParsePercent))
     );
   }, [selectedRaid]);
+  const needsParseHydration = useMemo(() => raidNeedsParseHydration(selectedRaid), [selectedRaid]);
   const reportParseByPlayerId = useMemo(() => {
     const next = new Map();
     const field = sliceType === "healing" ? "healingParsePercent" : "damageParsePercent";
@@ -2812,7 +2833,7 @@ export default function RpbPage() {
 
     async function hydrateParseScores() {
       if (!selectedRaid?.id || !selectedRaid?.reportId) return;
-      if (hasAnyParseScores && hasSavedReportLevelParses) {
+      if (hasAnyParseScores && hasSavedReportLevelParses && !needsParseHydration) {
         syncedRankingsByRaidIdRef.current[selectedRaid.id] = true;
         return;
       }
@@ -2859,7 +2880,7 @@ export default function RpbPage() {
 
     hydrateParseScores();
     return () => { cancelled = true; };
-  }, [hasAnyParseScores, hasSavedReportLevelParses, profileV2ClientId, profileV2ClientSecret, selectedRaid]);
+  }, [hasAnyParseScores, hasSavedReportLevelParses, needsParseHydration, profileV2ClientId, profileV2ClientSecret, selectedRaid]);
 
   useEffect(() => {
     let cancelled = false;
