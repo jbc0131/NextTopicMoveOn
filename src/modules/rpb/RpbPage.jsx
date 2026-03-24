@@ -2162,6 +2162,7 @@ export default function RpbPage() {
   const [fightOutcomeFilter, setFightOutcomeFilter] = useState("");
   const [selectedFightId, setSelectedFightId] = useState("");
   const [sliceType, setSliceType] = useState("damage");
+  const [remoteAbilityBreakdownsByKey, setRemoteAbilityBreakdownsByKey] = useState({});
   const syncedRankingsByRaidIdRef = useRef({});
   const syncedSpeedByRaidIdRef = useRef({});
   const abilityBreakdownRef = useRef(null);
@@ -2508,15 +2509,25 @@ export default function RpbPage() {
   const selectedPlayerHealingBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "healingDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSummaryDamageBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "damage"), [selectedPlayer?.summary]);
   const selectedPlayerSummaryHealingBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "healing"), [selectedPlayer?.summary]);
+  const remoteBreakdownKey = useMemo(() => (
+    (sliceType === "damage" || sliceType === "healing") && selectedRaid?.reportId && selectedPlayerId
+      ? makeRemoteBreakdownKey(selectedRaid.reportId, selectedPlayerId, sliceType, filteredFights)
+      : ""
+  ), [filteredFights, selectedPlayerId, selectedRaid?.reportId, sliceType]);
+  const remoteAbilityBreakdown = remoteBreakdownKey ? (remoteAbilityBreakdownsByKey[remoteBreakdownKey] || []) : [];
   const importedBreakdownExists = sliceType === "healing"
     ? hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
     : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown);
-  const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
-    ? selectedPlayerDamageBreakdown
-    : selectedPlayerSummaryDamageBreakdown;
-  const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
-    ? selectedPlayerHealingBreakdown
-    : selectedPlayerSummaryHealingBreakdown;
+  const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(remoteAbilityBreakdown)
+    ? remoteAbilityBreakdown
+    : (hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
+      ? selectedPlayerDamageBreakdown
+      : selectedPlayerSummaryDamageBreakdown);
+  const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(remoteAbilityBreakdown)
+    ? remoteAbilityBreakdown
+    : (hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
+      ? selectedPlayerHealingBreakdown
+      : selectedPlayerSummaryHealingBreakdown);
   const selectedPlayerDeathRows = useMemo(() => buildDeathDetailRows(filteredFights, selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSliceTotals = useMemo(() => {
     return getPlayerSliceTotals(filteredFights, selectedPlayerId, selectedPlayer?.role || "");
@@ -2939,6 +2950,51 @@ export default function RpbPage() {
     hydrateSpeedScores();
     return () => { cancelled = true; };
   }, [profileV2ClientId, profileV2ClientSecret, selectedRaid]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateRemoteAbilityBreakdown() {
+      if (!(sliceType === "damage" || sliceType === "healing")) return;
+      if (!selectedRaid?.reportId || !selectedPlayerId || !remoteBreakdownKey) return;
+      if (remoteAbilityBreakdownsByKey[remoteBreakdownKey]) return;
+      if (!profileApiKey.trim()) return;
+
+      try {
+        const response = await fetch("/api/rpb-import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "step",
+            step: "playerAbilityBreakdown",
+            reportId: selectedRaid.reportId,
+            apiKey: profileApiKey,
+            sourceId: selectedPlayerId,
+            fightIds: (filteredFights || []).map(fight => String(fight?.id || "")).filter(Boolean),
+            mode: sliceType,
+          }),
+        });
+
+        const data = await readApiJson(response);
+        if (!response.ok) throw new Error(data.error || "Failed to load player ability breakdown");
+        if (cancelled) return;
+
+        setRemoteAbilityBreakdownsByKey(prev => ({
+          ...prev,
+          [remoteBreakdownKey]: Array.isArray(data?.entries) ? data.entries : [],
+        }));
+      } catch {
+        if (cancelled) return;
+        setRemoteAbilityBreakdownsByKey(prev => ({
+          ...prev,
+          [remoteBreakdownKey]: prev[remoteBreakdownKey] || [],
+        }));
+      }
+    }
+
+    hydrateRemoteAbilityBreakdown();
+    return () => { cancelled = true; };
+  }, [filteredFights, profileApiKey, remoteAbilityBreakdownsByKey, remoteBreakdownKey, selectedPlayerId, selectedRaid?.reportId, sliceType]);
 
   useEffect(() => {
     if (loadingList) return;
