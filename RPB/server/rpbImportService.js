@@ -552,9 +552,9 @@ export async function fetchPlayerAbilityBreakdown({
     .filter(fight => requestedFightIds.size === 0 || requestedFightIds.has(String(fight.id)));
   const friendlyById = new Map((fightsData.friendlies || []).map(friendly => [String(friendly?.id || ""), friendly]));
   const selectedFriendly = friendlyById.get(normalizedSourceId) || null;
-  const hunterPetsByFightId = new Map();
+  const ownedPetsByFightId = new Map();
 
-  if (mode === "damage" && selectedFriendly?.type === "Hunter") {
+  if (mode === "damage" && selectedFriendly) {
     for (const pet of fightsData.friendlyPets || []) {
       const ownerId = String(pet?.petOwner || pet?.petOwnerId || pet?.ownerID || pet?.ownerId || "");
       if (ownerId !== normalizedSourceId) continue;
@@ -563,12 +563,12 @@ export async function fetchPlayerAbilityBreakdown({
         const fightId = String(fight?.id || "");
         if (!fightId) continue;
 
-        const pets = hunterPetsByFightId.get(fightId) || [];
+        const pets = ownedPetsByFightId.get(fightId) || [];
         pets.push({
           id: String(pet?.id || ""),
           name: pet?.name || "Pet",
         });
-        hunterPetsByFightId.set(fightId, pets);
+        ownedPetsByFightId.set(fightId, pets);
       }
     }
   }
@@ -600,10 +600,10 @@ export async function fetchPlayerAbilityBreakdown({
     const scopedEntry = findSourceScopedEntry(statPayload?.entries || [], normalizedSourceId);
     const abilityNodes = scopedEntry ? getNestedAbilityCollection(scopedEntry) : (statPayload?.entries || []);
     const snapshotEntries = aggregateLegacyAbilityRows(abilityNodes, castsByGuid);
-    const hunterPets = hunterPetsByFightId.get(String(fight.id)) || [];
+    const ownedPets = ownedPetsByFightId.get(String(fight.id)) || [];
 
-    if (mode === "damage" && hunterPets.length > 0) {
-      const petPayloads = await Promise.all(hunterPets.map(async pet => {
+    if (mode === "damage" && ownedPets.length > 0) {
+      const petPayloads = await Promise.all(ownedPets.map(async pet => {
         const petDamage = await wclFetch(`/report/tables/damage-done/${reportId}`, {
           start: fight.start_time ?? 0,
           end: fight.end_time ?? 0,
@@ -672,26 +672,26 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
   const snapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
   const friendlyById = new Map((fightsData.friendlies || []).map(friendly => [String(friendly?.id || ""), friendly]));
-  const hunterPetsByFightId = new Map();
+  const ownedDamagePetsByFightId = new Map();
 
   for (const pet of fightsData.friendlyPets || []) {
     const ownerId = String(pet?.petOwner || pet?.petOwnerId || pet?.ownerID || pet?.ownerId || "");
     if (!ownerId) continue;
 
     const owner = friendlyById.get(ownerId);
-    if (owner?.type !== "Hunter") continue;
+    if (!owner || !PLAYER_TYPES.has(owner?.type)) continue;
 
     for (const fight of pet?.fights || []) {
       const fightId = String(fight?.id || "");
       if (!fightId) continue;
 
-      const pets = hunterPetsByFightId.get(fightId) || [];
+      const pets = ownedDamagePetsByFightId.get(fightId) || [];
       pets.push({
         id: String(pet?.id || ""),
         name: pet?.name || "Pet",
         ownerId,
       });
-      hunterPetsByFightId.set(fightId, pets);
+      ownedDamagePetsByFightId.set(fightId, pets);
     }
   }
 
@@ -710,11 +710,11 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
         options: 2,
       }, apiKeyOverride),
     ]);
-    const hunterPets = hunterPetsByFightId.get(String(fight.id)) || [];
+    const ownedPets = ownedDamagePetsByFightId.get(String(fight.id)) || [];
     const petDamageByOwnerId = new Map();
 
-    if (hunterPets.length > 0) {
-      const petPayloads = await Promise.all(hunterPets.map(async pet => {
+    if (ownedPets.length > 0) {
+      const petPayloads = await Promise.all(ownedPets.map(async pet => {
         const petDamage = await wclFetch(`/report/tables/damage-done/${reportId}`, {
           start: fight.start_time ?? 0,
           end: fight.end_time ?? 0,
