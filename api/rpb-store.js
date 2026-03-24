@@ -94,25 +94,35 @@ function formatFightList(fights, kill) {
   return items.length ? items.join("\n") : "None";
 }
 
+function buildEmbedDescription(raid) {
+  const kills = formatFightList(raid?.fights, true);
+  const wipes = formatFightList(raid?.fights, false);
+  return [
+    "Test webhook embed for a newly saved RPB report.",
+    "",
+    `**Kills**`,
+    kills,
+    "",
+    `**Wipes**`,
+    wipes,
+  ].join("\n");
+}
+
 async function sendNewRaidWebhook(raid, summary) {
   if (!DISCORD_RPB_WEBHOOK_URL) return false;
 
   const teamTag = normalizeTeamTag(raid?.teamTag);
   const raidUrl = `${RPB_PUBLIC_BASE_URL.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid?.id || ""))}`;
   const reportUrl = raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
-  const kills = formatFightList(raid?.fights, true);
-  const wipes = formatFightList(raid?.fights, false);
   const embed = {
     title: raid?.title || "New RPB Report Uploaded",
     url: raidUrl || undefined,
-    description: "Test webhook embed for a newly saved RPB report.",
+    description: buildEmbedDescription(raid),
     color: 3447003,
     fields: [
       teamTag ? { name: "Team", value: teamTag, inline: true } : null,
       summary?.playerCount != null ? { name: "Players", value: String(summary.playerCount), inline: true } : null,
       summary?.fightCount != null ? { name: "Boss Fights", value: String(summary.fightCount), inline: true } : null,
-      { name: "Kills", value: kills, inline: false },
-      { name: "Wipes", value: wipes, inline: false },
       reportUrl ? { name: "Warcraft Logs", value: `[Open Report](${reportUrl})`, inline: false } : null,
       raidUrl ? { name: "RPB", value: `[Open Report](${raidUrl})`, inline: false } : null,
     ].filter(Boolean),
