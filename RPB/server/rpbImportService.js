@@ -405,8 +405,11 @@ function collectRawAbilityRows(node, rows = []) {
     rows.push(node);
   }
 
-  if (Array.isArray(node.subentries)) collectRawAbilityRows(node.subentries, rows);
-  if (Array.isArray(node.entries)) collectRawAbilityRows(node.entries, rows);
+  for (const childKey of ["subentries", "entries", "abilities", "sources", "targets", "spells"]) {
+    if (Array.isArray(node[childKey])) {
+      collectRawAbilityRows(node[childKey], rows);
+    }
+  }
   return rows;
 }
 
