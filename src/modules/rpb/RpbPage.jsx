@@ -1314,13 +1314,14 @@ function PlayerDetailPanel({
                     key={`fight-gear-${item.slot}-${item.id ?? "empty"}`}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: isMobile ? "44px 68px minmax(110px, 1fr) minmax(128px, 1.2fr)" : "56px 96px minmax(140px, 1fr) minmax(180px, 1.2fr)",
+                      gridTemplateColumns: isMobile ? "36px 56px minmax(0, 1fr) minmax(0, 1fr)" : "56px 96px minmax(140px, 1fr) minmax(180px, 1.2fr)",
                       gap: space[2],
                       alignItems: "start",
                       padding: space[3],
                       border: `1px solid ${border.subtle}`,
                       borderRadius: radius.base,
                       background: surface.card,
+                      minWidth: 0,
                     }}
                   >
                     <div style={{ fontSize: fontSize.xs, color: text.secondary, textAlign: "center", paddingTop: 4 }}>
@@ -1333,7 +1334,7 @@ function PlayerDetailPanel({
                         </>
                       ) : null}
                     </div>
-                    <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em", paddingTop: 4 }}>
+                    <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em", paddingTop: 4, minWidth: 0, overflowWrap: "anywhere" }}>
                       {slotLabel}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: space[2], minWidth: 0 }}>
@@ -1364,7 +1365,7 @@ function PlayerDetailPanel({
                       )}
                       <div style={{ minWidth: 0, paddingTop: 2 }}>
                         {!isEmptySlot ? (
-                          <div style={{ fontSize: isMobile ? fontSize.xs : fontSize.sm, fontWeight: fontWeight.semibold, minWidth: 0, lineHeight: 1.35 }}>
+                          <div style={{ fontSize: isMobile ? fontSize.xs : fontSize.sm, fontWeight: fontWeight.semibold, minWidth: 0, lineHeight: 1.35, overflowWrap: "anywhere" }}>
                             <WowheadGearItemLink item={item} gear={selectedFightGear}>
                               <span style={{ color: getResolvedQualityColor(item, itemMetaById) }}>
                                 {getResolvedDisplayName(item, itemMetaById, "Item")}
@@ -1378,12 +1379,12 @@ function PlayerDetailPanel({
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                       {!!(getPermanentEnchantLabel(item) || getItemEnchantId(item)) && (
-                        <div style={{ fontSize: fontSize.xs, color: "#1eff00", minWidth: 0, lineHeight: 1.35 }}>
+                        <div style={{ fontSize: fontSize.xs, color: "#1eff00", minWidth: 0, lineHeight: 1.35, overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           {getPermanentEnchantLabel(item) || `Enchant ${getItemEnchantId(item)}`}
                         </div>
                       )}
                       {!!getTemporaryEnchantLabel(item) && (
-                        <div style={{ fontSize: fontSize.xs, color: "#1eff00", minWidth: 0, lineHeight: 1.35 }}>
+                        <div style={{ fontSize: fontSize.xs, color: "#1eff00", minWidth: 0, lineHeight: 1.35, overflowWrap: "anywhere", wordBreak: "break-word" }}>
                           {getTemporaryEnchantLabel(item)}
                         </div>
                       )}
@@ -1488,16 +1489,11 @@ function getResolvedDisplayName(entry, itemMetaById, fallbackPrefix = "Item") {
   return meta?.name || `${fallbackPrefix} ${entry?.id ?? ""}`.trim();
 }
 
-function handleWowheadLinkPress(event) {
-  event.preventDefault();
-}
-
 function WowheadItemLink({ itemId, children }) {
   if (!itemId) return children;
   return (
     <a
       href={makeWowheadItemUrl(itemId)}
-      onClick={handleWowheadLinkPress}
       data-wowhead={`item=${itemId}`}
       aria-label={`Item ${itemId}`}
       style={{ color: "inherit", textDecoration: "none" }}
@@ -1519,7 +1515,6 @@ function WowheadGearItemLink({ item, gear, children }) {
   return (
     <a
       href={makeWowheadItemUrlWithGear(item, gear)}
-      onClick={handleWowheadLinkPress}
       data-wowhead={tooltipParts.join("&")}
       aria-label={`Item ${item.id}`}
       style={{ color: "inherit", textDecoration: "none" }}
@@ -1534,7 +1529,6 @@ function WowheadSpellLink({ spellId, children }) {
   return (
     <a
       href={makeWowheadSpellUrl(spellId)}
-      onClick={handleWowheadLinkPress}
       data-wowhead={`spell=${spellId}`}
       aria-label={`Spell ${spellId}`}
       style={{ color: "inherit", textDecoration: "none" }}
