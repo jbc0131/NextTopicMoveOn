@@ -2751,6 +2751,9 @@ function getPotionSectionLabel(section) {
 
 function getPotionEventDisplayLabel(event) {
   const base = event?.label || "Unknown Consumable";
+  if (String(event?.spellId || "") === "28499") {
+    return "Mana Potion";
+  }
   switch (event?.category) {
     case "nightmare_seed":
       return "Nightmare Seed";

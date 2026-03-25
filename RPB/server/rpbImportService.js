@@ -25,10 +25,12 @@ const DRUMS_TYPE_LABELS = new Map([
   ["35478", "Restoration"],
   ["351358", "Restoration"],
 ]);
+const MANA_POTION_ABILITY_IDS = new Set(["28499"]);
 const DRUMS_PREPULL_LOOKBACK_MS = 30 * 1000;
 const POTIONS_PREPULL_LOOKBACK_MS = 30 * 1000;
 const POTION_EVENT_NAME_TOKENS = [
   "potion",
+  "restore mana",
   "nightmare seed",
   "healthstone",
   "dark rune",
@@ -1092,13 +1094,21 @@ function normalizeTrackedConsumableName(name) {
   return String(name || "").trim().toLowerCase();
 }
 
+function normalizeSpellId(spellId) {
+  return String(spellId ?? "").trim();
+}
+
+function isManaPotionSpellId(spellId) {
+  return MANA_POTION_ABILITY_IDS.has(normalizeSpellId(spellId));
+}
+
 function nameIncludesAnyToken(name, tokens = []) {
   const normalized = normalizeTrackedConsumableName(name);
   return !!normalized && tokens.some(token => normalized.includes(token));
 }
 
-function isTrackedPotionEventName(name) {
-  return nameIncludesAnyToken(name, POTION_EVENT_NAME_TOKENS);
+function isTrackedPotionEventName(name, spellId = null) {
+  return isManaPotionSpellId(spellId) || nameIncludesAnyToken(name, POTION_EVENT_NAME_TOKENS);
 }
 
 function isTrackedPotionBuffName(name) {
@@ -1122,8 +1132,10 @@ function isNightmareSeedName(name) {
   return normalizeTrackedConsumableName(name).includes("nightmare seed");
 }
 
-function isManaPotionName(name) {
-  return normalizeTrackedConsumableName(name).includes("mana potion");
+function isManaPotionName(name, spellId = null) {
+  if (isManaPotionSpellId(spellId)) return true;
+  const normalized = normalizeTrackedConsumableName(name);
+  return normalized.includes("mana potion") || normalized.includes("restore mana");
 }
 
 function isHealingPotionName(name) {
@@ -1144,14 +1156,14 @@ function isBuffPotionName(name) {
     || normalized.includes("heroic potion");
 }
 
-function classifyPotionEventName(name, hasBuffWindow = false) {
+function classifyPotionEventName(name, hasBuffWindow = false, spellId = null) {
   if (isHealthstoneName(name)) {
     return { category: "healthstone", section: "recovery", eventKind: "instant_survival" };
   }
   if (isDarkRuneName(name)) {
     return { category: "dark_rune", section: "recovery", eventKind: "instant_resource" };
   }
-  if (isManaPotionName(name)) {
+  if (isManaPotionName(name, spellId)) {
     return { category: "mana_potion", section: "recovery", eventKind: "instant_resource" };
   }
   if (isHealingPotionName(name)) {
@@ -1191,7 +1203,7 @@ function collectMatchingAbilityIdsFromTable(tableData = {}, matcher = () => fals
   for (const entry of tableData?.entries || []) {
     for (const ability of getAbilityRows(entry, "Ability")) {
       const guid = ability?.guid != null ? String(ability.guid) : "";
-      if (!guid || !matcher(ability?.name || "")) continue;
+      if (!guid || !matcher(ability?.name || "", guid)) continue;
       ids.add(guid);
     }
   }
@@ -1357,7 +1369,8 @@ function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingE
   for (const event of castEvents || []) {
     if (String(event?.type || "").toLowerCase() !== "cast") continue;
     const name = event?.ability?.name || event?.abilityName || event?.name || "";
-    if (!isTrackedPotionEventName(name)) continue;
+    const spellId = event?.ability?.guid ?? event?.abilityGameID ?? null;
+    if (!isTrackedPotionEventName(name, spellId)) continue;
 
     const playerId = String(event?.sourceID || "");
     if (!playerId) continue;
@@ -1444,7 +1457,7 @@ function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingE
 
   for (const playerCasts of remainingCastsByPlayer.values()) {
     for (const cast of playerCasts) {
-      const classification = classifyPotionEventName(cast.name, false);
+      const classification = classifyPotionEventName(cast.name, false, cast.guid);
       const relativeTimeMs = Number(cast.timestamp || 0) - Number(fight?.start_time || 0);
       const isPrepull = relativeTimeMs < 0;
 
@@ -1452,7 +1465,7 @@ function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingE
         key: `cast:${cast.key}`,
         playerId: cast.playerId,
         playerName: cast.playerName,
-        label: cast.name || "Unknown Consumable",
+        label: isManaPotionSpellId(cast.guid) ? "Mana Potion" : (cast.name || "Unknown Consumable"),
         spellId: cast.guid,
         timestamp: Number(cast.timestamp || 0),
         relativeTimeMs,
