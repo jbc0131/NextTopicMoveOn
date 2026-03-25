@@ -3857,6 +3857,162 @@ export default function RpbPage() {
     navigate(`/rpb/${targetRaidId}`);
   }
 
+  function renderDesktopRaidCard(raid, options = {}) {
+    const { layout = "large", index = 0 } = options;
+    const active = raid.id === raidId;
+    const isLarge = layout === "large";
+    const teamOption = getTeamOption(raid.teamTag);
+    const teamScheduleLabel = getTeamScheduleLabel(raid.teamTag);
+    const isNewestReport = index === 0;
+    const reportSpeedPercent = getRaidReportSpeedPercent(raid);
+    const topDps = getRaidAwardWinner(raid, "DPS", "damageParsePercent");
+    const topHealer = getRaidAwardWinner(raid, "Healer", "healingParsePercent");
+
+    return (
+      <div
+        key={raid.id}
+        style={{
+          position: "relative",
+          minWidth: isLarge ? 220 : 160,
+          flexShrink: 0,
+        }}
+      >
+        {isAdmin && (
+          <div style={{ position: "absolute", top: isLarge ? 8 : 6, right: isLarge ? 8 : 6, zIndex: 30 }} onClick={event => event.stopPropagation()}>
+            <button
+              onClick={event => {
+                event.stopPropagation();
+                setOpenRaidMenuId(current => (current === raid.id ? "" : raid.id));
+              }}
+              style={{
+                ...btnStyle("default"),
+                width: 28,
+                minWidth: 28,
+                height: 28,
+                padding: 0,
+                justifyContent: "center",
+                borderRadius: radius.sm,
+              }}
+              title="Report actions"
+            >
+              ...
+            </button>
+            {openRaidMenuId === raid.id && (
+              <RaidActionsMenu
+                raid={raid}
+                onRename={() => openRenameModal(raid)}
+                onTag={() => openTagModal(raid)}
+                onDeleteTag={async () => {
+                  setOpenRaidMenuId("");
+                  await mutateRaidMetadata(raid.id, {
+                    teamTag: "",
+                    title: buildAutoReportTitle({ start: raid.start, teamTag: "" }),
+                  }, "Removed report tag.");
+                }}
+                onReimport={() => {
+                  handleReimportRaid(raid);
+                }}
+                onDelete={() => {
+                  setOpenRaidMenuId("");
+                  setDeleteConfirmRaid(raid);
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        <button
+          onClick={() => handleRaidSelection(raid.id)}
+          style={{
+            ...btnStyle(active ? "primary" : "default", active),
+            width: "100%",
+            height: "100%",
+            minHeight: isLarge ? 132 : 62,
+            padding: space[3],
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            justifyContent: isLarge ? "flex-start" : "center",
+            gap: isLarge ? 4 : 6,
+            textAlign: "left",
+            paddingRight: isAdmin ? 42 : space[3],
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap", paddingRight: isAdmin ? 18 : 0 }}>
+            {isLarge && isNewestReport && (
+              <span style={tagStyle("success")}>
+                Newest Report
+              </span>
+            )}
+            <span style={{ fontSize: isLarge ? fontSize.base : fontSize.sm, fontWeight: fontWeight.bold, textAlign: "left", lineHeight: 1.25 }}>
+              {raid.title || raid.reportId}
+            </span>
+          </div>
+
+          {isLarge ? (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+                {topDps && (
+                  <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ color: "#e5cc80" }}>DPS Leader</span>
+                    <span style={{ color: getScoreColor(topDps.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold, fontSize: fontSize.base }}>
+                      {Math.round(Number(topDps.awardParse || 0))}
+                    </span>
+                    <span style={{ color: getClassColor(topDps.type), fontWeight: fontWeight.bold, fontSize: fontSize.sm }}>
+                      {topDps.name}
+                    </span>
+                  </span>
+                )}
+                {topHealer && (
+                  <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ color: "#e5cc80" }}>Healer Leader</span>
+                    <span style={{ color: getScoreColor(topHealer.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold, fontSize: fontSize.base }}>
+                      {Math.round(Number(topHealer.awardParse || 0))}
+                    </span>
+                    <span style={{ color: getClassColor(topHealer.type), fontWeight: fontWeight.bold, fontSize: fontSize.sm }}>
+                      {topHealer.name}
+                    </span>
+                  </span>
+                )}
+                {!topDps && !topHealer && (
+                  <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted }}>
+                    No parse leaders yet
+                  </span>
+                )}
+              </div>
+              <div style={{ marginTop: 6, display: "flex", gap: space[2], flexWrap: "wrap" }}>
+                {reportSpeedPercent != null && (
+                  <span style={parseTagStyle(reportSpeedPercent)}>
+                    {`Speed Parse: ${Math.round(reportSpeedPercent)}`}
+                  </span>
+                )}
+                <span style={tagStyle(teamOption.tone)}>
+                  {teamOption.shortLabel}
+                </span>
+                {teamScheduleLabel && (
+                  <span style={tagStyle(teamOption.tone)}>
+                    {teamScheduleLabel}
+                  </span>
+                )}
+              </div>
+            </>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap" }}>
+              <span style={tagStyle(teamOption.tone)}>
+                {teamOption.shortLabel}
+              </span>
+              {reportSpeedPercent != null && (
+                <span style={{ fontSize: fontSize.xs, color: getScoreColor(reportSpeedPercent) || (active ? "#f6f8ff" : text.muted), fontWeight: fontWeight.bold }}>
+                  {Math.round(reportSpeedPercent)}
+                </span>
+              )}
+            </div>
+          )}
+        </button>
+      </div>
+    );
+  }
+
   const raidAnalytics = selectedRaid?.analytics || {
     playersMissingEnchants: [],
     engineeringDamageTaken: [],
@@ -4020,6 +4176,14 @@ export default function RpbPage() {
     if (!normalizedFilter) return sortedRaids;
     return sortedRaids.filter(raid => normalizeTeamTag(raid.teamTag) === normalizedFilter);
   }, [sortedRaids, teamFilter]);
+  const featuredRaids = useMemo(() => filteredRaids.slice(0, 2), [filteredRaids]);
+  const compactRaidColumns = useMemo(() => {
+    const columns = [];
+    for (let index = 2; index < filteredRaids.length; index += 2) {
+      columns.push(filteredRaids.slice(index, index + 2));
+    }
+    return columns;
+  }, [filteredRaids]);
   const noReportsForActiveTeamFilter = !loadingList && !!teamFilter && filteredRaids.length === 0;
   const sliceField = sliceType === "healing" ? "healingDoneEntries" : (sliceType === "deaths" ? "deathEntries" : "damageDoneEntries");
   const showKillParseForSlice = useMemo(() => (
@@ -4949,147 +5113,22 @@ export default function RpbPage() {
                 No reports with this team tag are available.
               </div>
             )}
-            {filteredRaids.map((raid, index) => {
-              const active = raid.id === raidId;
-              const teamOption = getTeamOption(raid.teamTag);
-              const teamScheduleLabel = getTeamScheduleLabel(raid.teamTag);
-              const isNewestReport = index === 0;
-              const isLatestLargeReport = index < 2;
-              const reportSpeedPercent = getRaidReportSpeedPercent(raid);
-              const topDps = getRaidAwardWinner(raid, "DPS", "damageParsePercent");
-              const topHealer = getRaidAwardWinner(raid, "Healer", "healingParsePercent");
-              const isExpanded = isLatestLargeReport || active;
-              return (
-                <div
-                  key={raid.id}
-                  style={{
-                    position: "relative",
-                    minWidth: isExpanded ? 220 : 160,
-                    flexShrink: 0,
-                  }}
-                >
-                {isAdmin && (
-                  <div style={{ position: "absolute", top: 8, right: 8, zIndex: 30 }} onClick={event => event.stopPropagation()}>
-                    <button
-                      onClick={event => {
-                        event.stopPropagation();
-                        setOpenRaidMenuId(current => (current === raid.id ? "" : raid.id));
-                      }}
-                      style={{
-                        ...btnStyle("default"),
-                        width: 28,
-                        minWidth: 28,
-                        height: 28,
-                        padding: 0,
-                        justifyContent: "center",
-                        borderRadius: radius.sm,
-                      }}
-                      title="Report actions"
-                    >
-                      ...
-                    </button>
-                    {openRaidMenuId === raid.id && (
-                      <RaidActionsMenu
-                        raid={raid}
-                        onRename={() => openRenameModal(raid)}
-                        onTag={() => openTagModal(raid)}
-                        onDeleteTag={async () => {
-                          setOpenRaidMenuId("");
-                          await mutateRaidMetadata(raid.id, {
-                            teamTag: "",
-                            title: buildAutoReportTitle({ start: raid.start, teamTag: "" }),
-                          }, "Removed report tag.");
-                        }}
-                        onReimport={() => {
-                          handleReimportRaid(raid);
-                        }}
-                        onDelete={() => {
-                          setOpenRaidMenuId("");
-                          setDeleteConfirmRaid(raid);
-                        }}
-                      />
-                    )}
-                  </div>
-                )}
-
-                  <button
-                    onClick={() => handleRaidSelection(raid.id)}
-                    style={{
-                      ...btnStyle(active ? "primary" : "default", active),
-                      width: "100%",
-                      height: "100%",
-                      minHeight: isExpanded ? 132 : 72,
-                      padding: space[3],
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      justifyContent: isExpanded ? "flex-start" : "center",
-                      gap: isExpanded ? 4 : 0,
-                      paddingRight: isAdmin ? 42 : space[3],
-                    }}
-                  >
-                  <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap", paddingRight: isAdmin ? 18 : 0 }}>
-                    {isNewestReport && (
-                      <span style={tagStyle("success")}>
-                        Newest Report
-                      </span>
-                    )}
-                    <span style={{ fontSize: isExpanded ? fontSize.base : fontSize.sm, fontWeight: fontWeight.bold, textAlign: "left" }}>
-                      {raid.title || raid.reportId}
-                    </span>
-                  </div>
-                  {isExpanded && (
-                    <>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-                        {topDps && (
-                          <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <span style={{ color: "#e5cc80" }}>DPS Leader</span>
-                            <span style={{ color: getScoreColor(topDps.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold, fontSize: fontSize.base }}>
-                              {Math.round(Number(topDps.awardParse || 0))}
-                            </span>
-                            <span style={{ color: getClassColor(topDps.type), fontWeight: fontWeight.bold, fontSize: fontSize.sm }}>
-                              {topDps.name}
-                            </span>
-                          </span>
-                        )}
-                        {topHealer && (
-                          <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <span style={{ color: "#e5cc80" }}>Healer Leader</span>
-                            <span style={{ color: getScoreColor(topHealer.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold, fontSize: fontSize.base }}>
-                              {Math.round(Number(topHealer.awardParse || 0))}
-                            </span>
-                            <span style={{ color: getClassColor(topHealer.type), fontWeight: fontWeight.bold, fontSize: fontSize.sm }}>
-                              {topHealer.name}
-                            </span>
-                          </span>
-                        )}
-                        {!topDps && !topHealer && (
-                          <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted }}>
-                            No parse leaders yet
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ marginTop: 6, display: "flex", gap: space[2], flexWrap: "wrap" }}>
-                        {reportSpeedPercent != null && (
-                          <span style={parseTagStyle(reportSpeedPercent)}>
-                            {`Speed Parse: ${Math.round(reportSpeedPercent)}`}
-                          </span>
-                        )}
-                        <span style={tagStyle(teamOption.tone)}>
-                          {teamOption.shortLabel}
-                        </span>
-                        {teamScheduleLabel && (
-                          <span style={tagStyle(teamOption.tone)}>
-                            {teamScheduleLabel}
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  )}
-                  </button>
-                </div>
-              );
-            })}
+            {featuredRaids.map((raid, index) => renderDesktopRaidCard(raid, { layout: "large", index }))}
+            {compactRaidColumns.map((column, columnIndex) => (
+              <div
+                key={`compact-raid-column-${column[0]?.id || columnIndex}`}
+                style={{
+                  minWidth: 160,
+                  flexShrink: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: space[2],
+                  alignSelf: "stretch",
+                }}
+              >
+                {column.map(raid => renderDesktopRaidCard(raid, { layout: "compact" }))}
+              </div>
+            ))}
           </div>
         </div>
       </div>
