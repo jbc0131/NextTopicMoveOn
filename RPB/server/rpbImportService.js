@@ -1620,17 +1620,32 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
     const buffParams = buffFilter ? { start, end, filter: buffFilter } : null;
     const healParams = healFilter ? { start, end, filter: healFilter } : null;
 
-    const [castEvents, buffEvents, healingEvents, resourceGains] = await Promise.all([
-      castParams ? fetchAllEventPages(`/report/events/casts/${reportId}`, castParams, apiKeyOverride) : Promise.resolve([]),
-      buffParams ? fetchAllEventPages(`/report/events/buffs/${reportId}`, buffParams, apiKeyOverride) : Promise.resolve([]),
-      healParams ? fetchAllEventPages(`/report/events/healing/${reportId}`, healParams, apiKeyOverride) : Promise.resolve([]),
-      resourceFilter ? wclFetch(`/report/tables/resources-gains/${reportId}`, {
+    const resourceGainsPromise = resourceFilter
+      ? wclFetch(`/report/tables/resources-gains/${reportId}`, {
         start,
         end,
         by: "source",
         abilityid: 100,
         filter: resourceFilter,
-      }, apiKeyOverride) : Promise.resolve({}),
+      }, apiKeyOverride).catch(error => {
+        const message = String(error?.message || "");
+        if (message.startsWith("WCL v1 429:")) {
+          console.warn("RPB resource recovery lookup rate-limited", {
+            reportId,
+            fightId: String(fight.id),
+            message,
+          });
+          return {};
+        }
+        throw error;
+      })
+      : Promise.resolve({});
+
+    const [castEvents, buffEvents, healingEvents, resourceGains] = await Promise.all([
+      castParams ? fetchAllEventPages(`/report/events/casts/${reportId}`, castParams, apiKeyOverride) : Promise.resolve([]),
+      buffParams ? fetchAllEventPages(`/report/events/buffs/${reportId}`, buffParams, apiKeyOverride) : Promise.resolve([]),
+      healParams ? fetchAllEventPages(`/report/events/healing/${reportId}`, healParams, apiKeyOverride) : Promise.resolve([]),
+      resourceGainsPromise,
     ]);
 
     snapshots.push({
@@ -1903,7 +1918,7 @@ async function wclFetch(path, params = {}, apiKeyOverride = "") {
           await sleep(WCL_RETRY_DELAYS_MS[attempt]);
           continue;
         }
-        throw new Error(`WCL v1 ${res.status}: ${text}`);
+        throw new Error(`WCL v1 ${res.status}: ${formatWclErrorBody(text, res.status)}`);
       }
 
       const data = await res.json();
@@ -1929,6 +1944,25 @@ async function wclFetch(path, params = {}, apiKeyOverride = "") {
   }
 
   throw lastError || new Error("WCL v1 request failed");
+}
+
+function formatWclErrorBody(body, status = 0) {
+  const raw = String(body || "").trim();
+  if (!raw) return status === 429 ? "Too Many Requests" : "Request failed";
+
+  const withoutScripts = raw
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ");
+  const textOnly = withoutScripts
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (status === 429) {
+    return textOnly.includes("Too Many Requests") ? "Too Many Requests" : "Too Many Requests";
+  }
+
+  return textOnly ? textOnly.slice(0, 240) : raw.slice(0, 240);
 }
 
 function getTrackedCastCount(entry) {
