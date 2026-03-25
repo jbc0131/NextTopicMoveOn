@@ -1266,6 +1266,21 @@ function buildResourceGainTotals(tableData = {}) {
   return totals;
 }
 
+function getResourceGainPlayers(tableData = {}) {
+  const players = new Map();
+
+  for (const entry of tableData?.entries || []) {
+    const playerId = String(entry?.id || "");
+    if (!playerId) continue;
+    players.set(playerId, {
+      playerId,
+      playerName: entry?.name || "Unknown Player",
+    });
+  }
+
+  return players;
+}
+
 function getPotionEventTimestamp(event, fallback = 0) {
   const timestamp = Number(event?.timestamp);
   return Number.isFinite(timestamp) ? timestamp : Number(fallback || 0);
@@ -1351,7 +1366,14 @@ function namesLikelyMatch(left, right) {
   return categoryChecks.some(check => check(leftName) && check(rightName));
 }
 
-function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingEvents = [], resourceTotalsByPlayerSpell = new Map()) {
+function summarizePotionEvents(
+  fight,
+  castEvents = [],
+  buffEvents = [],
+  healingEvents = [],
+  resourceTotalsByPlayerSpell = new Map(),
+  resourcePlayersById = new Map(),
+) {
   const windows = buildPotionBuffWindows(buffEvents, fight);
   const remainingCastsByPlayer = new Map();
   const rowsByPlayer = new Map();
@@ -1565,6 +1587,38 @@ function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingE
     }
   }
 
+  for (const [key, amount] of resourceTotalsByPlayerSpell.entries()) {
+    const total = Number(amount || 0);
+    if (!(total > 0)) continue;
+
+    const [playerId, spellId] = String(key).split(":");
+    if (!playerId || !spellId) continue;
+
+    const label = getResourceRecoveryLabel("", spellId);
+    const classification = classifyPotionEventName(label, false, spellId);
+    const playerMeta = resourcePlayersById.get(playerId) || { playerName: "Unknown Player" };
+
+    pushRow({
+      key: `resource:${playerId}:${spellId}`,
+      playerId,
+      playerName: playerMeta.playerName || "Unknown Player",
+      label,
+      spellId,
+      timestamp: Number(fight?.start_time || 0),
+      relativeTimeMs: 0,
+      isPrepull: false,
+      section: classification.section,
+      category: classification.category,
+      eventKind: classification.eventKind,
+      buffAppliedAtMs: null,
+      buffRemovedAtMs: null,
+      totalDurationMs: 0,
+      combatOverlapMs: 0,
+      amount: total,
+      source: "resource",
+    });
+  }
+
   return [...rowsByPlayer.values()]
     .map(player => ({
       ...player,
@@ -1648,11 +1702,21 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
       resourceGainsPromise,
     ]);
 
+    const resourceTotalsByPlayerSpell = buildResourceGainTotals(resourceGains);
+    const resourcePlayersById = getResourceGainPlayers(resourceGains);
+
     snapshots.push({
       fightId: String(fight.id),
       encounterId: fight.boss || 0,
       fightName: fight.name || "Unknown Fight",
-      players: summarizePotionEvents(fight, castEvents, buffEvents, healingEvents, buildResourceGainTotals(resourceGains)),
+      players: summarizePotionEvents(
+        fight,
+        castEvents,
+        buffEvents,
+        healingEvents,
+        resourceTotalsByPlayerSpell,
+        resourcePlayersById,
+      ),
     });
   }
 
