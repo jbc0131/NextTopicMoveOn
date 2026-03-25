@@ -1423,25 +1423,6 @@ function summarizePotionEvents(
     player.events.push(attachHealingAmount(row));
   };
 
-  const attachResourceAmount = row => {
-    if (!row || row.eventKind !== "instant_resource") return row;
-    const rowSpellId = normalizeSpellId(row.spellId);
-    if (!rowSpellId) return row;
-    const playerId = String(row.playerId || "");
-    const key = `${playerId}:${rowSpellId}`;
-    const remaining = Number(resourceTotalsByPlayerSpell.get(key) || 0);
-    if (!(remaining > 0)) return row;
-    resourceTotalsByPlayerSpell.set(key, 0);
-    return {
-      ...row,
-      amount: remaining,
-    };
-  };
-
-  const pushConsumableRow = row => {
-    pushRow(attachResourceAmount(row));
-  };
-
   for (const event of castEvents || []) {
     if (String(event?.type || "").toLowerCase() !== "cast") continue;
     const name = event?.ability?.name || event?.abilityName || event?.name || "";
@@ -1510,7 +1491,7 @@ function summarizePotionEvents(
         - Math.max(Number(window.startTimestamp || 0), Number(fight?.start_time || 0))
     );
 
-    pushConsumableRow({
+    pushRow({
       key: `buff:${window.playerId}:${window.guid || label}:${window.startTimestamp}`,
       playerId: window.playerId,
       playerName: window.playerName,
@@ -1537,7 +1518,7 @@ function summarizePotionEvents(
       const relativeTimeMs = Number(cast.timestamp || 0) - Number(fight?.start_time || 0);
       const isPrepull = relativeTimeMs < 0;
 
-      pushConsumableRow({
+      pushRow({
         key: `cast:${cast.key}`,
         playerId: cast.playerId,
         playerName: cast.playerName,
@@ -1594,6 +1575,12 @@ function summarizePotionEvents(
 
     const [playerId, spellId] = String(key).split(":");
     if (!playerId || !spellId) continue;
+    const existingPlayer = rowsByPlayer.get(playerId);
+    const existingUseCount = (existingPlayer?.events || []).filter(event =>
+      event?.eventKind === "instant_resource"
+      && normalizeSpellId(event?.spellId) === spellId
+    ).length;
+    if (existingUseCount > 0) continue;
 
     const label = getResourceRecoveryLabel("", spellId);
     const classification = classifyPotionEventName(label, false, spellId);
@@ -1623,9 +1610,45 @@ function summarizePotionEvents(
   return [...rowsByPlayer.values()]
     .map(player => ({
       ...player,
-      events: [...player.events].sort((left, right) => Number(left.timestamp || 0) - Number(right.timestamp || 0)),
+      events: distributeResourceAmounts(player.events, resourceTotalsByPlayerSpell, player.playerId)
+        .sort((left, right) => Number(left.timestamp || 0) - Number(right.timestamp || 0)),
     }))
     .sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
+}
+
+function distributeResourceAmounts(events = [], resourceTotalsByPlayerSpell = new Map(), playerId = "") {
+  const normalizedPlayerId = String(playerId || "");
+  const resourceGroups = new Map();
+
+  for (let index = 0; index < events.length; index += 1) {
+    const event = events[index];
+    if (event?.eventKind !== "instant_resource") continue;
+    const spellId = normalizeSpellId(event?.spellId);
+    if (!spellId || !RESOURCE_RECOVERY_ABILITY_IDS.has(spellId)) continue;
+    const list = resourceGroups.get(spellId) || [];
+    list.push(index);
+    resourceGroups.set(spellId, list);
+  }
+
+  const nextEvents = [...events];
+  for (const [spellId, indexes] of resourceGroups.entries()) {
+    const total = Number(resourceTotalsByPlayerSpell.get(`${normalizedPlayerId}:${spellId}`) || 0);
+    if (!(total > 0) || indexes.length === 0) continue;
+
+    const base = Math.floor(total / indexes.length);
+    let remainder = total - base * indexes.length;
+
+    for (const index of indexes) {
+      const bonus = remainder > 0 ? 1 : 0;
+      if (remainder > 0) remainder -= 1;
+      nextEvents[index] = {
+        ...nextEvents[index],
+        amount: base + bonus,
+      };
+    }
+  }
+
+  return nextEvents;
 }
 
 async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
