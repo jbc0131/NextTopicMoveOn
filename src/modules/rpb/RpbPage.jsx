@@ -2874,17 +2874,11 @@ export default function RpbPage() {
   const liveHealingBreakdown = useMemo(() => {
     return normalizeFetchedAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.healing?.entries || []);
   }, [liveAbilityBreakdowns, liveBreakdownCacheKey]);
-  const liveDamageBreakdownState = liveAbilityBreakdowns[liveBreakdownCacheKey]?.damage || null;
-  const liveHealingBreakdownState = liveAbilityBreakdowns[liveBreakdownCacheKey]?.healing || null;
-  const currentLiveBreakdownState = sliceType === "healing" ? liveHealingBreakdownState : liveDamageBreakdownState;
-  const isUsingLiveBreakdown = sliceType === "healing"
-    ? hasVisibleBreakdownStats(liveHealingBreakdown)
-    : hasVisibleBreakdownStats(liveDamageBreakdown);
   const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(liveDamageBreakdown)
     ? liveDamageBreakdown
     : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
       ? selectedPlayerDamageBreakdown
-    : selectedPlayerSummaryDamageBreakdown;
+      : selectedPlayerSummaryDamageBreakdown;
   const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(liveHealingBreakdown)
     ? liveHealingBreakdown
     : hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
@@ -4552,45 +4546,8 @@ export default function RpbPage() {
 
                       {(sliceType === "damage" || sliceType === "healing") && (
                         <div>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: space[2], marginBottom: space[2], flexWrap: "wrap" }}>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                              {sliceType === "healing" ? "Healing breakdown" : "Damage breakdown"}
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap" }}>
-                              <div style={{ fontSize: fontSize.xs, color: isUsingLiveBreakdown ? "#8ee6a7" : text.muted }}>
-                                {!profileApiKey.trim()
-                                  ? "Source: saved import only"
-                                  : currentLiveBreakdownState?.loading
-                                    ? "Source: loading live Warcraft Logs breakdown..."
-                                    : currentLiveBreakdownState?.error
-                                      ? `Source: ${currentLiveBreakdownState.error}`
-                                    : isUsingLiveBreakdown
-                                      ? "Source: live Warcraft Logs breakdown"
-                                      : "Source: saved import fallback"}
-                              </div>
-                              {profileApiKey.trim() && (
-                                <button
-                                  onClick={() => {
-                                    if (!liveBreakdownCacheKey) return;
-                                    setLiveAbilityBreakdowns(prev => ({
-                                      ...prev,
-                                      [liveBreakdownCacheKey]: {
-                                        ...(prev[liveBreakdownCacheKey] || {}),
-                                        [sliceType]: {
-                                          error: "",
-                                          loaded: false,
-                                          loading: false,
-                                          entries: [],
-                                        },
-                                      },
-                                    }));
-                                  }}
-                                  style={{ ...btnStyle("default"), height: 28, padding: `0 ${space[2]}px`, fontSize: fontSize.xs }}
-                                >
-                                  Refresh Live
-                                </button>
-                              )}
-                            </div>
+                          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
+                            {sliceType === "healing" ? "Healing breakdown" : "Damage breakdown"}
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                             {!(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) && (
