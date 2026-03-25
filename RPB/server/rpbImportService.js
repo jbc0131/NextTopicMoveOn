@@ -603,7 +603,8 @@ export async function fetchPlayerAbilityBreakdown({
 
     const scopedEntry = findSourceScopedEntry(statPayload?.entries || [], normalizedSourceId);
     const abilityNodes = scopedEntry ? getNestedAbilityCollection(scopedEntry) : (statPayload?.entries || []);
-    const snapshotEntries = aggregateLegacyAbilityRows(abilityNodes, castsByGuid);
+    const snapshotEntries = aggregateLegacyAbilityRows(abilityNodes, castsByGuid)
+      .filter(entry => entry?.guid != null);
     const ownedPets = ownedPetsByFightId.get(String(fight.id)) || [];
 
     if (mode === "damage" && ownedPets.length > 0) {
@@ -670,6 +671,56 @@ export async function fetchPlayerAbilityBreakdown({
   }));
 
   return result;
+}
+
+async function hydrateSourceScopedFightEntry({
+  reportId,
+  fight,
+  entry,
+  apiKey,
+  mode = "damage",
+}) {
+  const sourceId = String(entry?.id || "").trim();
+  if (!sourceId) return entry;
+
+  const path = mode === "healing" ? `/report/tables/healing/${reportId}` : `/report/tables/damage-done/${reportId}`;
+  const [castsPayload, statPayload] = await Promise.all([
+    wclFetch(`/report/tables/casts/${reportId}`, {
+      start: fight.start_time ?? 0,
+      end: fight.end_time ?? 0,
+      sourceid: sourceId,
+    }, apiKey),
+    wclFetch(path, {
+      start: fight.start_time ?? 0,
+      end: fight.end_time ?? 0,
+      sourceid: sourceId,
+      options: 2,
+    }, apiKey),
+  ]);
+
+  const castsByGuid = new Map();
+  for (const row of collectRawAbilityRows(castsPayload?.entries || [])) {
+    const key = String(row.guid ?? row.gameID ?? row.abilityGameID ?? row.name ?? "unknown");
+    castsByGuid.set(key, Number(castsByGuid.get(key) || 0) + Number(row.total ?? row.uses ?? row.totalUses ?? 0));
+  }
+
+  const abilities = aggregateLegacyAbilityRows(statPayload?.entries || [], castsByGuid)
+    .filter(ability => ability?.guid != null);
+  if (!abilities.length) return entry;
+
+  const totals = abilities.reduce((acc, ability) => ({
+    casts: acc.casts + Number(ability?.casts || 0),
+    hits: acc.hits + Number(ability?.hits || 0),
+    crits: acc.crits + Number(ability?.crits || 0),
+  }), { casts: 0, hits: 0, crits: 0 });
+
+  return {
+    ...entry,
+    abilities,
+    casts: totals.casts,
+    hits: totals.hits,
+    crits: totals.crits,
+  };
 }
 
 async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
@@ -778,6 +829,22 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
           crits: Number(entry?.crits || 0) + petContribution.crits,
         };
       });
+    const normalizedEntries = await Promise.all(enrichedEntries.map(async entry => {
+      if (!PLAYER_TYPES.has(entry?.type) || Number(entry?.total || 0) <= 0) return entry;
+
+      const hasDetailedStats = (entry?.abilities || []).some(ability =>
+        Number(ability?.hits || 0) > 0 || Number(ability?.crits || 0) > 0
+      );
+      if (hasDetailedStats) return entry;
+
+      return hydrateSourceScopedFightEntry({
+        reportId,
+        fight,
+        entry,
+        apiKey: apiKeyOverride,
+        mode: "damage",
+      });
+    }));
 
     snapshots.push({
       fightId: String(fight.id),
@@ -785,7 +852,7 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
       fightName: fight.name || "Unknown Fight",
       damageDone: {
         ...damageDone,
-        entries: enrichedEntries,
+        entries: normalizedEntries,
       },
     });
   }
