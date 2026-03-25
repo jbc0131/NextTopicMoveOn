@@ -1769,6 +1769,24 @@ function hasVisibleBreakdownStats(entries = []) {
   );
 }
 
+function normalizeFetchedAbilityBreakdown(entries = []) {
+  return (entries || [])
+    .map(entry => ({
+      key: String(entry?.guid ?? entry?.name ?? "unknown"),
+      guid: entry?.guid ?? null,
+      icon: entry?.icon || entry?.iconName || entry?.iconname || "",
+      name: entry?.name || "Unknown Ability",
+      total: Number(entry?.total || 0),
+      activeTime: Number(entry?.activeTime || 0),
+      hits: Number(entry?.hits || 0),
+      casts: Number(entry?.casts || 0),
+      crits: Number(entry?.crits || 0),
+      overheal: Number(entry?.overheal || 0),
+      absorbed: Number(entry?.absorbed || 0),
+    }))
+    .sort((a, b) => b.total - a.total);
+}
+
 function getPlayerAbilityTotalFromFights(fights, playerId, abilityIds) {
   if (!playerId) return 0;
 
@@ -2511,6 +2529,7 @@ export default function RpbPage() {
   const [fightOutcomeFilter, setFightOutcomeFilter] = useState("");
   const [selectedFightId, setSelectedFightId] = useState("");
   const [sliceType, setSliceType] = useState("damage");
+  const [liveAbilityBreakdowns, setLiveAbilityBreakdowns] = useState({});
   const abilityBreakdownRef = useRef(null);
   const [importProgress, setImportProgress] = useState({
     open: false,
@@ -2675,6 +2694,13 @@ export default function RpbPage() {
   const filteredFights = useMemo(() => {
     return filterFights(selectedRaid?.fights || [], filterMode, selectedFightId, fightOutcomeFilter);
   }, [selectedRaid, filterMode, selectedFightId, fightOutcomeFilter]);
+  const filteredFightIds = useMemo(() => {
+    return filteredFights.map(fight => String(fight.id)).filter(Boolean);
+  }, [filteredFights]);
+  const liveBreakdownCacheKey = useMemo(() => {
+    if (!selectedRaid?.reportId || !selectedPlayerId || filteredFightIds.length === 0) return "";
+    return [selectedRaid.reportId, selectedPlayerId, filteredFightIds.join(",")].join("|");
+  }, [filteredFightIds, selectedPlayerId, selectedRaid?.reportId]);
   const filteredPlayerAnalyticsById = useMemo(() => {
     const next = new Map();
 
@@ -2841,11 +2867,21 @@ export default function RpbPage() {
   const selectedPlayerHealingBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "healingDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSummaryDamageBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "damage"), [selectedPlayer?.summary]);
   const selectedPlayerSummaryHealingBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "healing"), [selectedPlayer?.summary]);
-  const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
-    ? selectedPlayerDamageBreakdown
+  const liveDamageBreakdown = useMemo(() => {
+    return normalizeFetchedAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.damage?.entries || []);
+  }, [liveAbilityBreakdowns, liveBreakdownCacheKey]);
+  const liveHealingBreakdown = useMemo(() => {
+    return normalizeFetchedAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.healing?.entries || []);
+  }, [liveAbilityBreakdowns, liveBreakdownCacheKey]);
+  const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(liveDamageBreakdown)
+    ? liveDamageBreakdown
+    : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
+      ? selectedPlayerDamageBreakdown
     : selectedPlayerSummaryDamageBreakdown;
-  const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
-    ? selectedPlayerHealingBreakdown
+  const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(liveHealingBreakdown)
+    ? liveHealingBreakdown
+    : hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
+      ? selectedPlayerHealingBreakdown
     : selectedPlayerSummaryHealingBreakdown;
   const selectedPlayerDeathRows = useMemo(() => buildDeathDetailRows(filteredFights, selectedPlayerId), [filteredFights, selectedPlayerId]);
   const defaultVisiblePlayerId = useMemo(() => {
@@ -3112,6 +3148,90 @@ export default function RpbPage() {
     hydrateVisibleItemMeta();
     return () => { cancelled = true; };
   }, [itemMetaById, selectedFightGear]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateLiveAbilityBreakdown(mode) {
+      if (!liveBreakdownCacheKey || !profileApiKey.trim()) return;
+
+      const existing = liveAbilityBreakdowns[liveBreakdownCacheKey]?.[mode];
+      if (existing?.loaded || existing?.loading) return;
+
+      setLiveAbilityBreakdowns(prev => ({
+        ...prev,
+        [liveBreakdownCacheKey]: {
+          ...(prev[liveBreakdownCacheKey] || {}),
+          [mode]: {
+            loaded: false,
+            loading: true,
+            entries: existing?.entries || [],
+          },
+        },
+      }));
+
+      try {
+        const response = await fetch("/api/rpb-import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "step",
+            step: "playerAbilityBreakdown",
+            reportId: selectedRaid.reportId,
+            apiKey: profileApiKey,
+            sourceId: selectedPlayerId,
+            fightIds: filteredFightIds,
+            mode,
+          }),
+        });
+
+        const data = await readApiJson(response);
+        if (!response.ok) throw new Error(data.error || `Failed to load ${mode} breakdown`);
+
+        if (!cancelled) {
+          setLiveAbilityBreakdowns(prev => ({
+            ...prev,
+            [liveBreakdownCacheKey]: {
+              ...(prev[liveBreakdownCacheKey] || {}),
+              [mode]: {
+                loaded: true,
+                loading: false,
+                entries: Array.isArray(data?.entries) ? data.entries : [],
+              },
+            },
+          }));
+        }
+      } catch {
+        if (!cancelled) {
+          setLiveAbilityBreakdowns(prev => ({
+            ...prev,
+            [liveBreakdownCacheKey]: {
+              ...(prev[liveBreakdownCacheKey] || {}),
+              [mode]: {
+                loaded: true,
+                loading: false,
+                entries: [],
+              },
+            },
+          }));
+        }
+      }
+    }
+
+    if (sliceType === "damage" || sliceType === "healing") {
+      hydrateLiveAbilityBreakdown(sliceType);
+    }
+
+    return () => { cancelled = true; };
+  }, [
+    filteredFightIds,
+    liveAbilityBreakdowns,
+    liveBreakdownCacheKey,
+    profileApiKey,
+    selectedPlayerId,
+    selectedRaid?.reportId,
+    sliceType,
+  ]);
 
   useEffect(() => {
     if (!selectedFightId) return;
