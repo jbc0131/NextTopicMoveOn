@@ -217,6 +217,12 @@ const HEALTHSTONE_NAME_TOKENS = [
   "fel healthstone",
 ];
 const POTION_NAME_TOKENS = ["potion"];
+const POTION_SECTION_ORDER = {
+  prepull: 0,
+  combat: 1,
+  recovery: 2,
+};
+const LOW_PREPOT_OVERLAP_RATIO = 0.72;
 const FOOD_AURA_NAME_TOKENS = [
   "well fed",
   "blackened",
@@ -775,10 +781,19 @@ function PlayerDetailPanel({
   const consumableGridColumns = isMobile
     ? "minmax(0, 1fr) minmax(0, 1fr)"
     : "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr) 92px";
+  const potionGridColumns = isMobile
+    ? "minmax(0, 1fr)"
+    : "minmax(148px, 0.9fr) minmax(180px, 1.4fr) 92px minmax(120px, 0.9fr) 96px";
   const breakdownGridColumns = isMobile
     ? "minmax(0, 1.3fr) minmax(88px, 0.7fr) 52px"
     : "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)";
   const [mobilePreview, setMobilePreview] = useState(null);
+  const potionRows = selectedPlayerAnalytics?.potionEvents || [];
+  const potionSections = ["prepull", "combat", "recovery"].map(section => ({
+    section,
+    label: getPotionSectionLabel(section),
+    rows: potionRows.filter(row => row.section === section),
+  })).filter(group => group.rows.length > 0);
 
   const openItemPreview = (item, options = {}) => {
     const resolvedItem = item?.id ? item : { id: options.itemId ?? item?.id, name: options.title };
@@ -1149,6 +1164,130 @@ function PlayerDetailPanel({
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {sliceType === "potions" && (
+          <div>
+            <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
+              Potions and one-shot consumables by boss fight
+            </div>
+            {!potionRows.length && (
+              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                No potion or consumable event timeline is attached to this player for the current filtered fights. Re-import the report to populate this view.
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: space[3] }}>
+              {potionSections.map(group => (
+                <div key={`potions-${group.section}`} style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+                  <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: text.primary }}>
+                    {group.label}
+                  </div>
+                  {!isMobile && (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: potionGridColumns,
+                        gap: space[2],
+                        padding: `0 ${space[3]}px`,
+                        fontSize: fontSize.sm,
+                        fontWeight: fontWeight.bold,
+                        color: text.primary,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      <div>Encounter</div>
+                      <div>Consumable</div>
+                      <div>Time</div>
+                      <div>Benefit</div>
+                      <div>Amount</div>
+                    </div>
+                  )}
+                  {group.rows.map(row => {
+                    const overlapRatio = getPotionOverlapRatio(row);
+                    const lowOverlap = row.section === "prepull" && overlapRatio > 0 && overlapRatio < LOW_PREPOT_OVERLAP_RATIO;
+                    const benefitLabel = getPotionBenefitLabel(row);
+                    const amountLabel = Number(row.amount || 0) > 0 ? formatMetricValue(row.amount) : "";
+                    const timeLabel = formatPotionRelativeTime(row.relativeTimeMs);
+                    const spellTitle = getPotionEventDisplayLabel(row);
+                    return (
+                      <div
+                        key={row.key}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : potionGridColumns,
+                          gap: space[2],
+                          padding: space[3],
+                          border: `1px solid ${border.subtle}`,
+                          borderRadius: radius.base,
+                          background: surface.card,
+                          alignItems: "center",
+                        }}
+                      >
+                        {isMobile ? (
+                          <>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: space[2], alignItems: "center", flexWrap: "wrap" }}>
+                              <span style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
+                                {row.fightName}
+                              </span>
+                              <span style={{ fontSize: fontSize.sm, color: lowOverlap ? "#ffd5a1" : "#d6e7ff", fontWeight: fontWeight.semibold }}>
+                                {`${row.isPrepull ? "⌚ " : ""}${timeLabel}`}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                              {row.spellId ? (
+                                <WowheadSpellLink
+                                  spellId={row.spellId}
+                                  onPreview={isMobile ? () => openSpellPreview(row.spellId, spellTitle, row.fightName) : null}
+                                >
+                                  {spellTitle}
+                                </WowheadSpellLink>
+                              ) : spellTitle}
+                            </div>
+                            <div style={{ display: "flex", gap: space[2], flexWrap: "wrap", fontSize: fontSize.xs }}>
+                              <span style={{ color: lowOverlap ? "#ffd5a1" : text.secondary }}>
+                                {benefitLabel || "No buff overlap"}
+                              </span>
+                              {amountLabel && (
+                                <span style={{ color: "#d7ffdf", fontWeight: fontWeight.semibold }}>
+                                  {amountLabel}
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ fontSize: fontSize.sm, color: text.primary }}>
+                              {row.fightName}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                              {row.spellId ? (
+                                <WowheadSpellLink
+                                  spellId={row.spellId}
+                                  onPreview={isMobile ? () => openSpellPreview(row.spellId, spellTitle, row.fightName) : null}
+                                >
+                                  {spellTitle}
+                                </WowheadSpellLink>
+                              ) : spellTitle}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: lowOverlap ? "#ffd5a1" : "#d6e7ff", fontWeight: fontWeight.semibold }}>
+                              {`${row.isPrepull ? "⌚ " : ""}${timeLabel}`}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: lowOverlap ? "#ffd5a1" : text.secondary }}>
+                              {benefitLabel || "No buff overlap"}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: amountLabel ? "#d7ffdf" : text.secondary, fontWeight: amountLabel ? fontWeight.semibold : fontWeight.regular }}>
+                              {amountLabel}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -2238,6 +2377,19 @@ function getDrumFightCoverage(snapshot, playerId, playerName) {
   };
 }
 
+function getPotionFightEvents(snapshot, playerId, playerName) {
+  const playerEntry = (snapshot?.players || []).find(entry =>
+    String(entry?.playerId || "") === String(playerId) || entry?.name === playerName
+  );
+
+  return (playerEntry?.events || []).map((event, index) => ({
+    ...event,
+    key: event?.key || `potion:${snapshot?.fightId || "fight"}:${playerId}:${index}`,
+    fightId: String(snapshot?.fightId || ""),
+    fightName: snapshot?.fightName || "Unknown Fight",
+  }));
+}
+
 function buildDrumSliceEntries(players, analyticsByPlayerId, filterIds = null) {
   const rows = [];
 
@@ -2264,6 +2416,50 @@ function buildDrumSliceEntries(players, analyticsByPlayerId, filterIds = null) {
   return rows.sort((a, b) => {
     if (b.casts !== a.casts) return b.casts - a.casts;
     if (b.affectedTargets !== a.affectedTargets) return b.affectedTargets - a.affectedTargets;
+    return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+  });
+}
+
+function buildPotionSliceEntries(players, analyticsByPlayerId, filterIds = null) {
+  const rows = [];
+
+  for (const player of players || []) {
+    const analytics = analyticsByPlayerId.get(String(player.id));
+    if (!analytics) continue;
+    if (filterIds && !filterIds.has(String(player.id))) continue;
+
+    const totalEvents = Number(analytics.potionEventCount || 0);
+    if (totalEvents <= 0) continue;
+
+    const prepotCount = Number(analytics.prepotCount || 0);
+    const combatCount = Number(analytics.combatPotionCount || 0);
+    const recoveryCount = Number(analytics.recoveryConsumableCount || 0);
+    const averagePrepullOverlapMs = Number(analytics.averagePrepullOverlapMs || 0);
+    const averagePrepullDurationMs = Number(analytics.averagePrepullDurationMs || 0);
+    const averagePrepullOverlapRatio = averagePrepullDurationMs > 0
+      ? averagePrepullOverlapMs / averagePrepullDurationMs
+      : 0;
+
+    rows.push({
+      id: String(player.id),
+      name: player.name || "Unknown Player",
+      type: player.type || "",
+      total: totalEvents,
+      prepotCount,
+      combatCount,
+      recoveryCount,
+      averagePrepullOverlapMs,
+      averagePrepullDurationMs,
+      averagePrepullOverlapRatio,
+    });
+  }
+
+  return rows.sort((a, b) => {
+    if (b.prepotCount !== a.prepotCount) return b.prepotCount - a.prepotCount;
+    if (b.total !== a.total) return b.total - a.total;
+    if (b.averagePrepullOverlapRatio !== a.averagePrepullOverlapRatio) {
+      return b.averagePrepullOverlapRatio - a.averagePrepullOverlapRatio;
+    }
     return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
   });
 }
@@ -2343,6 +2539,68 @@ function buildConsumableSliceEntries(players, analyticsByPlayerId, filterIds = n
     if (bPct !== aPct) return bPct - aPct;
     return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
   });
+}
+
+function getPotionSectionLabel(section) {
+  switch (section) {
+    case "prepull":
+      return "Prepull";
+    case "combat":
+      return "In Combat";
+    case "recovery":
+      return "Emergency / Recovery";
+    default:
+      return "Consumables";
+  }
+}
+
+function getPotionEventDisplayLabel(event) {
+  const base = event?.label || "Unknown Consumable";
+  switch (event?.category) {
+    case "nightmare_seed":
+      return "Nightmare Seed";
+    case "dark_rune":
+      return base.includes("Rune") ? base : "Dark Rune";
+    default:
+      return base;
+  }
+}
+
+function formatPotionDurationValue(ms) {
+  const seconds = Math.max(0, Number(ms || 0)) / 1000;
+  return `${seconds.toFixed(1)}s`;
+}
+
+function formatPotionRelativeTime(ms) {
+  const value = Number(ms || 0);
+  const sign = value < 0 ? "-" : "";
+  const absolute = Math.abs(value);
+  const totalSeconds = absolute / 1000;
+
+  if (totalSeconds < 60) {
+    return `${sign}${totalSeconds.toFixed(1)}s`;
+  }
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds - (minutes * 60);
+  return `${sign}${minutes}:${seconds.toFixed(1).padStart(4, "0")}`;
+}
+
+function getPotionOverlapRatio(event) {
+  const total = Number(event?.totalDurationMs || 0);
+  if (!(total > 0)) return 0;
+  return Number(event?.combatOverlapMs || 0) / total;
+}
+
+function getPotionBenefitLabel(event) {
+  const total = Number(event?.totalDurationMs || 0);
+  if (total > 0) {
+    return `${formatPotionDurationValue(event?.combatOverlapMs || 0)} / ${formatPotionDurationValue(total)}`;
+  }
+  if (Number(event?.amount || 0) > 0) {
+    return "One-time effect";
+  }
+  return "";
 }
 
 function aggregateDamageEntries(fights) {
@@ -2629,7 +2887,6 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
   const fullCastsEntry = (importPayload?.fullCasts?.entries || []).find(entry =>
     String(entry?.id || "") === String(playerId) || entry?.name === playerName
   );
-  const potionUseCount = countMatchingCasts(fullCastsEntry, { nameTokens: POTION_NAME_TOKENS });
   const healthstoneCountFromCasts = countMatchingCasts(fullCastsEntry, { ids: HEALTHSTONE_CAST_IDS, nameTokens: HEALTHSTONE_NAME_TOKENS });
   const healthstoneCountFromHealing = (fights || []).reduce((sum, fight) => {
     const healingEntry = (fight?.healingDoneEntries || []).find(entry => String(entry?.id) === String(playerId));
@@ -2641,9 +2898,39 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
     .filter(snapshot => visibleFightIds.has(String(snapshot?.fightId || "")))
     .map(snapshot => getDrumFightCoverage(snapshot, playerId, playerName))
     .filter(row => row.casts > 0 || row.affectedTargets > 0);
+  const potionEvents = ((importPayload?.potionsByFight?.snapshots || []))
+    .filter(snapshot => visibleFightIds.has(String(snapshot?.fightId || "")))
+    .flatMap(snapshot => getPotionFightEvents(snapshot, playerId, playerName))
+    .sort((a, b) => {
+      const sectionDelta = (POTION_SECTION_ORDER[a.section] ?? 99) - (POTION_SECTION_ORDER[b.section] ?? 99);
+      if (sectionDelta !== 0) return sectionDelta;
+      if (a.fightName !== b.fightName) {
+        return a.fightName.localeCompare(b.fightName, "en", { sensitivity: "base" });
+      }
+      return Number(a.timestamp || 0) - Number(b.timestamp || 0);
+    });
   const drumsCastCount = drumsCoverage.reduce((sum, row) => sum + Number(row.casts || 0), 0);
   const drumsAffectedCount = drumsCoverage.reduce((sum, row) => sum + Number(row.affectedTargets || 0), 0);
   const drumsAverageAffected = drumsCastCount > 0 ? drumsAffectedCount / drumsCastCount : 0;
+  const prepotEvents = potionEvents.filter(event => event.section === "prepull");
+  const combatPotionEvents = potionEvents.filter(event =>
+    event.section === "combat" && (event.category === "potion" || event.category === "nightmare_seed")
+  );
+  const recoveryConsumableEvents = potionEvents.filter(event => event.section === "recovery");
+  const potionEventPotionCount = potionEvents.filter(event =>
+    event.category === "potion"
+    || event.category === "nightmare_seed"
+    || event.category === "mana_potion"
+    || event.category === "healing_potion"
+  ).length;
+  const potionUseCount = potionEventPotionCount > 0
+    ? potionEventPotionCount
+    : countMatchingCasts(fullCastsEntry, { nameTokens: POTION_NAME_TOKENS });
+  const healthstoneEventCount = potionEvents.filter(event => event.category === "healthstone").length;
+  const prepullOverlapTotalMs = prepotEvents.reduce((sum, event) => sum + Number(event.combatOverlapMs || 0), 0);
+  const prepullDurationTotalMs = prepotEvents.reduce((sum, event) => sum + Number(event.totalDurationMs || 0), 0);
+  const averagePrepullOverlapMs = prepotEvents.length > 0 ? prepullOverlapTotalMs / prepotEvents.length : 0;
+  const averagePrepullDurationMs = prepotEvents.length > 0 ? prepullDurationTotalMs / prepotEvents.length : 0;
 
   return {
     hasGearData: snapshots.length > 0,
@@ -2680,7 +2967,14 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
     foodIssueCount,
     elixirIssueCount,
     potionUseCount,
-    hearthstoneCount,
+    potionEvents,
+    potionEventCount: potionEvents.length,
+    prepotCount: prepotEvents.length,
+    combatPotionCount: combatPotionEvents.length,
+    recoveryConsumableCount: recoveryConsumableEvents.length,
+    averagePrepullOverlapMs,
+    averagePrepullDurationMs,
+    hearthstoneCount: Math.max(hearthstoneCount, healthstoneEventCount),
     drumsCoverage,
     drumsCastCount,
     drumsAffectedCount,
@@ -4208,6 +4502,9 @@ export default function RpbPage() {
   const visibleConsumableSliceEntries = useMemo(() => {
     return buildConsumableSliceEntries(selectedRaid?.players || [], filteredPlayerAnalyticsById, raidAnalyticsFilterIds);
   }, [filteredPlayerAnalyticsById, raidAnalyticsFilterIds, selectedRaid]);
+  const visiblePotionSliceEntries = useMemo(() => {
+    return buildPotionSliceEntries(selectedRaid?.players || [], filteredPlayerAnalyticsById, raidAnalyticsFilterIds);
+  }, [filteredPlayerAnalyticsById, raidAnalyticsFilterIds, selectedRaid]);
   const visibleDrumSliceEntries = useMemo(() => {
     return buildDrumSliceEntries(selectedRaid?.players || [], filteredPlayerAnalyticsById, raidAnalyticsFilterIds);
   }, [filteredPlayerAnalyticsById, raidAnalyticsFilterIds, selectedRaid]);
@@ -4235,9 +4532,11 @@ export default function RpbPage() {
   const defaultVisiblePlayerId = useMemo(() => {
     const source = sliceType === "consumables"
       ? visibleConsumableSliceEntries
-      : (sliceType === "drums" ? visibleDrumSliceEntries : visibleAggregatedSliceEntries);
+      : (sliceType === "potions"
+        ? visiblePotionSliceEntries
+        : (sliceType === "drums" ? visibleDrumSliceEntries : visibleAggregatedSliceEntries));
     return source?.[0]?.id ? String(source[0].id) : "";
-  }, [sliceType, visibleAggregatedSliceEntries, visibleConsumableSliceEntries, visibleDrumSliceEntries]);
+  }, [sliceType, visibleAggregatedSliceEntries, visibleConsumableSliceEntries, visibleDrumSliceEntries, visiblePotionSliceEntries]);
   const selectedPlayerSliceTotals = useMemo(() => {
     return getPlayerSliceTotals(filteredFights, selectedPlayerId, selectedPlayer?.role || "");
   }, [filteredFights, selectedPlayer?.role, selectedPlayerId]);
@@ -4348,6 +4647,7 @@ export default function RpbPage() {
     const consumableIssueCount = Number(selectedPlayerAnalytics.consumableIssueCount || 0);
     const potionUseCount = Number(selectedPlayerAnalytics.potionUseCount || 0);
     const hearthstoneCount = Number(selectedPlayerAnalytics.hearthstoneCount || 0);
+    const prepotCount = Number(selectedPlayerAnalytics.prepotCount || 0);
 
     return sortMetricTags([
       {
@@ -4373,6 +4673,12 @@ export default function RpbPage() {
         value: potionUseCount,
         tone: potionUseCount > 0 ? "success" : "neutral",
         sortValue: potionUseCount,
+      },
+      {
+        label: "Prepots",
+        value: prepotCount,
+        tone: prepotCount > 0 ? "info" : "neutral",
+        sortValue: prepotCount,
       },
       {
         label: "Healthstones",
@@ -4741,6 +5047,7 @@ export default function RpbPage() {
         { key: "buffsByFight", label: "Saving consumable coverage per boss fight...", detail: "GET /report/tables/buffs per boss fight" },
         { key: "drums", label: "Extracting drums usage...", detail: "GET /report/tables/casts (drums filter)" },
         { key: "drumsByFight", label: "Saving drums effectiveness per boss fight...", detail: "GET /report/events/casts + /report/events/buffs per boss fight" },
+        { key: "potionsByFight", label: "Saving potion and recovery timelines...", detail: "GET /report/events/casts + /report/events/buffs + /report/events/healing per boss fight" },
         { key: "reportRankings", label: "Fetching Warcraft Logs parse rankings...", detail: "POST /api/v2/client report.rankings" },
         { key: "reportSpeed", label: "Fetching report and boss speed rankings...", detail: "POST /api/v2/client report.rankings speed rows" },
         { key: "raiderData", label: "Capturing boss-pull player snapshots...", detail: "GET /report/tables/summary per boss fight" },
@@ -5479,6 +5786,7 @@ export default function RpbPage() {
                           { id: "healing", label: "Healing" },
                           { id: "deaths", label: "Deaths" },
                           { id: "drums", label: "Drums" },
+                          { id: "potions", label: "Potions" },
                           { id: "consumables", label: "Consumables" },
                         ].map(option => (
                           <button
@@ -5493,7 +5801,9 @@ export default function RpbPage() {
                       <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                         {((sliceType === "consumables"
                           ? visibleConsumableSliceEntries
-                          : (sliceType === "drums" ? visibleDrumSliceEntries : visibleAggregatedSliceEntries)).length === 0) && (
+                          : (sliceType === "potions"
+                            ? visiblePotionSliceEntries
+                            : (sliceType === "drums" ? visibleDrumSliceEntries : visibleAggregatedSliceEntries))).length === 0) && (
                           <div style={{ fontSize: fontSize.sm, color: text.muted }}>
                             {raidAnalyticsFilter
                               ? "No players match the active raid analytics filter in this slice."
@@ -5589,7 +5899,49 @@ export default function RpbPage() {
                             </button>
                           );
                         })}
-                        {sliceType !== "consumables" && sliceType !== "drums" && visibleAggregatedSliceEntries.map(entry => {
+                        {sliceType === "potions" && visiblePotionSliceEntries.map(entry => {
+                          const active = String(entry.id) === String(selectedPlayerId);
+                          const overlapPercent = Math.max(0, Math.min(100, Math.round((entry.averagePrepullOverlapRatio || 0) * 100)));
+                          return (
+                            <button
+                              key={`potions-${entry.id}`}
+                              onClick={() => handlePlayerSelection(entry.id)}
+                              style={{
+                                background: active ? `${accent.blue}10` : "transparent",
+                                border: `${active ? 2 : 1}px solid ${active ? accent.blue : border.subtle}`,
+                                boxShadow: active ? `0 0 0 2px ${accent.blue}33` : "none",
+                                borderRadius: radius.base,
+                                padding: space[3],
+                                textAlign: "left",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 10 }}>
+                                <span style={{ color: getClassColor(entry.type), fontWeight: fontWeight.semibold }}>{entry.name}</span>
+                                <span style={{ color: text.secondary, fontWeight: fontWeight.semibold }}>
+                                  {entry.total} event{entry.total === 1 ? "" : "s"}
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 8 }}>
+                                <span style={{ fontSize: fontSize.xs, color: "#ffffff", fontWeight: fontWeight.bold }}>
+                                  {`⌚ ${entry.prepotCount} · Combat ${entry.combatCount} · Recovery ${entry.recoveryCount}`}
+                                </span>
+                                <span style={{ fontSize: fontSize.xs, color: overlapPercent > 0 && overlapPercent < 72 ? "#ffd5a1" : "#d7ffdf", fontWeight: fontWeight.bold }}>
+                                  {entry.averagePrepullDurationMs > 0 ? `${overlapPercent}% avg overlap` : "No prepot buff"}
+                                </span>
+                              </div>
+                              <div style={{ height: 10, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}` }}>
+                                <div style={{
+                                  width: `${Math.max(entry.averagePrepullDurationMs > 0 ? 4 : 0, overlapPercent)}%`,
+                                  height: "100%",
+                                  background: overlapPercent > 0 && overlapPercent < 72 ? intent.warning : intent.success,
+                                  opacity: 0.9,
+                                }} />
+                              </div>
+                            </button>
+                          );
+                        })}
+                        {sliceType !== "consumables" && sliceType !== "drums" && sliceType !== "potions" && visibleAggregatedSliceEntries.map(entry => {
                           const maxValue = visibleAggregatedSliceEntries[0]?.total || 1;
                           const active = String(entry.id) === String(selectedPlayerId);
                           const perSecondValue = sliceType === "deaths"
