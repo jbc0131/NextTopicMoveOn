@@ -543,6 +543,34 @@ function enrichFightMetricEntries(entries = [], castsPayload = {}, fallbackLabel
   });
 }
 
+function shouldHydrateDamageEntry(entry) {
+  if (!PLAYER_TYPES.has(entry?.type) || Number(entry?.total || 0) <= 0) return false;
+
+  const abilities = Array.isArray(entry?.abilities) ? entry.abilities : [];
+  if (!abilities.length) return true;
+
+  const positiveTotalAbilities = abilities.filter(ability => Number(ability?.total || 0) > 0);
+  if (!positiveTotalAbilities.length) return true;
+
+  const abilityHits = positiveTotalAbilities.reduce((sum, ability) => sum + Number(ability?.hits || 0), 0);
+  const abilityCrits = positiveTotalAbilities.reduce((sum, ability) => sum + Number(ability?.crits || 0), 0);
+  const topLevelHits = Number(entry?.hits || 0);
+  const topLevelCrits = Number(entry?.crits || 0);
+
+  if (abilityHits <= 0 && abilityCrits <= 0) return true;
+  if (topLevelHits > 0 && abilityHits < Math.ceil(topLevelHits * 0.5)) return true;
+  if (topLevelCrits > 0 && abilityCrits < Math.ceil(topLevelCrits * 0.5)) return true;
+
+  if (String(entry?.type || "").trim().toLowerCase() === "hunter") {
+    const hasZeroedPositiveAbility = positiveTotalAbilities.some(ability =>
+      Number(ability?.hits || 0) <= 0 && Number(ability?.crits || 0) <= 0
+    );
+    if (hasZeroedPositiveAbility) return true;
+  }
+
+  return false;
+}
+
 export async function fetchPlayerAbilityBreakdown({
   reportUrl,
   reportId: rawReportId,
@@ -835,12 +863,7 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
         };
       });
     const normalizedEntries = await Promise.all(enrichedEntries.map(async entry => {
-      if (!PLAYER_TYPES.has(entry?.type) || Number(entry?.total || 0) <= 0) return entry;
-
-      const hasDetailedStats = (entry?.abilities || []).some(ability =>
-        Number(ability?.hits || 0) > 0 || Number(ability?.crits || 0) > 0
-      );
-      if (hasDetailedStats) return entry;
+      if (!shouldHydrateDamageEntry(entry)) return entry;
 
       return hydrateSourceScopedFightEntry({
         reportId,
