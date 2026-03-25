@@ -3170,6 +3170,7 @@ export default function RpbPage() {
         [liveBreakdownCacheKey]: {
           ...(prev[liveBreakdownCacheKey] || {}),
           [mode]: {
+            error: "",
             loaded: false,
             loading: true,
             entries: existing?.entries || [],
@@ -3178,9 +3179,12 @@ export default function RpbPage() {
       }));
 
       try {
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        const timeoutId = controller ? window.setTimeout(() => controller.abort(), 15000) : 0;
         const response = await fetch("/api/rpb-import", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller?.signal,
           body: JSON.stringify({
             action: "step",
             step: "playerAbilityBreakdown",
@@ -3191,6 +3195,7 @@ export default function RpbPage() {
             mode,
           }),
         });
+        if (timeoutId) window.clearTimeout(timeoutId);
 
         const data = await readApiJson(response);
         if (!response.ok) throw new Error(data.error || `Failed to load ${mode} breakdown`);
@@ -3201,6 +3206,7 @@ export default function RpbPage() {
             [liveBreakdownCacheKey]: {
               ...(prev[liveBreakdownCacheKey] || {}),
               [mode]: {
+                error: "",
                 loaded: true,
                 loading: false,
                 entries: Array.isArray(data?.entries) ? data.entries : [],
@@ -3208,13 +3214,16 @@ export default function RpbPage() {
             },
           }));
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           setLiveAbilityBreakdowns(prev => ({
             ...prev,
             [liveBreakdownCacheKey]: {
               ...(prev[liveBreakdownCacheKey] || {}),
               [mode]: {
+                error: error?.name === "AbortError"
+                  ? "Live Warcraft Logs breakdown request timed out."
+                  : (error?.message || `Failed to load ${mode} breakdown.`),
                 loaded: true,
                 loading: false,
                 entries: [],
@@ -4553,6 +4562,8 @@ export default function RpbPage() {
                                   ? "Source: saved import only"
                                   : currentLiveBreakdownState?.loading
                                     ? "Source: loading live Warcraft Logs breakdown..."
+                                    : currentLiveBreakdownState?.error
+                                      ? `Source: ${currentLiveBreakdownState.error}`
                                     : isUsingLiveBreakdown
                                       ? "Source: live Warcraft Logs breakdown"
                                       : "Source: saved import fallback"}
@@ -4566,6 +4577,7 @@ export default function RpbPage() {
                                       [liveBreakdownCacheKey]: {
                                         ...(prev[liveBreakdownCacheKey] || {}),
                                         [sliceType]: {
+                                          error: "",
                                           loaded: false,
                                           loading: false,
                                           entries: [],
