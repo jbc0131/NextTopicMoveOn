@@ -1112,64 +1112,51 @@ function PlayerDetailPanel({
               {(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                   {isMobile ? (
-                    <div style={{ overflowX: "auto", paddingBottom: 2 }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: space[2], minWidth: 620 }}>
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)",
-                            gap: space[2],
-                            padding: `0 ${space[3]}px`,
-                            fontSize: fontSize.sm,
-                            fontWeight: fontWeight.bold,
-                            color: text.primary,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
-                          }}
-                        >
-                          <div>Ability</div>
-                          <div>Total</div>
-                          <div>Casts</div>
-                          <div>Hits</div>
-                          <div>Crits</div>
-                          <div>{sliceType === "healing" ? "Overheal" : ""}</div>
+                    (sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
+                      <div
+                        key={`${sliceType}-${ability.key}`}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: space[2],
+                          padding: space[3],
+                          border: `1px solid ${border.subtle}`,
+                          borderRadius: radius.base,
+                          background: surface.card,
+                        }}
+                      >
+                        <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
+                          <WowheadSpellAbility spellId={ability.guid} name={ability.name} />
                         </div>
-                        {(sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
-                          <div
-                            key={`${sliceType}-${ability.key}`}
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)",
-                              gap: space[2],
-                              padding: space[3],
-                              border: `1px solid ${border.subtle}`,
-                              borderRadius: radius.base,
-                              background: surface.card,
-                              alignItems: "center",
-                            }}
-                          >
-                            <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
-                              <WowheadSpellAbility spellId={ability.guid} name={ability.name} />
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: space[2] }}>
+                          {[
+                            { label: "Total", value: formatMetricValue(ability.total) },
+                            { label: "Casts", value: ability.casts || 0 },
+                            { label: "Hits", value: ability.hits || 0 },
+                            { label: "Crits", value: `${ability.crits || 0}${ability.hits > 0 ? ` (${formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100)})` : ""}` },
+                            ...(sliceType === "healing" ? [{ label: "Overheal", value: formatMetricValue(ability.overheal) }] : []),
+                          ].map(metric => (
+                            <div
+                              key={`${ability.key}-${metric.label}`}
+                              style={{
+                                padding: `${space[2]}px ${space[2]}px`,
+                                borderRadius: radius.sm,
+                                background: surface.base,
+                                border: `1px solid ${border.subtle}`,
+                                minWidth: 0,
+                              }}
+                            >
+                              <div style={{ fontSize: 11, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                {metric.label}
+                              </div>
+                              <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, marginTop: 4, overflowWrap: "anywhere" }}>
+                                {metric.value}
+                              </div>
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, whiteSpace: "nowrap" }}>
-                              {formatMetricValue(ability.total)}
-                            </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                              {ability.casts || 0}
-                            </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                              {ability.hits || 0}
-                            </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                              {`${ability.crits || 0} (${ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"})`}
-                            </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                              {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : ""}
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    ))
                   ) : (
                     <div
                       style={{
@@ -1401,7 +1388,7 @@ function PlayerDetailPanel({
                         </div>
                       )}
                       {(item.gems || []).length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                           {(item.gems || []).map((gem, index) => (
                             <div key={`fight-gear-gem-row-${item.id}-${gem.id}-${index}`} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                               <WowheadItemLink itemId={gem.id}>
@@ -1431,11 +1418,6 @@ function PlayerDetailPanel({
                                   />
                                 )}
                               </WowheadItemLink>
-                              <div style={{ fontSize: fontSize.xs, color: text.secondary, minWidth: 0, lineHeight: 1.35 }}>
-                                <WowheadItemLink itemId={gem.id}>
-                                  {getResolvedDisplayName(gem, itemMetaById, "Gem")}
-                                </WowheadItemLink>
-                              </div>
                             </div>
                           ))}
                         </div>
@@ -1506,14 +1488,18 @@ function getResolvedDisplayName(entry, itemMetaById, fallbackPrefix = "Item") {
   return meta?.name || `${fallbackPrefix} ${entry?.id ?? ""}`.trim();
 }
 
+function handleWowheadLinkPress(event) {
+  event.preventDefault();
+}
+
 function WowheadItemLink({ itemId, children }) {
   if (!itemId) return children;
   return (
     <a
       href={makeWowheadItemUrl(itemId)}
-      target="_blank"
-      rel="noreferrer"
+      onClick={handleWowheadLinkPress}
       data-wowhead={`item=${itemId}`}
+      aria-label={`Item ${itemId}`}
       style={{ color: "inherit", textDecoration: "none" }}
     >
       {children}
@@ -1533,9 +1519,9 @@ function WowheadGearItemLink({ item, gear, children }) {
   return (
     <a
       href={makeWowheadItemUrlWithGear(item, gear)}
-      target="_blank"
-      rel="noreferrer"
+      onClick={handleWowheadLinkPress}
       data-wowhead={tooltipParts.join("&")}
+      aria-label={`Item ${item.id}`}
       style={{ color: "inherit", textDecoration: "none" }}
     >
       {children}
@@ -1548,9 +1534,9 @@ function WowheadSpellLink({ spellId, children }) {
   return (
     <a
       href={makeWowheadSpellUrl(spellId)}
-      target="_blank"
-      rel="noreferrer"
+      onClick={handleWowheadLinkPress}
       data-wowhead={`spell=${spellId}`}
+      aria-label={`Spell ${spellId}`}
       style={{ color: "inherit", textDecoration: "none" }}
     >
       {children}
