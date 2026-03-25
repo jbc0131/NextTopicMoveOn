@@ -38,9 +38,9 @@ const POTION_EVENT_NAME_TOKENS = [
   "ironshield",
   "fel mana",
   "insane strength",
-  "heroic",
   "super mana",
   "super healing",
+  "heroic potion",
 ];
 const POTION_BUFF_NAME_TOKENS = [
   "potion",
@@ -50,7 +50,7 @@ const POTION_BUFF_NAME_TOKENS = [
   "ironshield",
   "fel mana",
   "insane strength",
-  "heroic",
+  "heroic potion",
 ];
 const POTION_HEAL_NAME_TOKENS = [
   "healthstone",
@@ -1141,7 +1141,7 @@ function isBuffPotionName(name) {
     || normalized.includes("ironshield")
     || normalized.includes("fel mana")
     || normalized.includes("insane strength")
-    || normalized.includes("heroic");
+    || normalized.includes("heroic potion");
 }
 
 function classifyPotionEventName(name, hasBuffWindow = false) {
