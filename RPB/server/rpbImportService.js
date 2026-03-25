@@ -1530,9 +1530,11 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
   const castFilter = buildAbilityIdFilter(
     collectMatchingAbilityIdsFromTable(fullCastsData, isTrackedPotionEventName)
   );
-  const buffFilter = buildAbilityIdFilter(
-    collectMatchingAuraIdsFromTable(fullBuffsData, isTrackedPotionBuffName)
-  );
+  const buffAbilityIds = new Set([
+    ...collectMatchingAuraIdsFromTable(fullBuffsData, isTrackedPotionBuffName),
+    ...collectMatchingAbilityIdsFromTable(fullCastsData, isTrackedPotionBuffName),
+  ]);
+  const buffFilter = buildAbilityIdFilter(buffAbilityIds);
   const healFilter = buildAbilityIdFilter(
     collectMatchingAbilityIdsFromTable(fullHealingData, isTrackedPotionHealName)
   );
