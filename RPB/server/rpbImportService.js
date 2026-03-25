@@ -25,7 +25,9 @@ const DRUMS_TYPE_LABELS = new Map([
   ["35478", "Restoration"],
   ["351358", "Restoration"],
 ]);
+const RESOURCE_RECOVERY_ABILITY_IDS = new Set(["28499", "27869", "16666"]);
 const MANA_POTION_ABILITY_IDS = new Set(["28499"]);
+const DARK_RUNE_ABILITY_IDS = new Set(["27869", "16666"]);
 const DRUMS_PREPULL_LOOKBACK_MS = 30 * 1000;
 const POTIONS_PREPULL_LOOKBACK_MS = 30 * 1000;
 const POTION_EVENT_NAME_TOKENS = [
@@ -1102,6 +1104,18 @@ function isManaPotionSpellId(spellId) {
   return MANA_POTION_ABILITY_IDS.has(normalizeSpellId(spellId));
 }
 
+function isDarkRuneSpellId(spellId) {
+  return DARK_RUNE_ABILITY_IDS.has(normalizeSpellId(spellId));
+}
+
+function getResourceRecoveryLabel(name, spellId = null) {
+  const normalizedSpellId = normalizeSpellId(spellId);
+  if (normalizedSpellId === "28499") return "Mana Potion";
+  if (normalizedSpellId === "27869") return "Dark Rune";
+  if (normalizedSpellId === "16666") return "Demonic Rune";
+  return name || "Unknown Consumable";
+}
+
 function nameIncludesAnyToken(name, tokens = []) {
   const normalized = normalizeTrackedConsumableName(name);
   return !!normalized && tokens.some(token => normalized.includes(token));
@@ -1123,7 +1137,8 @@ function isHealthstoneName(name) {
   return normalizeTrackedConsumableName(name).includes("healthstone");
 }
 
-function isDarkRuneName(name) {
+function isDarkRuneName(name, spellId = null) {
+  if (isDarkRuneSpellId(spellId)) return true;
   const normalized = normalizeTrackedConsumableName(name);
   return normalized.includes("dark rune") || normalized.includes("demonic rune");
 }
@@ -1160,7 +1175,7 @@ function classifyPotionEventName(name, hasBuffWindow = false, spellId = null) {
   if (isHealthstoneName(name)) {
     return { category: "healthstone", section: "recovery", eventKind: "instant_survival" };
   }
-  if (isDarkRuneName(name)) {
+  if (isDarkRuneName(name, spellId)) {
     return { category: "dark_rune", section: "recovery", eventKind: "instant_resource" };
   }
   if (isManaPotionName(name, spellId)) {
@@ -1317,12 +1332,14 @@ function namesLikelyMatch(left, right) {
   return categoryChecks.some(check => check(leftName) && check(rightName));
 }
 
-function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingEvents = []) {
+function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingEvents = [], resourceEvents = []) {
   const windows = buildPotionBuffWindows(buffEvents, fight);
   const remainingCastsByPlayer = new Map();
   const rowsByPlayer = new Map();
   const healingEventsByPlayer = new Map();
+  const resourceEventsByPlayer = new Map();
   const matchedHealingKeys = new Set();
+  const matchedResourceKeys = new Set();
 
   const ensurePlayer = (playerId, playerName = "Unknown Player") => {
     const key = String(playerId || "");
@@ -1366,6 +1383,35 @@ function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingE
     player.events.push(attachHealingAmount(row));
   };
 
+  const attachResourceAmount = row => {
+    if (!row || row.eventKind !== "instant_resource") return row;
+
+    const playerResources = resourceEventsByPlayer.get(String(row.playerId || "")) || [];
+    const rowTimestamp = Number(row.timestamp || 0);
+    const rowSpellId = normalizeSpellId(row.spellId);
+    const match = playerResources.find(event => {
+      if (matchedResourceKeys.has(event.key)) return false;
+      const eventSpellId = normalizeSpellId(event.guid);
+      const spellIdMatches = rowSpellId && eventSpellId && rowSpellId === eventSpellId;
+      const nameMatches = namesLikelyMatch(event.name, row.label);
+      if (!spellIdMatches && !nameMatches) return false;
+      const delta = Number(event.timestamp || 0) - rowTimestamp;
+      return delta >= -1000 && delta <= POTION_HEAL_MATCH_WINDOW_MS;
+    });
+
+    if (!match) return row;
+    matchedResourceKeys.add(match.key);
+    return {
+      ...row,
+      amount: Number(match.amount || 0),
+      resourceTimestamp: Number(match.timestamp || 0),
+    };
+  };
+
+  const pushConsumableRow = row => {
+    pushRow(attachResourceAmount(row));
+  };
+
   for (const event of castEvents || []) {
     if (String(event?.type || "").toLowerCase() !== "cast") continue;
     const name = event?.ability?.name || event?.abilityName || event?.name || "";
@@ -1407,6 +1453,27 @@ function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingE
     healingEventsByPlayer.set(playerId, list);
   }
 
+  for (const event of resourceEvents || []) {
+    const name = event?.ability?.name || event?.abilityName || event?.name || "";
+    const spellId = event?.ability?.guid ?? event?.abilityGameID ?? null;
+    if (!isManaPotionSpellId(spellId) && !isDarkRuneSpellId(spellId)) continue;
+
+    const playerId = String(event?.sourceID || event?.targetID || "");
+    if (!playerId) continue;
+
+    const list = resourceEventsByPlayer.get(playerId) || [];
+    list.push({
+      key: `${playerId}:${getPotionEventTimestamp(event)}:${spellId || name}:${list.length}`,
+      playerId,
+      playerName: event?.sourceName || event?.targetName || "Unknown Player",
+      guid: spellId,
+      name,
+      timestamp: getPotionEventTimestamp(event),
+      amount: Number(event?.resourceChange ?? event?.amount ?? event?.gain ?? 0) || 0,
+    });
+    resourceEventsByPlayer.set(playerId, list);
+  }
+
   for (const window of windows) {
     const playerCasts = remainingCastsByPlayer.get(window.playerId) || [];
     const matchedCast = playerCasts.find(cast => {
@@ -1434,7 +1501,7 @@ function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingE
         - Math.max(Number(window.startTimestamp || 0), Number(fight?.start_time || 0))
     );
 
-    pushRow({
+    pushConsumableRow({
       key: `buff:${window.playerId}:${window.guid || label}:${window.startTimestamp}`,
       playerId: window.playerId,
       playerName: window.playerName,
@@ -1461,11 +1528,11 @@ function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingE
       const relativeTimeMs = Number(cast.timestamp || 0) - Number(fight?.start_time || 0);
       const isPrepull = relativeTimeMs < 0;
 
-      pushRow({
+      pushConsumableRow({
         key: `cast:${cast.key}`,
         playerId: cast.playerId,
         playerName: cast.playerName,
-        label: isManaPotionSpellId(cast.guid) ? "Mana Potion" : (cast.name || "Unknown Consumable"),
+        label: getResourceRecoveryLabel(cast.name, cast.guid),
         spellId: cast.guid,
         timestamp: Number(cast.timestamp || 0),
         relativeTimeMs,
@@ -1486,7 +1553,7 @@ function summarizePotionEvents(fight, castEvents = [], buffEvents = [], healingE
   for (const playerHealing of healingEventsByPlayer.values()) {
     for (const event of playerHealing) {
       if (matchedHealingKeys.has(event.key)) continue;
-      const classification = classifyPotionEventName(event.name, false);
+      const classification = classifyPotionEventName(event.name, false, event.guid);
       const relativeTimeMs = Number(event.timestamp || 0) - Number(fight?.start_time || 0);
       const isPrepull = relativeTimeMs < 0;
 
@@ -1553,6 +1620,7 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
   const healFilter = buildAbilityIdFilter(
     collectMatchingAbilityIdsFromTable(fullHealingData, isTrackedPotionHealName)
   );
+  const resourceFilter = buildAbilityIdFilter(RESOURCE_RECOVERY_ABILITY_IDS);
 
   const snapshotFights = (fightsData.fights || []).filter(fight =>
     (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
@@ -1566,17 +1634,18 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
     const buffParams = buffFilter ? { start, end, filter: buffFilter } : null;
     const healParams = healFilter ? { start, end, filter: healFilter } : null;
 
-    const [castEvents, buffEvents, healingEvents] = await Promise.all([
+    const [castEvents, buffEvents, healingEvents, resourceEvents] = await Promise.all([
       castParams ? fetchAllEventPages(`/report/events/casts/${reportId}`, castParams, apiKeyOverride) : Promise.resolve([]),
       buffParams ? fetchAllEventPages(`/report/events/buffs/${reportId}`, buffParams, apiKeyOverride) : Promise.resolve([]),
       healParams ? fetchAllEventPages(`/report/events/healing/${reportId}`, healParams, apiKeyOverride) : Promise.resolve([]),
+      resourceFilter ? fetchAllEventPages(`/report/events/resources/${reportId}`, { start, end, filter: resourceFilter }, apiKeyOverride) : Promise.resolve([]),
     ]);
 
     snapshots.push({
       fightId: String(fight.id),
       encounterId: fight.boss || 0,
       fightName: fight.name || "Unknown Fight",
-      players: summarizePotionEvents(fight, castEvents, buffEvents, healingEvents),
+      players: summarizePotionEvents(fight, castEvents, buffEvents, healingEvents, resourceEvents),
     });
   }
 

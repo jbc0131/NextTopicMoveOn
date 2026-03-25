@@ -1287,7 +1287,7 @@ function PlayerDetailPanel({
                     const amountLabel = Number(row.amount || 0) > 0 ? formatMetricValue(row.amount) : "";
                     const timeLabel = formatPotionRelativeTime(row.relativeTimeMs);
                     const spellTitle = getPotionEventDisplayLabel(row);
-                    const spellColor = getPotionEventTextColor(row, text);
+                    const amountColor = getPotionAmountColor(row, text);
                     return (
                       <div
                         key={row.key}
@@ -1312,7 +1312,7 @@ function PlayerDetailPanel({
                                 {`${row.isPrepull ? "⌚ " : ""}${timeLabel}`}
                               </span>
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: spellColor, minWidth: 0, overflowWrap: "anywhere" }}>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
                               {row.spellId ? (
                                 <WowheadSpellLink
                                   spellId={row.spellId}
@@ -1327,7 +1327,7 @@ function PlayerDetailPanel({
                                 {benefitLabel || "No buff overlap"}
                               </span>
                               {amountLabel && (
-                                <span style={{ color: "#d7ffdf", fontWeight: fontWeight.semibold }}>
+                                <span style={{ color: amountColor, fontWeight: fontWeight.semibold }}>
                                   {amountLabel}
                                 </span>
                               )}
@@ -1338,7 +1338,7 @@ function PlayerDetailPanel({
                             <div style={{ fontSize: fontSize.sm, color: text.primary }}>
                               {row.fightName}
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: spellColor, minWidth: 0, overflowWrap: "anywhere" }}>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
                               {row.spellId ? (
                                 <WowheadSpellLink
                                   spellId={row.spellId}
@@ -1354,7 +1354,7 @@ function PlayerDetailPanel({
                             <div style={{ fontSize: fontSize.sm, color: lowOverlap ? "#ffd5a1" : text.secondary }}>
                               {benefitLabel || "No buff overlap"}
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: amountLabel ? "#d7ffdf" : text.secondary, fontWeight: amountLabel ? fontWeight.semibold : fontWeight.regular }}>
+                            <div style={{ fontSize: fontSize.sm, color: amountLabel ? amountColor : text.secondary, fontWeight: amountLabel ? fontWeight.semibold : fontWeight.regular }}>
                               {amountLabel}
                             </div>
                           </>
@@ -2755,6 +2755,12 @@ function getPotionEventDisplayLabel(event) {
   if (String(event?.spellId || "") === "28499") {
     return "Mana Potion";
   }
+  if (String(event?.spellId || "") === "27869") {
+    return "Dark Rune";
+  }
+  if (String(event?.spellId || "") === "16666") {
+    return "Demonic Rune";
+  }
   switch (event?.category) {
     case "nightmare_seed":
       return "Nightmare Seed";
@@ -2765,9 +2771,12 @@ function getPotionEventDisplayLabel(event) {
   }
 }
 
-function getPotionEventTextColor(event, text) {
-  if (event?.category === "mana_potion") {
+function getPotionAmountColor(event, text) {
+  if (event?.eventKind === "instant_resource" && Number(event?.amount || 0) > 0) {
     return "#8fc7ff";
+  }
+  if (Number(event?.amount || 0) > 0) {
+    return "#d7ffdf";
   }
   return text.secondary;
 }
