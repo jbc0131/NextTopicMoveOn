@@ -3691,6 +3691,9 @@ export default function RpbPage() {
     activeStepKey: "",
     steps: [],
   });
+  const pendingRaidSummary = useMemo(() => (
+    raids.find(raid => raid.id === raidId) || null
+  ), [raids, raidId]);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -3777,6 +3780,8 @@ export default function RpbPage() {
       }
 
       setLoadingRaid(true);
+      setSelectedRaid(null);
+      setSelectedPlayerId("");
       try {
         const raid = await fetchRpbRaidBundle(raidId);
         if (!cancelled) {
@@ -5378,8 +5383,14 @@ export default function RpbPage() {
       }}>
         <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
           {loadingRaid && !selectedRaid && !noReportsForActiveTeamFilter && (
-            <div style={{ ...panelStyle, padding: space[6], display: "flex", justifyContent: "center" }}>
+            <div style={{ ...panelStyle, padding: space[6], display: "flex", flexDirection: "column", alignItems: "center", gap: space[3], textAlign: "center" }}>
               <LoadingSpinner size={24} />
+              <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: text.primary }}>
+                Loading report
+              </div>
+              <div style={{ fontSize: fontSize.sm, color: text.secondary, maxWidth: 420, overflowWrap: "anywhere" }}>
+                {pendingRaidSummary?.title || "Fetching the selected raid report..."}
+              </div>
             </div>
           )}
 
