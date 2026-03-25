@@ -5387,12 +5387,13 @@ export default function RpbPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
           {loadingRaid && !selectedRaid && !noReportsForActiveTeamFilter && (
             <div style={{ ...panelStyle, padding: space[6], display: "flex", flexDirection: "column", alignItems: "center", gap: space[3], textAlign: "center" }}>
+              <style>{`@keyframes rpbReportEmojiSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
               <div
                 aria-hidden="true"
                 style={{
                   fontSize: 30,
                   lineHeight: 1,
-                  animation: "spin 1.1s linear infinite",
+                  animation: "rpbReportEmojiSpin 1.1s linear infinite",
                   transformOrigin: "50% 55%",
                 }}
               >
