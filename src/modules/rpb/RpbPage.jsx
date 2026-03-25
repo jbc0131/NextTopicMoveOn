@@ -3694,6 +3694,9 @@ export default function RpbPage() {
   const pendingRaidSummary = useMemo(() => (
     raids.find(raid => raid.id === raidId) || null
   ), [raids, raidId]);
+  const pendingRaidLoadingEmoji = pendingRaidSummary?.teamTag === "Team Dick"
+    ? "🍆"
+    : (pendingRaidSummary?.teamTag === "Team Balls" ? "🍒" : "⏳");
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -5384,7 +5387,17 @@ export default function RpbPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
           {loadingRaid && !selectedRaid && !noReportsForActiveTeamFilter && (
             <div style={{ ...panelStyle, padding: space[6], display: "flex", flexDirection: "column", alignItems: "center", gap: space[3], textAlign: "center" }}>
-              <LoadingSpinner size={24} />
+              <div
+                aria-hidden="true"
+                style={{
+                  fontSize: 30,
+                  lineHeight: 1,
+                  animation: "spin 1.1s linear infinite",
+                  transformOrigin: "50% 55%",
+                }}
+              >
+                {pendingRaidLoadingEmoji}
+              </div>
               <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: text.primary }}>
                 Loading report
               </div>
