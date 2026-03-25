@@ -4,7 +4,7 @@ import { buildCacheKey, getJsonCache, setJsonCache } from "./upstashRedis.js";
 const BASE_URL = "https://classic.warcraftlogs.com/v1";
 const WCL_V2_TOKEN_URL = "https://classic.warcraftlogs.com/oauth/token";
 const WCL_V2_API_URL = "https://classic.warcraftlogs.com/api/v2/client";
-
+1
 const PLAYER_TYPES = new Set([
   "Warrior", "Paladin", "Hunter", "Rogue", "Priest",
   "Shaman", "Mage", "Warlock", "Druid",
@@ -33,10 +33,24 @@ const POTION_EVENT_NAME_TOKENS = [
   "healthstone",
   "dark rune",
   "demonic rune",
+  "destruction",
+  "haste",
+  "ironshield",
+  "fel mana",
+  "insane strength",
+  "heroic",
+  "super mana",
+  "super healing",
 ];
 const POTION_BUFF_NAME_TOKENS = [
   "potion",
   "nightmare seed",
+  "destruction",
+  "haste",
+  "ironshield",
+  "fel mana",
+  "insane strength",
+  "heroic",
 ];
 const POTION_HEAL_NAME_TOKENS = [
   "healthstone",
@@ -1120,6 +1134,16 @@ function isGenericPotionName(name) {
   return normalizeTrackedConsumableName(name).includes("potion");
 }
 
+function isBuffPotionName(name) {
+  const normalized = normalizeTrackedConsumableName(name);
+  return normalized.includes("destruction")
+    || normalized.includes("haste")
+    || normalized.includes("ironshield")
+    || normalized.includes("fel mana")
+    || normalized.includes("insane strength")
+    || normalized.includes("heroic");
+}
+
 function classifyPotionEventName(name, hasBuffWindow = false) {
   if (isHealthstoneName(name)) {
     return { category: "healthstone", section: "recovery", eventKind: "instant_survival" };
@@ -1138,6 +1162,13 @@ function classifyPotionEventName(name, hasBuffWindow = false) {
       category: "nightmare_seed",
       section: hasBuffWindow ? "combat" : "recovery",
       eventKind: hasBuffWindow ? "combat_buff" : "instant_survival",
+    };
+  }
+  if (isBuffPotionName(name)) {
+    return {
+      category: "potion",
+      section: hasBuffWindow ? "combat" : "recovery",
+      eventKind: hasBuffWindow ? "combat_buff" : "instant_resource",
     };
   }
   if (isGenericPotionName(name)) {
