@@ -6140,10 +6140,11 @@ export default function RpbPage() {
                           const active = String(entry.id) === String(selectedPlayerId);
                           const prepotCount = Number(entry.prepotCount || 0);
                           const combatCount = Number(entry.combatCount || 0);
+                          const combatOnlyCount = Math.max(0, combatCount - prepotCount);
                           const recoveryCount = Number(entry.recoveryCount || 0);
-                          const totalSegments = prepotCount + combatCount + recoveryCount;
+                          const totalSegments = prepotCount + combatOnlyCount + recoveryCount;
                           const prepotPercent = totalSegments > 0 ? (prepotCount / totalSegments) * 100 : 0;
-                          const combatPercent = totalSegments > 0 ? (combatCount / totalSegments) * 100 : 0;
+                          const combatPercent = totalSegments > 0 ? (combatOnlyCount / totalSegments) * 100 : 0;
                           const recoveryPercent = totalSegments > 0 ? (recoveryCount / totalSegments) * 100 : 0;
                           return (
                             <button
@@ -6184,7 +6185,7 @@ export default function RpbPage() {
                                   <div style={{
                                     width: `${combatPercent}%`,
                                     height: "100%",
-                                    background: "#c93b3b",
+                                    background: "#3fbf63",
                                     opacity: combatPercent > 0 ? 0.95 : 0,
                                   }} />
                                   <div style={{
