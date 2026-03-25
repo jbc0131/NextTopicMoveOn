@@ -27,8 +27,13 @@ const DRUMS_TYPE_LABELS = new Map([
 ]);
 const DRUMS_PREPULL_LOOKBACK_MS = 30 * 1000;
 const WCL_CACHE_TTL_SECONDS = 60 * 15;
+const WCL_RETRY_DELAYS_MS = [1000, 2500, 5000];
 let cachedV2Token = null;
 let cachedV2TokenExpiresAt = 0;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function getWclV2AccessToken(clientIdOverride = "", clientSecretOverride = "") {
   if (cachedV2Token && Date.now() < cachedV2TokenExpiresAt) return cachedV2Token;
@@ -1227,13 +1232,43 @@ async function wclFetch(path, params = {}, apiKeyOverride = "") {
   const cached = await getJsonCache(cacheKey);
   if (cached) return cached;
 
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    throw new Error(`WCL v1 ${res.status}: ${await res.text()}`);
+  let lastError = null;
+  for (let attempt = 0; attempt <= WCL_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      const res = await fetch(url.toString());
+      if (!res.ok) {
+        const text = await res.text();
+        const shouldRetry = [429, 502, 503, 504].includes(res.status) && attempt < WCL_RETRY_DELAYS_MS.length;
+        if (shouldRetry) {
+          await sleep(WCL_RETRY_DELAYS_MS[attempt]);
+          continue;
+        }
+        throw new Error(`WCL v1 ${res.status}: ${text}`);
+      }
+
+      const data = await res.json();
+      await setJsonCache(cacheKey, data, WCL_CACHE_TTL_SECONDS);
+      return data;
+    } catch (error) {
+      lastError = error;
+      const isNetworkRetryable = attempt < WCL_RETRY_DELAYS_MS.length
+        && !String(error?.message || "").startsWith("WCL v1 ")
+        && (
+          error?.cause?.code === "EAI_AGAIN"
+          || error?.cause?.code === "ECONNRESET"
+          || error?.cause?.code === "ETIMEDOUT"
+          || error?.name === "TypeError"
+        );
+
+      if (isNetworkRetryable) {
+        await sleep(WCL_RETRY_DELAYS_MS[attempt]);
+        continue;
+      }
+      throw error;
+    }
   }
-  const data = await res.json();
-  await setJsonCache(cacheKey, data, WCL_CACHE_TTL_SECONDS);
-  return data;
+
+  throw lastError || new Error("WCL v1 request failed");
 }
 
 function getTrackedCastCount(entry) {
