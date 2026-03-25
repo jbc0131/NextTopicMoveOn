@@ -25,7 +25,8 @@ const DRUMS_TYPE_LABELS = new Map([
   ["35478", "Restoration"],
   ["351358", "Restoration"],
 ]);
-const RESOURCE_RECOVERY_ABILITY_IDS = new Set(["28499", "27869", "16666"]);
+const RESOURCE_RECOVERY_SPELL_IDS = ["28499", "27869", "16666"];
+const RESOURCE_RECOVERY_ABILITY_IDS = new Set(RESOURCE_RECOVERY_SPELL_IDS);
 const MANA_POTION_ABILITY_IDS = new Set(["28499"]);
 const DARK_RUNE_ABILITY_IDS = new Set(["27869", "16666"]);
 const DRUMS_PREPULL_LOOKBACK_MS = 30 * 1000;
@@ -1247,18 +1248,17 @@ function buildAbilityIdFilter(ids = new Set()) {
   return `ability.id IN (${values.join(",")})`;
 }
 
-function buildResourceGainTotals(tableData = {}) {
+function buildResourceGainTotals(resourceTablesBySpell = new Map()) {
   const totals = new Map();
+  for (const [spellId, tableData] of resourceTablesBySpell.entries()) {
+    const normalizedSpellId = normalizeSpellId(spellId);
+    if (!RESOURCE_RECOVERY_ABILITY_IDS.has(normalizedSpellId)) continue;
 
-  for (const entry of tableData?.entries || []) {
-    const playerId = String(entry?.id || "");
-    if (!playerId) continue;
-
-    for (const ability of getAbilityRows(entry, "Resource Gain")) {
-      const spellId = normalizeSpellId(ability?.guid);
-      if (!spellId || !RESOURCE_RECOVERY_ABILITY_IDS.has(spellId)) continue;
-      const key = `${playerId}:${spellId}`;
-      const total = Number(ability?.total ?? ability?.amount ?? 0) || 0;
+    for (const resource of tableData?.resources || []) {
+      const playerId = String(resource?.id || "");
+      if (!playerId) continue;
+      const key = `${playerId}:${normalizedSpellId}`;
+      const total = Number(resource?.gains ?? resource?.amount ?? 0) || 0;
       totals.set(key, (totals.get(key) || 0) + total);
     }
   }
@@ -1266,16 +1266,17 @@ function buildResourceGainTotals(tableData = {}) {
   return totals;
 }
 
-function getResourceGainPlayers(tableData = {}) {
+function getResourceGainPlayers(resourceTablesBySpell = new Map()) {
   const players = new Map();
-
-  for (const entry of tableData?.entries || []) {
-    const playerId = String(entry?.id || "");
-    if (!playerId) continue;
-    players.set(playerId, {
-      playerId,
-      playerName: entry?.name || "Unknown Player",
-    });
+  for (const [, tableData] of resourceTablesBySpell.entries()) {
+    for (const resource of tableData?.resources || []) {
+      const playerId = String(resource?.id || "");
+      if (!playerId) continue;
+      players.set(playerId, {
+        playerId,
+        playerName: resource?.name || "Unknown Player",
+      });
+    }
   }
 
   return players;
@@ -1660,8 +1661,6 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
   const healFilter = buildAbilityIdFilter(
     collectMatchingAbilityIdsFromTable(fullHealingData, isTrackedPotionHealName)
   );
-  const resourceFilter = buildAbilityIdFilter(RESOURCE_RECOVERY_ABILITY_IDS);
-
   const snapshotFights = (fightsData.fights || []).filter(fight =>
     (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
@@ -1674,26 +1673,32 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
     const buffParams = buffFilter ? { start, end, filter: buffFilter } : null;
     const healParams = healFilter ? { start, end, filter: healFilter } : null;
 
-    const resourceGainsPromise = resourceFilter
-      ? wclFetch(`/report/tables/resources-gains/${reportId}`, {
-        start,
-        end,
-        by: "source",
-        abilityid: 100,
-        filter: resourceFilter,
-      }, apiKeyOverride).catch(error => {
-        const message = String(error?.message || "");
-        if (message.startsWith("WCL v1 429:")) {
-          console.warn("RPB resource recovery lookup rate-limited", {
-            reportId,
-            fightId: String(fight.id),
-            message,
-          });
-          return {};
+    const resourceGainsPromise = Promise.all(
+      RESOURCE_RECOVERY_SPELL_IDS.map(async spellId => {
+        try {
+          const data = await wclFetch(`/report/tables/resources-gains/${reportId}`, {
+            start,
+            end,
+            by: "source",
+            abilityid: 100,
+            filter: `ability.id = ${spellId}`,
+          }, apiKeyOverride);
+          return [spellId, data];
+        } catch (error) {
+          const message = String(error?.message || "");
+          if (message.startsWith("WCL v1 429:")) {
+            console.warn("RPB resource recovery lookup rate-limited", {
+              reportId,
+              fightId: String(fight.id),
+              spellId,
+              message,
+            });
+            return [spellId, null];
+          }
+          throw error;
         }
-        throw error;
       })
-      : Promise.resolve({});
+    ).then(entries => new Map(entries.filter(([, data]) => data)));
 
     const [castEvents, buffEvents, healingEvents, resourceGains] = await Promise.all([
       castParams ? fetchAllEventPages(`/report/events/casts/${reportId}`, castParams, apiKeyOverride) : Promise.resolve([]),
