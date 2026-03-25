@@ -194,6 +194,7 @@ export async function saveRaidBundle(raid, options = {}) {
   const summary = getRaidSummary(raid);
   const meta = getRaidMeta(raid);
   const currentIndex = (await getJsonCache(RPB_INDEX_KEY)) || [];
+  const isNewRaid = !currentIndex.some(entry => entry?.id === raid.id);
   const nextIndex = [summary, ...currentIndex.filter(entry => entry?.id !== raid.id)]
     .sort((a, b) => new Date(b.importedAt || 0) - new Date(a.importedAt || 0))
     .slice(0, 100);
@@ -209,7 +210,7 @@ export async function saveRaidBundle(raid, options = {}) {
     throw new Error("Failed to write RPB data to Redis.");
   }
 
-  if (options?.notifyIfNew) {
+  if (options?.notifyIfNew && isNewRaid) {
     try {
       await sendNewRaidWebhook(raid, summary);
     } catch (error) {
