@@ -2354,6 +2354,45 @@ function TeamTagModal({ open, title, confirmLabel, value, onChange, onConfirm, o
   );
 }
 
+function ImportWebhookModal({ open, raidTitle, onYes, onNo }) {
+  if (!open) return null;
+
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 10001,
+      background: "rgba(0,0,0,0.65)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: space[4],
+    }}>
+      <div style={{
+        ...panelStyle,
+        width: 420,
+        maxWidth: "100%",
+        padding: space[6],
+        display: "flex",
+        flexDirection: "column",
+        gap: space[4],
+      }}>
+        <div>
+          <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: text.primary }}>Post Import to Discord?</div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 4, lineHeight: 1.5 }}>
+            {`"${raidTitle || "Imported Report"}" is ready to save. Do you want to post the new-raid webhook to Discord?`}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: space[2], flexWrap: "wrap" }}>
+          <button onClick={onNo} style={btnStyle("default")}>No</button>
+          <button onClick={onYes} style={btnStyle("primary")}>Yes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RenameReportModal({ open, value, onChange, onConfirm, onCancel }) {
   if (!open) return null;
 
@@ -2522,6 +2561,7 @@ export default function RpbPage() {
   const [openRaidMenuId, setOpenRaidMenuId] = useState("");
   const [tagModalState, setTagModalState] = useState({ open: false, raid: null, value: "" });
   const [importTagPrompt, setImportTagPrompt] = useState({ open: false, raid: null, value: "", resolve: null });
+  const [importWebhookPrompt, setImportWebhookPrompt] = useState({ open: false, raidTitle: "", resolve: null });
   const [renameModalState, setRenameModalState] = useState({ open: false, raid: null, value: "" });
   const [deleteConfirmRaid, setDeleteConfirmRaid] = useState(null);
   const [raidAnalyticsFilter, setRaidAnalyticsFilter] = useState("");
@@ -3491,6 +3531,19 @@ export default function RpbPage() {
         teamTag: assembledRaid.teamTag,
       });
 
+      updateImportProgressState(totalUnits - 1, "Waiting for webhook selection...", "Choose whether this import should post to the Discord webhook", {
+        subdetail: "This only affects the webhook post. The raid will still be saved either way.",
+        steps: getProgressSteps("", completedStepKeys),
+      });
+
+      const shouldPostWebhook = await new Promise(resolve => {
+        setImportWebhookPrompt({
+          open: true,
+          raidTitle: assembledRaid.title || assembledRaid.reportId,
+          resolve,
+        });
+      });
+
       updateImportProgressState(totalUnits - 1, "Saving imported raid...", "Persisting raid bundle, fights, players, analytics, and ability rows", {
         subdetail: "Writing the fully payload-backed raid bundle to Redis",
         steps: getProgressSteps("", completedStepKeys),
@@ -3505,6 +3558,7 @@ export default function RpbPage() {
           datasets,
           teamTag: assembledRaid.teamTag || "",
           title: assembledRaid.title,
+          notifyIfNew: shouldPostWebhook,
         }),
       });
 
@@ -3593,6 +3647,20 @@ export default function RpbPage() {
           if (resolve) resolve("");
         }}
         allowClear
+      />
+      <ImportWebhookModal
+        open={importWebhookPrompt.open}
+        raidTitle={importWebhookPrompt.raidTitle}
+        onYes={() => {
+          const resolve = importWebhookPrompt.resolve;
+          setImportWebhookPrompt({ open: false, raidTitle: "", resolve: null });
+          if (resolve) resolve(true);
+        }}
+        onNo={() => {
+          const resolve = importWebhookPrompt.resolve;
+          setImportWebhookPrompt({ open: false, raidTitle: "", resolve: null });
+          if (resolve) resolve(false);
+        }}
       />
       <TeamTagModal
         open={tagModalState.open}
