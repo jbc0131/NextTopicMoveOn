@@ -778,6 +778,51 @@ function PlayerDetailPanel({
   const breakdownGridColumns = isMobile
     ? "minmax(0, 1.3fr) minmax(88px, 0.7fr) 52px"
     : "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)";
+  const [mobilePreview, setMobilePreview] = useState(null);
+
+  const openItemPreview = (item, options = {}) => {
+    const resolvedItem = item?.id ? item : { id: options.itemId ?? item?.id, name: options.title };
+    if (!resolvedItem?.id) return;
+
+    const previewLines = [];
+    if (options.subtitle) previewLines.push(options.subtitle);
+    if (options.slotLabel) previewLines.push(options.slotLabel);
+
+    const itemLevel = resolvedItem?.itemLevel ?? itemMetaById?.[String(resolvedItem.id)]?.itemLevel ?? null;
+    if (itemLevel != null) previewLines.push(`ilvl ${itemLevel}`);
+
+    const permanentEnchant = getPermanentEnchantLabel(resolvedItem) || (getItemEnchantId(resolvedItem) ? `Enchant ${getItemEnchantId(resolvedItem)}` : "");
+    if (permanentEnchant) previewLines.push(permanentEnchant);
+
+    const temporaryEnchant = getTemporaryEnchantLabel(resolvedItem);
+    if (temporaryEnchant) previewLines.push(temporaryEnchant);
+
+    for (const gem of resolvedItem?.gems || []) {
+      previewLines.push(`Gem: ${getResolvedDisplayName(gem, itemMetaById, "Gem")}`);
+    }
+
+    setMobilePreview({
+      title: options.title || getResolvedDisplayName(resolvedItem, itemMetaById, "Item"),
+      href: options.href || (options.gear ? makeWowheadItemUrlWithGear(resolvedItem, options.gear) : makeWowheadItemUrl(resolvedItem.id)),
+      color: getResolvedQualityColor(resolvedItem, itemMetaById),
+      iconUrl: getResolvedItemIconUrl(resolvedItem, itemMetaById),
+      lines: previewLines,
+    });
+  };
+
+  const openSpellPreview = (spellId, title, subtitle = "") => {
+    if (!spellId) return;
+    const previewLines = [];
+    if (subtitle) previewLines.push(subtitle);
+    previewLines.push(`Spell ${spellId}`);
+    setMobilePreview({
+      title: title || `Spell ${spellId}`,
+      href: makeWowheadSpellUrl(spellId),
+      color: "#71d5ff",
+      iconUrl: "",
+      lines: previewLines,
+    });
+  };
 
   return (
     <div style={{
@@ -873,7 +918,12 @@ function PlayerDetailPanel({
                           </div>
                           <div style={{ fontSize: fontSize.sm, color: text.primary, marginTop: 4 }}>
                             {event?.abilityGuid ? (
-                              <WowheadSpellLink spellId={event.abilityGuid}>{getAbilityName(event, "Unknown")}</WowheadSpellLink>
+                              <WowheadSpellLink
+                                spellId={event.abilityGuid}
+                                onPreview={isMobile ? () => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event)) : null}
+                              >
+                                {getAbilityName(event, "Unknown")}
+                              </WowheadSpellLink>
                             ) : getAbilityName(event, "Unknown")}
                           </div>
                           <div style={{ fontSize: fontSize.xs, color: text.secondary, marginTop: 6 }}>
@@ -906,7 +956,12 @@ function PlayerDetailPanel({
                             </div>
                             <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0 }}>
                               {event?.abilityGuid ? (
-                                <WowheadSpellLink spellId={event.abilityGuid}>{getAbilityName(event, "Unknown")}</WowheadSpellLink>
+                                <WowheadSpellLink
+                                  spellId={event.abilityGuid}
+                                  onPreview={isMobile ? () => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event)) : null}
+                                >
+                                  {getAbilityName(event, "Unknown")}
+                                </WowheadSpellLink>
                               ) : getAbilityName(event, "Unknown")}
                             </div>
                             <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
@@ -1231,32 +1286,32 @@ function PlayerDetailPanel({
             )}
             {selectedPlayerIssueGroups.missingPermanent.map(issue => (
               <div key={`perm-${issue.slot}-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Missing permanent enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink>
+                Missing permanent enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Missing permanent enchant", slotLabel: issue.slotLabel }) : null}>{issue.itemName}</WowheadItemLink>
               </div>
             ))}
             {selectedPlayerIssueGroups.missingTemporary.map(issue => (
               <div key={`temp-${issue.slot}-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Missing temporary enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink>
+                Missing temporary enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Missing temporary enchant", slotLabel: issue.slotLabel }) : null}>{issue.itemName}</WowheadItemLink>
               </div>
             ))}
             {selectedPlayerIssueGroups.suboptimalTemporary.map(issue => (
               <div key={`subtemp-${issue.slot}-${issue.itemId}-${issue.enchantId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Suboptimal temporary enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · <WowheadSpellLink spellId={issue.enchantId}>{issue.enchantName}</WowheadSpellLink>
+                Suboptimal temporary enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Suboptimal temporary enchant", slotLabel: issue.slotLabel }) : null}>{issue.itemName}</WowheadItemLink> · <WowheadSpellLink spellId={issue.enchantId} onPreview={isMobile ? () => openSpellPreview(issue.enchantId, issue.enchantName, issue.slotLabel) : null}>{issue.enchantName}</WowheadSpellLink>
               </div>
             ))}
             {selectedPlayerIssueGroups.commonGems.map(issue => (
               <div key={`gem-common-${issue.itemId}-${issue.gemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Common gem: <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
+                Common gem: <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Common gem issue" }) : null}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
               </div>
             ))}
             {selectedPlayerIssueGroups.uncommonGems.map(issue => (
               <div key={`gem-uncommon-${issue.itemId}-${issue.gemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Uncommon gem: <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
+                Uncommon gem: <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Uncommon gem issue" }) : null}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
               </div>
             ))}
             {selectedPlayerIssueGroups.rareGems.map(issue => (
               <div key={`gem-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Sub-epic rare gem: <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
+                Sub-epic rare gem: <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Sub-epic rare gem issue" }) : null}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
               </div>
             ))}
             {!(
@@ -1281,7 +1336,7 @@ function PlayerDetailPanel({
           <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
             {(selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).map(issue => (
               <div key={`active-temp-${issue.slot}-${issue.itemId}-${issue.enchantId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                {issue.slotLabel}: <WowheadSpellLink spellId={issue.enchantId}>{issue.enchantName}</WowheadSpellLink>
+                {issue.slotLabel}: <WowheadSpellLink spellId={issue.enchantId} onPreview={isMobile ? () => openSpellPreview(issue.enchantId, issue.enchantName, issue.slotLabel) : null}>{issue.enchantName}</WowheadSpellLink>
               </div>
             ))}
             {!(selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).length && (
@@ -1366,7 +1421,7 @@ function PlayerDetailPanel({
                       <div style={{ minWidth: 0, paddingTop: 2 }}>
                         {!isEmptySlot ? (
                           <div style={{ fontSize: isMobile ? fontSize.xs : fontSize.sm, fontWeight: fontWeight.semibold, minWidth: 0, lineHeight: 1.35, overflowWrap: "anywhere" }}>
-                            <WowheadGearItemLink item={item} gear={selectedFightGear}>
+                            <WowheadGearItemLink item={item} gear={selectedFightGear} onPreview={isMobile ? () => openItemPreview(item, { gear: selectedFightGear, slotLabel }) : null}>
                               <span style={{ color: getResolvedQualityColor(item, itemMetaById) }}>
                                 {getResolvedDisplayName(item, itemMetaById, "Item")}
                               </span>
@@ -1392,7 +1447,7 @@ function PlayerDetailPanel({
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                           {(item.gems || []).map((gem, index) => (
                             <div key={`fight-gear-gem-row-${item.id}-${gem.id}-${index}`} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                              <WowheadItemLink itemId={gem.id}>
+                              <WowheadItemLink itemId={gem.id} onPreview={isMobile ? () => openItemPreview(gem, { title: getResolvedDisplayName(gem, itemMetaById, "Gem") }) : null}>
                                 {getResolvedItemIconUrl(gem, itemMetaById) ? (
                                   <img
                                     src={getResolvedItemIconUrl(gem, itemMetaById)}
@@ -1466,6 +1521,7 @@ function PlayerDetailPanel({
           </pre>
         </div>
       </div>
+      <MobileWowheadPreviewModal preview={mobilePreview} onClose={() => setMobilePreview(null)} />
     </div>
   );
 }
@@ -1489,11 +1545,19 @@ function getResolvedDisplayName(entry, itemMetaById, fallbackPrefix = "Item") {
   return meta?.name || `${fallbackPrefix} ${entry?.id ?? ""}`.trim();
 }
 
-function WowheadItemLink({ itemId, children }) {
+function handleWowheadPreview(event, onPreview) {
+  if (!onPreview) return;
+  event.preventDefault();
+  event.stopPropagation();
+  onPreview();
+}
+
+function WowheadItemLink({ itemId, children, onPreview = null }) {
   if (!itemId) return children;
   return (
     <a
       href={makeWowheadItemUrl(itemId)}
+      onClick={event => handleWowheadPreview(event, onPreview)}
       data-wowhead={`item=${itemId}`}
       aria-label={`Item ${itemId}`}
       style={{ color: "inherit", textDecoration: "none" }}
@@ -1503,7 +1567,7 @@ function WowheadItemLink({ itemId, children }) {
   );
 }
 
-function WowheadGearItemLink({ item, gear, children }) {
+function WowheadGearItemLink({ item, gear, children, onPreview = null }) {
   if (!item?.id) return children;
 
   const gems = (item.gems || []).map(gem => gem?.id).filter(Boolean);
@@ -1515,6 +1579,7 @@ function WowheadGearItemLink({ item, gear, children }) {
   return (
     <a
       href={makeWowheadItemUrlWithGear(item, gear)}
+      onClick={event => handleWowheadPreview(event, onPreview)}
       data-wowhead={tooltipParts.join("&")}
       aria-label={`Item ${item.id}`}
       style={{ color: "inherit", textDecoration: "none" }}
@@ -1524,11 +1589,12 @@ function WowheadGearItemLink({ item, gear, children }) {
   );
 }
 
-function WowheadSpellLink({ spellId, children }) {
+function WowheadSpellLink({ spellId, children, onPreview = null }) {
   if (!spellId) return children;
   return (
     <a
       href={makeWowheadSpellUrl(spellId)}
+      onClick={event => handleWowheadPreview(event, onPreview)}
       data-wowhead={`spell=${spellId}`}
       aria-label={`Spell ${spellId}`}
       style={{ color: "inherit", textDecoration: "none" }}
@@ -1538,7 +1604,7 @@ function WowheadSpellLink({ spellId, children }) {
   );
 }
 
-function WowheadSpellAbility({ spellId, name }) {
+function WowheadSpellAbility({ spellId, name, onPreview = null }) {
   const label = name || "Unknown Ability";
   if (!spellId) {
     return (
@@ -1560,9 +1626,93 @@ function WowheadSpellAbility({ spellId, name }) {
   }
 
   return (
-    <WowheadSpellLink spellId={spellId}>
+    <WowheadSpellLink spellId={spellId} onPreview={onPreview}>
       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
     </WowheadSpellLink>
+  );
+}
+
+function MobileWowheadPreviewModal({ preview, onClose }) {
+  if (!preview) return null;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 10001,
+        background: "rgba(0, 0, 0, 0.72)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        padding: space[3],
+      }}
+    >
+      <div
+        onClick={event => event.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 520,
+          background: surface.panel,
+          border: `1px solid ${border.subtle}`,
+          borderRadius: radius.lg,
+          padding: space[4],
+          display: "flex",
+          flexDirection: "column",
+          gap: space[3],
+          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.35)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: space[3] }}>
+          {preview.iconUrl ? (
+            <img
+              src={preview.iconUrl}
+              alt=""
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 8,
+                border: `1px solid ${border.subtle}`,
+                objectFit: "cover",
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 8,
+                border: `1px solid ${border.subtle}`,
+                background: surface.base,
+                flexShrink: 0,
+              }}
+            />
+          )}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold, color: preview.color || text.primary, lineHeight: 1.35, overflowWrap: "anywhere" }}>
+              {preview.title}
+            </div>
+            {preview.lines?.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
+                {preview.lines.map((line, index) => (
+                  <div key={`${preview.title}-${index}`} style={{ fontSize: fontSize.sm, color: text.secondary, overflowWrap: "anywhere" }}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: space[2], justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={btnStyle("default")}>Close</button>
+          <a href={preview.href} target="_blank" rel="noreferrer" style={{ ...btnStyle("primary"), textDecoration: "none" }}>
+            Open Wowhead
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
 
