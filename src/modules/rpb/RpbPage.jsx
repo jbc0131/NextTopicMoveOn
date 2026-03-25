@@ -1855,7 +1855,13 @@ function getAbilityName(value, fallback = "Unknown Ability") {
 }
 
 function getSourceName(value) {
-  return value?.sourceName || "Unknown Source";
+  const source = value?.sourceName;
+  if (typeof source === "string" && source.trim()) return source;
+  if (source && typeof source === "object") {
+    if (typeof source.name === "string" && source.name.trim()) return source.name;
+    if (typeof source.type === "string" && source.type.trim()) return source.type;
+  }
+  return "Unknown Source";
 }
 
 function formatEventSummary(event) {
@@ -4242,7 +4248,7 @@ export default function RpbPage() {
                                         {getDeathEventHpLabel(event)}
                                       </div>
                                       <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
-                                        {event?.sourceName || ""}
+                                        {getSourceName(event)}
                                       </div>
                                     </div>
                                   ))}
