@@ -779,6 +779,8 @@ function PlayerDetailPanel({
   selectedFightId,
   selectedFightSnapshot,
   selectedFightGear,
+  fightGearLoaded,
+  loadSelectedFightGear,
   itemMetaById,
   closeSelectedPlayer,
 }) {
@@ -804,6 +806,69 @@ function PlayerDetailPanel({
     label: getPotionSectionLabel(section),
     rows: potionRows.filter(row => row.section === section),
   })).filter(group => group.rows.length > 0);
+  const gearIssueRows = [
+    ...(selectedPlayerIssueGroups.missingPermanent || []).map(issue => ({
+      key: `perm-${issue.slot}-${issue.itemId}`,
+      typeLabel: "Missing Permanent Enchant",
+      itemId: issue.itemId,
+      itemName: issue.itemName,
+      countLabel: issue.slotLabel || "",
+      previewSubtitle: "Missing permanent enchant",
+      slotLabel: issue.slotLabel || "",
+    })),
+    ...(selectedPlayerIssueGroups.missingTemporary || []).map(issue => ({
+      key: `temp-${issue.slot}-${issue.itemId}`,
+      typeLabel: "Missing Temporary Enchant",
+      itemId: issue.itemId,
+      itemName: issue.itemName,
+      countLabel: issue.slotLabel || "",
+      previewSubtitle: "Missing temporary enchant",
+      slotLabel: issue.slotLabel || "",
+    })),
+    ...(selectedPlayerIssueGroups.suboptimalTemporary || []).map(issue => ({
+      key: `subtemp-${issue.slot}-${issue.itemId}-${issue.enchantId}`,
+      typeLabel: "Suboptimal Temporary Enchant",
+      itemId: issue.itemId,
+      itemName: issue.itemName,
+      countLabel: issue.enchantName || "",
+      previewSubtitle: "Suboptimal temporary enchant",
+      slotLabel: issue.slotLabel || "",
+      enchantId: issue.enchantId,
+      enchantName: issue.enchantName,
+    })),
+    ...(selectedPlayerIssueGroups.commonGems || []).map(issue => ({
+      key: `gem-common-${issue.itemId}-${issue.gemId}`,
+      typeLabel: "Lower Quality Gem",
+      itemId: issue.itemId,
+      itemName: issue.itemName,
+      countLabel: `${issue.count} gem${issue.count === 1 ? "" : "s"}`,
+      previewSubtitle: "Lower quality gem",
+    })),
+    ...(selectedPlayerIssueGroups.uncommonGems || []).map(issue => ({
+      key: `gem-uncommon-${issue.itemId}-${issue.gemId}`,
+      typeLabel: "Lower Quality Gem",
+      itemId: issue.itemId,
+      itemName: issue.itemName,
+      countLabel: `${issue.count} gem${issue.count === 1 ? "" : "s"}`,
+      previewSubtitle: "Lower quality gem",
+    })),
+    ...(selectedPlayerIssueGroups.rareGems || []).map(issue => ({
+      key: `gem-rare-${issue.itemId}-${issue.gemId || issue.count}`,
+      typeLabel: "Lower Quality Gem",
+      itemId: issue.itemId,
+      itemName: issue.itemName,
+      countLabel: `${issue.count} gem${issue.count === 1 ? "" : "s"}`,
+      previewSubtitle: "Lower quality gem",
+    })),
+  ];
+  const activeTemporaryEnchantRows = (selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).map(issue => ({
+    key: `active-temp-${issue.slot}-${issue.itemId}-${issue.enchantId}`,
+    slotLabel: issue.slotLabel || "",
+    itemId: issue.itemId,
+    itemName: issue.itemName,
+    enchantId: issue.enchantId,
+    enchantName: issue.enchantName,
+  }));
 
   const openItemPreview = (item, options = {}) => {
     const resolvedItem = item?.id ? item : { id: options.itemId ?? item?.id, name: options.title };
@@ -1425,70 +1490,149 @@ function PlayerDetailPanel({
           </div>
         )}
 
+        {(gearIssueRows.length > 0 || !selectedPlayerAnalytics?.hasGearData) && (
         <div>
-          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Detected Gear Issues</div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
+            Gear Issues
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
             {!selectedPlayerAnalytics?.hasGearData && (
               <div style={{ fontSize: fontSize.sm, color: intent.warning }}>
                 No gear snapshot was detected for this player in the current imported datasets. Re-importing the raid usually fixes this when Warcraft Logs exposes combatant gear info for the selected report.
               </div>
             )}
-            {selectedPlayerIssueGroups.missingPermanent.map(issue => (
-              <div key={`perm-${issue.slot}-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Missing permanent enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Missing permanent enchant", slotLabel: issue.slotLabel }) : null}>{issue.itemName}</WowheadItemLink>
-              </div>
-            ))}
-            {selectedPlayerIssueGroups.missingTemporary.map(issue => (
-              <div key={`temp-${issue.slot}-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Missing temporary enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Missing temporary enchant", slotLabel: issue.slotLabel }) : null}>{issue.itemName}</WowheadItemLink>
-              </div>
-            ))}
-            {selectedPlayerIssueGroups.suboptimalTemporary.map(issue => (
-              <div key={`subtemp-${issue.slot}-${issue.itemId}-${issue.enchantId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Suboptimal temporary enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Suboptimal temporary enchant", slotLabel: issue.slotLabel }) : null}>{issue.itemName}</WowheadItemLink> · <WowheadSpellLink spellId={issue.enchantId} onPreview={isMobile ? () => openSpellPreview(issue.enchantId, issue.enchantName, issue.slotLabel) : null}>{issue.enchantName}</WowheadSpellLink>
-              </div>
-            ))}
-            {selectedPlayerIssueGroups.commonGems.map(issue => (
-              <div key={`gem-common-${issue.itemId}-${issue.gemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Common gem: <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Common gem issue" }) : null}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
-              </div>
-            ))}
-            {selectedPlayerIssueGroups.uncommonGems.map(issue => (
-              <div key={`gem-uncommon-${issue.itemId}-${issue.gemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Uncommon gem: <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Uncommon gem issue" }) : null}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
-              </div>
-            ))}
-            {selectedPlayerIssueGroups.rareGems.map(issue => (
-              <div key={`gem-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                Sub-epic rare gem: <WowheadItemLink itemId={issue.itemId} onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Sub-epic rare gem issue" }) : null}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
-              </div>
-            ))}
-            {!(
-              selectedPlayerIssueGroups.missingPermanent.length ||
-              selectedPlayerIssueGroups.missingTemporary.length ||
-              selectedPlayerIssueGroups.suboptimalTemporary.length ||
-              selectedPlayerIssueGroups.commonGems.length ||
-              selectedPlayerIssueGroups.uncommonGems.length ||
-              selectedPlayerIssueGroups.rareGems.length
-            ) && (
-              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                {selectedPlayerAnalytics?.hasGearData
-                  ? "No baseline enchant or gem issues detected."
-                  : "No gear issues shown because no gear snapshot is currently attached to this player."}
-              </div>
+            {gearIssueRows.length > 0 && (
+              <>
+                {!isMobile && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "minmax(180px, 1fr) minmax(180px, 1.2fr) 120px",
+                      gap: space[2],
+                      padding: `0 ${space[3]}px`,
+                      fontSize: fontSize.sm,
+                      fontWeight: fontWeight.bold,
+                      color: text.primary,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    <div>Type</div>
+                    <div>Item</div>
+                    <div>Detail</div>
+                  </div>
+                )}
+                {gearIssueRows.map(row => (
+                  <div
+                    key={row.key}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "minmax(180px, 1fr) minmax(180px, 1.2fr) 120px",
+                      gap: space[2],
+                      padding: space[3],
+                      border: `1px solid ${border.subtle}`,
+                      borderRadius: radius.base,
+                      background: surface.card,
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
+                      {row.typeLabel}
+                    </div>
+                    <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                      <WowheadItemLink
+                        itemId={row.itemId}
+                        onPreview={isMobile ? () => openItemPreview({ id: row.itemId, name: row.itemName }, { title: row.itemName, subtitle: row.previewSubtitle, slotLabel: row.slotLabel }) : null}
+                      >
+                        {row.itemName}
+                      </WowheadItemLink>
+                      {row.enchantId && row.enchantName ? (
+                        <>
+                          {" · "}
+                          <WowheadSpellLink
+                            spellId={row.enchantId}
+                            onPreview={isMobile ? () => openSpellPreview(row.enchantId, row.enchantName, row.slotLabel) : null}
+                          >
+                            {row.enchantName}
+                          </WowheadSpellLink>
+                        </>
+                      ) : null}
+                    </div>
+                    <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                      {row.countLabel}
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </div>
         </div>
+        )}
 
         <div>
-          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Detected temporary weapon enchants</div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
+            Temporary Weapon Enchants
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-            {(selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).map(issue => (
-              <div key={`active-temp-${issue.slot}-${issue.itemId}-${issue.enchantId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                {issue.slotLabel}: <WowheadSpellLink spellId={issue.enchantId} onPreview={isMobile ? () => openSpellPreview(issue.enchantId, issue.enchantName, issue.slotLabel) : null}>{issue.enchantName}</WowheadSpellLink>
-              </div>
-            ))}
-            {!(selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).length && (
+            {activeTemporaryEnchantRows.length > 0 && (
+              <>
+                {!isMobile && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "120px minmax(180px, 1.2fr) minmax(160px, 1fr)",
+                      gap: space[2],
+                      padding: `0 ${space[3]}px`,
+                      fontSize: fontSize.sm,
+                      fontWeight: fontWeight.bold,
+                      color: text.primary,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    <div>Slot</div>
+                    <div>Item</div>
+                    <div>Enchant</div>
+                  </div>
+                )}
+                {activeTemporaryEnchantRows.map(issue => (
+                  <div
+                    key={issue.key}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "120px minmax(180px, 1.2fr) minmax(160px, 1fr)",
+                      gap: space[2],
+                      padding: space[3],
+                      border: `1px solid ${border.subtle}`,
+                      borderRadius: radius.base,
+                      background: surface.card,
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
+                      {issue.slotLabel}
+                    </div>
+                    <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                      <WowheadItemLink
+                        itemId={issue.itemId}
+                        onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Temporary weapon enchant", slotLabel: issue.slotLabel }) : null}
+                      >
+                        {issue.itemName}
+                      </WowheadItemLink>
+                    </div>
+                    <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                      <WowheadSpellLink
+                        spellId={issue.enchantId}
+                        onPreview={isMobile ? () => openSpellPreview(issue.enchantId, issue.enchantName, issue.slotLabel) : null}
+                      >
+                        {issue.enchantName}
+                      </WowheadSpellLink>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+            {!activeTemporaryEnchantRows.length && (
               <div style={{ fontSize: fontSize.sm, color: text.muted }}>
                 No active temporary weapon enchant was captured for this player.
               </div>
@@ -1497,18 +1641,25 @@ function PlayerDetailPanel({
         </div>
 
         <div>
-          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Selected fight gear</div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2], fontWeight: fontWeight.bold, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Selected Fight Gear
+          </div>
           {!selectedFightId && (
             <div style={{ fontSize: fontSize.sm, color: text.muted }}>
               Select an encounter to load the player&apos;s fight-start gear snapshot.
             </div>
           )}
-          {selectedFightId && !selectedFightSnapshot && (
+          {selectedFightId && !fightGearLoaded && (
+            <button onClick={loadSelectedFightGear} style={{ ...btnStyle("default"), height: 32 }}>
+              Load fight gear
+            </button>
+          )}
+          {selectedFightId && fightGearLoaded && !selectedFightSnapshot && (
             <div style={{ fontSize: fontSize.sm, color: text.muted }}>
               No fight-start gear snapshot was found for this player on the selected encounter.
             </div>
           )}
-          {selectedFightGear.length > 0 && (
+          {selectedFightId && fightGearLoaded && selectedFightGear.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
               {selectedFightGear.map(item => {
                 const isEmptySlot = !item?.id;
@@ -4054,6 +4205,7 @@ export default function RpbPage() {
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const suppressAutoSelectPlayerRef = useRef(false);
   const [itemMetaById, setItemMetaById] = useState({});
+  const [fightGearLoaded, setFightGearLoaded] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingRaid, setLoadingRaid] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -4708,6 +4860,10 @@ export default function RpbPage() {
     return getSelectedFightPlayerSnapshot(selectedRaid?.fights || [], selectedFightId, selectedPlayerId);
   }, [selectedRaid, selectedFightId, selectedPlayerId]);
 
+  useEffect(() => {
+    setFightGearLoaded(false);
+  }, [selectedFightId, selectedPlayerId, selectedRaid?.id]);
+
   const encounterSelectionOptions = useMemo(() => {
     const options = [];
     if (fightOutcomeFilter === "kills") {
@@ -4721,8 +4877,9 @@ export default function RpbPage() {
   }, [encounterOptions, fightOutcomeFilter]);
 
   const selectedFightGear = useMemo(() => {
+    if (!fightGearLoaded) return [];
     return buildFightGearDisplayRows(selectedFightSnapshot?.gear || []);
-  }, [selectedFightSnapshot]);
+  }, [fightGearLoaded, selectedFightSnapshot]);
 
   const selectedPlayerMetricTags = useMemo(() => {
     if (!selectedPlayer || !selectedPlayerAnalytics) return [];
@@ -6107,6 +6264,8 @@ export default function RpbPage() {
                     selectedFightId={selectedFightId}
                     selectedFightSnapshot={selectedFightSnapshot}
                     selectedFightGear={selectedFightGear}
+                    fightGearLoaded={fightGearLoaded}
+                    loadSelectedFightGear={() => setFightGearLoaded(true)}
                     itemMetaById={itemMetaById}
                     closeSelectedPlayer={closeSelectedPlayer}
                   />
@@ -6135,6 +6294,8 @@ export default function RpbPage() {
                   selectedFightId={selectedFightId}
                   selectedFightSnapshot={selectedFightSnapshot}
                   selectedFightGear={selectedFightGear}
+                  fightGearLoaded={fightGearLoaded}
+                  loadSelectedFightGear={() => setFightGearLoaded(true)}
                   itemMetaById={itemMetaById}
                   closeSelectedPlayer={closeSelectedPlayer}
                 />
