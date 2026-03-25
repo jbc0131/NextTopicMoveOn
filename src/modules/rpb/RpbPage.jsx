@@ -647,7 +647,7 @@ function ReportPickerSheet({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-          {loadingList && (
+          {loadingList && filteredRaids.length === 0 && (
             <div style={{ color: text.muted }}>Loading raids...</div>
           )}
           {!loadingList && filteredRaids.length === 0 && (
@@ -4934,7 +4934,7 @@ export default function RpbPage() {
         </div>
         <div style={{ overflow: "visible", paddingBottom: 2 }}>
           <div style={{ display: "flex", gap: space[2], overflowX: "auto", overflowY: "visible", paddingBottom: 2 }}>
-            {loadingList && (
+            {loadingList && raids.length === 0 && (
               <div style={{ padding: `${space[2]}px 0`, color: text.muted }}>
                 Loading raids...
               </div>
