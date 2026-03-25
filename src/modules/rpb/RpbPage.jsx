@@ -223,6 +223,15 @@ const POTION_SECTION_ORDER = {
   recovery: 2,
 };
 const LOW_PREPOT_OVERLAP_RATIO = 0.72;
+const POTION_AURA_RULES = [
+  { match: "destruction", label: "Destruction", category: "potion", durationMs: 15000 },
+  { match: "haste", label: "Haste", category: "potion", durationMs: 15000 },
+  { match: "heroic potion", label: "Heroic Potion", category: "potion", durationMs: 15000 },
+  { match: "insane strength", label: "Insane Strength", category: "potion", durationMs: 15000 },
+  { match: "ironshield", label: "Ironshield", category: "potion", durationMs: 120000 },
+  { match: "fel mana", label: "Fel Mana", category: "mana_potion", durationMs: 24000 },
+  { match: "nightmare seed", label: "Nightmare Seed", category: "nightmare_seed", durationMs: 15000 },
+];
 const FOOD_AURA_NAME_TOKENS = [
   "well fed",
   "blackened",
@@ -2390,6 +2399,77 @@ function getPotionFightEvents(snapshot, playerId, playerName) {
   }));
 }
 
+function getPotionAuraRule(aura) {
+  const normalizedName = String(aura?.name || "").trim().toLowerCase();
+  if (!normalizedName) return null;
+  return POTION_AURA_RULES.find(rule => normalizedName.includes(rule.match)) || null;
+}
+
+function buildPotionAuraEvents(buffSnapshot, playerId, playerName) {
+  const entries = buffSnapshot?.buffs?.entries || [];
+  const playerEntry = entries.find(entry =>
+    String(entry?.id || "") === String(playerId) || entry?.name === playerName
+  );
+  if (!playerEntry) return [];
+
+  const fightStart = Number(buffSnapshot?.buffs?.startTime || 0);
+  const fightEnd = Number(buffSnapshot?.buffs?.endTime || 0);
+  const rows = [];
+
+  for (const aura of playerEntry?.auras || []) {
+    const rule = getPotionAuraRule(aura);
+    if (!rule) continue;
+
+    const bands = Array.isArray(aura?.bands) && aura.bands.length > 0
+      ? aura.bands
+      : (Number(aura?.totalUptime || 0) > 0 && fightStart > 0
+        ? [{ startTime: fightStart, endTime: fightStart + Number(aura.totalUptime || 0) }]
+        : []);
+
+    for (let index = 0; index < bands.length; index += 1) {
+      const band = bands[index];
+      const bandStart = Number(band?.startTime || 0);
+      const bandEnd = Number(band?.endTime || 0);
+      if (!(bandEnd > bandStart)) continue;
+
+      const clippedDurationMs = Math.max(0, bandEnd - bandStart);
+      const nominalDurationMs = Number(rule.durationMs || 0) > 0 ? Number(rule.durationMs) : clippedDurationMs;
+      const startsAtPull = fightStart > 0 && Math.abs(bandStart - fightStart) <= 250;
+      const inferredRelativeTimeMs = startsAtPull
+        ? Math.min(0, clippedDurationMs - nominalDurationMs)
+        : (bandStart - fightStart);
+      const isPrepull = startsAtPull;
+      const section = isPrepull ? "prepull" : "combat";
+      const category = rule.category || "potion";
+      const eventKind = isPrepull ? "prepot_buff" : "combat_buff";
+
+      rows.push({
+        key: `aura:${buffSnapshot?.fightId || "fight"}:${playerId}:${aura?.guid || rule.label}:${index}`,
+        fightId: String(buffSnapshot?.fightId || ""),
+        fightName: buffSnapshot?.fightName || "Unknown Fight",
+        playerId: String(playerId || ""),
+        playerName: playerName || playerEntry?.name || "Unknown Player",
+        label: rule.label || aura?.name || "Unknown Consumable",
+        spellId: aura?.guid ?? null,
+        timestamp: startsAtPull ? fightStart : bandStart,
+        relativeTimeMs: inferredRelativeTimeMs,
+        isPrepull,
+        section,
+        category,
+        eventKind,
+        buffAppliedAtMs: inferredRelativeTimeMs,
+        buffRemovedAtMs: Math.max(0, bandEnd - fightStart),
+        totalDurationMs: nominalDurationMs,
+        combatOverlapMs: Math.max(0, Math.min(bandEnd, fightEnd) - Math.max(bandStart, fightStart)),
+        amount: 0,
+        source: "buff-band",
+      });
+    }
+  }
+
+  return rows;
+}
+
 function buildDrumSliceEntries(players, analyticsByPlayerId, filterIds = null) {
   const rows = [];
 
@@ -2898,9 +2978,23 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
     .filter(snapshot => visibleFightIds.has(String(snapshot?.fightId || "")))
     .map(snapshot => getDrumFightCoverage(snapshot, playerId, playerName))
     .filter(row => row.casts > 0 || row.affectedTargets > 0);
-  const potionEvents = ((importPayload?.potionsByFight?.snapshots || []))
+  const potionAuraEvents = ((importPayload?.buffsByFight?.snapshots || []))
     .filter(snapshot => visibleFightIds.has(String(snapshot?.fightId || "")))
-    .flatMap(snapshot => getPotionFightEvents(snapshot, playerId, playerName))
+    .flatMap(snapshot => buildPotionAuraEvents(snapshot, playerId, playerName));
+  const potionEventRows = ((importPayload?.potionsByFight?.snapshots || []))
+    .filter(snapshot => visibleFightIds.has(String(snapshot?.fightId || "")))
+    .flatMap(snapshot => getPotionFightEvents(snapshot, playerId, playerName));
+  const potionAuraKeys = new Set(
+    potionAuraEvents.map(event => `${event.fightId}:${String(event.label || "").trim().toLowerCase()}:${event.category}`)
+  );
+  const potionEvents = [...potionAuraEvents, ...potionEventRows.filter(event => {
+    const category = String(event?.category || "");
+    if (!(category === "potion" || category === "nightmare_seed" || category === "mana_potion")) {
+      return true;
+    }
+    const dedupeKey = `${event.fightId}:${String(event.label || "").trim().toLowerCase()}:${category}`;
+    return !potionAuraKeys.has(dedupeKey);
+  })]
     .sort((a, b) => {
       const sectionDelta = (POTION_SECTION_ORDER[a.section] ?? 99) - (POTION_SECTION_ORDER[b.section] ?? 99);
       if (sectionDelta !== 0) return sectionDelta;
