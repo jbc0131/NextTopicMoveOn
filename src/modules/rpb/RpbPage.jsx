@@ -1907,7 +1907,7 @@ function formatDeathRelativeTime(timestampMs, deathTimestampMs) {
   if (!Number.isFinite(Number(timestampMs)) || !Number.isFinite(Number(deathTimestampMs))) return "";
   const deltaSeconds = (Number(timestampMs) - Number(deathTimestampMs)) / 1000;
   if (Math.abs(deltaSeconds) < 0.005) return "0.00s";
-  return `${deltaSeconds.toFixed(2)}s`;
+  return `${Math.abs(deltaSeconds).toFixed(2)}s`;
 }
 
 function getDeathEventAmountLabel(event) {
@@ -1968,7 +1968,7 @@ function buildDeathDetailRows(fights, playerId) {
           fightName: fight.name || "Unknown Fight",
           timestampMs: deathTimestampMs,
           timestampLabel: formatDuration(deathTimestampMs),
-          events: [...timelineEvents, deathTimelineEvent],
+          events: [deathTimelineEvent, ...timelineEvents.sort((left, right) => Number(right.timestampMs || 0) - Number(left.timestampMs || 0))],
         });
       }
     }
