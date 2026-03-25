@@ -2699,8 +2699,9 @@ export default function RpbPage() {
   }, [filteredFights]);
   const liveBreakdownCacheKey = useMemo(() => {
     if (!selectedRaid?.reportId || !selectedPlayerId || filteredFightIds.length === 0) return "";
-    return [selectedRaid.reportId, selectedPlayerId, filteredFightIds.join(",")].join("|");
-  }, [filteredFightIds, selectedPlayerId, selectedRaid?.reportId]);
+    const revision = selectedRaid?.updatedAt || selectedRaid?.importedAt || "";
+    return [selectedRaid.id || "", selectedRaid.reportId, revision, selectedPlayerId, filteredFightIds.join(",")].join("|");
+  }, [filteredFightIds, selectedPlayerId, selectedRaid?.id, selectedRaid?.importedAt, selectedRaid?.reportId, selectedRaid?.updatedAt]);
   const filteredPlayerAnalyticsById = useMemo(() => {
     const next = new Map();
 
@@ -3501,6 +3502,7 @@ export default function RpbPage() {
       const saveResult = await readApiJson(saveResponse);
       if (!saveResponse.ok) throw new Error(saveResult.error || "Failed to save imported raid");
       const savedRaidId = saveResult.raidId || assembledRaid.id;
+      setLiveAbilityBreakdowns({});
       const nextRaids = await fetchRpbRaidList();
       setRaids(nextRaids);
       setReportUrl("");
