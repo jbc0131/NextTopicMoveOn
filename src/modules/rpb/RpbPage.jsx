@@ -2892,6 +2892,24 @@ function normalizeFetchedAbilityBreakdown(entries = []) {
     .sort((a, b) => b.total - a.total);
 }
 
+function normalizeFetchedHealingAbilityBreakdown(entries = []) {
+  return (entries || [])
+    .map(entry => ({
+      key: String(entry?.guid ?? entry?.name ?? "unknown"),
+      guid: entry?.guid ?? null,
+      icon: entry?.icon || entry?.iconName || entry?.iconname || "",
+      name: entry?.name || "Unknown Ability",
+      total: Number(entry?.total || 0),
+      activeTime: Number(entry?.activeTime || 0),
+      hits: Number(entry?.hits || 0),
+      casts: Number(entry?.casts || 0),
+      crits: Number(entry?.crits ?? entry?.criticalHits ?? entry?.critCount ?? entry?.critHits ?? entry?.critHitCount ?? 0),
+      overheal: Number(entry?.overheal || 0),
+      absorbed: Number(entry?.absorbed || 0),
+    }))
+    .sort((a, b) => b.total - a.total);
+}
+
 function getPlayerAbilityTotalFromFights(fights, playerId, abilityIds) {
   if (!playerId) return 0;
 
@@ -4047,7 +4065,7 @@ export default function RpbPage() {
     return normalizeFetchedAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.damage?.entries || []);
   }, [liveAbilityBreakdowns, liveBreakdownCacheKey]);
   const liveHealingBreakdown = useMemo(() => {
-    return normalizeFetchedAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.healing?.entries || []);
+    return normalizeFetchedHealingAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.healing?.entries || []);
   }, [liveAbilityBreakdowns, liveBreakdownCacheKey]);
   const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(liveDamageBreakdown)
     ? liveDamageBreakdown
