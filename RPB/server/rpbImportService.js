@@ -930,17 +930,32 @@ async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "") {
     ]);
 
     const enrichedEntries = enrichFightMetricEntries(healing?.entries || [], casts, "All Healing");
-    const normalizedEntries = await Promise.all(enrichedEntries.map(async entry => {
-      if (!shouldHydrateHealingEntry(entry)) return entry;
+    const normalizedEntries = [];
+    for (const entry of enrichedEntries) {
+      if (!shouldHydrateHealingEntry(entry)) {
+        normalizedEntries.push(entry);
+        continue;
+      }
 
-      return hydrateSourceScopedFightEntry({
-        reportId,
-        fight,
-        entry,
-        apiKey: apiKeyOverride,
-        mode: "healing",
-      });
-    }));
+      try {
+        const hydrated = await hydrateSourceScopedFightEntry({
+          reportId,
+          fight,
+          entry,
+          apiKey: apiKeyOverride,
+          mode: "healing",
+        });
+        normalizedEntries.push(hydrated);
+      } catch (error) {
+        console.warn("RPB healing hydration fallback", {
+          reportId,
+          fightId: String(fight.id),
+          playerId: String(entry?.id || ""),
+          message: error?.message || String(error || ""),
+        });
+        normalizedEntries.push(entry);
+      }
+    }
 
     snapshots.push({
       fightId: String(fight.id),
