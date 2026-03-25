@@ -571,6 +571,27 @@ function shouldHydrateDamageEntry(entry) {
   return false;
 }
 
+function shouldHydrateHealingEntry(entry) {
+  if (!PLAYER_TYPES.has(entry?.type) || Number(entry?.total || 0) <= 0) return false;
+
+  const abilities = Array.isArray(entry?.abilities) ? entry.abilities : [];
+  if (!abilities.length) return true;
+
+  const positiveTotalAbilities = abilities.filter(ability => Number(ability?.total || 0) > 0);
+  if (!positiveTotalAbilities.length) return true;
+
+  const abilityHits = positiveTotalAbilities.reduce((sum, ability) => sum + Number(ability?.hits || 0), 0);
+  const abilityCrits = positiveTotalAbilities.reduce((sum, ability) => sum + Number(ability?.crits || 0), 0);
+  const topLevelHits = Number(entry?.hits || 0);
+  const topLevelCrits = Number(entry?.crits || 0);
+
+  if (abilityHits <= 0 && abilityCrits <= 0) return true;
+  if (topLevelHits > 0 && abilityHits < Math.ceil(topLevelHits * 0.5)) return true;
+  if (topLevelCrits > 0 && abilityCrits < Math.ceil(topLevelCrits * 0.5)) return true;
+
+  return false;
+}
+
 export async function fetchPlayerAbilityBreakdown({
   reportUrl,
   reportId: rawReportId,
@@ -908,13 +929,26 @@ async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "") {
       }, apiKeyOverride),
     ]);
 
+    const enrichedEntries = enrichFightMetricEntries(healing?.entries || [], casts, "All Healing");
+    const normalizedEntries = await Promise.all(enrichedEntries.map(async entry => {
+      if (!shouldHydrateHealingEntry(entry)) return entry;
+
+      return hydrateSourceScopedFightEntry({
+        reportId,
+        fight,
+        entry,
+        apiKey: apiKeyOverride,
+        mode: "healing",
+      });
+    }));
+
     snapshots.push({
       fightId: String(fight.id),
       encounterId: fight.boss || 0,
       fightName: fight.name || "Unknown Fight",
       healing: {
         ...healing,
-        entries: enrichFightMetricEntries(healing?.entries || [], casts, "All Healing"),
+        entries: normalizedEntries,
       },
     });
   }
