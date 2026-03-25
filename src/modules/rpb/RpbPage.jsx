@@ -232,6 +232,7 @@ const POTION_AURA_RULES = [
   { match: "fel mana", label: "Fel Mana", category: "mana_potion", durationMs: 24000 },
   { match: "nightmare seed", label: "Nightmare Seed", category: "nightmare_seed", durationMs: 15000 },
 ];
+const IGNORED_POTION_AURA_IDS = new Set(["21165"]);
 const FOOD_AURA_NAME_TOKENS = [
   "well fed",
   "blackened",
@@ -2401,6 +2402,8 @@ function getPotionFightEvents(snapshot, playerId, playerName) {
 
 function getPotionAuraRule(aura) {
   const normalizedName = String(aura?.name || "").trim().toLowerCase();
+  const guid = aura?.guid != null ? String(aura.guid) : "";
+  if (IGNORED_POTION_AURA_IDS.has(guid)) return null;
   if (!normalizedName) return null;
   return POTION_AURA_RULES.find(rule => normalizedName.includes(rule.match)) || null;
 }
@@ -2514,6 +2517,7 @@ function buildPotionSliceEntries(players, analyticsByPlayerId, filterIds = null)
     const prepotCount = Number(analytics.prepotCount || 0);
     const combatCount = Number(analytics.combatPotionCount || 0);
     const recoveryCount = Number(analytics.recoveryConsumableCount || 0);
+    const usedPotionCount = Number(analytics.usedPotionCount || 0);
     const averagePrepullOverlapMs = Number(analytics.averagePrepullOverlapMs || 0);
     const averagePrepullDurationMs = Number(analytics.averagePrepullDurationMs || 0);
     const averagePrepullOverlapRatio = averagePrepullDurationMs > 0
@@ -2528,6 +2532,7 @@ function buildPotionSliceEntries(players, analyticsByPlayerId, filterIds = null)
       prepotCount,
       combatCount,
       recoveryCount,
+      usedPotionCount,
       averagePrepullOverlapMs,
       averagePrepullDurationMs,
       averagePrepullOverlapRatio,
@@ -3011,6 +3016,7 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
     event.section === "combat" && (event.category === "potion" || event.category === "nightmare_seed")
   );
   const recoveryConsumableEvents = potionEvents.filter(event => event.section === "recovery");
+  const usedPotionCount = prepotEvents.length > 0 || combatPotionEvents.length > 0 ? 1 : 0;
   const potionEventPotionCount = potionEvents.filter(event =>
     event.category === "potion"
     || event.category === "nightmare_seed"
@@ -3066,6 +3072,7 @@ function derivePlayerAnalyticsFromFights(fights, playerId, playerName = "", play
     prepotCount: prepotEvents.length,
     combatPotionCount: combatPotionEvents.length,
     recoveryConsumableCount: recoveryConsumableEvents.length,
+    usedPotionCount,
     averagePrepullOverlapMs,
     averagePrepullDurationMs,
     hearthstoneCount: Math.max(hearthstoneCount, healthstoneEventCount),
@@ -5995,7 +6002,7 @@ export default function RpbPage() {
                         })}
                         {sliceType === "potions" && visiblePotionSliceEntries.map(entry => {
                           const active = String(entry.id) === String(selectedPlayerId);
-                          const overlapPercent = Math.max(0, Math.min(100, Math.round((entry.averagePrepullOverlapRatio || 0) * 100)));
+                          const usagePercent = entry.usedPotionCount > 0 ? 100 : 0;
                           return (
                             <button
                               key={`potions-${entry.id}`}
@@ -6020,15 +6027,15 @@ export default function RpbPage() {
                                 <span style={{ fontSize: fontSize.xs, color: "#ffffff", fontWeight: fontWeight.bold }}>
                                   {`⌚ ${entry.prepotCount} · Combat ${entry.combatCount} · Recovery ${entry.recoveryCount}`}
                                 </span>
-                                <span style={{ fontSize: fontSize.xs, color: overlapPercent > 0 && overlapPercent < 72 ? "#ffd5a1" : "#d7ffdf", fontWeight: fontWeight.bold }}>
-                                  {entry.averagePrepullDurationMs > 0 ? `${overlapPercent}% avg overlap` : "No prepot buff"}
+                                <span style={{ fontSize: fontSize.xs, color: usagePercent > 0 ? "#d7ffdf" : text.muted, fontWeight: fontWeight.bold }}>
+                                  {usagePercent > 0 ? "Potion used" : "No potion used"}
                                 </span>
                               </div>
                               <div style={{ height: 10, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}` }}>
                                 <div style={{
-                                  width: `${Math.max(entry.averagePrepullDurationMs > 0 ? 4 : 0, overlapPercent)}%`,
+                                  width: `${usagePercent}%`,
                                   height: "100%",
-                                  background: overlapPercent > 0 && overlapPercent < 72 ? intent.warning : intent.success,
+                                  background: usagePercent > 0 ? intent.success : border.subtle,
                                   opacity: 0.9,
                                 }} />
                               </div>
