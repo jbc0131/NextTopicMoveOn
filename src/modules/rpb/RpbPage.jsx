@@ -1287,6 +1287,7 @@ function PlayerDetailPanel({
                     const amountLabel = Number(row.amount || 0) > 0 ? formatMetricValue(row.amount) : "";
                     const timeLabel = formatPotionRelativeTime(row.relativeTimeMs);
                     const spellTitle = getPotionEventDisplayLabel(row);
+                    const spellColor = getPotionEventTextColor(row, text);
                     return (
                       <div
                         key={row.key}
@@ -1311,7 +1312,7 @@ function PlayerDetailPanel({
                                 {`${row.isPrepull ? "⌚ " : ""}${timeLabel}`}
                               </span>
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                            <div style={{ fontSize: fontSize.sm, color: spellColor, minWidth: 0, overflowWrap: "anywhere" }}>
                               {row.spellId ? (
                                 <WowheadSpellLink
                                   spellId={row.spellId}
@@ -1337,7 +1338,7 @@ function PlayerDetailPanel({
                             <div style={{ fontSize: fontSize.sm, color: text.primary }}>
                               {row.fightName}
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                            <div style={{ fontSize: fontSize.sm, color: spellColor, minWidth: 0, overflowWrap: "anywhere" }}>
                               {row.spellId ? (
                                 <WowheadSpellLink
                                   spellId={row.spellId}
@@ -2762,6 +2763,13 @@ function getPotionEventDisplayLabel(event) {
     default:
       return base;
   }
+}
+
+function getPotionEventTextColor(event, text) {
+  if (event?.category === "mana_potion") {
+    return "#8fc7ff";
+  }
+  return text.secondary;
 }
 
 function formatPotionDurationValue(ms) {

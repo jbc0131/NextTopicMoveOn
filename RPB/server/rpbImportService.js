@@ -1540,9 +1540,11 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
     options: 2,
   }, apiKeyOverride);
 
-  const castFilter = buildAbilityIdFilter(
-    collectMatchingAbilityIdsFromTable(fullCastsData, isTrackedPotionEventName)
-  );
+  const castAbilityIds = new Set([
+    ...MANA_POTION_ABILITY_IDS,
+    ...collectMatchingAbilityIdsFromTable(fullCastsData, isTrackedPotionEventName),
+  ]);
+  const castFilter = buildAbilityIdFilter(castAbilityIds);
   const buffAbilityIds = new Set([
     ...collectMatchingAuraIdsFromTable(fullBuffsData, isTrackedPotionBuffName),
     ...collectMatchingAbilityIdsFromTable(fullCastsData, isTrackedPotionBuffName),
