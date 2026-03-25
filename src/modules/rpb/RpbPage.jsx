@@ -1569,76 +1569,69 @@ function PlayerDetailPanel({
         </div>
         )}
 
-        <div>
-          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
-            Temporary Weapon Enchants
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-            {activeTemporaryEnchantRows.length > 0 && (
-              <>
-                {!isMobile && (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "120px minmax(180px, 1.2fr) minmax(160px, 1fr)",
-                      gap: space[2],
-                      padding: `0 ${space[3]}px`,
-                      fontSize: fontSize.sm,
-                      fontWeight: fontWeight.bold,
-                      color: text.primary,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                    }}
-                  >
-                    <div>Slot</div>
-                    <div>Item</div>
-                    <div>Enchant</div>
+        {activeTemporaryEnchantRows.length > 0 && (
+          <div>
+            <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
+              Temporary Weapon Enchants
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+              {!isMobile && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "120px minmax(180px, 1.2fr) minmax(160px, 1fr)",
+                    gap: space[2],
+                    padding: `0 ${space[3]}px`,
+                    fontSize: fontSize.sm,
+                    fontWeight: fontWeight.bold,
+                    color: text.primary,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  <div>Slot</div>
+                  <div>Item</div>
+                  <div>Enchant</div>
+                </div>
+              )}
+              {activeTemporaryEnchantRows.map(issue => (
+                <div
+                  key={issue.key}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "120px minmax(180px, 1.2fr) minmax(160px, 1fr)",
+                    gap: space[2],
+                    padding: space[3],
+                    border: `1px solid ${border.subtle}`,
+                    borderRadius: radius.base,
+                    background: surface.card,
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
+                    {issue.slotLabel}
                   </div>
-                )}
-                {activeTemporaryEnchantRows.map(issue => (
-                  <div
-                    key={issue.key}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "120px minmax(180px, 1.2fr) minmax(160px, 1fr)",
-                      gap: space[2],
-                      padding: space[3],
-                      border: `1px solid ${border.subtle}`,
-                      borderRadius: radius.base,
-                      background: surface.card,
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
-                      {issue.slotLabel}
-                    </div>
-                    <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
-                      <WowheadItemLink
-                        itemId={issue.itemId}
-                        onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Temporary weapon enchant", slotLabel: issue.slotLabel }) : null}
-                      >
-                        {issue.itemName}
-                      </WowheadItemLink>
-                    </div>
-                    <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
-                      <WowheadSpellLink
-                        spellId={issue.enchantId}
-                        onPreview={isMobile ? () => openSpellPreview(issue.enchantId, issue.enchantName, issue.slotLabel) : null}
-                      >
-                        {issue.enchantName}
-                      </WowheadSpellLink>
-                    </div>
+                  <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                    <WowheadItemLink
+                      itemId={issue.itemId}
+                      onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Temporary weapon enchant", slotLabel: issue.slotLabel }) : null}
+                    >
+                      {issue.itemName}
+                    </WowheadItemLink>
                   </div>
-                ))}
-              </>
-            )}
-            {!activeTemporaryEnchantRows.length && (
-              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                No active temporary weapon enchant was captured for this player.
-              </div>
-            )}
+                  <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                    <WowheadSpellLink
+                      spellId={issue.enchantId}
+                      onPreview={isMobile ? () => openSpellPreview(issue.enchantId, issue.enchantName, issue.slotLabel) : null}
+                    >
+                      {issue.enchantName}
+                    </WowheadSpellLink>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2], fontWeight: fontWeight.bold, textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -1786,40 +1779,6 @@ function PlayerDetailPanel({
           )}
         </div>
 
-        <div>
-          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Tracked buff auras</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: space[2], maxHeight: isMobile ? "none" : 220, overflowY: isMobile ? "visible" : "auto" }}>
-            {(selectedPlayer.analytics?.buffAuras || []).slice(0, 20).map(aura => (
-              <div key={`aura-${aura.guid}-${aura.name}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                {aura.name} · {aura.totalUses} uses
-              </div>
-            ))}
-            {!(selectedPlayer.analytics?.buffAuras || []).length && (
-              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                No buff aura data was detected for this player in the current import.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Persisted summary payload</div>
-          <pre style={{
-            margin: 0,
-            padding: space[3],
-            background: surface.base,
-            border: `1px solid ${border.subtle}`,
-            borderRadius: radius.base,
-            color: text.secondary,
-            fontFamily: font.mono,
-            fontSize: 12,
-            lineHeight: 1.5,
-            overflow: "auto",
-            maxHeight: isMobile ? 280 : 360,
-          }}>
-            {JSON.stringify(selectedPlayer.summary || {}, null, 2)}
-          </pre>
-        </div>
       </div>
       <MobileWowheadPreviewModal preview={mobilePreview} onClose={() => setMobilePreview(null)} />
     </div>
