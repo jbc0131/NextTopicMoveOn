@@ -1851,7 +1851,23 @@ function getEventAmount(event, kind = "damage") {
 }
 
 function getAbilityName(value, fallback = "Unknown Ability") {
-  return value?.abilityName || value?.name || (value?.abilityGuid != null ? `Spell ${value.abilityGuid}` : fallback);
+  const directAbilityName = value?.abilityName;
+  if (typeof directAbilityName === "string" && directAbilityName.trim()) return directAbilityName;
+
+  const directName = value?.name;
+  if (typeof directName === "string" && directName.trim()) return directName;
+
+  if (directAbilityName && typeof directAbilityName === "object") {
+    if (typeof directAbilityName.name === "string" && directAbilityName.name.trim()) return directAbilityName.name;
+    if (typeof directAbilityName.type === "string" && directAbilityName.type.trim()) return directAbilityName.type;
+  }
+
+  if (directName && typeof directName === "object") {
+    if (typeof directName.name === "string" && directName.name.trim()) return directName.name;
+    if (typeof directName.type === "string" && directName.type.trim()) return directName.type;
+  }
+
+  return value?.abilityGuid != null ? `Spell ${value.abilityGuid}` : fallback;
 }
 
 function getSourceName(value) {
@@ -4238,8 +4254,8 @@ export default function RpbPage() {
                                       </div>
                                       <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0 }}>
                                         {event?.abilityGuid ? (
-                                          <WowheadSpellLink spellId={event.abilityGuid}>{event.abilityName || "Unknown"}</WowheadSpellLink>
-                                        ) : (event?.abilityName || "Unknown")}
+                                          <WowheadSpellLink spellId={event.abilityGuid}>{getAbilityName(event, "Unknown")}</WowheadSpellLink>
+                                        ) : getAbilityName(event, "Unknown")}
                                       </div>
                                       <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
                                         {getDeathEventAmountLabel(event)}
