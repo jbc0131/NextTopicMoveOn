@@ -1838,6 +1838,11 @@ function isHealingLikeEvent(event) {
   return type.includes("heal") || Number(event?.healing || 0) > 0 || Number(event?.overheal || 0) > 0;
 }
 
+function isAbsorbLikeEvent(event) {
+  const type = getEventTypeToken(event);
+  return type.includes("absorb") || Number(event?.absorbed || 0) > 0;
+}
+
 function getEventAmount(event, kind = "damage") {
   if (kind === "healing") {
     return Number(event?.amount ?? event?.healing ?? 0) || 0;
@@ -1887,8 +1892,43 @@ function getDeathTimelineEventTone(event) {
 function getDeathTimelineEventLabel(event) {
   const type = getEventTypeToken(event);
   if (type === "death") return "Death";
+  if (isAbsorbLikeEvent(event) && !isHealingLikeEvent(event) && !isDamageLikeEvent(event)) return "Absorb";
   if (isHealingLikeEvent(event)) return "Healing";
   return "Damage";
+}
+
+function getDeathSequenceEntries(entry) {
+  if (!entry) return [];
+  const nestedGroups = (entry.events || []).filter(event => Array.isArray(event?.events) && event.events.length > 0);
+  return nestedGroups.length > 0 ? nestedGroups : [entry];
+}
+
+function formatDeathRelativeTime(timestampMs, deathTimestampMs) {
+  if (!Number.isFinite(Number(timestampMs)) || !Number.isFinite(Number(deathTimestampMs))) return "";
+  const deltaSeconds = (Number(timestampMs) - Number(deathTimestampMs)) / 1000;
+  if (Math.abs(deltaSeconds) < 0.005) return "0.00s";
+  return `${deltaSeconds.toFixed(2)}s`;
+}
+
+function getDeathEventAmountLabel(event) {
+  if (getEventTypeToken(event) === "death") return "";
+  if (isAbsorbLikeEvent(event) && !isHealingLikeEvent(event) && !isDamageLikeEvent(event)) {
+    const absorbed = Number(event?.absorbed || event?.amount || 0);
+    return absorbed > 0 ? formatMetricValue(absorbed) : "";
+  }
+  if (isHealingLikeEvent(event)) {
+    const healing = Number(event?.healing || event?.amount || 0);
+    return healing > 0 ? formatMetricValue(healing) : "";
+  }
+  const damage = Number(event?.damage || event?.amount || 0);
+  if (!(damage > 0)) return "";
+  const overkill = Number(event?.overkill || 0);
+  return overkill > 0 ? `${formatMetricValue(damage)} (O: ${formatMetricValue(overkill)})` : formatMetricValue(damage);
+}
+
+function getDeathEventHpLabel(event) {
+  const hp = Number(event?.hitPoints);
+  return Number.isFinite(hp) ? formatMetricValue(hp) : "";
 }
 
 function buildDeathDetailRows(fights, playerId) {
@@ -1897,41 +1937,40 @@ function buildDeathDetailRows(fights, playerId) {
   const rows = [];
 
   for (const fight of fights || []) {
-    const entry = (fight.deathEntries || []).find(candidate => String(candidate?.id) === String(playerId));
-    if (!entry) continue;
+    const entries = (fight.deathEntries || []).filter(candidate => String(candidate?.id) === String(playerId));
+    if (!entries.length) continue;
 
-    for (const deathEvent of entry.events || []) {
-      const recapEvents = (deathEvent.events || []).length ? (deathEvent.events || []) : [deathEvent];
-      const timestampMs = normalizeEncounterEventTimestamp(deathEvent.timestamp ?? entry.timestamp, fight);
-      const timelineEvents = recapEvents
-        .map(event => ({
-          ...event,
-          timestampMs: normalizeEncounterEventTimestamp(event.timestamp, fight),
-        }))
-        .sort((left, right) => Number(left.timestampMs || 0) - Number(right.timestampMs || 0));
-      const finalEvent = timelineEvents[timelineEvents.length - 1] || deathEvent;
-      const deathTimelineEvent = {
-        type: "death",
-        timestamp: deathEvent.timestamp ?? entry.timestamp ?? finalEvent?.timestamp ?? 0,
-        timestampMs,
-        abilityGuid: entry.killingBlow?.abilityGuid ?? finalEvent?.abilityGuid ?? null,
-        abilityName: entry.killingBlow?.abilityName || finalEvent?.abilityName || "Death",
-        sourceName: entry.killingBlow?.sourceName || finalEvent?.sourceName || "",
-        amount: Number(entry.damageTotal || getEventAmount(finalEvent, "damage") || 0),
-        damage: Number(entry.damageTotal || getEventAmount(finalEvent, "damage") || 0),
-        healing: Number(entry.healingTotal || 0),
-        overkill: Number(entry.overkill || finalEvent?.overkill || 0),
-      };
-      timelineEvents.push(deathTimelineEvent);
+    for (const entry of entries) {
+      for (const deathEntry of getDeathSequenceEntries(entry)) {
+        const deathTimestampMs = normalizeEncounterEventTimestamp(deathEntry?.timestamp ?? entry?.timestamp, fight);
+        const recapEvents = deathEntry === entry ? (entry?.events || []) : (deathEntry?.events || []);
+        const timelineEvents = recapEvents
+          .map(event => ({
+            ...event,
+            timestampMs: normalizeEncounterEventTimestamp(event.timestamp, fight),
+          }))
+          .sort((left, right) => Number(left.timestampMs || 0) - Number(right.timestampMs || 0));
+        const finalEvent = timelineEvents[timelineEvents.length - 1] || deathEntry || entry;
+        const deathTimelineEvent = {
+          type: "death",
+          timestamp: deathEntry?.timestamp ?? entry?.timestamp ?? finalEvent?.timestamp ?? 0,
+          timestampMs: deathTimestampMs,
+          abilityGuid: deathEntry?.killingBlow?.abilityGuid ?? entry?.killingBlow?.abilityGuid ?? finalEvent?.abilityGuid ?? null,
+          abilityName: deathEntry?.killingBlow?.abilityName ?? entry?.killingBlow?.abilityName ?? finalEvent?.abilityName ?? "Death",
+          sourceName: deathEntry?.killingBlow?.sourceName ?? entry?.killingBlow?.sourceName ?? finalEvent?.sourceName ?? "",
+          overkill: Number(deathEntry?.overkill ?? entry?.overkill ?? finalEvent?.overkill ?? 0),
+          hitPoints: 0,
+        };
 
-      rows.push({
-        key: `${fight.id}-${deathEvent.timestamp}-${rows.length}`,
-        fightId: String(fight.id),
-        fightName: fight.name || "Unknown Fight",
-        timestampMs,
-        timestampLabel: formatDuration(timestampMs),
-        events: timelineEvents,
-      });
+        rows.push({
+          key: `${fight.id}-${deathTimelineEvent.timestamp}-${rows.length}`,
+          fightId: String(fight.id),
+          fightName: fight.name || "Unknown Fight",
+          timestampMs: deathTimestampMs,
+          timestampLabel: formatDuration(deathTimestampMs),
+          events: [...timelineEvents, deathTimelineEvent],
+        });
+      }
     }
   }
 
@@ -4171,26 +4210,39 @@ export default function RpbPage() {
                                     {row.timestampLabel || formatDuration(row.timestampMs)}
                                   </div>
                                 </div>
-                                <div style={{ display: "grid", gridTemplateColumns: "96px 92px minmax(0, 1fr) 108px", gap: space[2], padding: `0 ${space[1]}px`, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                <div style={{ display: "grid", gridTemplateColumns: "88px 88px minmax(0, 1.2fr) 132px 92px minmax(0, 1fr)", gap: space[2], padding: `0 ${space[1]}px`, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                                   <div>Time</div>
                                   <div>Type</div>
-                                  <div>Event</div>
+                                  <div>Ability</div>
                                   <div>Amount</div>
+                                  <div>HP</div>
+                                  <div>Source</div>
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                                   {row.events.map((event, index) => (
-                                    <div key={`${row.key}-event-${index}`} style={{ display: "grid", gridTemplateColumns: "96px 92px minmax(0, 1fr) 108px", gap: space[2], alignItems: "start", padding: `${space[1]}px ${space[1]}px` }}>
+                                    <div key={`${row.key}-event-${index}`} style={{ display: "grid", gridTemplateColumns: "88px 88px minmax(0, 1.2fr) 132px 92px minmax(0, 1fr)", gap: space[2], alignItems: "start", padding: `${space[1]}px ${space[1]}px` }}>
                                       <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                        {formatDuration(event.timestampMs ?? normalizeEncounterEventTimestamp(event.timestamp, { startTime: 0, durationMs: 0 }))}
+                                        {formatDeathRelativeTime(
+                                          event.timestampMs ?? normalizeEncounterEventTimestamp(event.timestamp, { startTime: 0, durationMs: 0 }),
+                                          row.timestampMs
+                                        )}
                                       </div>
                                       <div style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold }}>
                                         {getDeathTimelineEventLabel(event)}
                                       </div>
                                       <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0 }}>
-                                        <EventSummary event={event} emphasizeTime={getEventTypeToken(event) === "death"} />
+                                        {event?.abilityGuid ? (
+                                          <WowheadSpellLink spellId={event.abilityGuid}>{event.abilityName || "Unknown"}</WowheadSpellLink>
+                                        ) : (event?.abilityName || "Unknown")}
                                       </div>
                                       <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                        {formatMetricValue(getEventAmount(event, isHealingLikeEvent(event) ? "healing" : "damage"))}
+                                        {getDeathEventAmountLabel(event)}
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                                        {getDeathEventHpLabel(event)}
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                                        {event?.sourceName || ""}
                                       </div>
                                     </div>
                                   ))}

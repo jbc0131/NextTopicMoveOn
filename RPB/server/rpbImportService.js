@@ -1381,6 +1381,7 @@ function normalizeDeathEvent(event) {
     sourceId: event.sourceID ?? event.sourceId ?? null,
     sourceName: event.sourceName || event.source || event.source?.name || "",
     amount: event.amount ?? event.hitPoints ?? event.value ?? 0,
+    hitPoints: event.hitPoints ?? event.hitpoints ?? event.hitPoint ?? event.hp ?? null,
     overkill: event.overkill ?? 0,
     overheal: event.overheal ?? 0,
     absorbed: event.absorbed ?? 0,
