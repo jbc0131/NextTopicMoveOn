@@ -6138,7 +6138,13 @@ export default function RpbPage() {
                         })}
                         {sliceType === "potions" && visiblePotionSliceEntries.map(entry => {
                           const active = String(entry.id) === String(selectedPlayerId);
-                          const usagePercent = entry.usedPotionCount > 0 ? 100 : 0;
+                          const prepotCount = Number(entry.prepotCount || 0);
+                          const combatCount = Number(entry.combatCount || 0);
+                          const recoveryCount = Number(entry.recoveryCount || 0);
+                          const totalSegments = prepotCount + combatCount + recoveryCount;
+                          const prepotPercent = totalSegments > 0 ? (prepotCount / totalSegments) * 100 : 0;
+                          const combatPercent = totalSegments > 0 ? (combatCount / totalSegments) * 100 : 0;
+                          const recoveryPercent = totalSegments > 0 ? (recoveryCount / totalSegments) * 100 : 0;
                           return (
                             <button
                               key={`potions-${entry.id}`}
@@ -6163,17 +6169,31 @@ export default function RpbPage() {
                                 <span style={{ fontSize: fontSize.xs, color: "#ffffff", fontWeight: fontWeight.bold }}>
                                   {`⌚ ${entry.prepotCount} · Combat ${entry.combatCount} · Recovery ${entry.recoveryCount}`}
                                 </span>
-                                <span style={{ fontSize: fontSize.xs, color: usagePercent > 0 ? "#d7ffdf" : text.muted, fontWeight: fontWeight.bold }}>
-                                  {usagePercent > 0 ? "Potion used" : "No potion used"}
+                                <span style={{ fontSize: fontSize.xs, color: totalSegments > 0 ? "#d7ffdf" : text.muted, fontWeight: fontWeight.bold }}>
+                                  {totalSegments > 0 ? `${totalSegments} total` : "No potion used"}
                                 </span>
                               </div>
                               <div style={{ height: 10, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}` }}>
-                                <div style={{
-                                  width: `${usagePercent}%`,
-                                  height: "100%",
-                                  background: usagePercent > 0 ? intent.success : border.subtle,
-                                  opacity: 0.9,
-                                }} />
+                                <div style={{ display: "flex", width: "100%", height: "100%" }}>
+                                  <div style={{
+                                    width: `${prepotPercent}%`,
+                                    height: "100%",
+                                    background: "#ff5c5c",
+                                    opacity: prepotPercent > 0 ? 0.95 : 0,
+                                  }} />
+                                  <div style={{
+                                    width: `${combatPercent}%`,
+                                    height: "100%",
+                                    background: "#c93b3b",
+                                    opacity: combatPercent > 0 ? 0.95 : 0,
+                                  }} />
+                                  <div style={{
+                                    width: `${recoveryPercent}%`,
+                                    height: "100%",
+                                    background: "#4da3ff",
+                                    opacity: recoveryPercent > 0 ? 0.95 : 0,
+                                  }} />
+                                </div>
                               </div>
                             </button>
                           );

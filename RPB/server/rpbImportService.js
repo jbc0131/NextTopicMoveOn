@@ -63,6 +63,7 @@ const POTION_HEAL_NAME_TOKENS = [
 ];
 const POTION_CAST_MATCH_WINDOW_MS = 5000;
 const POTION_HEAL_MATCH_WINDOW_MS = 5000;
+const POTION_RESOURCE_MATCH_WINDOW_MS = 5000;
 const WCL_CACHE_TTL_SECONDS = 60 * 15;
 const WCL_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
 let cachedV2Token = null;
@@ -1248,40 +1249,6 @@ function buildAbilityIdFilter(ids = new Set()) {
   return `ability.id IN (${values.join(",")})`;
 }
 
-function buildResourceGainTotals(resourceTablesBySpell = new Map()) {
-  const totals = new Map();
-  for (const [spellId, tableData] of resourceTablesBySpell.entries()) {
-    const normalizedSpellId = normalizeSpellId(spellId);
-    if (!RESOURCE_RECOVERY_ABILITY_IDS.has(normalizedSpellId)) continue;
-
-    for (const resource of tableData?.resources || []) {
-      const playerId = String(resource?.id || "");
-      if (!playerId) continue;
-      const key = `${playerId}:${normalizedSpellId}`;
-      const total = Number(resource?.gains ?? resource?.amount ?? 0) || 0;
-      totals.set(key, (totals.get(key) || 0) + total);
-    }
-  }
-
-  return totals;
-}
-
-function getResourceGainPlayers(resourceTablesBySpell = new Map()) {
-  const players = new Map();
-  for (const [, tableData] of resourceTablesBySpell.entries()) {
-    for (const resource of tableData?.resources || []) {
-      const playerId = String(resource?.id || "");
-      if (!playerId) continue;
-      players.set(playerId, {
-        playerId,
-        playerName: resource?.name || "Unknown Player",
-      });
-    }
-  }
-
-  return players;
-}
-
 function getPotionEventTimestamp(event, fallback = 0) {
   const timestamp = Number(event?.timestamp);
   return Number.isFinite(timestamp) ? timestamp : Number(fallback || 0);
@@ -1372,14 +1339,16 @@ function summarizePotionEvents(
   castEvents = [],
   buffEvents = [],
   healingEvents = [],
-  resourceTotalsByPlayerSpell = new Map(),
-  resourcePlayersById = new Map(),
+  resourceEvents = [],
+  playerNamesById = new Map(),
 ) {
   const windows = buildPotionBuffWindows(buffEvents, fight);
   const remainingCastsByPlayer = new Map();
   const rowsByPlayer = new Map();
   const healingEventsByPlayer = new Map();
+  const resourceEventsByPlayer = new Map();
   const matchedHealingKeys = new Set();
+  const matchedResourceKeys = new Set();
 
   const ensurePlayer = (playerId, playerName = "Unknown Player") => {
     const key = String(playerId || "");
@@ -1423,6 +1392,35 @@ function summarizePotionEvents(
     player.events.push(attachHealingAmount(row));
   };
 
+  const attachResourceAmount = row => {
+    if (!row || row.eventKind !== "instant_resource") return row;
+
+    const playerResources = resourceEventsByPlayer.get(String(row.playerId || "")) || [];
+    const rowTimestamp = Number(row.timestamp || 0);
+    const rowSpellId = normalizeSpellId(row.spellId);
+    const match = playerResources.find(event => {
+      if (matchedResourceKeys.has(event.key)) return false;
+      const eventSpellId = normalizeSpellId(event.guid);
+      const spellIdMatches = rowSpellId && eventSpellId && rowSpellId === eventSpellId;
+      const nameMatches = namesLikelyMatch(event.name, row.label);
+      if (!spellIdMatches && !nameMatches) return false;
+      const delta = Number(event.timestamp || 0) - rowTimestamp;
+      return delta >= -1000 && delta <= POTION_RESOURCE_MATCH_WINDOW_MS;
+    });
+
+    if (!match) return row;
+    matchedResourceKeys.add(match.key);
+    return {
+      ...row,
+      amount: Number(match.amount || 0),
+      resourceTimestamp: Number(match.timestamp || 0),
+    };
+  };
+
+  const pushConsumableRow = row => {
+    pushRow(attachResourceAmount(row));
+  };
+
   for (const event of castEvents || []) {
     if (String(event?.type || "").toLowerCase() !== "cast") continue;
     const name = event?.ability?.name || event?.abilityName || event?.name || "";
@@ -1464,6 +1462,29 @@ function summarizePotionEvents(
     healingEventsByPlayer.set(playerId, list);
   }
 
+  for (const event of resourceEvents || []) {
+    const type = String(event?.type || "").toLowerCase();
+    if (type !== "resourcechange") continue;
+    const name = event?.ability?.name || event?.abilityName || event?.name || "";
+    const spellId = event?.ability?.guid ?? event?.abilityGameID ?? null;
+    if (!RESOURCE_RECOVERY_ABILITY_IDS.has(normalizeSpellId(spellId))) continue;
+
+    const playerId = String(event?.sourceID || event?.targetID || "");
+    if (!playerId) continue;
+
+    const list = resourceEventsByPlayer.get(playerId) || [];
+    list.push({
+      key: `${playerId}:${getPotionEventTimestamp(event)}:${spellId || name}:${list.length}`,
+      playerId,
+      playerName: playerNamesById.get(playerId) || event?.sourceName || event?.targetName || "Unknown Player",
+      guid: spellId,
+      name: getResourceRecoveryLabel(name, spellId),
+      timestamp: getPotionEventTimestamp(event),
+      amount: Number(event?.resourceChange ?? event?.amount ?? 0) || 0,
+    });
+    resourceEventsByPlayer.set(playerId, list);
+  }
+
   for (const window of windows) {
     const playerCasts = remainingCastsByPlayer.get(window.playerId) || [];
     const matchedCast = playerCasts.find(cast => {
@@ -1491,7 +1512,7 @@ function summarizePotionEvents(
         - Math.max(Number(window.startTimestamp || 0), Number(fight?.start_time || 0))
     );
 
-    pushRow({
+    pushConsumableRow({
       key: `buff:${window.playerId}:${window.guid || label}:${window.startTimestamp}`,
       playerId: window.playerId,
       playerName: window.playerName,
@@ -1518,7 +1539,7 @@ function summarizePotionEvents(
       const relativeTimeMs = Number(cast.timestamp || 0) - Number(fight?.start_time || 0);
       const isPrepull = relativeTimeMs < 0;
 
-      pushRow({
+      pushConsumableRow({
         key: `cast:${cast.key}`,
         playerId: cast.playerId,
         playerName: cast.playerName,
@@ -1569,90 +1590,50 @@ function summarizePotionEvents(
     }
   }
 
-  for (const [key, amount] of resourceTotalsByPlayerSpell.entries()) {
-    const total = Number(amount || 0);
-    if (!(total > 0)) continue;
+  for (const playerResources of resourceEventsByPlayer.values()) {
+    for (const event of playerResources) {
+      if (matchedResourceKeys.has(event.key)) continue;
+      const classification = classifyPotionEventName(event.name, false, event.guid);
+      const relativeTimeMs = Number(event.timestamp || 0) - Number(fight?.start_time || 0);
+      const isPrepull = relativeTimeMs < 0;
 
-    const [playerId, spellId] = String(key).split(":");
-    if (!playerId || !spellId) continue;
-    const existingPlayer = rowsByPlayer.get(playerId);
-    const existingUseCount = (existingPlayer?.events || []).filter(event =>
-      event?.eventKind === "instant_resource"
-      && normalizeSpellId(event?.spellId) === spellId
-    ).length;
-    if (existingUseCount > 0) continue;
-
-    const label = getResourceRecoveryLabel("", spellId);
-    const classification = classifyPotionEventName(label, false, spellId);
-    const playerMeta = resourcePlayersById.get(playerId) || { playerName: "Unknown Player" };
-
-    pushRow({
-      key: `resource:${playerId}:${spellId}`,
-      playerId,
-      playerName: playerMeta.playerName || "Unknown Player",
-      label,
-      spellId,
-      timestamp: Number(fight?.start_time || 0),
-      relativeTimeMs: 0,
-      isPrepull: false,
-      section: classification.section,
-      category: classification.category,
-      eventKind: classification.eventKind,
-      buffAppliedAtMs: null,
-      buffRemovedAtMs: null,
-      totalDurationMs: 0,
-      combatOverlapMs: 0,
-      amount: total,
-      source: "resource",
-    });
+      pushRow({
+        key: `resource:${event.key}`,
+        playerId: event.playerId,
+        playerName: event.playerName,
+        label: event.name || "Unknown Consumable",
+        spellId: event.guid,
+        timestamp: Number(event.timestamp || 0),
+        relativeTimeMs,
+        isPrepull,
+        section: isPrepull ? "prepull" : classification.section,
+        category: classification.category,
+        eventKind: classification.eventKind,
+        buffAppliedAtMs: null,
+        buffRemovedAtMs: null,
+        totalDurationMs: 0,
+        combatOverlapMs: 0,
+        amount: Number(event.amount || 0),
+        source: "resource",
+      });
+    }
   }
 
   return [...rowsByPlayer.values()]
     .map(player => ({
       ...player,
-      events: distributeResourceAmounts(player.events, resourceTotalsByPlayerSpell, player.playerId)
-        .sort((left, right) => Number(left.timestamp || 0) - Number(right.timestamp || 0)),
+      events: [...player.events].sort((left, right) => Number(left.timestamp || 0) - Number(right.timestamp || 0)),
     }))
     .sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
 }
 
-function distributeResourceAmounts(events = [], resourceTotalsByPlayerSpell = new Map(), playerId = "") {
-  const normalizedPlayerId = String(playerId || "");
-  const resourceGroups = new Map();
-
-  for (let index = 0; index < events.length; index += 1) {
-    const event = events[index];
-    if (event?.eventKind !== "instant_resource") continue;
-    const spellId = normalizeSpellId(event?.spellId);
-    if (!spellId || !RESOURCE_RECOVERY_ABILITY_IDS.has(spellId)) continue;
-    const list = resourceGroups.get(spellId) || [];
-    list.push(index);
-    resourceGroups.set(spellId, list);
-  }
-
-  const nextEvents = [...events];
-  for (const [spellId, indexes] of resourceGroups.entries()) {
-    const total = Number(resourceTotalsByPlayerSpell.get(`${normalizedPlayerId}:${spellId}`) || 0);
-    if (!(total > 0) || indexes.length === 0) continue;
-
-    const base = Math.floor(total / indexes.length);
-    let remainder = total - base * indexes.length;
-
-    for (const index of indexes) {
-      const bonus = remainder > 0 ? 1 : 0;
-      if (remainder > 0) remainder -= 1;
-      nextEvents[index] = {
-        ...nextEvents[index],
-        amount: base + bonus,
-      };
-    }
-  }
-
-  return nextEvents;
-}
-
 async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
+  const playerNamesById = new Map(
+    (fightsData.friendlies || [])
+      .filter(player => player?.id != null)
+      .map(player => [String(player.id), player.name || "Unknown Player"])
+  );
   const fullCastsData = await wclFetch(`/report/tables/casts/${reportId}`, {
     start: 0,
     end: 999999999999,
@@ -1696,42 +1677,31 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
     const buffParams = buffFilter ? { start, end, filter: buffFilter } : null;
     const healParams = healFilter ? { start, end, filter: healFilter } : null;
 
-    const resourceGainsPromise = Promise.all(
-      RESOURCE_RECOVERY_SPELL_IDS.map(async spellId => {
-        try {
-          const data = await wclFetch(`/report/tables/resources-gains/${reportId}`, {
-            start,
-            end,
-            by: "source",
-            abilityid: 100,
-            filter: `ability.id = ${spellId}`,
-          }, apiKeyOverride);
-          return [spellId, data];
-        } catch (error) {
-          const message = String(error?.message || "");
-          if (message.startsWith("WCL v1 429:")) {
-            console.warn("RPB resource recovery lookup rate-limited", {
-              reportId,
-              fightId: String(fight.id),
-              spellId,
-              message,
-            });
-            return [spellId, null];
-          }
-          throw error;
+    const resourceParams = {
+      start,
+      end,
+      filter: `ability.id IN (${RESOURCE_RECOVERY_SPELL_IDS.join(",")})`,
+    };
+    const resourceEventsPromise = fetchAllEventPages(`/report/events/summary/${reportId}`, resourceParams, apiKeyOverride)
+      .catch(error => {
+        const message = String(error?.message || "");
+        if (message.startsWith("WCL v1 429:")) {
+          console.warn("RPB resource recovery summary lookup rate-limited", {
+            reportId,
+            fightId: String(fight.id),
+            message,
+          });
+          return [];
         }
-      })
-    ).then(entries => new Map(entries.filter(([, data]) => data)));
+        throw error;
+      });
 
-    const [castEvents, buffEvents, healingEvents, resourceGains] = await Promise.all([
+    const [castEvents, buffEvents, healingEvents, resourceEvents] = await Promise.all([
       castParams ? fetchAllEventPages(`/report/events/casts/${reportId}`, castParams, apiKeyOverride) : Promise.resolve([]),
       buffParams ? fetchAllEventPages(`/report/events/buffs/${reportId}`, buffParams, apiKeyOverride) : Promise.resolve([]),
       healParams ? fetchAllEventPages(`/report/events/healing/${reportId}`, healParams, apiKeyOverride) : Promise.resolve([]),
-      resourceGainsPromise,
+      resourceEventsPromise,
     ]);
-
-    const resourceTotalsByPlayerSpell = buildResourceGainTotals(resourceGains);
-    const resourcePlayersById = getResourceGainPlayers(resourceGains);
 
     snapshots.push({
       fightId: String(fight.id),
@@ -1742,8 +1712,8 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
         castEvents,
         buffEvents,
         healingEvents,
-        resourceTotalsByPlayerSpell,
-        resourcePlayersById,
+        resourceEvents,
+        playerNamesById,
       ),
     });
   }
