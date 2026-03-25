@@ -29,6 +29,8 @@ const CLASS_COLORS = {
   Warrior: "#C79C6E",
 };
 
+const MOBILE_BREAKPOINT = 960;
+
 function getClassColor(type) {
   return CLASS_COLORS[type] || text.primary;
 }
@@ -509,6 +511,979 @@ function MetricTag({ label, value, tone = "neutral", active = false, onClick = n
       <span style={{ opacity: 0.82 }}>{label}:</span>
       <span style={{ fontWeight: fontWeight.semibold }}>{value}</span>
     </button>
+  );
+}
+
+function MobileSection({ title, children }) {
+  return (
+    <div style={{ ...panelStyle, padding: space[4], display: "flex", flexDirection: "column", gap: space[3] }}>
+      <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function MobileMenuButton({ open, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={open ? "Close navigation menu" : "Open navigation menu"}
+      aria-expanded={open}
+      style={{
+        ...btnStyle(open ? "primary" : "default", open),
+        width: 40,
+        minWidth: 40,
+        height: 40,
+        padding: 0,
+        justifyContent: "center",
+        gap: 3,
+      }}
+    >
+      <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {[0, 1, 2].map(line => (
+          <span
+            key={line}
+            style={{
+              display: "block",
+              width: 16,
+              height: 2,
+              borderRadius: 999,
+              background: "currentColor",
+            }}
+          />
+        ))}
+      </span>
+    </button>
+  );
+}
+
+function ReportPickerSheet({
+  open,
+  loadingList,
+  teamFilter,
+  setTeamFilter,
+  filteredRaids,
+  raidId,
+  isAdmin,
+  openRaidMenuId,
+  setOpenRaidMenuId,
+  openRenameModal,
+  openTagModal,
+  mutateRaidMetadata,
+  handleReimportRaid,
+  setDeleteConfirmRaid,
+  handleRaidSelection,
+  reportUrl,
+  setReportUrl,
+  handleImport,
+  importing,
+  onClose,
+}) {
+  if (!open) return null;
+
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 10002,
+      background: "rgba(4, 10, 18, 0.82)",
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "center",
+      padding: space[3],
+    }}>
+      <div style={{
+        ...panelStyle,
+        width: "100%",
+        maxWidth: 560,
+        maxHeight: "calc(100vh - 24px)",
+        overflowY: "auto",
+        padding: space[4],
+        display: "flex",
+        flexDirection: "column",
+        gap: space[3],
+      }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: space[3] }}>
+          <div>
+            <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: text.primary }}>Select a Raid Report</div>
+            <div style={{ fontSize: fontSize.sm, color: text.muted, marginTop: 4 }}>
+              Pick a saved report, then drill into slices from the main view.
+            </div>
+          </div>
+          <button type="button" onClick={onClose} style={{ ...btnStyle("default"), height: 32 }}>
+            Close
+          </button>
+        </div>
+
+        <form onSubmit={handleImport} style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+          <input
+            value={reportUrl}
+            onChange={event => setReportUrl(event.target.value)}
+            placeholder="Paste a Warcraft Logs report URL or report ID"
+            style={{ ...inputStyle, height: 38, width: "100%" }}
+          />
+          <button type="submit" disabled={importing} style={{ ...btnStyle("primary", importing), height: 38, width: "100%", justifyContent: "center" }}>
+            {importing ? <LoadingSpinner size={14} /> : "Import Report"}
+          </button>
+        </form>
+
+        <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
+          {TEAM_TAG_OPTIONS.map(option => {
+            const active = normalizeTeamTag(teamFilter) === option.id;
+            return (
+              <button
+                key={option.id || "all"}
+                type="button"
+                onClick={() => setTeamFilter(option.id)}
+                style={teamFilterButtonStyle(option, active)}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+          {loadingList && (
+            <div style={{ color: text.muted }}>Loading raids...</div>
+          )}
+          {!loadingList && filteredRaids.length === 0 && (
+            <div style={{ color: text.muted }}>No reports available for the current team filter.</div>
+          )}
+          {filteredRaids.map(raid => {
+            const active = raid.id === raidId;
+            const teamOption = getTeamOption(raid.teamTag);
+            const reportSpeedPercent = getRaidReportSpeedPercent(raid);
+            return (
+              <div
+                key={raid.id}
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {isAdmin && (
+                  <div style={{ position: "absolute", top: 10, right: 10, zIndex: 3 }} onClick={event => event.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={event => {
+                        event.stopPropagation();
+                        setOpenRaidMenuId(current => (current === raid.id ? "" : raid.id));
+                      }}
+                      style={{
+                        ...btnStyle("default"),
+                        width: 28,
+                        minWidth: 28,
+                        height: 28,
+                        padding: 0,
+                        justifyContent: "center",
+                        borderRadius: radius.sm,
+                      }}
+                    >
+                      ...
+                    </button>
+                    {openRaidMenuId === raid.id && (
+                      <RaidActionsMenu
+                        raid={raid}
+                        onRename={() => openRenameModal(raid)}
+                        onTag={() => openTagModal(raid)}
+                        onDeleteTag={async () => {
+                          setOpenRaidMenuId("");
+                          await mutateRaidMetadata(raid.id, {
+                            teamTag: "",
+                            title: buildAutoReportTitle({ start: raid.start, teamTag: "" }),
+                          }, "Removed report tag.");
+                        }}
+                        onReimport={() => {
+                          handleReimportRaid(raid);
+                        }}
+                        onDelete={() => {
+                          setOpenRaidMenuId("");
+                          setDeleteConfirmRaid(raid);
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRaidSelection(raid.id)}
+                  style={{
+                    ...btnStyle(active ? "primary" : "default", active),
+                    width: "100%",
+                    minHeight: 104,
+                    padding: space[3],
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: space[2],
+                    textAlign: "left",
+                    paddingRight: isAdmin ? 42 : space[3],
+                  }}
+                >
+                  <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold }}>
+                    {raid.title || raid.reportId}
+                  </div>
+                  <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
+                    <span style={tagStyle(teamOption.tone)}>{teamOption.shortLabel}</span>
+                    {reportSpeedPercent != null && (
+                      <span style={parseTagStyle(reportSpeedPercent)}>
+                        {`Speed ${Math.round(reportSpeedPercent)}`}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>
+                    {raid.reportId}
+                  </div>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayerDetailPanel({
+  isMobile,
+  selectedPlayer,
+  selectedPlayerMetricTags,
+  sliceType,
+  abilityBreakdownRef,
+  selectedPlayerDeathRows,
+  selectedPlayerAnalytics,
+  visiblePlayerHealingBreakdown,
+  visiblePlayerDamageBreakdown,
+  selectedPlayerIssueGroups,
+  selectedFightId,
+  selectedFightSnapshot,
+  selectedFightGear,
+  itemMetaById,
+  closeSelectedPlayer,
+}) {
+  const deathGridColumns = isMobile
+    ? "minmax(72px, 88px) minmax(0, 1fr)"
+    : "88px 88px minmax(0, 1.2fr) 132px 92px minmax(0, 1fr)";
+  const utilityGridColumns = isMobile
+    ? "minmax(0, 1fr) 72px 88px"
+    : "minmax(0, 1.3fr) 84px 112px 96px";
+  const consumableGridColumns = isMobile
+    ? "minmax(0, 1fr) minmax(0, 1fr)"
+    : "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr) 92px";
+  const breakdownGridColumns = isMobile
+    ? "minmax(0, 1.3fr) minmax(88px, 0.7fr) 52px"
+    : "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)";
+
+  return (
+    <div style={{
+      ...panelStyle,
+      minWidth: 0,
+      overflow: "hidden",
+      position: "relative",
+    }}>
+      <div style={{
+        padding: space[4],
+        borderBottom: `1px solid ${border.subtle}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: space[3],
+        position: isMobile ? "sticky" : "static",
+        top: 0,
+        zIndex: 2,
+        background: surface.panel,
+      }}>
+        <div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Player Detail
+          </div>
+          {isMobile && (
+            <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
+              Back returns to the slice list.
+            </div>
+          )}
+        </div>
+        <button onClick={closeSelectedPlayer} style={{ ...btnStyle("default"), height: 30 }}>
+          {isMobile ? "Back" : "Close"}
+        </button>
+      </div>
+      <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[4] }}>
+        <div>
+          <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: getClassColor(selectedPlayer.type) }}>{selectedPlayer.name}</div>
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: space[2] }}>
+          {selectedPlayerMetricTags.map(tag => (
+            <MetricTag key={tag.label} label={tag.label} value={tag.value} tone={tag.tone} />
+          ))}
+        </div>
+
+        {sliceType === "deaths" && (
+          <div>
+            <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Death recap</div>
+            <div ref={abilityBreakdownRef} style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+              {!selectedPlayerDeathRows.length && (
+                <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                  No deaths found for this player in the current filtered fights.
+                </div>
+              )}
+              {selectedPlayerDeathRows.map((row, rowIndex) => (
+                <div
+                  key={row.key}
+                  style={{
+                    padding: space[3],
+                    border: `1px solid ${border.subtle}`,
+                    borderRadius: radius.base,
+                    background: surface.card,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: space[2],
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], flexWrap: "wrap" }}>
+                    <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
+                      {`Death ${rowIndex + 1}`}
+                    </div>
+                    <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                      {row.fightName}
+                    </div>
+                    <div style={{ fontSize: fontSize.sm, color: "#ff8d8d", fontWeight: fontWeight.semibold }}>
+                      {row.timestampLabel || formatDuration(row.timestampMs)}
+                    </div>
+                  </div>
+                  {isMobile ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+                      {row.events.map((event, index) => (
+                        <div key={`${row.key}-event-mobile-${index}`} style={{ padding: `${space[2]}px 0`, borderTop: index === 0 ? "none" : `1px solid ${border.subtle}` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: space[2], flexWrap: "wrap" }}>
+                            <span style={{ fontSize: fontSize.xs, color: text.secondary }}>
+                              {formatDeathRelativeTime(
+                                event.timestampMs ?? normalizeEncounterEventTimestamp(event.timestamp, { startTime: 0, durationMs: 0 }),
+                                row.timestampMs
+                              )}
+                            </span>
+                            <span style={{ fontSize: fontSize.xs, color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold }}>
+                              {getDeathTimelineEventLabel(event)}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: fontSize.sm, color: text.primary, marginTop: 4 }}>
+                            {event?.abilityGuid ? (
+                              <WowheadSpellLink spellId={event.abilityGuid}>{getAbilityName(event, "Unknown")}</WowheadSpellLink>
+                            ) : getAbilityName(event, "Unknown")}
+                          </div>
+                          <div style={{ fontSize: fontSize.xs, color: text.secondary, marginTop: 6 }}>
+                            {`${getDeathEventAmountLabel(event)} · HP ${getDeathEventHpLabel(event)} · ${getSourceName(event)}`}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: deathGridColumns, gap: space[2], padding: `0 ${space[1]}px`, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        <div>Time</div>
+                        <div>Type</div>
+                        <div>Ability</div>
+                        <div>Amount</div>
+                        <div>HP</div>
+                        <div>Source</div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {row.events.map((event, index) => (
+                          <div key={`${row.key}-event-${index}`} style={{ display: "grid", gridTemplateColumns: deathGridColumns, gap: space[2], alignItems: "start", padding: `${space[1]}px ${space[1]}px` }}>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                              {formatDeathRelativeTime(
+                                event.timestampMs ?? normalizeEncounterEventTimestamp(event.timestamp, { startTime: 0, durationMs: 0 }),
+                                row.timestampMs
+                              )}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold }}>
+                              {getDeathTimelineEventLabel(event)}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0 }}>
+                              {event?.abilityGuid ? (
+                                <WowheadSpellLink spellId={event.abilityGuid}>{getAbilityName(event, "Unknown")}</WowheadSpellLink>
+                              ) : getAbilityName(event, "Unknown")}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                              {getDeathEventAmountLabel(event)}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                              {getDeathEventHpLabel(event)}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                              {getSourceName(event)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {sliceType === "drums" && (
+          <div>
+            <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
+              Drums usage by boss fight
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+              {(selectedPlayerAnalytics?.drumsCoverage || []).length > 0 && !isMobile && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: utilityGridColumns,
+                    gap: space[2],
+                    padding: `0 ${space[3]}px`,
+                    fontSize: fontSize.sm,
+                    fontWeight: fontWeight.bold,
+                    color: text.primary,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  <div>Encounter</div>
+                  <div>Casts</div>
+                  <div>Affected</div>
+                  <div>Avg / Cast</div>
+                </div>
+              )}
+              {!(selectedPlayerAnalytics?.drumsCoverage || []).length && (
+                <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                  No drums usage was found for this player in the current filtered fights.
+                </div>
+              )}
+              {(selectedPlayerAnalytics?.drumsCoverage || []).map(row => (
+                <div
+                  key={`drum-row-${row.fightId}`}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : utilityGridColumns,
+                    gap: space[2],
+                    padding: space[3],
+                    border: `1px solid ${border.subtle}`,
+                    borderRadius: radius.base,
+                    background: surface.card,
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontSize: fontSize.sm, color: text.primary }}>
+                    <div>{row.fightName}</div>
+                    {row.abilityBreakdown?.length > 0 && (
+                      <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
+                        {row.abilityBreakdown.map(entry => `${entry.label} ${entry.casts}`).join(" · ")}
+                      </div>
+                    )}
+                  </div>
+                  {isMobile ? (
+                    <div style={{ display: "flex", gap: space[3], flexWrap: "wrap", fontSize: fontSize.sm }}>
+                      <span style={{ color: "#d6e7ff", fontWeight: fontWeight.semibold }}>{row.casts} casts</span>
+                      <span style={{ color: "#d6e7ff", fontWeight: fontWeight.semibold }}>{formatMetricValue(row.affectedTargets)} affected</span>
+                      <span style={{ color: text.secondary }}>{row.averageAffectedPerCast > 0 ? row.averageAffectedPerCast.toFixed(1) : "0.0"} avg/cast</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: fontSize.sm, color: "#d6e7ff", fontWeight: fontWeight.semibold }}>
+                        {row.casts}
+                      </div>
+                      <div style={{ fontSize: fontSize.sm, color: "#d6e7ff", fontWeight: fontWeight.semibold }}>
+                        {formatMetricValue(row.affectedTargets)}
+                      </div>
+                      <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                        {row.averageAffectedPerCast > 0 ? row.averageAffectedPerCast.toFixed(1) : "0.0"}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {sliceType === "consumables" && (
+          <div>
+            <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
+              Consumable coverage by boss fight
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+              {(selectedPlayerAnalytics?.consumableCoverage || []).length > 0 && !isMobile && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: consumableGridColumns,
+                    gap: space[2],
+                    padding: `0 ${space[3]}px`,
+                    fontSize: fontSize.sm,
+                    fontWeight: fontWeight.bold,
+                    color: text.primary,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  <div>Encounter</div>
+                  <div>Scrolls</div>
+                  <div>Flask / Elixirs</div>
+                  <div>Food</div>
+                  <div>Status</div>
+                </div>
+              )}
+              {!(selectedPlayerAnalytics?.consumableCoverage || []).length && (
+                <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                  No boss-fight consumable coverage is attached to this player on the current filtered fights. Re-import the report to populate this view.
+                </div>
+              )}
+              {(selectedPlayerAnalytics?.consumableCoverage || []).map(row => {
+                const rowIssues = Number(!row.hasElixirCoverage) + Number(!row.hasFood);
+                return (
+                  <div
+                    key={`consumable-row-${row.fightId}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : consumableGridColumns,
+                      gap: space[2],
+                      padding: space[3],
+                      border: `1px solid ${border.subtle}`,
+                      borderRadius: radius.base,
+                      background: surface.card,
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: fontSize.sm, color: text.primary }}>{row.fightName}</div>
+                    {isMobile ? (
+                      <>
+                        <div style={{ fontSize: fontSize.sm, color: row.hasScroll ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
+                          {`Scrolls: ${formatAuraList(row.scrollNames)}`}
+                        </div>
+                        <div style={{ fontSize: fontSize.sm, color: row.hasElixirCoverage ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
+                          {`Flask / Elixirs: ${row.elixirUnitsCovered || 0}/${row.elixirUnitsRequired || 0} · ${row.hasFlask
+                            ? formatAuraList(row.flaskNames)
+                            : formatAuraList([...(row.battleElixirNames || []), ...(row.guardianElixirNames || [])])}`}
+                        </div>
+                        <div style={{ fontSize: fontSize.sm, color: row.hasFood ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
+                          {`Food: ${formatAuraList(row.foodNames)}`}
+                        </div>
+                        <div style={{ fontSize: fontSize.sm, color: rowIssues > 0 ? "#ffd5d5" : "#d7ffdf", fontWeight: fontWeight.semibold }}>
+                          {rowIssues > 0 ? `${rowIssues} issue${rowIssues === 1 ? "" : "s"}` : "Good"}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: fontSize.sm, color: row.hasScroll ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
+                          {formatAuraList(row.scrollNames)}
+                        </div>
+                        <div style={{ fontSize: fontSize.sm, color: row.hasElixirCoverage ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
+                          {`${row.elixirUnitsCovered || 0}/${row.elixirUnitsRequired || 0} · ${row.hasFlask
+                            ? formatAuraList(row.flaskNames)
+                            : formatAuraList([...(row.battleElixirNames || []), ...(row.guardianElixirNames || [])])}`}
+                        </div>
+                        <div style={{ fontSize: fontSize.sm, color: row.hasFood ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
+                          {formatAuraList(row.foodNames)}
+                        </div>
+                        <div style={{ fontSize: fontSize.sm, color: rowIssues > 0 ? "#ffd5d5" : "#d7ffdf", fontWeight: fontWeight.semibold }}>
+                          {rowIssues > 0 ? `${rowIssues} issue${rowIssues === 1 ? "" : "s"}` : "Good"}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {(sliceType === "damage" || sliceType === "healing") && (
+          <div>
+            <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
+              {sliceType === "healing" ? "Healing breakdown" : "Damage breakdown"}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+              {!(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) && (
+                <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                  {`No ${sliceType} ability breakdown found for this player in the current filtered fights.`}
+                </div>
+              )}
+              {(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+                  {isMobile ? (
+                    <div style={{ overflowX: "auto", paddingBottom: 2 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: space[2], minWidth: 620 }}>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)",
+                            gap: space[2],
+                            padding: `0 ${space[3]}px`,
+                            fontSize: fontSize.sm,
+                            fontWeight: fontWeight.bold,
+                            color: text.primary,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                          }}
+                        >
+                          <div>Ability</div>
+                          <div>Total</div>
+                          <div>Casts</div>
+                          <div>Hits</div>
+                          <div>Crits</div>
+                          <div>{sliceType === "healing" ? "Overheal" : ""}</div>
+                        </div>
+                        {(sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
+                          <div
+                            key={`${sliceType}-${ability.key}`}
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)",
+                              gap: space[2],
+                              padding: space[3],
+                              border: `1px solid ${border.subtle}`,
+                              borderRadius: radius.base,
+                              background: surface.card,
+                              alignItems: "center",
+                            }}
+                          >
+                            <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
+                              <WowheadSpellAbility spellId={ability.guid} name={ability.name} />
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, whiteSpace: "nowrap" }}>
+                              {formatMetricValue(ability.total)}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                              {ability.casts || 0}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                              {ability.hits || 0}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                              {`${ability.crits || 0} (${ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"})`}
+                            </div>
+                            <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                              {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : ""}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: breakdownGridColumns,
+                        gap: space[2],
+                        padding: `0 ${space[3]}px`,
+                        fontSize: fontSize.sm,
+                        fontWeight: fontWeight.bold,
+                        color: text.primary,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      <div>Ability</div>
+                      <div>Total</div>
+                      <div>Casts</div>
+                      <div>Hits</div>
+                      <div>Crits</div>
+                      <div>{sliceType === "healing" ? "Overheal" : ""}</div>
+                    </div>
+                  )}
+                  {!isMobile && (sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
+                    <div
+                      key={`${sliceType}-${ability.key}`}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: breakdownGridColumns,
+                        gap: space[2],
+                        padding: space[3],
+                        border: `1px solid ${border.subtle}`,
+                        borderRadius: radius.base,
+                        background: surface.card,
+                        alignItems: "center",
+                      }}
+                    >
+                      <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
+                        <WowheadSpellAbility spellId={ability.guid} name={ability.name} />
+                      </div>
+                      <>
+                          <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, whiteSpace: "nowrap" }}>
+                            {formatMetricValue(ability.total)}
+                          </div>
+                          <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                            {ability.casts || 0}
+                          </div>
+                          <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                            {ability.hits || 0}
+                          </div>
+                          <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                            {`${ability.crits || 0} (${ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"})`}
+                          </div>
+                          <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
+                            {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : ""}
+                          </div>
+                        </>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Detected Gear Issues</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+            {!selectedPlayerAnalytics?.hasGearData && (
+              <div style={{ fontSize: fontSize.sm, color: intent.warning }}>
+                No gear snapshot was detected for this player in the current imported datasets. Re-importing the raid usually fixes this when Warcraft Logs exposes combatant gear info for the selected report.
+              </div>
+            )}
+            {selectedPlayerIssueGroups.missingPermanent.map(issue => (
+              <div key={`perm-${issue.slot}-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                Missing permanent enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink>
+              </div>
+            ))}
+            {selectedPlayerIssueGroups.missingTemporary.map(issue => (
+              <div key={`temp-${issue.slot}-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                Missing temporary enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink>
+              </div>
+            ))}
+            {selectedPlayerIssueGroups.suboptimalTemporary.map(issue => (
+              <div key={`subtemp-${issue.slot}-${issue.itemId}-${issue.enchantId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                Suboptimal temporary enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · <WowheadSpellLink spellId={issue.enchantId}>{issue.enchantName}</WowheadSpellLink>
+              </div>
+            ))}
+            {selectedPlayerIssueGroups.commonGems.map(issue => (
+              <div key={`gem-common-${issue.itemId}-${issue.gemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                Common gem: <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
+              </div>
+            ))}
+            {selectedPlayerIssueGroups.uncommonGems.map(issue => (
+              <div key={`gem-uncommon-${issue.itemId}-${issue.gemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                Uncommon gem: <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
+              </div>
+            ))}
+            {selectedPlayerIssueGroups.rareGems.map(issue => (
+              <div key={`gem-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                Sub-epic rare gem: <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
+              </div>
+            ))}
+            {!(
+              selectedPlayerIssueGroups.missingPermanent.length ||
+              selectedPlayerIssueGroups.missingTemporary.length ||
+              selectedPlayerIssueGroups.suboptimalTemporary.length ||
+              selectedPlayerIssueGroups.commonGems.length ||
+              selectedPlayerIssueGroups.uncommonGems.length ||
+              selectedPlayerIssueGroups.rareGems.length
+            ) && (
+              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                {selectedPlayerAnalytics?.hasGearData
+                  ? "No baseline enchant or gem issues detected."
+                  : "No gear issues shown because no gear snapshot is currently attached to this player."}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Detected temporary weapon enchants</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+            {(selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).map(issue => (
+              <div key={`active-temp-${issue.slot}-${issue.itemId}-${issue.enchantId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                {issue.slotLabel}: <WowheadSpellLink spellId={issue.enchantId}>{issue.enchantName}</WowheadSpellLink>
+              </div>
+            ))}
+            {!(selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).length && (
+              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                No active temporary weapon enchant was captured for this player.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Selected fight gear</div>
+          {!selectedFightId && (
+            <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+              Select an encounter to load the player&apos;s fight-start gear snapshot.
+            </div>
+          )}
+          {selectedFightId && !selectedFightSnapshot && (
+            <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+              No fight-start gear snapshot was found for this player on the selected encounter.
+            </div>
+          )}
+          {selectedFightGear.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+              {selectedFightGear.map(item => {
+                const isEmptySlot = !item?.id;
+                const slotLabel = GEAR_SLOT_LABELS[item.slot] || `Slot ${item.slot}`;
+                return (
+                  <div
+                    key={`fight-gear-${item.slot}-${item.id ?? "empty"}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "44px 68px minmax(110px, 1fr) minmax(128px, 1.2fr)" : "56px 96px minmax(140px, 1fr) minmax(180px, 1.2fr)",
+                      gap: space[2],
+                      alignItems: "start",
+                      padding: space[3],
+                      border: `1px solid ${border.subtle}`,
+                      borderRadius: radius.base,
+                      background: surface.card,
+                    }}
+                  >
+                    <div style={{ fontSize: fontSize.xs, color: text.secondary, textAlign: "center", paddingTop: 4 }}>
+                      {!isEmptySlot ? (
+                        <>
+                          <div style={{ fontSize: isMobile ? 11 : 12, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>ilvl</div>
+                          <div style={{ fontSize: isMobile ? fontSize.sm : fontSize.base, fontWeight: fontWeight.semibold }}>
+                            {item.itemLevel ?? "?"}
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                    <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em", paddingTop: 4 }}>
+                      {slotLabel}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: space[2], minWidth: 0 }}>
+                      {!isEmptySlot && getResolvedItemIconUrl(item, itemMetaById) ? (
+                        <img
+                          src={getResolvedItemIconUrl(item, itemMetaById)}
+                          alt=""
+                          style={{
+                            width: isMobile ? 28 : 40,
+                            height: isMobile ? 28 : 40,
+                            borderRadius: 6,
+                            border: `1px solid ${border.subtle}`,
+                            objectFit: "cover",
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: isMobile ? 28 : 40,
+                            height: isMobile ? 28 : 40,
+                            borderRadius: 6,
+                            border: `1px solid ${border.subtle}`,
+                            background: surface.base,
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      <div style={{ minWidth: 0, paddingTop: 2 }}>
+                        {!isEmptySlot ? (
+                          <div style={{ fontSize: isMobile ? fontSize.xs : fontSize.sm, fontWeight: fontWeight.semibold, minWidth: 0, lineHeight: 1.35 }}>
+                            <WowheadGearItemLink item={item} gear={selectedFightGear}>
+                              <span style={{ color: getResolvedQualityColor(item, itemMetaById) }}>
+                                {getResolvedDisplayName(item, itemMetaById, "Item")}
+                              </span>
+                            </WowheadGearItemLink>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: fontSize.sm, color: text.muted }}>Empty slot</div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                      {!!(getPermanentEnchantLabel(item) || getItemEnchantId(item)) && (
+                        <div style={{ fontSize: fontSize.xs, color: "#1eff00", minWidth: 0, lineHeight: 1.35 }}>
+                          {getPermanentEnchantLabel(item) || `Enchant ${getItemEnchantId(item)}`}
+                        </div>
+                      )}
+                      {!!getTemporaryEnchantLabel(item) && (
+                        <div style={{ fontSize: fontSize.xs, color: "#1eff00", minWidth: 0, lineHeight: 1.35 }}>
+                          {getTemporaryEnchantLabel(item)}
+                        </div>
+                      )}
+                      {(item.gems || []).length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {(item.gems || []).map((gem, index) => (
+                            <div key={`fight-gear-gem-row-${item.id}-${gem.id}-${index}`} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                              <WowheadItemLink itemId={gem.id}>
+                                {getResolvedItemIconUrl(gem, itemMetaById) ? (
+                                  <img
+                                    src={getResolvedItemIconUrl(gem, itemMetaById)}
+                                    alt=""
+                                    style={{
+                                      width: 16,
+                                      height: 16,
+                                      borderRadius: 4,
+                                      border: `1px solid ${border.subtle}`,
+                                      objectFit: "cover",
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                ) : (
+                                  <div
+                                    style={{
+                                      width: 16,
+                                      height: 16,
+                                      borderRadius: 4,
+                                      border: `1px solid ${border.subtle}`,
+                                      background: surface.base,
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                )}
+                              </WowheadItemLink>
+                              <div style={{ fontSize: fontSize.xs, color: text.secondary, minWidth: 0, lineHeight: 1.35 }}>
+                                <WowheadItemLink itemId={gem.id}>
+                                  {getResolvedDisplayName(gem, itemMetaById, "Gem")}
+                                </WowheadItemLink>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Tracked buff auras</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: space[2], maxHeight: isMobile ? "none" : 220, overflowY: isMobile ? "visible" : "auto" }}>
+            {(selectedPlayer.analytics?.buffAuras || []).slice(0, 20).map(aura => (
+              <div key={`aura-${aura.guid}-${aura.name}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                {aura.name} · {aura.totalUses} uses
+              </div>
+            ))}
+            {!(selectedPlayer.analytics?.buffAuras || []).length && (
+              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                No buff aura data was detected for this player in the current import.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Persisted summary payload</div>
+          <pre style={{
+            margin: 0,
+            padding: space[3],
+            background: surface.base,
+            border: `1px solid ${border.subtle}`,
+            borderRadius: radius.base,
+            color: text.secondary,
+            fontFamily: font.mono,
+            fontSize: 12,
+            lineHeight: 1.5,
+            overflow: "auto",
+            maxHeight: isMobile ? 280 : 360,
+          }}>
+            {JSON.stringify(selectedPlayer.summary || {}, null, 2)}
+          </pre>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2569,6 +3544,10 @@ export default function RpbPage() {
   const [fightOutcomeFilter, setFightOutcomeFilter] = useState("");
   const [selectedFightId, setSelectedFightId] = useState("");
   const [sliceType, setSliceType] = useState("damage");
+  const [isMobileViewport, setIsMobileViewport] = useState(() => (
+    typeof window !== "undefined" ? window.innerWidth <= MOBILE_BREAKPOINT : false
+  ));
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [liveAbilityBreakdowns, setLiveAbilityBreakdowns] = useState({});
   const abilityBreakdownRef = useRef(null);
   const [importProgress, setImportProgress] = useState({
@@ -2600,6 +3579,18 @@ export default function RpbPage() {
     document.body.appendChild(script);
 
     return () => {};
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const updateViewport = () => {
+      setIsMobileViewport(window.innerWidth <= MOBILE_BREAKPOINT);
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
   }, []);
 
   useEffect(() => {
@@ -2701,6 +3692,15 @@ export default function RpbPage() {
   }, [selectedRaid, selectedPlayerId]);
   const isPlayerDetailOpen = !!selectedPlayerId && !!selectedPlayer;
 
+  function handlePlayerSelection(playerId) {
+    if (isMobileViewport) {
+      suppressAutoSelectPlayerRef.current = false;
+      setSelectedPlayerId(String(playerId));
+      return;
+    }
+    toggleSelectedPlayer(playerId);
+  }
+
   function toggleSelectedPlayer(playerId) {
     setSelectedPlayerId(current => {
       const isClosing = String(current) === String(playerId);
@@ -2712,6 +3712,11 @@ export default function RpbPage() {
   function closeSelectedPlayer() {
     suppressAutoSelectPlayerRef.current = true;
     setSelectedPlayerId("");
+  }
+
+  function handleRaidSelection(targetRaidId) {
+    setMobileMenuOpen(false);
+    navigate(`/rpb/${targetRaidId}`);
   }
 
   const raidAnalytics = selectedRaid?.analytics || {
@@ -3308,6 +4313,13 @@ export default function RpbPage() {
       return;
     }
 
+    if (isMobileViewport) {
+      if (selectedPlayerId && !filteredPlayers.some(player => String(player.id) === String(selectedPlayerId))) {
+        setSelectedPlayerId("");
+      }
+      return;
+    }
+
     if (!selectedPlayerId) {
       if (suppressAutoSelectPlayerRef.current) return;
       setSelectedPlayerId(defaultVisiblePlayerId);
@@ -3318,7 +4330,7 @@ export default function RpbPage() {
       suppressAutoSelectPlayerRef.current = false;
       setSelectedPlayerId(defaultVisiblePlayerId);
     }
-  }, [defaultVisiblePlayerId, filteredPlayers, selectedPlayerId]);
+  }, [defaultVisiblePlayerId, filteredPlayers, isMobileViewport, selectedPlayerId]);
 
   useEffect(() => {
     if (loadingList) return;
@@ -3338,6 +4350,7 @@ export default function RpbPage() {
   }, [filteredRaids, loadingList, navigate, raidId, teamFilter]);
 
   const isAdmin = auth.isAdmin || auth.fallback;
+  const showReportPicker = isMobileViewport && (mobileMenuOpen || (!selectedRaid && !loadingList));
 
   async function refreshSelectedRaid(targetRaidId) {
     if (!targetRaidId) {
@@ -3717,47 +4730,49 @@ export default function RpbPage() {
         onCancel={() => setDeleteConfirmRaid(null)}
       />
 
-      <div style={{
-        borderBottom: `1px solid ${border.subtle}`,
-        background: surface.panel,
-        padding: `${space[4]}px ${space[6]}px`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: space[4],
-        flexWrap: "wrap",
-      }}>
-        <div>
-          <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: text.primary }}>Combat Log Analytics</div>
-          <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-            Import Warcraft Logs reports, persist them to Firestore, and browse raid/player data.
-          </div>
-        </div>
+      {!isMobileViewport && (
+        <>
+          <div style={{
+            borderBottom: `1px solid ${border.subtle}`,
+            background: surface.panel,
+            padding: `${space[4]}px ${space[6]}px`,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: space[4],
+            flexWrap: "wrap",
+          }}>
+            <div>
+              <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: text.primary }}>Combat Log Analytics</div>
+              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                Import Warcraft Logs reports, persist them to Firestore, and browse raid/player data.
+              </div>
+            </div>
 
-        <form onSubmit={handleImport} style={{ display: "flex", gap: space[2], flex: "1 1 560px", maxWidth: 860, flexWrap: "wrap" }}>
-          <input
-            value={reportUrl}
-            onChange={event => setReportUrl(event.target.value)}
-            placeholder="Paste a Warcraft Logs report URL or report ID"
-            style={{ ...inputStyle, flex: "1 1 520px", height: 36 }}
-          />
-          <button type="submit" disabled={importing} style={{ ...btnStyle("primary", importing), height: 36, opacity: importing ? 0.7 : 1 }}>
-            {importing ? <LoadingSpinner size={14} /> : "Import"}
-          </button>
-          <div style={{ width: "100%", fontSize: fontSize.xs, color: text.muted }}>
-            Imports use the Warcraft Logs v1 API key saved in your profile.
+            <form onSubmit={handleImport} style={{ display: "flex", gap: space[2], flex: "1 1 560px", maxWidth: 860, flexWrap: "wrap" }}>
+              <input
+                value={reportUrl}
+                onChange={event => setReportUrl(event.target.value)}
+                placeholder="Paste a Warcraft Logs report URL or report ID"
+                style={{ ...inputStyle, flex: "1 1 520px", height: 36 }}
+              />
+              <button type="submit" disabled={importing} style={{ ...btnStyle("primary", importing), height: 36, opacity: importing ? 0.7 : 1 }}>
+                {importing ? <LoadingSpinner size={14} /> : "Import"}
+              </button>
+              <div style={{ width: "100%", fontSize: fontSize.xs, color: text.muted }}>
+                Imports use the Warcraft Logs v1 API key saved in your profile.
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
 
-      <div style={{
-        padding: `${space[3]}px ${space[4]}px`,
-        borderBottom: `1px solid ${border.subtle}`,
-        background: surface.panel,
-        display: "flex",
-        flexDirection: "column",
-        gap: space[2],
-      }}>
+          <div style={{
+            padding: `${space[3]}px ${space[4]}px`,
+            borderBottom: `1px solid ${border.subtle}`,
+            background: surface.panel,
+            display: "flex",
+            flexDirection: "column",
+            gap: space[2],
+          }}>
         <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
           Team Filter
         </div>
@@ -3860,7 +4875,7 @@ export default function RpbPage() {
                 )}
 
                   <button
-                    onClick={() => navigate(`/rpb/${raid.id}`)}
+                    onClick={() => handleRaidSelection(raid.id)}
                     style={{
                       ...btnStyle(active ? "primary" : "default", active),
                       width: "100%",
@@ -3940,6 +4955,66 @@ export default function RpbPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
+
+      {isMobileViewport && (
+        <>
+          <div style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 20,
+            background: surface.panel,
+            borderBottom: `1px solid ${border.subtle}`,
+            padding: `${space[2]}px ${space[3]}px`,
+            display: "grid",
+            gridTemplateColumns: "40px minmax(0, 1fr)",
+            gap: space[2],
+            alignItems: "center",
+          }}>
+            <MobileMenuButton
+              open={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen(current => !current)}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {selectedRaid ? "Current Report" : "Reports"}
+              </div>
+              <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {selectedRaid?.title || "Select a raid report"}
+              </div>
+              {selectedRaid && (
+                <div style={{ fontSize: fontSize.xs, color: text.secondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {encounterSelectionOptions.find(option => String(option.id) === String(selectedFightId))?.label || "All encounters"}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <ReportPickerSheet
+            open={showReportPicker}
+            loadingList={loadingList}
+            teamFilter={teamFilter}
+            setTeamFilter={setTeamFilter}
+            filteredRaids={filteredRaids}
+            raidId={raidId}
+            isAdmin={isAdmin}
+            openRaidMenuId={openRaidMenuId}
+            setOpenRaidMenuId={setOpenRaidMenuId}
+            openRenameModal={openRenameModal}
+            openTagModal={openTagModal}
+            mutateRaidMetadata={mutateRaidMetadata}
+            handleReimportRaid={handleReimportRaid}
+            setDeleteConfirmRaid={setDeleteConfirmRaid}
+            handleRaidSelection={handleRaidSelection}
+            reportUrl={reportUrl}
+            setReportUrl={setReportUrl}
+            handleImport={handleImport}
+            importing={importing}
+            onClose={() => setMobileMenuOpen(false)}
+          />
+        </>
+      )}
 
       {selectedRaid && (
         <div style={{
@@ -4141,7 +5216,7 @@ export default function RpbPage() {
                 return (
                   <button
                     key={player.id}
-                    onClick={() => toggleSelectedPlayer(player.id)}
+                    onClick={() => handlePlayerSelection(player.id)}
                     style={{
                       ...btnStyle(active ? "primary" : "default", active),
                       height: 30,
@@ -4194,11 +5269,11 @@ export default function RpbPage() {
             <>
               <div style={{
                 display: "grid",
-                gridTemplateColumns: isPlayerDetailOpen ? "minmax(0, 1.2fr) minmax(360px, 0.8fr)" : "minmax(0, 1fr)",
+                gridTemplateColumns: !isMobileViewport && isPlayerDetailOpen ? "minmax(0, 1.2fr) minmax(360px, 0.8fr)" : "minmax(0, 1fr)",
                 gap: space[4],
                 alignItems: "start",
               }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0, width: "100%" }}>
                   <div style={{ ...panelStyle }}>
                     <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       Breakdown
@@ -4240,7 +5315,7 @@ export default function RpbPage() {
                           return (
                             <button
                               key={`drums-${entry.id}`}
-                              onClick={() => toggleSelectedPlayer(entry.id)}
+                              onClick={() => handlePlayerSelection(entry.id)}
                               style={{
                                 background: active ? `${accent.blue}10` : "transparent",
                                 border: `${active ? 2 : 1}px solid ${active ? accent.blue : border.subtle}`,
@@ -4284,7 +5359,7 @@ export default function RpbPage() {
                           return (
                             <button
                               key={`consumables-${entry.id}`}
-                              onClick={() => toggleSelectedPlayer(entry.id)}
+                              onClick={() => handlePlayerSelection(entry.id)}
                               style={{
                                 background: active ? `${accent.blue}10` : "transparent",
                                 border: `${active ? 2 : 1}px solid ${active ? accent.blue : border.subtle}`,
@@ -4329,7 +5404,7 @@ export default function RpbPage() {
                           return (
                             <button
                               key={`damage-${entry.id}`}
-                              onClick={() => toggleSelectedPlayer(entry.id)}
+                              onClick={() => handlePlayerSelection(entry.id)}
                               style={{
                                 background: active ? `${accent.blue}10` : "transparent",
                                 border: `${active ? 2 : 1}px solid ${active ? accent.blue : border.subtle}`,
@@ -4370,579 +5445,54 @@ export default function RpbPage() {
                   </div>
                 </div>
 
-                {isPlayerDetailOpen && (
-                  <div style={{ ...panelStyle, minWidth: 0, overflow: "hidden" }}>
-                    <div style={{
-                      padding: space[4],
-                      borderBottom: `1px solid ${border.subtle}`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: space[3],
-                    }}>
-                      <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                        Player Detail
-                      </div>
-                      <button onClick={closeSelectedPlayer} style={{ ...btnStyle("default"), height: 30 }}>
-                        Close
-                      </button>
-                    </div>
-                    <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[4] }}>
-                      <div>
-                        <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: getClassColor(selectedPlayer.type) }}>{selectedPlayer.name}</div>
-                      </div>
-
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: space[2] }}>
-                        {selectedPlayerMetricTags.map(tag => (
-                          <MetricTag key={tag.label} label={tag.label} value={tag.value} tone={tag.tone} />
-                        ))}
-                      </div>
-
-                      {sliceType === "deaths" && (
-                        <div>
-                          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Death recap</div>
-                          <div ref={abilityBreakdownRef} style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                            {!selectedPlayerDeathRows.length && (
-                              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                                No deaths found for this player in the current filtered fights.
-                              </div>
-                            )}
-                            {selectedPlayerDeathRows.map((row, rowIndex) => (
-                              <div
-                                key={row.key}
-                                style={{
-                                  padding: space[3],
-                                  border: `1px solid ${border.subtle}`,
-                                  borderRadius: radius.base,
-                                  background: surface.card,
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: space[2],
-                                }}
-                              >
-                                <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], flexWrap: "wrap" }}>
-                                  <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
-                                    {`Death ${rowIndex + 1}`}
-                                  </div>
-                                  <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                    {row.fightName}
-                                  </div>
-                                  <div style={{ fontSize: fontSize.sm, color: "#ff8d8d", fontWeight: fontWeight.semibold }}>
-                                    {row.timestampLabel || formatDuration(row.timestampMs)}
-                                  </div>
-                                </div>
-                                <div style={{ display: "grid", gridTemplateColumns: "88px 88px minmax(0, 1.2fr) 132px 92px minmax(0, 1fr)", gap: space[2], padding: `0 ${space[1]}px`, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                                  <div>Time</div>
-                                  <div>Type</div>
-                                  <div>Ability</div>
-                                  <div>Amount</div>
-                                  <div>HP</div>
-                                  <div>Source</div>
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                                  {row.events.map((event, index) => (
-                                    <div key={`${row.key}-event-${index}`} style={{ display: "grid", gridTemplateColumns: "88px 88px minmax(0, 1.2fr) 132px 92px minmax(0, 1fr)", gap: space[2], alignItems: "start", padding: `${space[1]}px ${space[1]}px` }}>
-                                      <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                        {formatDeathRelativeTime(
-                                          event.timestampMs ?? normalizeEncounterEventTimestamp(event.timestamp, { startTime: 0, durationMs: 0 }),
-                                          row.timestampMs
-                                        )}
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold }}>
-                                        {getDeathTimelineEventLabel(event)}
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0 }}>
-                                        {event?.abilityGuid ? (
-                                          <WowheadSpellLink spellId={event.abilityGuid}>{getAbilityName(event, "Unknown")}</WowheadSpellLink>
-                                        ) : getAbilityName(event, "Unknown")}
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                        {getDeathEventAmountLabel(event)}
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                        {getDeathEventHpLabel(event)}
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
-                                        {getSourceName(event)}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {sliceType === "drums" && (
-                        <div>
-                          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
-                            Drums usage by boss fight
-                          </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                            {(selectedPlayerAnalytics?.drumsCoverage || []).length > 0 && (
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "minmax(0, 1.3fr) 84px 112px 96px",
-                                  gap: space[2],
-                                  padding: `0 ${space[3]}px`,
-                                  fontSize: fontSize.sm,
-                                  fontWeight: fontWeight.bold,
-                                  color: text.primary,
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.06em",
-                                }}
-                              >
-                                <div>Encounter</div>
-                                <div>Casts</div>
-                                <div>Affected</div>
-                                <div>Avg / Cast</div>
-                              </div>
-                            )}
-                            {!(selectedPlayerAnalytics?.drumsCoverage || []).length && (
-                              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                                No drums usage was found for this player in the current filtered fights.
-                              </div>
-                            )}
-                            {(selectedPlayerAnalytics?.drumsCoverage || []).map(row => (
-                              <div
-                                key={`drum-row-${row.fightId}`}
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "minmax(0, 1.3fr) 84px 112px 96px",
-                                  gap: space[2],
-                                  padding: space[3],
-                                  border: `1px solid ${border.subtle}`,
-                                  borderRadius: radius.base,
-                                  background: surface.card,
-                                  alignItems: "center",
-                                }}
-                              >
-                                <div style={{ fontSize: fontSize.sm, color: text.primary }}>
-                                  <div>{row.fightName}</div>
-                                  {row.abilityBreakdown?.length > 0 && (
-                                    <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
-                                      {row.abilityBreakdown.map(entry => `${entry.label} ${entry.casts}`).join(" · ")}
-                                    </div>
-                                  )}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: "#d6e7ff", fontWeight: fontWeight.semibold }}>
-                                  {row.casts}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: "#d6e7ff", fontWeight: fontWeight.semibold }}>
-                                  {formatMetricValue(row.affectedTargets)}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  {row.averageAffectedPerCast > 0 ? row.averageAffectedPerCast.toFixed(1) : "0.0"}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {sliceType === "consumables" && (
-                        <div>
-                          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
-                            Consumable coverage by boss fight
-                          </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                            {(selectedPlayerAnalytics?.consumableCoverage || []).length > 0 && (
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr) 92px",
-                                  gap: space[2],
-                                  padding: `0 ${space[3]}px`,
-                                  fontSize: fontSize.sm,
-                                  fontWeight: fontWeight.bold,
-                                  color: text.primary,
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.06em",
-                                }}
-                              >
-                                <div>Encounter</div>
-                                <div>Scrolls</div>
-                                <div>Flask / Elixirs</div>
-                                <div>Food</div>
-                                <div>Status</div>
-                              </div>
-                            )}
-                            {!(selectedPlayerAnalytics?.consumableCoverage || []).length && (
-                              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                                No boss-fight consumable coverage is attached to this player on the current filtered fights. Re-import the report to populate this view.
-                              </div>
-                            )}
-                            {(selectedPlayerAnalytics?.consumableCoverage || []).map(row => {
-                              const rowIssues = Number(!row.hasElixirCoverage) + Number(!row.hasFood);
-                              return (
-                                <div
-                                  key={`consumable-row-${row.fightId}`}
-                                  style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr) 92px",
-                                    gap: space[2],
-                                    padding: space[3],
-                                    border: `1px solid ${border.subtle}`,
-                                    borderRadius: radius.base,
-                                    background: surface.card,
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <div style={{ fontSize: fontSize.sm, color: text.primary }}>{row.fightName}</div>
-                                  <div style={{ fontSize: fontSize.sm, color: row.hasScroll ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
-                                    {formatAuraList(row.scrollNames)}
-                                  </div>
-                                  <div style={{ fontSize: fontSize.sm, color: row.hasElixirCoverage ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
-                                    {`${row.elixirUnitsCovered || 0}/${row.elixirUnitsRequired || 0} · ${row.hasFlask
-                                      ? formatAuraList(row.flaskNames)
-                                      : formatAuraList([...(row.battleElixirNames || []), ...(row.guardianElixirNames || [])])}`}
-                                  </div>
-                                  <div style={{ fontSize: fontSize.sm, color: row.hasFood ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
-                                    {formatAuraList(row.foodNames)}
-                                  </div>
-                                  <div style={{ fontSize: fontSize.sm, color: rowIssues > 0 ? "#ffd5d5" : "#d7ffdf", fontWeight: fontWeight.semibold }}>
-                                    {rowIssues > 0 ? `${rowIssues} issue${rowIssues === 1 ? "" : "s"}` : "Good"}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {(sliceType === "damage" || sliceType === "healing") && (
-                        <div>
-                          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
-                            {sliceType === "healing" ? "Healing breakdown" : "Damage breakdown"}
-                          </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                            {!(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) && (
-                              <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                                {`No ${sliceType} ability breakdown found for this player in the current filtered fights.`}
-                              </div>
-                            )}
-                            {(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) > 0 && (
-                              <div style={{ overflowX: "auto", paddingBottom: 2 }}>
-                                <div style={{ display: "flex", flexDirection: "column", gap: space[2], minWidth: 680 }}>
-                                  <div
-                                    style={{
-                                      display: "grid",
-                                      gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)",
-                                      gap: space[2],
-                                      padding: `0 ${space[3]}px`,
-                                      fontSize: fontSize.sm,
-                                      fontWeight: fontWeight.bold,
-                                      color: text.primary,
-                                      textTransform: "uppercase",
-                                      letterSpacing: "0.06em",
-                                    }}
-                                  >
-                                    <div>Ability</div>
-                                    <div>Total</div>
-                                    <div>Casts</div>
-                                    <div>Hits</div>
-                                    <div>Crits</div>
-                                    <div>{sliceType === "healing" ? "Overheal" : ""}</div>
-                                  </div>
-                                  {(sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
-                                    <div
-                                      key={`${sliceType}-${ability.key}`}
-                                      style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)",
-                                        gap: space[2],
-                                        padding: space[3],
-                                        border: `1px solid ${border.subtle}`,
-                                        borderRadius: radius.base,
-                                        background: surface.card,
-                                        alignItems: "center",
-                                      }}
-                                    >
-                                      <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
-                                        <WowheadSpellAbility spellId={ability.guid} name={ability.name} />
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold, whiteSpace: "nowrap" }}>
-                                        {formatMetricValue(ability.total)}
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                        {ability.casts || 0}
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                        {ability.hits || 0}
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                        {`${ability.crits || 0} (${ability.hits > 0 ? formatPercent((Number(ability.crits || 0) / Number(ability.hits || 1)) * 100) : "0%"})`}
-                                      </div>
-                                      <div style={{ fontSize: fontSize.sm, color: text.primary, whiteSpace: "nowrap" }}>
-                                        {sliceType === "healing" ? `${formatMetricValue(ability.overheal)} overheal` : ""}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      <div>
-                        <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Detected Gear Issues</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                          {!selectedPlayerAnalytics?.hasGearData && (
-                            <div style={{ fontSize: fontSize.sm, color: intent.warning }}>
-                              No gear snapshot was detected for this player in the current imported datasets. Re-importing the raid usually fixes this when Warcraft Logs exposes combatant gear info for the selected report.
-                            </div>
-                          )}
-                          {selectedPlayerIssueGroups.missingPermanent.map(issue => (
-                            <div key={`perm-${issue.slot}-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                              Missing permanent enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink>
-                            </div>
-                          ))}
-                          {selectedPlayerIssueGroups.missingTemporary.map(issue => (
-                            <div key={`temp-${issue.slot}-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                              Missing temporary enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink>
-                            </div>
-                          ))}
-                          {selectedPlayerIssueGroups.suboptimalTemporary.map(issue => (
-                            <div key={`subtemp-${issue.slot}-${issue.itemId}-${issue.enchantId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                              Suboptimal temporary enchant: {issue.slotLabel} · <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · <WowheadSpellLink spellId={issue.enchantId}>{issue.enchantName}</WowheadSpellLink>
-                            </div>
-                          ))}
-                          {selectedPlayerIssueGroups.commonGems.map(issue => (
-                            <div key={`gem-common-${issue.itemId}-${issue.gemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                              Common gem: <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
-                            </div>
-                          ))}
-                          {selectedPlayerIssueGroups.uncommonGems.map(issue => (
-                            <div key={`gem-uncommon-${issue.itemId}-${issue.gemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                              Uncommon gem: <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
-                            </div>
-                          ))}
-                          {selectedPlayerIssueGroups.rareGems.map(issue => (
-                            <div key={`gem-${issue.itemId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                              Sub-epic rare gem: <WowheadItemLink itemId={issue.itemId}>{issue.itemName}</WowheadItemLink> · {issue.count} issue{issue.count === 1 ? "" : "s"}{issue.minItemLevel != null ? ` (lowest ilvl ${issue.minItemLevel})` : ""}
-                            </div>
-                          ))}
-                          {!(
-                            selectedPlayerIssueGroups.missingPermanent.length ||
-                            selectedPlayerIssueGroups.missingTemporary.length ||
-                            selectedPlayerIssueGroups.suboptimalTemporary.length ||
-                            selectedPlayerIssueGroups.commonGems.length ||
-                            selectedPlayerIssueGroups.uncommonGems.length ||
-                            selectedPlayerIssueGroups.rareGems.length
-                          ) && (
-                            <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                              {selectedPlayerAnalytics?.hasGearData
-                                ? "No baseline enchant or gem issues detected."
-                                : "No gear issues shown because no gear snapshot is currently attached to this player."}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Detected temporary weapon enchants</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                          {(selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).map(issue => (
-                            <div key={`active-temp-${issue.slot}-${issue.itemId}-${issue.enchantId}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                              {issue.slotLabel}: <WowheadSpellLink spellId={issue.enchantId}>{issue.enchantName}</WowheadSpellLink>
-                            </div>
-                          ))}
-                          {!(selectedPlayerAnalytics?.temporaryEnchantIssues?.activeTemporaryEnchants || []).length && (
-                            <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                              No active temporary weapon enchant was captured for this player.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Selected fight gear</div>
-                        {!selectedFightId && (
-                          <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                            Select an encounter to load the player&apos;s fight-start gear snapshot.
-                          </div>
-                        )}
-                        {selectedFightId && !selectedFightSnapshot && (
-                          <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                            No fight-start gear snapshot was found for this player on the selected encounter.
-                          </div>
-                        )}
-                        {selectedFightGear.length > 0 && (
-                          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                            <div
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns: "72px minmax(110px, 130px) minmax(0, 1fr) minmax(180px, 0.7fr)",
-                                gap: space[3],
-                                padding: `${space[2]}px ${space[3]}px`,
-                                color: text.muted,
-                                fontSize: fontSize.xs,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.06em",
-                              }}
-                            >
-                              <div>Ilvl</div>
-                              <div>Slot</div>
-                              <div>Item</div>
-                              <div>Enchant / Gems</div>
-                            </div>
-                            {selectedFightGear.map(item => {
-                              const isEmptySlot = !item?.id;
-                              return (
-                              <div
-                                key={`fight-gear-${item.slot}-${item.id ?? "empty"}`}
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "72px minmax(110px, 130px) minmax(0, 1fr) minmax(180px, 0.7fr)",
-                                  gap: space[3],
-                                  alignItems: "start",
-                                  padding: space[3],
-                                  border: `1px solid ${border.subtle}`,
-                                  borderRadius: radius.base,
-                                  background: surface.card,
-                                }}
-                              >
-                                <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                                  {isEmptySlot ? "" : (item.itemLevel ?? "")}
-                                </div>
-                                <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                                  {GEAR_SLOT_LABELS[item.slot] || `Slot ${item.slot}`}
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: space[2], minWidth: 0 }}>
-                                    {!isEmptySlot && getResolvedItemIconUrl(item, itemMetaById) ? (
-                                      <img
-                                        src={getResolvedItemIconUrl(item, itemMetaById)}
-                                        alt=""
-                                        style={{
-                                          width: 36,
-                                          height: 36,
-                                          borderRadius: 6,
-                                          border: `1px solid ${border.subtle}`,
-                                          objectFit: "cover",
-                                          flexShrink: 0,
-                                        }}
-                                      />
-                                    ) : (
-                                      <div
-                                        style={{
-                                          width: 36,
-                                          height: 36,
-                                          borderRadius: 6,
-                                          border: `1px solid ${border.subtle}`,
-                                          background: surface.base,
-                                          flexShrink: 0,
-                                        }}
-                                      />
-                                    )}
-                                    {!isEmptySlot && (
-                                      <div style={{ minWidth: 0, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
-                                        <WowheadGearItemLink item={item} gear={selectedFightGear}>
-                                          <span style={{ color: getResolvedQualityColor(item, itemMetaById) }}>
-                                            {getResolvedDisplayName(item, itemMetaById, "Item")}
-                                          </span>
-                                        </WowheadGearItemLink>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-                                  {!!(getPermanentEnchantLabel(item) || getItemEnchantId(item)) && (
-                                    <div style={{ minWidth: 0 }}>
-                                      <div style={{ fontSize: fontSize.xs, color: "#1eff00", minWidth: 0 }}>
-                                        {getPermanentEnchantLabel(item) || `Enchant ${getItemEnchantId(item)}`}
-                                      </div>
-                                    </div>
-                                  )}
-                                  {!!getTemporaryEnchantLabel(item) && (
-                                    <div style={{ minWidth: 0 }}>
-                                      <div style={{ fontSize: fontSize.xs, color: "#1eff00", minWidth: 0 }}>
-                                        {getTemporaryEnchantLabel(item)}
-                                      </div>
-                                    </div>
-                                  )}
-                                  {(item.gems || []).length > 0 && (
-                                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                      {(item.gems || []).map((gem, index) => (
-                                        <WowheadItemLink key={`fight-gear-gem-row-${item.id}-${gem.id}-${index}`} itemId={gem.id}>
-                                          {getResolvedItemIconUrl(gem, itemMetaById) ? (
-                                            <img
-                                              src={getResolvedItemIconUrl(gem, itemMetaById)}
-                                              alt=""
-                                              style={{
-                                                width: 18,
-                                                height: 18,
-                                                borderRadius: 4,
-                                                border: `1px solid ${border.subtle}`,
-                                                objectFit: "cover",
-                                                flexShrink: 0,
-                                              }}
-                                            />
-                                          ) : (
-                                            <div
-                                              style={{
-                                                width: 18,
-                                                height: 18,
-                                                borderRadius: 4,
-                                                border: `1px solid ${border.subtle}`,
-                                                background: surface.base,
-                                                flexShrink: 0,
-                                              }}
-                                            />
-                                          )}
-                                        </WowheadItemLink>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Tracked buff auras</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: space[2], maxHeight: 220, overflowY: "auto" }}>
-                          {(selectedPlayer.analytics?.buffAuras || []).slice(0, 20).map(aura => (
-                            <div key={`aura-${aura.guid}-${aura.name}`} style={{ fontSize: fontSize.sm, color: text.secondary }}>
-                              {aura.name} · {aura.totalUses} uses
-                            </div>
-                          ))}
-                          {!(selectedPlayer.analytics?.buffAuras || []).length && (
-                            <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                              No buff aura data was detected for this player in the current import.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Persisted summary payload</div>
-                        <pre style={{
-                          margin: 0,
-                          padding: space[3],
-                          background: surface.base,
-                          border: `1px solid ${border.subtle}`,
-                          borderRadius: radius.base,
-                          color: text.secondary,
-                          fontFamily: font.mono,
-                          fontSize: 12,
-                          lineHeight: 1.5,
-                          overflow: "auto",
-                          maxHeight: 360,
-                        }}>
-                          {JSON.stringify(selectedPlayer.summary || {}, null, 2)}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
-              )}
+                {!isMobileViewport && isPlayerDetailOpen && (
+                  <PlayerDetailPanel
+                    isMobile={isMobileViewport}
+                    selectedPlayer={selectedPlayer}
+                    selectedPlayerMetricTags={selectedPlayerMetricTags}
+                    sliceType={sliceType}
+                    abilityBreakdownRef={abilityBreakdownRef}
+                    selectedPlayerDeathRows={selectedPlayerDeathRows}
+                    selectedPlayerAnalytics={selectedPlayerAnalytics}
+                    visiblePlayerHealingBreakdown={visiblePlayerHealingBreakdown}
+                    visiblePlayerDamageBreakdown={visiblePlayerDamageBreakdown}
+                    selectedPlayerIssueGroups={selectedPlayerIssueGroups}
+                    selectedFightId={selectedFightId}
+                    selectedFightSnapshot={selectedFightSnapshot}
+                    selectedFightGear={selectedFightGear}
+                    itemMetaById={itemMetaById}
+                    closeSelectedPlayer={closeSelectedPlayer}
+                  />
+                )}
             </div>
+            {isMobileViewport && isPlayerDetailOpen && (
+              <div style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 10001,
+                background: "rgba(4, 10, 18, 0.78)",
+                padding: space[2],
+                overflowY: "auto",
+              }}>
+                <PlayerDetailPanel
+                  isMobile
+                  selectedPlayer={selectedPlayer}
+                  selectedPlayerMetricTags={selectedPlayerMetricTags}
+                  sliceType={sliceType}
+                  abilityBreakdownRef={abilityBreakdownRef}
+                  selectedPlayerDeathRows={selectedPlayerDeathRows}
+                  selectedPlayerAnalytics={selectedPlayerAnalytics}
+                  visiblePlayerHealingBreakdown={visiblePlayerHealingBreakdown}
+                  visiblePlayerDamageBreakdown={visiblePlayerDamageBreakdown}
+                  selectedPlayerIssueGroups={selectedPlayerIssueGroups}
+                  selectedFightId={selectedFightId}
+                  selectedFightSnapshot={selectedFightSnapshot}
+                  selectedFightGear={selectedFightGear}
+                  itemMetaById={itemMetaById}
+                  closeSelectedPlayer={closeSelectedPlayer}
+                />
+              </div>
+            )}
             </>
           )}
         </div>
