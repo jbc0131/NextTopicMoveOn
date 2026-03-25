@@ -64,7 +64,7 @@ const POTION_HEAL_NAME_TOKENS = [
 const POTION_CAST_MATCH_WINDOW_MS = 5000;
 const POTION_HEAL_MATCH_WINDOW_MS = 5000;
 const WCL_CACHE_TTL_SECONDS = 60 * 15;
-const WCL_RETRY_DELAYS_MS = [1000, 2500, 5000];
+const WCL_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
 let cachedV2Token = null;
 let cachedV2TokenExpiresAt = 0;
 
@@ -2629,30 +2629,36 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
 
 export async function importRpbRaid({ reportUrl, reportId: rawReportId, apiKey = "" }) {
   const input = { reportUrl, reportId: rawReportId, apiKey };
-  const [fights, summary, deaths, tracked, hostile, fullCasts, engineering, oil, buffs, drums, drumsByFight, potionsByFight, reportRankings, reportSpeed, raiderData, damageByFight, healingByFight, deathsByFight, buffsByFight] = await Promise.all([
-    fetchRpbImportStep("fights", input),
-    fetchRpbImportStep("summary", input),
-    fetchRpbImportStep("deaths", input),
-    fetchRpbImportStep("tracked", input),
-    fetchRpbImportStep("hostile", input),
-    fetchRpbImportStep("fullCasts", input),
-    fetchRpbImportStep("engineering", input),
-    fetchRpbImportStep("oil", input),
-    fetchRpbImportStep("buffs", input),
-    fetchRpbImportStep("drums", input),
-    fetchRpbImportStep("drumsByFight", input),
-    fetchRpbImportStep("potionsByFight", input),
-    fetchRpbImportStep("reportRankings", input),
-    fetchRpbImportStep("reportSpeed", input),
-    fetchRpbImportStep("raiderData", input),
-    fetchRpbImportStep("damageByFight", input),
-    fetchRpbImportStep("healingByFight", input),
-    fetchRpbImportStep("deathsByFight", input),
-    fetchRpbImportStep("buffsByFight", input),
-  ]);
+  const stepOrder = [
+    "fights",
+    "summary",
+    "deaths",
+    "tracked",
+    "hostile",
+    "fullCasts",
+    "engineering",
+    "oil",
+    "buffs",
+    "drums",
+    "drumsByFight",
+    "potionsByFight",
+    "reportRankings",
+    "reportSpeed",
+    "raiderData",
+    "damageByFight",
+    "healingByFight",
+    "deathsByFight",
+    "buffsByFight",
+  ];
+  const datasets = {};
+
+  for (const step of stepOrder) {
+    datasets[step] = await fetchRpbImportStep(step, input);
+    await sleep(250);
+  }
 
   return assembleRpbRaid(
     { reportUrl, reportId: rawReportId },
-    { fights, summary, deaths, tracked, hostile, fullCasts, engineering, oil, buffs, drums, drumsByFight, potionsByFight, reportRankings, reportSpeed, raiderData, damageByFight, healingByFight, deathsByFight, buffsByFight }
+    datasets
   );
 }
