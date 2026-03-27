@@ -817,6 +817,15 @@ async function hydrateSourceScopedFightEntry({
     .filter(ability => ability?.guid != null);
   if (!abilities.length) return entry;
 
+  const preservedPetAbilities = (entry?.abilities || []).filter(ability =>
+    String(ability?.guid || "").startsWith("pet:")
+  );
+  const petTotals = preservedPetAbilities.reduce((acc, ability) => ({
+    casts: acc.casts + Number(ability?.casts || 0),
+    hits: acc.hits + Number(ability?.hits || 0),
+    crits: acc.crits + Number(ability?.crits || 0),
+  }), { casts: 0, hits: 0, crits: 0 });
+
   const totals = abilities.reduce((acc, ability) => ({
     casts: acc.casts + Number(ability?.casts || 0),
     hits: acc.hits + Number(ability?.hits || 0),
@@ -825,10 +834,10 @@ async function hydrateSourceScopedFightEntry({
 
   return {
     ...entry,
-    abilities,
-    casts: totals.casts,
-    hits: totals.hits,
-    crits: totals.crits,
+    abilities: [...abilities, ...preservedPetAbilities],
+    casts: totals.casts + petTotals.casts,
+    hits: totals.hits + petTotals.hits,
+    crits: totals.crits + petTotals.crits,
   };
 }
 
