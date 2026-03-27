@@ -5770,7 +5770,7 @@ export default function RpbPage() {
   }, [filteredRaids, loadingList, navigate, raidId, teamFilter]);
 
   const isAdmin = auth.isAdmin || auth.fallback;
-  const showReportPicker = isMobileViewport && (mobileMenuOpen || (!selectedRaid && !loadingList));
+  const showReportPicker = isMobileViewport && (mobileMenuOpen || (!selectedRaid && !loadingList && !loadingRaid));
 
   async function refreshSelectedRaid(targetRaidId) {
     if (!targetRaidId) {
