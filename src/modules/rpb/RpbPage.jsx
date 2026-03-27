@@ -5264,6 +5264,11 @@ export default function RpbPage() {
   }, [visibleDebuffSliceEntries]);
 
   useEffect(() => {
+    if (sliceType !== "debuffs") return;
+    setSelectedPlayerId("");
+  }, [sliceType]);
+
+  useEffect(() => {
     if (loadingList) return;
     if (!teamFilter) return;
 
@@ -6013,33 +6018,35 @@ export default function RpbPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-            <div style={{ fontSize: fontSize.xs, color: text.muted }}>
-              Player Selection
+          {sliceType !== "debuffs" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+              <div style={{ fontSize: fontSize.xs, color: text.muted }}>
+                Player Selection
+              </div>
+              <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
+                {filteredPlayers.map(player => {
+                  const active = String(player.id) === String(selectedPlayerId);
+                  return (
+                    <button
+                      key={player.id}
+                      onClick={() => handlePlayerSelection(player.id)}
+                      style={{
+                        ...btnStyle(active ? "primary" : "default", active),
+                        height: 30,
+                        borderWidth: active ? 2 : 1,
+                        boxShadow: active ? `0 0 0 2px ${getClassColor(player.type)}33` : "none",
+                        borderColor: active ? getClassColor(player.type) : border.subtle,
+                        color: getClassColor(player.type),
+                        fontWeight: fontWeight.semibold,
+                      }}
+                    >
+                      {player.name}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
-              {filteredPlayers.map(player => {
-                const active = String(player.id) === String(selectedPlayerId);
-                return (
-                  <button
-                    key={player.id}
-                    onClick={() => handlePlayerSelection(player.id)}
-                    style={{
-                      ...btnStyle(active ? "primary" : "default", active),
-                      height: 30,
-                      borderWidth: active ? 2 : 1,
-                      boxShadow: active ? `0 0 0 2px ${getClassColor(player.type)}33` : "none",
-                      borderColor: active ? getClassColor(player.type) : border.subtle,
-                      color: getClassColor(player.type),
-                      fontWeight: fontWeight.semibold,
-                    }}
-                  >
-                    {player.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          )}
 
           <div style={{ fontSize: fontSize.xs, color: text.muted }}>
             Filters now apply directly to the slicer totals, encounter picks, and player detail breakdowns.
@@ -6108,10 +6115,10 @@ export default function RpbPage() {
                           { id: "damage", label: "Damage" },
                           { id: "healing", label: "Healing" },
                           { id: "deaths", label: "Deaths" },
-                          { id: "debuffs", label: "Debuffs" },
                           { id: "drums", label: "Drums" },
                           { id: "potions", label: "Potions" },
                           { id: "consumables", label: "Consumables" },
+                          { id: "debuffs", label: "Debuffs" },
                         ].map(option => (
                           <button
                             key={option.id}
@@ -6395,7 +6402,7 @@ export default function RpbPage() {
                             </button>
                           );
                         })}
-                        {sliceType !== "consumables" && sliceType !== "drums" && sliceType !== "potions" && visibleAggregatedSliceEntries.map(entry => {
+                        {sliceType !== "consumables" && sliceType !== "drums" && sliceType !== "potions" && sliceType !== "debuffs" && visibleAggregatedSliceEntries.map(entry => {
                           const maxValue = visibleAggregatedSliceEntries[0]?.total || 1;
                           const active = String(entry.id) === String(selectedPlayerId);
                           const perSecondValue = sliceType === "deaths"
