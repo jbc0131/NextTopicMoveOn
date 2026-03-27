@@ -5382,6 +5382,7 @@ export default function RpbPage() {
         { key: "damageByFight", label: "Saving damage ability breakdowns...", detail: "GET /report/tables/damage-done per fight (options=2)" },
         { key: "healingByFight", label: "Saving healing ability breakdowns...", detail: "GET /report/tables/healing per fight (options=2)" },
         { key: "deathsByFight", label: "Saving death events per fight...", detail: "GET /report/tables/deaths per fight" },
+        { key: "debuffsByFight", label: "Saving tracked boss debuffs per fight...", detail: "GET /report/tables/debuffs + /report/events/debuffs per boss fight" },
       ];
       const getProgressSteps = (activeStepKey = "", completedKeys = new Set()) => steps.map(step => ({
         ...step,
@@ -6129,6 +6130,24 @@ export default function RpbPage() {
                           </button>
                         ))}
                       </div>
+                      {sliceType === "debuffs" && (
+                        <div
+                          style={{
+                            alignSelf: "flex-start",
+                            padding: `6px 10px`,
+                            borderRadius: radius.pill,
+                            background: "rgba(245, 200, 66, 0.18)",
+                            border: "1px solid rgba(245, 200, 66, 0.55)",
+                            color: "#ffd54a",
+                            fontSize: fontSize.xs,
+                            fontWeight: fontWeight.semibold,
+                            letterSpacing: "0.04em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          This Tab Is Under Development
+                        </div>
+                      )}
                       <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                         {((sliceType === "consumables"
                           ? visibleConsumableSliceEntries
