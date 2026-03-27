@@ -742,25 +742,25 @@ function ReportPickerSheet({
                   style={{
                     ...btnStyle(active ? "primary" : "default", active),
                     width: "100%",
-                    minHeight: 104,
+                    minHeight: 88,
                     padding: space[3],
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "flex-start",
-                    gap: space[2],
+                    gap: 6,
                     textAlign: "left",
                     paddingRight: 42,
                     minWidth: 0,
                     overflow: "hidden",
                   }}
                 >
-                  <div style={{ display: "flex", gap: space[2], flexWrap: "wrap", alignItems: "center", minWidth: 0, maxWidth: "100%" }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", minWidth: 0, maxWidth: "100%" }}>
                     {isNewestReport && (
-                      <span style={tagStyle("success")}>
+                      <span style={{ ...tagStyle("success"), flexShrink: 0 }}>
                         Newest Report
                       </span>
                     )}
-                    <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold, minWidth: 0, maxWidth: "100%", overflowWrap: "anywhere" }}>
+                    <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold, minWidth: 0, flex: "1 1 180px", maxWidth: "100%", overflowWrap: "anywhere", lineHeight: 1.25 }}>
                       {raid.title || raid.reportId}
                     </div>
                   </div>
@@ -771,9 +771,6 @@ function ReportPickerSheet({
                         {`Speed ${Math.round(reportSpeedPercent)}`}
                       </span>
                     )}
-                  </div>
-                  <div style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, minWidth: 0, maxWidth: "100%", overflowWrap: "anywhere" }}>
-                    {raid.reportId}
                   </div>
                 </button>
               </div>
