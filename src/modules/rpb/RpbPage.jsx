@@ -796,7 +796,7 @@ function PlayerDetailPanel({
 }) {
   const deathGridColumns = isMobile
     ? "minmax(72px, 88px) minmax(0, 1fr)"
-    : "88px 88px minmax(0, 1.2fr) 132px 92px minmax(0, 1fr)";
+    : "72px 72px minmax(120px, 1.25fr) 96px 72px minmax(120px, 1fr)";
   const utilityGridColumns = isMobile
     ? "minmax(0, 1fr) 72px 88px"
     : "minmax(0, 1.3fr) 84px 112px 96px";
@@ -1034,24 +1034,24 @@ function PlayerDetailPanel({
                     </div>
                   ) : (
                     <>
-                      <div style={{ display: "grid", gridTemplateColumns: deathGridColumns, gap: space[2], padding: `0 ${space[1]}px`, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                        <div>Time</div>
-                        <div>Type</div>
-                        <div>Ability</div>
-                        <div>Amount</div>
-                        <div>HP</div>
-                        <div>Source</div>
+                      <div style={{ display: "grid", gridTemplateColumns: deathGridColumns, gap: space[2], padding: `0 ${space[1]}px`, width: "100%", minWidth: 0, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        <div style={{ minWidth: 0 }}>Time</div>
+                        <div style={{ minWidth: 0 }}>Type</div>
+                        <div style={{ minWidth: 0 }}>Ability</div>
+                        <div style={{ minWidth: 0 }}>Amount</div>
+                        <div style={{ minWidth: 0 }}>HP</div>
+                        <div style={{ minWidth: 0 }}>Source</div>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                         {row.events.map((event, index) => (
-                          <div key={`${row.key}-event-${index}`} style={{ display: "grid", gridTemplateColumns: deathGridColumns, gap: space[2], alignItems: "start", padding: `${space[1]}px ${space[1]}px` }}>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                          <div key={`${row.key}-event-${index}`} style={{ display: "grid", gridTemplateColumns: deathGridColumns, gap: space[2], alignItems: "start", width: "100%", minWidth: 0, padding: `${space[1]}px ${space[1]}px` }}>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, whiteSpace: "nowrap" }}>
                               {formatDeathRelativeTime(
                                 event.timestampMs ?? normalizeEncounterEventTimestamp(event.timestamp, { startTime: 0, durationMs: 0 }),
                                 row.timestampMs
                               )}
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold }}>
+                            <div style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold, minWidth: 0 }}>
                               {getDeathTimelineEventLabel(event)}
                             </div>
                             <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0 }}>
@@ -1064,10 +1064,10 @@ function PlayerDetailPanel({
                                 </WowheadSpellLink>
                               ) : getAbilityName(event, "Unknown")}
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, whiteSpace: "nowrap" }}>
                               {getDeathEventAmountLabel(event)}
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, whiteSpace: "nowrap" }}>
                               {getDeathEventHpLabel(event)}
                             </div>
                             <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
@@ -2773,7 +2773,7 @@ function buildPotionSliceEntries(players, analyticsByPlayerId, filterIds = null)
     const combatCount = Number(analytics.combatPotionCount || 0);
     const recoveryCount = Number(analytics.recoveryConsumableCount || 0);
     const usedPotionCount = Number(analytics.usedPotionCount || 0);
-    const hasPotionIssue = combatCount <= 0 || recoveryCount <= 0;
+    const hasPotionIssue = combatCount <= 0 && recoveryCount <= 0;
     const averagePrepullOverlapMs = Number(analytics.averagePrepullOverlapMs || 0);
     const averagePrepullDurationMs = Number(analytics.averagePrepullDurationMs || 0);
     const averagePrepullOverlapRatio = averagePrepullDurationMs > 0
@@ -5067,14 +5067,14 @@ export default function RpbPage() {
 
       const combatPotionCount = Number(analytics.combatPotionCount || 0);
       const recoveryConsumableCount = Number(analytics.recoveryConsumableCount || 0);
-      if (combatPotionCount <= 0 || recoveryConsumableCount <= 0) {
+      if (combatPotionCount <= 0 && recoveryConsumableCount <= 0) {
         playersWithPotionIssues.push({
           playerId: String(player.id),
           name: player.name,
           type: player.type,
           combatPotionCount,
           recoveryConsumableCount,
-          total: Number(combatPotionCount <= 0) + Number(recoveryConsumableCount <= 0),
+          total: 1,
         });
       }
 

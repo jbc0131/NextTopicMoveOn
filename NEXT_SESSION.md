@@ -74,6 +74,9 @@ The raid date and raid leader fields still exist in the 25-Man admin. Now that W
 - [ ] Kara history in public history view
 - [ ] Boss kill tracker on history cards
 - [ ] Attendance tracker (compare week roster to current roster)
+- [ ] RPB: add a "Damage Taken by Ability" section
+- [ ] RPB: fix death counts so the summary shows actual total deaths
+- [ ] RPB: expand player death details into separate death sequences (Death 1, Death 2, etc.) with killing damage and heals received between damage events
 - [ ] TeamDashboard (`/:teamId`) — currently exists but may be sparse; add useful content
 - [ ] Dark mode / light mode toggle (currently dark only)
 - [ ] Export assignments as image (for posting in Discord)
