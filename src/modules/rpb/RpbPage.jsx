@@ -6613,6 +6613,11 @@ export default function RpbPage() {
                           </button>
                         ))}
                       </div>
+                      {sliceType === "drums" && (
+                        <div style={UNDER_DEVELOPMENT_BADGE_STYLE}>
+                          Prepull drums casts not available in logs
+                        </div>
+                      )}
                       {renderTabScopedRaidAnalyticsControls()}
                       <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                         {((sliceType === "consumables"
