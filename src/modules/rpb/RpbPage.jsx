@@ -40,6 +40,7 @@ const TRACKED_DEBUFF_ROWS = [
   { key: "expose-weakness", label: "Expose Weakness", className: "Hunter", order: 7 },
   { key: "hunters-mark", label: "Hunter's Mark", className: "Hunter", order: 8 },
 ];
+const SUNDER_BAR_COLOR = "#4fb26f";
 
 const MOBILE_BREAKPOINT = 960;
 
@@ -3849,6 +3850,11 @@ function buildTimelineTickMarks(totalDurationMs) {
   return marks;
 }
 
+function buildArmorStackMarkers(maxStacks) {
+  const count = Math.max(0, Math.floor(Number(maxStacks || 0)));
+  return Array.from({ length: count }, (_, index) => index + 1);
+}
+
 function formatEncounterSelectionDuration(ms) {
   const totalSeconds = Math.max(0, Math.floor(Number(ms || 0) / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -6263,6 +6269,7 @@ export default function RpbPage() {
                           const isExpanded = expandedDebuffKeys.has(entry.key);
                           const timelineTickMarks = buildTimelineTickMarks(entry.totalEncounterDurationMs);
                           const isArmorRow = entry.key === "armor-reduction";
+                          const armorStackMarkers = isArmorRow ? buildArmorStackMarkers(entry.maxStacks) : [];
                           return (
                             <div
                               key={`debuff-${entry.key}`}
@@ -6307,7 +6314,34 @@ export default function RpbPage() {
                                   </span>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
-                                  <div style={{ flex: 1, height: 12, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}`, position: "relative" }}>
+                                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                                    {isArmorRow && armorStackMarkers.length > 0 && (
+                                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                                        {armorStackMarkers.map(stack => (
+                                          <span
+                                            key={`${entry.key}-stack-${stack}`}
+                                            style={{
+                                              display: "inline-flex",
+                                              alignItems: "center",
+                                              justifyContent: "center",
+                                              minWidth: 20,
+                                              height: 18,
+                                              padding: "0 6px",
+                                              borderRadius: radius.pill,
+                                              background: "rgba(79, 178, 111, 0.18)",
+                                              border: "1px solid rgba(79, 178, 111, 0.55)",
+                                              color: "#8be3a6",
+                                              fontSize: fontSize.xs,
+                                              fontWeight: fontWeight.semibold,
+                                              lineHeight: 1,
+                                            }}
+                                          >
+                                            {stack}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div style={{ height: 12, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}`, position: "relative" }}>
                                     {entry.timelineBands.map((band, index) => {
                                       const totalDurationMs = Number(entry.totalEncounterDurationMs || 0);
                                       const leftPercent = totalDurationMs > 0 ? (Number(band.startMs || 0) / totalDurationMs) * 100 : 0;
@@ -6323,33 +6357,16 @@ export default function RpbPage() {
                                             width: `${Math.max(0.6, Math.min(100, widthPercent))}%`,
                                             top: 0,
                                             bottom: 0,
-                                            background: intent.success,
+                                            background: isArmorRow ? SUNDER_BAR_COLOR : intent.success,
                                             opacity: 0.92,
                                           }}
                                         />
                                       );
                                     })}
+                                    </div>
                                   </div>
-                                  <div style={{ minWidth: isArmorRow ? 108 : 80, textAlign: "right" }}>
-                                    {isArmorRow ? (
-                                      <span
-                                        style={{
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          justifyContent: "center",
-                                          padding: "3px 8px",
-                                          borderRadius: radius.pill,
-                                          background: entry.maxStacks > 0 ? "rgba(245, 200, 66, 0.18)" : "rgba(255, 255, 255, 0.06)",
-                                          border: `1px solid ${entry.maxStacks > 0 ? "rgba(245, 200, 66, 0.5)" : border.subtle}`,
-                                          color: entry.maxStacks > 0 ? "#ffd54a" : text.secondary,
-                                          fontSize: fontSize.xs,
-                                          fontWeight: fontWeight.semibold,
-                                          whiteSpace: "nowrap",
-                                        }}
-                                      >
-                                        {entry.maxStacks > 0 ? `Max ${entry.maxStacks} stacks` : "No stacks seen"}
-                                      </span>
-                                    ) : (
+                                  <div style={{ minWidth: 80, textAlign: "right" }}>
+                                    {!isArmorRow && (
                                       <span style={{ fontSize: fontSize.xs, color: text.muted }}>Coverage</span>
                                     )}
                                   </div>

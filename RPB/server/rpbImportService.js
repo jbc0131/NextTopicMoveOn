@@ -36,6 +36,9 @@ const TRACKED_BOSS_DEBUFFS = [
   { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]), preferredClass: "Hunter", order: 7 },
   { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]), preferredClass: "Hunter", order: 8 },
 ];
+const TRACKED_BOSS_DEBUFF_SPELL_IDS = new Set(
+  TRACKED_BOSS_DEBUFFS.flatMap(entry => [...(entry.spellIds || [])])
+);
 const RESOURCE_RECOVERY_SPELL_IDS = ["28499", "27869", "16666"];
 const RESOURCE_RECOVERY_ABILITY_IDS = new Set(RESOURCE_RECOVERY_SPELL_IDS);
 const MANA_POTION_ABILITY_IDS = new Set(["28499"]);
@@ -1123,11 +1126,7 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
       Number(fight.start_time ?? 0),
       Number(fight.end_time ?? 0)
     );
-    const trackedSpellIds = new Set(
-      debuffSummary
-        .map(entry => String(entry?.guid || "").trim())
-        .filter(Boolean)
-    );
+    const trackedSpellIds = new Set(TRACKED_BOSS_DEBUFF_SPELL_IDS);
 
     let sourceEvents = [];
     if (trackedSpellIds.size > 0) {
@@ -1149,6 +1148,18 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
     }
     const sourcesByDebuffKey = collectTrackedBossDebuffSourcesFromEvents(sourceEvents, sourceLookup);
     const maxStacksByDebuffKey = collectTrackedBossDebuffMaxStacksFromEvents(sourceEvents);
+    const eventBandsByDebuffKey = collectTrackedBossDebuffBandsFromEvents(
+      sourceEvents,
+      Number(fight.start_time ?? 0),
+      Number(fight.end_time ?? 0)
+    );
+    const mergedDebuffs = mergeTrackedBossDebuffRows(
+      debuffSummary,
+      sourcesByDebuffKey,
+      maxStacksByDebuffKey,
+      eventBandsByDebuffKey,
+      durationMs
+    );
 
     snapshots.push({
       fightId: String(fight.id),
@@ -1157,14 +1168,7 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
       startTime: fight.start_time ?? 0,
       endTime: fight.end_time ?? 0,
       durationMs,
-      debuffs: debuffSummary.map(entry => ({
-        ...entry,
-        maxStacks: Number(maxStacksByDebuffKey.get(entry.key) || entry.maxStacks || 0),
-        sources: [...(sourcesByDebuffKey.get(entry.key)?.values() || [])].sort((a, b) => {
-          if (b.casts !== a.casts) return b.casts - a.casts;
-          return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
-        }),
-      })),
+      debuffs: mergedDebuffs,
     });
   }
 
@@ -1435,7 +1439,12 @@ function collectTrackedBossDebuffSourcesFromEvents(events = [], sourceLookup = n
 
   for (const event of events) {
     const eventType = String(event?.type || "").toLowerCase();
-    if (!eventType.startsWith("applydebuff") && !eventType.startsWith("refreshdebuff")) continue;
+    if (
+      !eventType.startsWith("applydebuff")
+      && !eventType.startsWith("refreshdebuff")
+      && !eventType.startsWith("applydebuffstack")
+      && !eventType.startsWith("applydebuffdose")
+    ) continue;
 
     const tracker = matchTrackedBossDebuff(
       event?.abilityGameID
@@ -1474,6 +1483,152 @@ function collectTrackedBossDebuffSourcesFromEvents(events = [], sourceLookup = n
   }
 
   return grouped;
+}
+
+function collectTrackedBossDebuffBandsFromEvents(events = [], fightStartMs = 0, fightEndMs = 0) {
+  const grouped = new Map();
+  const activeByTarget = new Map();
+  const relativeFightEndMs = Math.max(0, Number(fightEndMs || 0) - Number(fightStartMs || 0));
+
+  function getTargetKey(event) {
+    return String(
+      event?.targetID
+      ?? event?.targetId
+      ?? event?.target?.id
+      ?? event?.targetInstance
+      ?? event?.targetName
+      ?? "unknown-target"
+    );
+  }
+
+  function closeBand(trackerKey, targetKey, timestampMs) {
+    const targetMap = activeByTarget.get(trackerKey);
+    if (!targetMap || !targetMap.has(targetKey)) return;
+    const startMs = Number(targetMap.get(targetKey) || 0);
+    const endMs = Math.max(startMs, Math.min(relativeFightEndMs, Number(timestampMs || 0) - Number(fightStartMs || 0)));
+    if (endMs > startMs) {
+      const bands = grouped.get(trackerKey) || [];
+      bands.push({ startMs, endMs });
+      grouped.set(trackerKey, bands);
+    }
+    targetMap.delete(targetKey);
+    if (!targetMap.size) activeByTarget.delete(trackerKey);
+  }
+
+  for (const event of events) {
+    const tracker = matchTrackedBossDebuff(
+      event?.abilityGameID
+      ?? event?.ability?.guid
+      ?? event?.ability?.gameID
+      ?? event?.guid
+      ?? null,
+      event?.ability?.name || event?.name || ""
+    );
+    if (!tracker) continue;
+
+    const eventType = String(event?.type || "").toLowerCase();
+    const targetKey = getTargetKey(event);
+    const relativeTimestampMs = Math.max(0, Math.min(relativeFightEndMs, Number(event?.timestamp || 0) - Number(fightStartMs || 0)));
+    const targetMap = activeByTarget.get(tracker.key) || new Map();
+    const shouldStart =
+      eventType === "applydebuff"
+      || eventType === "refreshdebuff"
+      || eventType === "applydebuffstack"
+      || eventType === "applydebuffdose";
+    const shouldClose =
+      eventType === "removedebuff"
+      || eventType === "removedebuffstack"
+      || eventType === "removedebuffdose";
+
+    if (shouldStart) {
+      if (!targetMap.has(targetKey)) {
+        targetMap.set(targetKey, relativeTimestampMs);
+      }
+      activeByTarget.set(tracker.key, targetMap);
+      continue;
+    }
+
+    if (shouldClose) {
+      closeBand(tracker.key, targetKey, Number(event?.timestamp || 0));
+    }
+  }
+
+  for (const [trackerKey, targetMap] of activeByTarget.entries()) {
+    for (const [targetKey] of targetMap.entries()) {
+      closeBand(trackerKey, targetKey, fightEndMs);
+    }
+  }
+  return new Map(
+    [...grouped.entries()].map(([key, bands]) => [key, mergeBands(bands)])
+  );
+}
+
+function mergeTrackedBossDebuffRows(
+  debuffSummary = [],
+  sourcesByDebuffKey = new Map(),
+  maxStacksByDebuffKey = new Map(),
+  eventBandsByDebuffKey = new Map(),
+  durationMs = 0
+) {
+  const rowsByKey = new Map();
+
+  for (const entry of debuffSummary || []) {
+    rowsByKey.set(entry.key, {
+      ...entry,
+      bands: mergeBands([
+        ...(entry?.bands || []),
+        ...(eventBandsByDebuffKey.get(entry.key) || []),
+      ]),
+    });
+  }
+
+  for (const tracker of TRACKED_BOSS_DEBUFFS) {
+    if (rowsByKey.has(tracker.key)) continue;
+    if (!sourcesByDebuffKey.has(tracker.key) && !eventBandsByDebuffKey.has(tracker.key)) continue;
+
+    const bands = mergeBands(eventBandsByDebuffKey.get(tracker.key) || []);
+    const totalUptime = bands.reduce((sum, band) => sum + Math.max(0, Number(band?.endMs || 0) - Number(band?.startMs || 0)), 0);
+    rowsByKey.set(tracker.key, {
+      key: tracker.key,
+      label: tracker.label,
+      preferredClass: tracker.preferredClass || "",
+      order: Number(tracker.order || 0),
+      guid: null,
+      totalUses: 0,
+      totalUptime,
+      bands,
+      maxStacks: Number(tracker.defaultMaxStacks || 0),
+      uptimePercent: durationMs > 0 ? (totalUptime / durationMs) * 100 : 0,
+      sources: [],
+    });
+  }
+
+  return [...rowsByKey.values()]
+    .map(entry => {
+      const bands = mergeBands([
+        ...(entry?.bands || []),
+        ...(eventBandsByDebuffKey.get(entry.key) || []),
+      ]);
+      const totalUptime = bands.reduce((sum, band) => sum + Math.max(0, Number(band?.endMs || 0) - Number(band?.startMs || 0)), 0);
+      return {
+        ...entry,
+        totalUptime,
+        bands,
+        maxStacks: Number(maxStacksByDebuffKey.get(entry.key) || entry.maxStacks || 0),
+        uptimePercent: durationMs > 0 ? (totalUptime / durationMs) * 100 : 0,
+        sources: [...(sourcesByDebuffKey.get(entry.key)?.values() || [])].sort((a, b) => {
+          if (b.casts !== a.casts) return b.casts - a.casts;
+          return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+        }),
+      };
+    })
+    .sort((a, b) => {
+      if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
+      if (b.totalUses !== a.totalUses) return b.totalUses - a.totalUses;
+      const orderDelta = Number(a.order || 0) - Number(b.order || 0);
+      if (orderDelta !== 0) return orderDelta;
+      return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
+    });
 }
 
 function collectTrackedBossDebuffMaxStacksFromEvents(events = []) {
