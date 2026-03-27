@@ -755,16 +755,16 @@ function ReportPickerSheet({
                   }}
                 >
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", minWidth: 0, maxWidth: "100%" }}>
-                    {isNewestReport && (
-                      <span style={{ ...tagStyle("success"), flexShrink: 0 }}>
-                        Newest Report
-                      </span>
-                    )}
                     <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold, minWidth: 0, flex: "1 1 180px", maxWidth: "100%", overflowWrap: "anywhere", lineHeight: 1.25 }}>
                       {raid.title || raid.reportId}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: space[2], flexWrap: "wrap", minWidth: 0, maxWidth: "100%" }}>
+                    {isNewestReport && (
+                      <span style={{ ...tagStyle("success"), maxWidth: "100%", flexShrink: 0 }}>
+                        Newest Report
+                      </span>
+                    )}
                     <span style={{ ...tagStyle(teamOption.tone), maxWidth: "100%" }}>{teamOption.shortLabel}</span>
                     {reportSpeedPercent != null && (
                       <span style={{ ...parseTagStyle(reportSpeedPercent), maxWidth: "100%" }}>
