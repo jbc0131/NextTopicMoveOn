@@ -715,10 +715,7 @@ function ReportPickerSheet({
                 <div style={{ position: "absolute", top: 10, right: 10, zIndex: 30 }} onClick={event => event.stopPropagation()}>
                     <button
                       type="button"
-                      onClick={event => {
-                        event.stopPropagation();
-                        setOpenRaidMenuId(current => (current === raid.id ? "" : raid.id));
-                      }}
+                      onClick={event => openRaidActionsMenu(event, raid.id)}
                       style={{
                         ...btnStyle("default"),
                         width: 28,
@@ -731,36 +728,6 @@ function ReportPickerSheet({
                     >
                       ...
                     </button>
-                    {openRaidMenuId === raid.id && (
-                      <RaidActionsMenu
-                        raid={raid}
-                        isAdmin={isAdmin}
-                        onOpenWcl={() => {
-                          setOpenRaidMenuId("");
-                          openWclReport(raid);
-                        }}
-                        onCopyReportUrl={() => {
-                          setOpenRaidMenuId("");
-                          copyRaidPublicUrl(raid);
-                        }}
-                        onRename={() => openRenameModal(raid)}
-                        onTag={() => openTagModal(raid)}
-                        onDeleteTag={async () => {
-                          setOpenRaidMenuId("");
-                          await mutateRaidMetadata(raid.id, {
-                            teamTag: "",
-                            title: buildAutoReportTitle({ start: raid.start, teamTag: "" }),
-                          }, "Removed report tag.");
-                        }}
-                        onReimport={() => {
-                          handleReimportRaid(raid);
-                        }}
-                        onDelete={() => {
-                          setOpenRaidMenuId("");
-                          setDeleteConfirmRaid(raid);
-                        }}
-                      />
-                    )}
                   </div>
                 <button
                   type="button"
@@ -4313,6 +4280,7 @@ function RenameReportModal({ open, value, onChange, onConfirm, onCancel }) {
 function RaidActionsMenu({
   raid,
   isAdmin = false,
+  anchor = null,
   onOpenWcl,
   onCopyReportUrl,
   onRename,
@@ -4339,12 +4307,15 @@ function RaidActionsMenu({
     cursor: "pointer",
   };
 
+  const top = Math.max(8, Math.round(Number(anchor?.bottom || 0) + 6));
+  const left = Math.max(8, Math.round(Number(anchor?.right || 0) - 180));
+
   return (
     <div
       style={{
-        position: "absolute",
-        top: 0,
-        right: 34,
+        position: "fixed",
+        top,
+        left,
         minWidth: 180,
         padding: `${space[2]}px`,
         borderRadius: radius.base,
@@ -4453,6 +4424,7 @@ export default function RpbPage() {
   const [importing, setImporting] = useState(false);
   const [teamFilter, setTeamFilter] = useState("");
   const [openRaidMenuId, setOpenRaidMenuId] = useState("");
+  const [openRaidMenuAnchor, setOpenRaidMenuAnchor] = useState(null);
   const [tagModalState, setTagModalState] = useState({ open: false, raid: null, value: "" });
   const [importTagPrompt, setImportTagPrompt] = useState({ open: false, raid: null, value: "", resolve: null });
   const [importWebhookPrompt, setImportWebhookPrompt] = useState({ open: false, raidTitle: "", resolve: null });
@@ -4523,11 +4495,17 @@ export default function RpbPage() {
 
     function handleWindowClick() {
       setOpenRaidMenuId("");
+      setOpenRaidMenuAnchor(null);
     }
 
     window.addEventListener("click", handleWindowClick);
     return () => window.removeEventListener("click", handleWindowClick);
   }, [openRaidMenuId]);
+
+  const openRaidMenuRaid = useMemo(() => {
+    if (!openRaidMenuId) return null;
+    return raids.find(raid => raid.id === openRaidMenuId) || null;
+  }, [openRaidMenuId, raids]);
 
   useEffect(() => {
     let cancelled = false;
@@ -4658,6 +4636,25 @@ export default function RpbPage() {
     navigate(`/rpb/${targetRaidId}`);
   }
 
+  function openRaidActionsMenu(event, targetRaidId) {
+    event.stopPropagation();
+    const nextId = String(targetRaidId || "");
+    const buttonRect = event.currentTarget?.getBoundingClientRect?.() || null;
+    setOpenRaidMenuId(current => {
+      if (current === nextId) {
+        setOpenRaidMenuAnchor(null);
+        return "";
+      }
+      setOpenRaidMenuAnchor(buttonRect ? {
+        top: buttonRect.top,
+        right: buttonRect.right,
+        bottom: buttonRect.bottom,
+        left: buttonRect.left,
+      } : null);
+      return nextId;
+    });
+  }
+
   function buildWclReportUrl(raid) {
     return raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
   }
@@ -4718,10 +4715,7 @@ export default function RpbPage() {
       >
         <div style={{ position: "absolute", top: isLarge ? 8 : 6, right: isLarge ? 8 : 6, zIndex: 30 }} onClick={event => event.stopPropagation()}>
             <button
-              onClick={event => {
-                event.stopPropagation();
-                setOpenRaidMenuId(current => (current === raid.id ? "" : raid.id));
-              }}
+              onClick={event => openRaidActionsMenu(event, raid.id)}
               style={{
                 ...btnStyle("default"),
                 width: 28,
@@ -4735,36 +4729,6 @@ export default function RpbPage() {
             >
               ...
             </button>
-            {openRaidMenuId === raid.id && (
-              <RaidActionsMenu
-                raid={raid}
-                isAdmin={isAdmin}
-                onOpenWcl={() => {
-                  setOpenRaidMenuId("");
-                  openWclReport(raid);
-                }}
-                onCopyReportUrl={() => {
-                  setOpenRaidMenuId("");
-                  copyRaidPublicUrl(raid);
-                }}
-                onRename={() => openRenameModal(raid)}
-                onTag={() => openTagModal(raid)}
-                onDeleteTag={async () => {
-                  setOpenRaidMenuId("");
-                  await mutateRaidMetadata(raid.id, {
-                    teamTag: "",
-                    title: buildAutoReportTitle({ start: raid.start, teamTag: "" }),
-                  }, "Removed report tag.");
-                }}
-                onReimport={() => {
-                  handleReimportRaid(raid);
-                }}
-                onDelete={() => {
-                  setOpenRaidMenuId("");
-                  setDeleteConfirmRaid(raid);
-                }}
-              />
-            )}
           </div>
 
         <button
@@ -5838,6 +5802,51 @@ export default function RpbPage() {
         progress={importProgress}
         onClose={() => setImportProgress(prev => ({ ...prev, open: false }))}
       />
+      {openRaidMenuRaid && openRaidMenuAnchor && (
+        <RaidActionsMenu
+          raid={openRaidMenuRaid}
+          anchor={openRaidMenuAnchor}
+          isAdmin={isAdmin}
+          onOpenWcl={() => {
+            setOpenRaidMenuId("");
+            setOpenRaidMenuAnchor(null);
+            openWclReport(openRaidMenuRaid);
+          }}
+          onCopyReportUrl={() => {
+            setOpenRaidMenuId("");
+            setOpenRaidMenuAnchor(null);
+            copyRaidPublicUrl(openRaidMenuRaid);
+          }}
+          onRename={() => {
+            setOpenRaidMenuId("");
+            setOpenRaidMenuAnchor(null);
+            openRenameModal(openRaidMenuRaid);
+          }}
+          onTag={() => {
+            setOpenRaidMenuId("");
+            setOpenRaidMenuAnchor(null);
+            openTagModal(openRaidMenuRaid);
+          }}
+          onDeleteTag={async () => {
+            setOpenRaidMenuId("");
+            setOpenRaidMenuAnchor(null);
+            await mutateRaidMetadata(openRaidMenuRaid.id, {
+              teamTag: "",
+              title: buildAutoReportTitle({ start: openRaidMenuRaid.start, teamTag: "" }),
+            }, "Removed report tag.");
+          }}
+          onReimport={() => {
+            setOpenRaidMenuId("");
+            setOpenRaidMenuAnchor(null);
+            handleReimportRaid(openRaidMenuRaid);
+          }}
+          onDelete={() => {
+            setOpenRaidMenuId("");
+            setOpenRaidMenuAnchor(null);
+            setDeleteConfirmRaid(openRaidMenuRaid);
+          }}
+        />
+      )}
       <TeamTagModal
         open={importTagPrompt.open}
         title={`Tag ${importTagPrompt.raid?.title || "Imported Report"}`}
