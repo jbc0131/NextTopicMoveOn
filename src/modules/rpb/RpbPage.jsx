@@ -33,12 +33,13 @@ const TRACKED_DEBUFF_ROWS = [
   { key: "curse-of-weakness", label: "Curse of Weakness", className: "Warlock", order: 0 },
   { key: "curse-of-recklessness", label: "Curse of Recklessness", className: "Warlock", order: 1 },
   { key: "curse-of-the-elements", label: "Curse of the Elements", className: "Warlock", order: 2 },
-  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", className: "Warrior", order: 3 },
-  { key: "demoralizing-shout", label: "Demoralizing Shout", className: "Warrior", order: 4 },
-  { key: "hunters-mark", label: "Hunter's Mark", className: "Hunter", order: 5 },
-  { key: "expose-weakness", label: "Expose Weakness", className: "Hunter", order: 6 },
-  { key: "faerie-fire", label: "Faerie Fire", className: "Druid", order: 7 },
-  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", className: "Paladin", order: 8 },
+  { key: "blood-frenzy-estimate", label: "Blood Frenzy", className: "Warrior", order: 3, estimated: true },
+  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", className: "Warrior", order: 4 },
+  { key: "demoralizing-shout", label: "Demoralizing Shout", className: "Warrior", order: 5 },
+  { key: "hunters-mark", label: "Hunter's Mark", className: "Hunter", order: 6 },
+  { key: "expose-weakness", label: "Expose Weakness", className: "Hunter", order: 7 },
+  { key: "faerie-fire", label: "Faerie Fire", className: "Druid", order: 8 },
+  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", className: "Paladin", order: 9 },
 ];
 const SUNDER_BAR_COLOR = "#4fb26f";
 const ARMOR_STACK_MARKER_COUNT = 5;
@@ -2636,12 +2637,16 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
       label: entry.label,
       preferredClass: entry.className,
       order: entry.order,
+      estimated: Boolean(entry.estimated),
       totalUptime: 0,
       totalPossibleUptime: 0,
       casts: 0,
       maxStacks: 0,
       timelineBands: [],
       sources: new Map(),
+      estimatedDamage: 0,
+      estimatedDps: 0,
+      qualifyingPhysicalDamage: 0,
     }])
   );
   let totalEncounterDurationMs = 0;
@@ -2686,20 +2691,28 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
         label: debuff?.label || "Unknown Debuff",
         preferredClass: debuff?.preferredClass || "",
         order: Number(debuff?.order || 99),
+        estimated: Boolean(debuff?.estimated),
         totalUptime: 0,
         totalPossibleUptime: 0,
         casts: 0,
         maxStacks: 0,
         timelineBands: [],
         sources: new Map(),
+        estimatedDamage: 0,
+        estimatedDps: 0,
+        qualifyingPhysicalDamage: 0,
       };
 
       existing.label = debuff?.label || existing.label;
       existing.preferredClass = debuff?.preferredClass || existing.preferredClass;
       existing.order = Number.isFinite(Number(debuff?.order)) ? Number(debuff.order) : existing.order;
+      existing.estimated = Boolean(debuff?.estimated || existing.estimated);
       existing.totalUptime += Number(debuff?.totalUptime || 0);
       existing.casts += Number(debuff?.totalUses || 0);
       existing.maxStacks = Math.max(Number(existing.maxStacks || 0), Number(debuff?.maxStacks || 0));
+      existing.estimatedDamage += Number(debuff?.estimatedDamage || 0);
+      existing.estimatedDps += Number(debuff?.estimatedDps || 0);
+      existing.qualifyingPhysicalDamage += Number(debuff?.qualifyingPhysicalDamage || 0);
       existing.timelineBands.push(...(debuff?.bands || []).map(band => ({
         startMs: fightOffsetMs + Number(band?.startMs || 0),
         endMs: fightOffsetMs + Number(band?.endMs || 0),
@@ -2727,11 +2740,15 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
       label: entry.label,
       preferredClass: entry.preferredClass,
       order: entry.order,
+      estimated: Boolean(entry.estimated),
       totalUptime: entry.totalUptime,
       totalPossibleUptime: entry.totalPossibleUptime,
       uptimePercent: entry.totalPossibleUptime > 0 ? Math.min(100, (entry.totalUptime / entry.totalPossibleUptime) * 100) : 0,
       casts: entry.casts,
       maxStacks: Number(entry.maxStacks || 0),
+      estimatedDamage: Number(entry.estimatedDamage || 0),
+      estimatedDps: Number(entry.estimatedDps || 0),
+      qualifyingPhysicalDamage: Number(entry.qualifyingPhysicalDamage || 0),
       timelineBands: mergeTimelineBands(entry.timelineBands),
       totalEncounterDurationMs,
       sources: [...entry.sources.values()].sort((a, b) => {
@@ -6291,6 +6308,7 @@ export default function RpbPage() {
                           const isExpanded = expandedDebuffKeys.has(entry.key);
                           const timelineTickMarks = buildTimelineTickMarks(entry.totalEncounterDurationMs);
                           const isArmorRow = entry.key === "armor-reduction";
+                          const isBloodFrenzyEstimate = entry.key === "blood-frenzy-estimate";
                           const armorStackMarkers = isArmorRow ? buildArmorStackMarkers(entry.maxStacks, entry.sources) : [];
                           return (
                             <div
@@ -6327,12 +6345,25 @@ export default function RpbPage() {
                                     )}
                                   </span>
                                   <span style={{ minWidth: 112, textAlign: "right", display: "flex", flexDirection: "column", gap: 4 }}>
-                                    <span style={{ color: "#d7ffdf", fontWeight: fontWeight.bold }}>
-                                      {`${entry.uptimePercent.toFixed(1)}% uptime`}
-                                    </span>
-                                    <span style={{ fontSize: fontSize.xs, color: text.secondary }}>
-                                      {`${entry.casts} cast${entry.casts === 1 ? "" : "s"}`}
-                                    </span>
+                                    {isBloodFrenzyEstimate ? (
+                                      <>
+                                        <span style={{ color: "#d7ffdf", fontWeight: fontWeight.bold }}>
+                                          {`${Math.round(Number(entry.estimatedDamage || 0)).toLocaleString()} (${Number(entry.estimatedDps || 0).toFixed(1)} DPS)`}
+                                        </span>
+                                        <span style={{ fontSize: fontSize.xs, color: text.secondary }}>
+                                          {`${entry.uptimePercent.toFixed(1)}% est. uptime`}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span style={{ color: "#d7ffdf", fontWeight: fontWeight.bold }}>
+                                          {`${entry.uptimePercent.toFixed(1)}% uptime`}
+                                        </span>
+                                        <span style={{ fontSize: fontSize.xs, color: text.secondary }}>
+                                          {`${entry.casts} cast${entry.casts === 1 ? "" : "s"}`}
+                                        </span>
+                                      </>
+                                    )}
                                   </span>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
@@ -6394,8 +6425,11 @@ export default function RpbPage() {
                                     </div>
                                   </div>
                                   <div style={{ minWidth: 80, textAlign: "right" }}>
-                                    {!isArmorRow && (
+                                    {!isArmorRow && !isBloodFrenzyEstimate && (
                                       <span style={{ fontSize: fontSize.xs, color: text.muted }}>Coverage</span>
+                                    )}
+                                    {isBloodFrenzyEstimate && (
+                                      <span style={{ fontSize: fontSize.xs, color: text.muted }}>Estimate</span>
                                     )}
                                   </div>
                                   <span style={{ color: text.muted, fontSize: fontSize.base, lineHeight: 1 }}>
@@ -6421,15 +6455,29 @@ export default function RpbPage() {
                               </button>
                               {isExpanded && (
                                 <div style={{ padding: `0 ${space[3]}px ${space[3]}px`, display: "flex", flexDirection: "column", gap: space[2] }}>
-                                  <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                                    Caster Breakdown
-                                  </div>
-                                  {entry.sources.length === 0 && (
-                                    <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                                      No source cast data was returned for this debuff.
+                                  {isBloodFrenzyEstimate ? (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+                                      <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                        Estimate Details
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.primary }}>
+                                        {`Estimated from physical damage dealt while Deep Wounds or Rend was active on the target.`}
+                                      </div>
+                                      <div style={{ fontSize: fontSize.sm, color: text.secondary }}>
+                                        {`Qualifying Physical Damage: ${Math.round(Number(entry.qualifyingPhysicalDamage || 0)).toLocaleString()}`}
+                                      </div>
                                     </div>
-                                  )}
-                                  {entry.sources.length > 0 && (
+                                  ) : (
+                                    <>
+                                      <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                        Caster Breakdown
+                                      </div>
+                                      {entry.sources.length === 0 && (
+                                        <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                                          No source cast data was returned for this debuff.
+                                        </div>
+                                      )}
+                                      {entry.sources.length > 0 && (
                                     <>
                                       <div style={{
                                         display: "grid",
@@ -6466,6 +6514,8 @@ export default function RpbPage() {
                                           </div>
                                         ))}
                                       </div>
+                                    </>
+                                      )}
                                     </>
                                   )}
                                 </div>

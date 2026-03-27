@@ -29,16 +29,19 @@ const TRACKED_BOSS_DEBUFFS = [
   { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 0 },
   { key: "curse-of-recklessness", label: "Curse of Recklessness", aliases: ["curse of recklessness"], spellIds: new Set(["27226"]), preferredClass: "Warlock", order: 1 },
   { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 2 },
-  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 3 },
-  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]), preferredClass: "Warrior", order: 4 },
-  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]), preferredClass: "Hunter", order: 5 },
-  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]), preferredClass: "Hunter", order: 6 },
-  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["26993", "27011"]), preferredClass: "Druid", order: 7 },
-  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", aliases: ["judgement of wisdom"], spellIds: new Set(["27164"]), preferredClass: "Paladin", order: 8 },
+  { key: "blood-frenzy-estimate", label: "Blood Frenzy", aliases: [], spellIds: new Set(), preferredClass: "Warrior", order: 3, estimated: true },
+  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 4 },
+  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]), preferredClass: "Warrior", order: 5 },
+  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]), preferredClass: "Hunter", order: 6 },
+  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]), preferredClass: "Hunter", order: 7 },
+  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["26993", "27011"]), preferredClass: "Druid", order: 8 },
+  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", aliases: ["judgement of wisdom"], spellIds: new Set(["27164"]), preferredClass: "Paladin", order: 9 },
 ];
 const TRACKED_BOSS_DEBUFF_SPELL_IDS = new Set(
   TRACKED_BOSS_DEBUFFS.flatMap(entry => [...(entry.spellIds || [])])
 );
+const BLOOD_FRENZY_PROXY_DEBUFF_IDS = ["12721", "25208"];
+const BLOOD_FRENZY_ESTIMATE_MULTIPLIER = 0.038461538461538464;
 const RESOURCE_RECOVERY_SPELL_IDS = ["28499", "27869", "16666"];
 const RESOURCE_RECOVERY_ABILITY_IDS = new Set(RESOURCE_RECOVERY_SPELL_IDS);
 const MANA_POTION_ABILITY_IDS = new Set(["28499"]);
@@ -1160,6 +1163,21 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
       eventBandsByDebuffKey,
       durationMs
     );
+    const bloodFrenzyEstimate = await estimateBloodFrenzyContribution(
+      reportId,
+      fight,
+      apiKeyOverride,
+    );
+    if (bloodFrenzyEstimate) {
+      mergedDebuffs.push(bloodFrenzyEstimate);
+      mergedDebuffs.sort((a, b) => {
+        const orderDelta = Number(a.order || 99) - Number(b.order || 99);
+        if (orderDelta !== 0) return orderDelta;
+        if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
+        if (b.totalUses !== a.totalUses) return b.totalUses - a.totalUses;
+        return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
+      });
+    }
 
     snapshots.push({
       fightId: String(fight.id),
@@ -1173,6 +1191,167 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
   }
 
   return { snapshots };
+}
+
+function buildTargetKeyFromEvent(event = {}) {
+  return String(
+    event?.targetID
+    ?? event?.targetId
+    ?? event?.target?.id
+    ?? event?.targetInstance
+    ?? event?.targetName
+    ?? "unknown-target"
+  );
+}
+
+function mergeAbsoluteWindows(windows = []) {
+  const normalized = (windows || [])
+    .map(window => ({
+      start: Number(window?.start || 0),
+      end: Number(window?.end || 0),
+    }))
+    .filter(window => window.end > window.start)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const merged = [];
+  for (const window of normalized) {
+    const previous = merged[merged.length - 1];
+    if (!previous || window.start > previous.end) {
+      merged.push({ ...window });
+      continue;
+    }
+    previous.end = Math.max(previous.end, window.end);
+  }
+
+  return merged;
+}
+
+function buildBloodFrenzyProxyWindows(events = [], fightStartMs = 0, fightEndMs = 0) {
+  const activeByTarget = new Map();
+  const windowsByTarget = new Map();
+
+  function flushWindow(targetKey, endTimestamp) {
+    if (!activeByTarget.has(targetKey)) return;
+    const startTimestamp = Number(activeByTarget.get(targetKey) || 0);
+    const end = Math.max(startTimestamp, Math.min(Number(fightEndMs || 0), Number(endTimestamp || 0)));
+    if (end > startTimestamp) {
+      const windows = windowsByTarget.get(targetKey) || [];
+      windows.push({ start: startTimestamp, end });
+      windowsByTarget.set(targetKey, windows);
+    }
+    activeByTarget.delete(targetKey);
+  }
+
+  for (const event of events) {
+    const spellId = String(event?.abilityGameID ?? event?.ability?.guid ?? event?.guid ?? "").trim();
+    if (!BLOOD_FRENZY_PROXY_DEBUFF_IDS.includes(spellId)) continue;
+    const targetKey = buildTargetKeyFromEvent(event);
+    const eventType = String(event?.type || "").toLowerCase();
+    const timestamp = Number(event?.timestamp || 0);
+
+    if (eventType === "applydebuff" || eventType === "refreshdebuff" || eventType === "applydebuffstack" || eventType === "applydebuffdose") {
+      if (!activeByTarget.has(targetKey)) {
+        activeByTarget.set(targetKey, timestamp);
+      }
+      continue;
+    }
+
+    if (eventType === "removedebuff" || eventType === "removedebuffstack" || eventType === "removedebuffdose") {
+      flushWindow(targetKey, timestamp);
+    }
+  }
+
+  for (const [targetKey] of activeByTarget.entries()) {
+    flushWindow(targetKey, fightEndMs);
+  }
+
+  return new Map(
+    [...windowsByTarget.entries()].map(([targetKey, windows]) => [targetKey, mergeAbsoluteWindows(windows)])
+  );
+}
+
+function isTimestampWithinWindows(timestamp = 0, windows = []) {
+  const numericTimestamp = Number(timestamp || 0);
+  for (const window of windows || []) {
+    if (numericTimestamp >= Number(window?.start || 0) && numericTimestamp <= Number(window?.end || 0)) return true;
+  }
+  return false;
+}
+
+async function estimateBloodFrenzyContribution(reportId, fight, apiKeyOverride = "") {
+  const start = Number(fight?.start_time ?? 0);
+  const end = Number(fight?.end_time ?? 0);
+  const durationMs = getDurationMs(start, end);
+  if (durationMs <= 0) return null;
+
+  let proxyEvents = [];
+  let summaryEvents = [];
+
+  try {
+    proxyEvents = await fetchAllEventPages(`/report/events/debuffs/${reportId}`, {
+      start,
+      end,
+      hostility: 1,
+      filter: `ability.id IN (${BLOOD_FRENZY_PROXY_DEBUFF_IDS.join(",")})`,
+    }, apiKeyOverride);
+    summaryEvents = await fetchAllEventPages(`/report/events/summary/${reportId}`, {
+      start,
+      end,
+    }, apiKeyOverride);
+  } catch (error) {
+    console.warn("RPB blood frenzy estimate lookup failed", {
+      reportId,
+      fightId: fight?.id,
+      fightName: fight?.name,
+      error: error?.message || String(error),
+    });
+    return null;
+  }
+
+  const proxyWindowsByTarget = buildBloodFrenzyProxyWindows(proxyEvents, start, end);
+  const relativeBands = mergeBands(
+    [...proxyWindowsByTarget.values()]
+      .flatMap(windows => windows)
+      .map(window => ({
+        startMs: Math.max(0, Number(window.start || 0) - start),
+        endMs: Math.max(0, Number(window.end || 0) - start),
+      }))
+  );
+  const totalUptime = relativeBands.reduce((sum, band) => sum + Math.max(0, Number(band.endMs || 0) - Number(band.startMs || 0)), 0);
+
+  let qualifyingPhysicalDamage = 0;
+  let qualifyingEventCount = 0;
+  for (const event of summaryEvents || []) {
+    if (event?.type !== "damage") continue;
+    if (!event?.sourceIsFriendly || event?.targetIsFriendly) continue;
+    if (Number(event?.ability?.type || 0) !== 1) continue;
+    const targetWindows = proxyWindowsByTarget.get(buildTargetKeyFromEvent(event)) || [];
+    if (!isTimestampWithinWindows(event?.timestamp, targetWindows)) continue;
+
+    qualifyingPhysicalDamage += Math.max(0, Number(event?.amount || 0)) + Math.max(0, Number(event?.absorb || 0));
+    qualifyingEventCount += 1;
+  }
+
+  const estimatedBonusDamage = qualifyingPhysicalDamage * BLOOD_FRENZY_ESTIMATE_MULTIPLIER;
+  const estimatedBonusDps = durationMs > 0 ? estimatedBonusDamage / (durationMs / 1000) : 0;
+
+  return {
+    key: "blood-frenzy-estimate",
+    label: "Blood Frenzy",
+    preferredClass: "Warrior",
+    order: 3,
+    guid: null,
+    totalUses: qualifyingEventCount,
+    totalUptime,
+    bands: relativeBands,
+    maxStacks: 0,
+    uptimePercent: durationMs > 0 ? (totalUptime / durationMs) * 100 : 0,
+    estimatedDamage: estimatedBonusDamage,
+    estimatedDps: estimatedBonusDps,
+    qualifyingPhysicalDamage,
+    estimated: true,
+    sources: [],
+  };
 }
 
 async function fetchAllEventPages(path, params = {}, apiKeyOverride = "") {
