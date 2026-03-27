@@ -57,6 +57,7 @@ const UNDER_DEVELOPMENT_BADGE_STYLE = {
 };
 const RAID_ANALYTICS_FILTERS_BY_SLICE = {
   damage: ["missing-enchants", "engineering"],
+  potions: ["potion-issues"],
   consumables: ["consumables"],
   healing: ["hearthstone"],
 };
@@ -2768,12 +2769,11 @@ function buildPotionSliceEntries(players, analyticsByPlayerId, filterIds = null)
     if (filterIds && !filterIds.has(String(player.id))) continue;
 
     const totalEvents = Number(analytics.potionEventCount || 0);
-    if (totalEvents <= 0) continue;
-
     const prepotCount = Number(analytics.prepotCount || 0);
     const combatCount = Number(analytics.combatPotionCount || 0);
     const recoveryCount = Number(analytics.recoveryConsumableCount || 0);
     const usedPotionCount = Number(analytics.usedPotionCount || 0);
+    const hasPotionIssue = combatCount <= 0 || recoveryCount <= 0;
     const averagePrepullOverlapMs = Number(analytics.averagePrepullOverlapMs || 0);
     const averagePrepullDurationMs = Number(analytics.averagePrepullDurationMs || 0);
     const averagePrepullOverlapRatio = averagePrepullDurationMs > 0
@@ -2789,6 +2789,7 @@ function buildPotionSliceEntries(players, analyticsByPlayerId, filterIds = null)
       combatCount,
       recoveryCount,
       usedPotionCount,
+      hasPotionIssue,
       averagePrepullOverlapMs,
       averagePrepullDurationMs,
       averagePrepullOverlapRatio,
@@ -2796,6 +2797,7 @@ function buildPotionSliceEntries(players, analyticsByPlayerId, filterIds = null)
   }
 
   return rows.sort((a, b) => {
+    if (a.hasPotionIssue !== b.hasPotionIssue) return a.hasPotionIssue ? -1 : 1;
     if (b.prepotCount !== a.prepotCount) return b.prepotCount - a.prepotCount;
     if (b.total !== a.total) return b.total - a.total;
     if (b.averagePrepullOverlapRatio !== a.averagePrepullOverlapRatio) {
@@ -4763,6 +4765,36 @@ export default function RpbPage() {
       );
     }
 
+    if (sliceType === "potions") {
+      return (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setRaidAnalyticsFilter("")}
+            disabled={!hasTabScopedAnalyticsFilter}
+            style={{
+              ...btnStyle(hasTabScopedAnalyticsFilter ? "danger" : "default", false),
+              height: 32,
+              opacity: hasTabScopedAnalyticsFilter ? 1 : 0.65,
+              background: hasTabScopedAnalyticsFilter ? "rgba(205, 78, 78, 0.24)" : "transparent",
+              borderColor: hasTabScopedAnalyticsFilter ? "rgba(255, 134, 134, 0.98)" : border.subtle,
+              color: hasTabScopedAnalyticsFilter ? "#ffdede" : text.secondary,
+              boxShadow: hasTabScopedAnalyticsFilter ? "0 0 0 2px rgba(255, 134, 134, 0.22)" : "none",
+            }}
+          >
+            Clear Filter
+          </button>
+          <MetricTag
+            label="Potion Issues"
+            value={(filteredRaidAnalytics.playersWithPotionIssues || []).length}
+            tone="warning"
+            active={raidAnalyticsFilter === "potion-issues"}
+            onClick={() => setRaidAnalyticsFilter(current => current === "potion-issues" ? "" : "potion-issues")}
+          />
+        </div>
+      );
+    }
+
     if (sliceType === "healing") {
       return (
         <div style={{ display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
@@ -4980,6 +5012,7 @@ export default function RpbPage() {
     const playersWithEngineeringDamage = [];
     const playersWithOilDamage = [];
     const playersUsingDrums = [];
+    const playersWithPotionIssues = [];
     const playersWithConsumableIssues = [];
     const playersUsingHearthstone = [];
 
@@ -5032,6 +5065,19 @@ export default function RpbPage() {
         });
       }
 
+      const combatPotionCount = Number(analytics.combatPotionCount || 0);
+      const recoveryConsumableCount = Number(analytics.recoveryConsumableCount || 0);
+      if (combatPotionCount <= 0 || recoveryConsumableCount <= 0) {
+        playersWithPotionIssues.push({
+          playerId: String(player.id),
+          name: player.name,
+          type: player.type,
+          combatPotionCount,
+          recoveryConsumableCount,
+          total: Number(combatPotionCount <= 0) + Number(recoveryConsumableCount <= 0),
+        });
+      }
+
       const drumsCastCount = Number(analytics.drumsCastCount || 0);
       if (drumsCastCount > 0) {
         playersUsingDrums.push({
@@ -5058,6 +5104,10 @@ export default function RpbPage() {
       engineeringDamageTaken: playersWithEngineeringDamage.sort((a, b) => b.total - a.total),
       oilOfImmolationDamageTaken: playersWithOilDamage.sort((a, b) => b.total - a.total),
       playersUsingDrums: playersUsingDrums.sort((a, b) => b.total - a.total),
+      playersWithPotionIssues: playersWithPotionIssues.sort((a, b) => {
+        if (b.total !== a.total) return b.total - a.total;
+        return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+      }),
       playersWithConsumableIssues: playersWithConsumableIssues.sort((a, b) => b.total - a.total),
       playersUsingHearthstone: playersUsingHearthstone.sort((a, b) => b.total - a.total),
     };
@@ -5080,6 +5130,8 @@ export default function RpbPage() {
         return new Set((filteredRaidAnalytics.playersWithSuboptimalWeaponEnchants || raidAnalytics.playersWithSuboptimalWeaponEnchants || []).map(entry => String(entry.playerId)));
       case "consumables":
         return new Set((filteredRaidAnalytics.playersWithConsumableIssues || raidAnalytics.playersWithConsumableIssues || []).map(entry => String(entry.playerId)));
+      case "potion-issues":
+        return new Set((filteredRaidAnalytics.playersWithPotionIssues || []).map(entry => String(entry.playerId)));
       case "hearthstone":
         return new Set((filteredRaidAnalytics.playersUsingHearthstone || raidAnalytics.playersUsingHearthstone || []).map(entry => String(entry.playerId)));
       default:
