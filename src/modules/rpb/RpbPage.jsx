@@ -794,19 +794,22 @@ function PlayerDetailPanel({
   itemMetaById,
   closeSelectedPlayer,
 }) {
-  const deathGridColumns = isMobile
+  const detailPanelRef = useRef(null);
+  const [detailPanelWidth, setDetailPanelWidth] = useState(0);
+  const compactDetail = isMobile || (detailPanelWidth > 0 && detailPanelWidth < 760);
+  const deathGridColumns = compactDetail
     ? "minmax(72px, 88px) minmax(0, 1fr)"
     : "72px 72px minmax(120px, 1.25fr) 96px 72px minmax(120px, 1fr)";
-  const utilityGridColumns = isMobile
+  const utilityGridColumns = compactDetail
     ? "minmax(0, 1fr) 72px 88px"
     : "minmax(0, 1.3fr) 84px 112px 96px";
-  const consumableGridColumns = isMobile
+  const consumableGridColumns = compactDetail
     ? "minmax(0, 1fr) minmax(0, 1fr)"
     : "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr) 92px";
-  const potionGridColumns = isMobile
+  const potionGridColumns = compactDetail
     ? "minmax(0, 1fr)"
     : "minmax(148px, 0.9fr) minmax(180px, 1.4fr) 92px minmax(120px, 0.9fr) 96px";
-  const breakdownGridColumns = isMobile
+  const breakdownGridColumns = compactDetail
     ? "minmax(0, 1.3fr) minmax(88px, 0.7fr) 52px"
     : "minmax(180px, 1.8fr) minmax(110px, 0.9fr) 64px 64px 112px minmax(96px, 1fr)";
   const [mobilePreview, setMobilePreview] = useState(null);
@@ -924,8 +927,22 @@ function PlayerDetailPanel({
     });
   };
 
+  useEffect(() => {
+    const panel = detailPanelRef.current;
+    if (!panel || typeof ResizeObserver === "undefined") return undefined;
+
+    const updateWidth = () => {
+      setDetailPanelWidth(panel.getBoundingClientRect().width || 0);
+    };
+
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div style={{
+    <div ref={detailPanelRef} style={{
       ...panelStyle,
       minWidth: 0,
       overflow: "hidden",
@@ -1001,7 +1018,7 @@ function PlayerDetailPanel({
                       {row.timestampLabel || formatDuration(row.timestampMs)}
                     </div>
                   </div>
-                  {isMobile ? (
+                  {compactDetail ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                       {row.events.map((event, index) => (
                         <div key={`${row.key}-event-mobile-${index}`} style={{ padding: `${space[2]}px 0`, borderTop: index === 0 ? "none" : `1px solid ${border.subtle}` }}>
@@ -1020,7 +1037,7 @@ function PlayerDetailPanel({
                             {event?.abilityGuid ? (
                               <WowheadSpellLink
                                 spellId={event.abilityGuid}
-                                onPreview={isMobile ? () => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event)) : null}
+                                onPreview={compactDetail ? () => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event)) : null}
                               >
                                 {getAbilityName(event, "Unknown")}
                               </WowheadSpellLink>
@@ -1058,7 +1075,7 @@ function PlayerDetailPanel({
                               {event?.abilityGuid ? (
                                 <WowheadSpellLink
                                   spellId={event.abilityGuid}
-                                  onPreview={isMobile ? () => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event)) : null}
+                                  onPreview={compactDetail ? () => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event)) : null}
                                 >
                                   {getAbilityName(event, "Unknown")}
                                 </WowheadSpellLink>
@@ -1090,7 +1107,7 @@ function PlayerDetailPanel({
               Drums usage by boss fight
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-              {(selectedPlayerAnalytics?.drumsCoverage || []).length > 0 && !isMobile && (
+              {(selectedPlayerAnalytics?.drumsCoverage || []).length > 0 && !compactDetail && (
                 <div
                   style={{
                     display: "grid",
@@ -1120,7 +1137,7 @@ function PlayerDetailPanel({
                   key={`drum-row-${row.fightId}`}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : utilityGridColumns,
+                      gridTemplateColumns: compactDetail ? "minmax(0, 1fr)" : utilityGridColumns,
                     gap: space[2],
                     padding: space[3],
                     border: `1px solid ${border.subtle}`,
@@ -1137,7 +1154,7 @@ function PlayerDetailPanel({
                       </div>
                     )}
                   </div>
-                  {isMobile ? (
+                  {compactDetail ? (
                     <div style={{ display: "flex", gap: space[3], flexWrap: "wrap", fontSize: fontSize.sm }}>
                       <span style={{ color: "#d6e7ff", fontWeight: fontWeight.semibold }}>{row.casts} casts</span>
                       <span style={{ color: "#d6e7ff", fontWeight: fontWeight.semibold }}>{formatMetricValue(row.affectedTargets)} affected</span>
@@ -1168,7 +1185,7 @@ function PlayerDetailPanel({
               Consumable coverage by boss fight
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-              {(selectedPlayerAnalytics?.consumableCoverage || []).length > 0 && !isMobile && (
+              {(selectedPlayerAnalytics?.consumableCoverage || []).length > 0 && !compactDetail && (
                 <div
                   style={{
                     display: "grid",
@@ -1201,7 +1218,7 @@ function PlayerDetailPanel({
                     key={`consumable-row-${row.fightId}`}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : consumableGridColumns,
+                      gridTemplateColumns: compactDetail ? "minmax(0, 1fr)" : consumableGridColumns,
                       gap: space[2],
                       padding: space[3],
                       border: `1px solid ${border.subtle}`,
@@ -1211,7 +1228,7 @@ function PlayerDetailPanel({
                     }}
                   >
                     <div style={{ fontSize: fontSize.sm, color: text.primary }}>{row.fightName}</div>
-                    {isMobile ? (
+                    {compactDetail ? (
                       <>
                         <div style={{ fontSize: fontSize.sm, color: row.hasScroll ? "#d7ffdf" : "#ffd5d5", fontWeight: fontWeight.semibold, overflowWrap: "anywhere" }}>
                           {`Scrolls: ${formatAuraList(row.scrollNames)}`}
@@ -1269,7 +1286,7 @@ function PlayerDetailPanel({
                   <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: text.primary }}>
                     {group.label}
                   </div>
-                  {!isMobile && (
+                  {!compactDetail && (
                     <div
                       style={{
                         display: "grid",
@@ -1303,7 +1320,7 @@ function PlayerDetailPanel({
                         key={row.key}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : potionGridColumns,
+                          gridTemplateColumns: compactDetail ? "minmax(0, 1fr)" : potionGridColumns,
                           gap: space[2],
                           padding: space[3],
                           border: `1px solid ${border.subtle}`,
@@ -1312,7 +1329,7 @@ function PlayerDetailPanel({
                           alignItems: "center",
                         }}
                       >
-                        {isMobile ? (
+                        {compactDetail ? (
                           <>
                             <div style={{ display: "flex", justifyContent: "space-between", gap: space[2], alignItems: "center", flexWrap: "wrap" }}>
                               <span style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
@@ -1326,7 +1343,7 @@ function PlayerDetailPanel({
                               {row.spellId ? (
                                 <WowheadSpellLink
                                   spellId={row.spellId}
-                                  onPreview={isMobile ? () => openSpellPreview(row.spellId, spellTitle, row.fightName) : null}
+                                  onPreview={compactDetail ? () => openSpellPreview(row.spellId, spellTitle, row.fightName) : null}
                                 >
                                   {spellTitle}
                                 </WowheadSpellLink>
@@ -1352,7 +1369,7 @@ function PlayerDetailPanel({
                               {row.spellId ? (
                                 <WowheadSpellLink
                                   spellId={row.spellId}
-                                  onPreview={isMobile ? () => openSpellPreview(row.spellId, spellTitle, row.fightName) : null}
+                                  onPreview={compactDetail ? () => openSpellPreview(row.spellId, spellTitle, row.fightName) : null}
                                 >
                                   {spellTitle}
                                 </WowheadSpellLink>
@@ -1391,7 +1408,7 @@ function PlayerDetailPanel({
               )}
               {(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-                  {isMobile ? (
+                  {compactDetail ? (
                     (sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
                       <div
                         key={`${sliceType}-${ability.key}`}
@@ -1459,7 +1476,7 @@ function PlayerDetailPanel({
                       <div>{sliceType === "healing" ? "Overheal" : ""}</div>
                     </div>
                   )}
-                  {!isMobile && (sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
+                  {!compactDetail && (sliceType === "healing" ? visiblePlayerHealingBreakdown : visiblePlayerDamageBreakdown).map(ability => (
                     <div
                       key={`${sliceType}-${ability.key}`}
                       style={{
@@ -1514,7 +1531,7 @@ function PlayerDetailPanel({
             )}
             {gearIssueRows.length > 0 && (
               <>
-                {!isMobile && (
+                {!compactDetail && (
                   <div
                     style={{
                       display: "grid",
@@ -1538,7 +1555,7 @@ function PlayerDetailPanel({
                     key={row.key}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "minmax(180px, 1fr) minmax(180px, 1.2fr) 120px",
+                      gridTemplateColumns: compactDetail ? "minmax(0, 1fr)" : "minmax(180px, 1fr) minmax(180px, 1.2fr) 120px",
                       gap: space[2],
                       padding: space[3],
                       border: `1px solid ${border.subtle}`,
@@ -1553,7 +1570,7 @@ function PlayerDetailPanel({
                     <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
                       <WowheadItemLink
                         itemId={row.itemId}
-                        onPreview={isMobile ? () => openItemPreview({ id: row.itemId, name: row.itemName }, { title: row.itemName, subtitle: row.previewSubtitle, slotLabel: row.slotLabel }) : null}
+                        onPreview={compactDetail ? () => openItemPreview({ id: row.itemId, name: row.itemName }, { title: row.itemName, subtitle: row.previewSubtitle, slotLabel: row.slotLabel }) : null}
                       >
                         {row.itemName}
                       </WowheadItemLink>
@@ -1562,7 +1579,7 @@ function PlayerDetailPanel({
                           {" · "}
                           <WowheadSpellLink
                             spellId={row.enchantId}
-                            onPreview={isMobile ? () => openSpellPreview(row.enchantId, row.enchantName, row.slotLabel) : null}
+                            onPreview={compactDetail ? () => openSpellPreview(row.enchantId, row.enchantName, row.slotLabel) : null}
                           >
                             {row.enchantName}
                           </WowheadSpellLink>
@@ -1586,7 +1603,7 @@ function PlayerDetailPanel({
               Temporary Weapon Enchants
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-              {!isMobile && (
+              {!compactDetail && (
                 <div
                   style={{
                     display: "grid",
@@ -1610,7 +1627,7 @@ function PlayerDetailPanel({
                   key={issue.key}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "120px minmax(180px, 1.2fr) minmax(160px, 1fr)",
+                    gridTemplateColumns: compactDetail ? "minmax(0, 1fr)" : "120px minmax(180px, 1.2fr) minmax(160px, 1fr)",
                     gap: space[2],
                     padding: space[3],
                     border: `1px solid ${border.subtle}`,
@@ -1625,7 +1642,7 @@ function PlayerDetailPanel({
                   <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
                     <WowheadItemLink
                       itemId={issue.itemId}
-                      onPreview={isMobile ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Temporary weapon enchant", slotLabel: issue.slotLabel }) : null}
+                      onPreview={compactDetail ? () => openItemPreview({ id: issue.itemId, name: issue.itemName }, { title: issue.itemName, subtitle: "Temporary weapon enchant", slotLabel: issue.slotLabel }) : null}
                     >
                       {issue.itemName}
                     </WowheadItemLink>
@@ -1633,7 +1650,7 @@ function PlayerDetailPanel({
                   <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
                     <WowheadSpellLink
                       spellId={issue.enchantId}
-                      onPreview={isMobile ? () => openSpellPreview(issue.enchantId, issue.enchantName, issue.slotLabel) : null}
+                      onPreview={compactDetail ? () => openSpellPreview(issue.enchantId, issue.enchantName, issue.slotLabel) : null}
                     >
                       {issue.enchantName}
                     </WowheadSpellLink>
@@ -1673,7 +1690,7 @@ function PlayerDetailPanel({
                     key={`fight-gear-${item.slot}-${item.id ?? "empty"}`}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: isMobile ? "36px 56px minmax(0, 1fr) minmax(0, 1fr)" : "56px 96px minmax(140px, 1fr) minmax(180px, 1.2fr)",
+                      gridTemplateColumns: compactDetail ? "36px 56px minmax(0, 1fr) minmax(0, 1fr)" : "56px 96px minmax(140px, 1fr) minmax(180px, 1.2fr)",
                       gap: space[2],
                       alignItems: "start",
                       padding: space[3],
@@ -1686,8 +1703,8 @@ function PlayerDetailPanel({
                     <div style={{ fontSize: fontSize.xs, color: text.secondary, textAlign: "center", paddingTop: 4 }}>
                       {!isEmptySlot ? (
                         <>
-                          <div style={{ fontSize: isMobile ? 11 : 12, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>ilvl</div>
-                          <div style={{ fontSize: isMobile ? fontSize.sm : fontSize.base, fontWeight: fontWeight.semibold }}>
+                          <div style={{ fontSize: compactDetail ? 11 : 12, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>ilvl</div>
+                          <div style={{ fontSize: compactDetail ? fontSize.sm : fontSize.base, fontWeight: fontWeight.semibold }}>
                             {item.itemLevel ?? "?"}
                           </div>
                         </>
@@ -1702,8 +1719,8 @@ function PlayerDetailPanel({
                           src={getResolvedItemIconUrl(item, itemMetaById)}
                           alt=""
                           style={{
-                            width: isMobile ? 28 : 40,
-                            height: isMobile ? 28 : 40,
+                            width: compactDetail ? 28 : 40,
+                            height: compactDetail ? 28 : 40,
                             borderRadius: 6,
                             border: `1px solid ${border.subtle}`,
                             objectFit: "cover",
@@ -1713,8 +1730,8 @@ function PlayerDetailPanel({
                       ) : (
                         <div
                           style={{
-                            width: isMobile ? 28 : 40,
-                            height: isMobile ? 28 : 40,
+                            width: compactDetail ? 28 : 40,
+                            height: compactDetail ? 28 : 40,
                             borderRadius: 6,
                             border: `1px solid ${border.subtle}`,
                             background: surface.base,
@@ -1724,8 +1741,8 @@ function PlayerDetailPanel({
                       )}
                       <div style={{ minWidth: 0, paddingTop: 2 }}>
                         {!isEmptySlot ? (
-                          <div style={{ fontSize: isMobile ? fontSize.xs : fontSize.sm, fontWeight: fontWeight.semibold, minWidth: 0, lineHeight: 1.35, overflowWrap: "anywhere" }}>
-                            <WowheadGearItemLink item={item} gear={selectedFightGear} onPreview={isMobile ? () => openItemPreview(item, { gear: selectedFightGear, slotLabel }) : null}>
+                          <div style={{ fontSize: compactDetail ? fontSize.xs : fontSize.sm, fontWeight: fontWeight.semibold, minWidth: 0, lineHeight: 1.35, overflowWrap: "anywhere" }}>
+                            <WowheadGearItemLink item={item} gear={selectedFightGear} onPreview={compactDetail ? () => openItemPreview(item, { gear: selectedFightGear, slotLabel }) : null}>
                               <span style={{ color: getResolvedQualityColor(item, itemMetaById) }}>
                                 {getResolvedDisplayName(item, itemMetaById, "Item")}
                               </span>
@@ -1751,7 +1768,7 @@ function PlayerDetailPanel({
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                           {(item.gems || []).map((gem, index) => (
                             <div key={`fight-gear-gem-row-${item.id}-${gem.id}-${index}`} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                              <WowheadItemLink itemId={gem.id} onPreview={isMobile ? () => openItemPreview(gem, { title: getResolvedDisplayName(gem, itemMetaById, "Gem") }) : null}>
+                              <WowheadItemLink itemId={gem.id} onPreview={compactDetail ? () => openItemPreview(gem, { title: getResolvedDisplayName(gem, itemMetaById, "Gem") }) : null}>
                                 {getResolvedItemIconUrl(gem, itemMetaById) ? (
                                   <img
                                     src={getResolvedItemIconUrl(gem, itemMetaById)}
@@ -5332,21 +5349,10 @@ export default function RpbPage() {
     const engineeringDamageDone = getPlayerAbilityTotalFromFights(filteredFights, selectedPlayer.id, ENGINEERING_DAMAGE_ABILITY_IDS)
       || selectedPlayer.analytics?.engineeringDamageTaken
       || 0;
-    const oilDamage = getPlayerAbilityTotalFromFights(filteredFights, selectedPlayer.id, OIL_OF_IMMOLATION_ABILITY_IDS)
-      || selectedPlayer.analytics?.oilOfImmolationDamageTaken
-      || 0;
     const trackedCasts = selectedPlayer.trackedCastCount || 0;
-    const friendlyFire = selectedPlayer.hostilePlayerDamage || 0;
-    const drumsCastCount = Number(selectedPlayerAnalytics.drumsCastCount || selectedPlayer.analytics?.drumsCastCount || 0);
-    const drumsAffectedCount = Number(selectedPlayerAnalytics.drumsAffectedCount || 0);
-    const coveredConsumableFights = Number(selectedPlayerAnalytics.coveredConsumableFights || 0);
-    const totalConsumableFights = Number(selectedPlayerAnalytics.totalConsumableFights || 0);
-    const consumableIssueCount = Number(selectedPlayerAnalytics.consumableIssueCount || 0);
     const potionUseCount = Number(selectedPlayerAnalytics.potionUseCount || 0);
-    const hearthstoneCount = Number(selectedPlayerAnalytics.hearthstoneCount || 0);
     const prepotCount = Number(selectedPlayerAnalytics.prepotCount || 0);
-
-    return sortMetricTags([
+    const metricTags = [
       {
         label: "Missing Permanent Enchants",
         value: gearSummary.missingPermanentEnchantCount || 0,
@@ -5358,12 +5364,6 @@ export default function RpbPage() {
         value: gearSummary.lowQualityGemCount || 0,
         tone: (gearSummary.lowQualityGemCount || 0) > 0 ? "danger" : "neutral",
         sortValue: gearSummary.lowQualityGemCount || 0,
-      },
-      {
-        label: "Consumable Coverage",
-        value: totalConsumableFights > 0 ? `${coveredConsumableFights}/${totalConsumableFights}` : "0/0",
-        tone: totalConsumableFights > 0 && consumableIssueCount === 0 ? "success" : (consumableIssueCount > 0 ? "warning" : "neutral"),
-        sortValue: consumableIssueCount > 0 ? consumableIssueCount : coveredConsumableFights,
       },
       {
         label: "Potion Uses",
@@ -5378,22 +5378,10 @@ export default function RpbPage() {
         sortValue: prepotCount,
       },
       {
-        label: "Healthstones",
-        value: hearthstoneCount,
-        tone: hearthstoneCount > 0 ? "warning" : "neutral",
-        sortValue: hearthstoneCount,
-      },
-      {
         label: "Deaths",
         value: deaths,
         tone: deaths > 0 ? "warning" : "neutral",
         sortValue: deaths,
-      },
-      {
-        label: "Friendly Fire",
-        value: friendlyFire,
-        tone: friendlyFire > 0 ? "warning" : "neutral",
-        sortValue: friendlyFire,
       },
       {
         label: "Engineering Damage Done",
@@ -5408,12 +5396,6 @@ export default function RpbPage() {
         sortValue: trackedCasts,
       },
       {
-        label: "Drums Casts",
-        value: drumsAffectedCount > 0 ? `${drumsCastCount} (${formatMetricValue(drumsAffectedCount)})` : drumsCastCount,
-        tone: drumsCastCount > 0 ? "info" : "neutral",
-        sortValue: drumsCastCount,
-      },
-      {
         label: "Visible Fights",
         value: visibleFightCount,
         tone: visibleFightCount > 0 ? "info" : "neutral",
@@ -5425,7 +5407,9 @@ export default function RpbPage() {
         tone: activeTimePercent > 0 ? "success" : "neutral",
         sortValue: activeTimePercent,
       },
-    ]);
+    ];
+
+    return sortMetricTags(metricTags.filter(tag => Number(tag.sortValue || 0) > 0));
   }, [filteredFights, selectedPlayer, selectedPlayerAnalytics, selectedPlayerDeathRows.length, selectedPlayerSliceTotals]);
 
   useEffect(() => {
