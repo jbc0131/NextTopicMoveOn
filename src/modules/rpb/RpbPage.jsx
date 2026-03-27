@@ -793,10 +793,12 @@ function PlayerDetailPanel({
   loadSelectedFightGear,
   itemMetaById,
   closeSelectedPlayer,
+  enableSwipeClose = false,
 }) {
   const detailPanelRef = useRef(null);
   const [detailPanelWidth, setDetailPanelWidth] = useState(0);
   const compactDetail = isMobile || (detailPanelWidth > 0 && detailPanelWidth < 760);
+  const swipeStartRef = useRef(null);
   const deathGridColumns = compactDetail
     ? "minmax(72px, 88px) minmax(0, 1fr)"
     : "72px 72px minmax(120px, 1.25fr) 96px 72px minmax(120px, 1fr)";
@@ -941,13 +943,45 @@ function PlayerDetailPanel({
     return () => observer.disconnect();
   }, []);
 
+  function handleTouchStart(event) {
+    if (!enableSwipeClose) return;
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleTouchEnd(event) {
+    if (!enableSwipeClose) return;
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    const touch = event.changedTouches?.[0];
+    if (!start || !touch) return;
+
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    if (deltaX >= 72 && absX > absY) {
+      closeSelectedPlayer();
+      return;
+    }
+
+    if (deltaY <= -72 && absY > absX) {
+      closeSelectedPlayer();
+    }
+  }
+
   return (
     <div ref={detailPanelRef} style={{
       ...panelStyle,
       minWidth: 0,
       overflow: "hidden",
       position: "relative",
-    }}>
+    }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <div style={{
         padding: space[4],
         borderBottom: `1px solid ${border.subtle}`,
@@ -4569,6 +4603,8 @@ export default function RpbPage() {
       if (!raidId || noReportsForFilter || !raidVisibleForFilter) {
         setSelectedRaid(null);
         setSelectedPlayerId("");
+        setOpenRaidMenuId("");
+        setOpenRaidMenuAnchor(null);
         setLoadingRaid(false);
         return;
       }
@@ -4576,6 +4612,8 @@ export default function RpbPage() {
       setLoadingRaid(true);
       setSelectedRaid(null);
       setSelectedPlayerId("");
+      setOpenRaidMenuId("");
+      setOpenRaidMenuAnchor(null);
       try {
         const raid = await fetchRpbRaidBundle(raidId);
         if (!cancelled) {
@@ -4657,6 +4695,8 @@ export default function RpbPage() {
 
   function handleRaidSelection(targetRaidId) {
     setMobileMenuOpen(false);
+    setOpenRaidMenuId("");
+    setOpenRaidMenuAnchor(null);
     navigate(`/rpb/${targetRaidId}`);
   }
 
@@ -5349,7 +5389,6 @@ export default function RpbPage() {
     const engineeringDamageDone = getPlayerAbilityTotalFromFights(filteredFights, selectedPlayer.id, ENGINEERING_DAMAGE_ABILITY_IDS)
       || selectedPlayer.analytics?.engineeringDamageTaken
       || 0;
-    const trackedCasts = selectedPlayer.trackedCastCount || 0;
     const potionUseCount = Number(selectedPlayerAnalytics.potionUseCount || 0);
     const prepotCount = Number(selectedPlayerAnalytics.prepotCount || 0);
     const metricTags = [
@@ -5388,18 +5427,6 @@ export default function RpbPage() {
         value: engineeringDamageDone,
         tone: engineeringDamageDone > 0 ? "warning" : "neutral",
         sortValue: engineeringDamageDone,
-      },
-      {
-        label: "Tracked Casts",
-        value: trackedCasts,
-        tone: trackedCasts > 0 ? "info" : "neutral",
-        sortValue: trackedCasts,
-      },
-      {
-        label: "Visible Fights",
-        value: visibleFightCount,
-        tone: visibleFightCount > 0 ? "info" : "neutral",
-        sortValue: visibleFightCount,
       },
       {
         label: "Active Time %",
@@ -6899,13 +6926,14 @@ export default function RpbPage() {
                     selectedPlayerIssueGroups={selectedPlayerIssueGroups}
                     selectedFightId={selectedFightId}
                     selectedFightSnapshot={selectedFightSnapshot}
-                    selectedFightGear={selectedFightGear}
-                    fightGearLoaded={fightGearLoaded}
-                    loadSelectedFightGear={() => setFightGearLoaded(true)}
-                    itemMetaById={itemMetaById}
-                    closeSelectedPlayer={closeSelectedPlayer}
-                  />
-                )}
+                  selectedFightGear={selectedFightGear}
+                  fightGearLoaded={fightGearLoaded}
+                  loadSelectedFightGear={() => setFightGearLoaded(true)}
+                  itemMetaById={itemMetaById}
+                  closeSelectedPlayer={closeSelectedPlayer}
+                  enableSwipeClose={false}
+                />
+              )}
             </div>
             {isMobileViewport && isPlayerDetailOpen && sliceType !== "debuffs" && (
               <div style={{
@@ -6934,6 +6962,7 @@ export default function RpbPage() {
                   loadSelectedFightGear={() => setFightGearLoaded(true)}
                   itemMetaById={itemMetaById}
                   closeSelectedPlayer={closeSelectedPlayer}
+                  enableSwipeClose
                 />
               </div>
             )}
