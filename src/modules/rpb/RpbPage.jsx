@@ -3720,6 +3720,24 @@ function normalizeFetchedAbilityBreakdown(entries = []) {
     .sort((a, b) => b.total - a.total);
 }
 
+function mergeDamageBreakdownWithImportedPets(liveEntries = [], importedEntries = []) {
+  if (!Array.isArray(liveEntries) || liveEntries.length === 0) return importedEntries || [];
+  if (!Array.isArray(importedEntries) || importedEntries.length === 0) return liveEntries || [];
+
+  const merged = [...liveEntries];
+  const existingKeys = new Set(merged.map(entry => String(entry?.key ?? entry?.guid ?? entry?.name ?? "")));
+
+  for (const entry of importedEntries) {
+    const key = String(entry?.key ?? entry?.guid ?? entry?.name ?? "");
+    if (!key.startsWith("pet:")) continue;
+    if (existingKeys.has(key)) continue;
+    merged.push(entry);
+    existingKeys.add(key);
+  }
+
+  return merged.sort((a, b) => Number(b?.total || 0) - Number(a?.total || 0));
+}
+
 function getPlayerAbilityTotalFromFights(fights, playerId, abilityIds) {
   if (!playerId) return 0;
 
@@ -5391,7 +5409,7 @@ export default function RpbPage() {
     return normalizeFetchedAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.healing?.entries || []);
   }, [liveAbilityBreakdowns, liveBreakdownCacheKey]);
   const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(liveDamageBreakdown)
-    ? liveDamageBreakdown
+    ? mergeDamageBreakdownWithImportedPets(liveDamageBreakdown, selectedPlayerDamageBreakdown)
     : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
       ? selectedPlayerDamageBreakdown
       : selectedPlayerSummaryDamageBreakdown;
