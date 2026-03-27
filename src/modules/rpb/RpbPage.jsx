@@ -709,7 +709,6 @@ function ReportPickerSheet({
             const teamOption = getTeamOption(raid.teamTag);
             const reportSpeedPercent = getRaidReportSpeedPercent(raid);
             const isNewestReport = index === 0;
-            const wclReportUrl = raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
             return (
               <div
                 key={raid.id}
@@ -717,6 +716,7 @@ function ReportPickerSheet({
                   position: "relative",
                   display: "flex",
                   flexDirection: "column",
+                  minWidth: 0,
                 }}
               >
                 <div style={{ position: "absolute", top: 10, right: 10, zIndex: 30 }} onClick={event => event.stopPropagation()}>
@@ -750,27 +750,29 @@ function ReportPickerSheet({
                     gap: space[2],
                     textAlign: "left",
                     paddingRight: 42,
+                    minWidth: 0,
+                    overflow: "hidden",
                   }}
                 >
-                  <div style={{ display: "flex", gap: space[2], flexWrap: "wrap", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: space[2], flexWrap: "wrap", alignItems: "center", minWidth: 0, maxWidth: "100%" }}>
                     {isNewestReport && (
                       <span style={tagStyle("success")}>
                         Newest Report
                       </span>
                     )}
-                    <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold }}>
+                    <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold, minWidth: 0, maxWidth: "100%", overflowWrap: "anywhere" }}>
                       {raid.title || raid.reportId}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
-                    <span style={tagStyle(teamOption.tone)}>{teamOption.shortLabel}</span>
+                  <div style={{ display: "flex", gap: space[2], flexWrap: "wrap", minWidth: 0, maxWidth: "100%" }}>
+                    <span style={{ ...tagStyle(teamOption.tone), maxWidth: "100%" }}>{teamOption.shortLabel}</span>
                     {reportSpeedPercent != null && (
-                      <span style={parseTagStyle(reportSpeedPercent)}>
+                      <span style={{ ...parseTagStyle(reportSpeedPercent), maxWidth: "100%" }}>
                         {`Speed ${Math.round(reportSpeedPercent)}`}
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted }}>
+                  <div style={{ fontSize: fontSize.xs, color: active ? "#dce9ff" : text.muted, minWidth: 0, maxWidth: "100%", overflowWrap: "anywhere" }}>
                     {raid.reportId}
                   </div>
                 </button>
@@ -4424,6 +4426,7 @@ function RaidActionsMenu({
   raid,
   isAdmin = false,
   anchor = null,
+  compactLabels = false,
   onOpenWcl,
   onCopyReportUrl,
   onRename,
@@ -4476,7 +4479,7 @@ function RaidActionsMenu({
     >
       <button onClick={onOpenWcl} style={itemStyle}>
         <span aria-hidden="true">🔗</span>
-        <span>{`WCL: ${raid?.reportId || "Report"}`}</span>
+        <span>{compactLabels ? "Open WCL" : `WCL: ${raid?.reportId || "Report"}`}</span>
       </button>
       <button onClick={onCopyReportUrl} style={itemStyle}>
         <span aria-hidden="true">⧉</span>
@@ -6099,6 +6102,7 @@ export default function RpbPage() {
           raid={openRaidMenuRaid}
           anchor={openRaidMenuAnchor}
           isAdmin={isAdmin}
+          compactLabels={isMobileViewport}
           onOpenWcl={() => {
             setOpenRaidMenuId("");
             setOpenRaidMenuAnchor(null);
