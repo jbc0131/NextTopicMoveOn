@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { getLoginUrl, useAuth } from "../../shared/auth";
 import { getScoreColor } from "../../shared/useWarcraftLogs";
@@ -2057,7 +2058,7 @@ function WowheadSpellAbility({ spellId, name, onPreview = null }) {
 function MobileWowheadPreviewModal({ preview, onClose }) {
   if (!preview) return null;
 
-  return (
+  const modal = (
     <div
       onClick={onClose}
       style={{
@@ -2136,6 +2137,9 @@ function MobileWowheadPreviewModal({ preview, onClose }) {
       </div>
     </div>
   );
+
+  if (typeof document === "undefined" || !document.body) return modal;
+  return createPortal(modal, document.body);
 }
 
 function getItemQualityColor(item) {
