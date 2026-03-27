@@ -749,7 +749,7 @@ function ReportPickerSheet({
                     alignItems: "flex-start",
                     gap: space[2],
                     textAlign: "left",
-                    paddingRight: isAdmin ? 42 : space[3],
+                    paddingRight: 42,
                   }}
                 >
                   <div style={{ display: "flex", gap: space[2], flexWrap: "wrap", alignItems: "center" }}>
@@ -5044,10 +5044,10 @@ export default function RpbPage() {
             justifyContent: isLarge ? "flex-start" : "center",
             gap: isLarge ? 4 : 6,
             textAlign: "left",
-            paddingRight: isAdmin ? 42 : space[3],
+            paddingRight: 42,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap", paddingRight: isAdmin ? 18 : 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap", paddingRight: 18 }}>
             {isLarge && isNewestReport && (
               <span style={tagStyle("success")}>
                 Newest Report
