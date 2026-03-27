@@ -29,6 +29,18 @@ const CLASS_COLORS = {
   Warrior: "#C79C6E",
 };
 
+const TRACKED_DEBUFF_ROWS = [
+  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", className: "Paladin", order: 0 },
+  { key: "faerie-fire", label: "Faerie Fire", className: "Druid", order: 1 },
+  { key: "demoralizing-shout", label: "Demoralizing Shout", className: "Warrior", order: 2 },
+  { key: "curse-of-weakness", label: "Curse of Weakness", className: "Warlock", order: 3 },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", className: "Warlock", order: 4 },
+  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", className: "Warrior", order: 5 },
+  { key: "blood-frenzy", label: "Blood Frenzy", className: "Warrior", order: 6 },
+  { key: "expose-weakness", label: "Expose Weakness", className: "Hunter", order: 7 },
+  { key: "hunters-mark", label: "Hunter's Mark", className: "Hunter", order: 8 },
+];
+
 const MOBILE_BREAKPOINT = 960;
 
 function getClassColor(type) {
@@ -2616,7 +2628,20 @@ function buildDrumSliceEntries(players, analyticsByPlayerId, filterIds = null) {
 
 function buildDebuffSliceEntries(fights, importPayload = null) {
   const visibleFightIds = new Set((fights || []).map(fight => String(fight?.id || "")).filter(Boolean));
-  const grouped = new Map();
+  const grouped = new Map(
+    TRACKED_DEBUFF_ROWS.map(entry => [entry.key, {
+      key: entry.key,
+      label: entry.label,
+      preferredClass: entry.className,
+      order: entry.order,
+      totalUptime: 0,
+      totalPossibleUptime: 0,
+      casts: 0,
+      maxStacks: 0,
+      timelineBands: [],
+      sources: new Map(),
+    }])
+  );
   let totalEncounterDurationMs = 0;
 
   function mergeTimelineBands(bands = []) {
@@ -2654,16 +2679,23 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
       const existing = grouped.get(key) || {
         key,
         label: debuff?.label || "Unknown Debuff",
+        preferredClass: debuff?.preferredClass || "",
+        order: Number(debuff?.order || 99),
         totalUptime: 0,
         totalPossibleUptime: 0,
         casts: 0,
+        maxStacks: 0,
         timelineBands: [],
         sources: new Map(),
       };
 
+      existing.label = debuff?.label || existing.label;
+      existing.preferredClass = debuff?.preferredClass || existing.preferredClass;
+      existing.order = Number.isFinite(Number(debuff?.order)) ? Number(debuff.order) : existing.order;
       existing.totalUptime += Number(debuff?.totalUptime || 0);
       existing.totalPossibleUptime += fightDurationMs;
       existing.casts += Number(debuff?.totalUses || 0);
+      existing.maxStacks = Math.max(Number(existing.maxStacks || 0), Number(debuff?.maxStacks || 0));
       existing.timelineBands.push(...(debuff?.bands || []).map(band => ({
         startMs: fightOffsetMs + Number(band?.startMs || 0),
         endMs: fightOffsetMs + Number(band?.endMs || 0),
@@ -2689,10 +2721,13 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
     .map(entry => ({
       key: entry.key,
       label: entry.label,
+      preferredClass: entry.preferredClass,
+      order: entry.order,
       totalUptime: entry.totalUptime,
       totalPossibleUptime: entry.totalPossibleUptime,
       uptimePercent: entry.totalPossibleUptime > 0 ? Math.min(100, (entry.totalUptime / entry.totalPossibleUptime) * 100) : 0,
       casts: entry.casts,
+      maxStacks: Number(entry.maxStacks || 0),
       timelineBands: mergeTimelineBands(entry.timelineBands),
       totalEncounterDurationMs,
       sources: [...entry.sources.values()].sort((a, b) => {
@@ -2703,6 +2738,8 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
     .sort((a, b) => {
       if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
       if (b.casts !== a.casts) return b.casts - a.casts;
+      const orderDelta = Number(a.order || 99) - Number(b.order || 99);
+      if (orderDelta !== 0) return orderDelta;
       return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
     });
 }
@@ -6223,7 +6260,7 @@ export default function RpbPage() {
                                 }}
                               >
                                 <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 8, alignItems: "flex-start" }}>
-                                  <span style={{ color: text.primary, fontWeight: fontWeight.semibold }}>
+                                  <span style={{ color: getClassColor(entry.preferredClass), fontWeight: fontWeight.semibold }}>
                                     {entry.label}
                                   </span>
                                   <span style={{ minWidth: 112, textAlign: "right", display: "flex", flexDirection: "column", gap: 4 }}>
@@ -6260,7 +6297,7 @@ export default function RpbPage() {
                                     })}
                                   </div>
                                   <div style={{ fontSize: fontSize.xs, color: text.muted, minWidth: 70, textAlign: "right" }}>
-                                    Coverage
+                                    {entry.maxStacks > 0 ? `${entry.maxStacks} stacks` : "Coverage"}
                                   </div>
                                   <span style={{ color: text.muted, fontSize: fontSize.base, lineHeight: 1 }}>
                                     {isExpanded ? "▾" : "▸"}

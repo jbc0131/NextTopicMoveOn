@@ -26,15 +26,15 @@ const DRUMS_TYPE_LABELS = new Map([
   ["351358", "Restoration"],
 ]);
 const TRACKED_BOSS_DEBUFFS = [
-  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", aliases: ["judgement of wisdom"], spellIds: new Set(["27164"]) },
-  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["26993", "27011"]) },
-  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]) },
-  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]) },
-  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]) },
-  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]) },
-  { key: "blood-frenzy", label: "Blood Frenzy", aliases: ["blood frenzy"] },
-  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]) },
-  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]) },
+  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", aliases: ["judgement of wisdom"], spellIds: new Set(["27164"]), preferredClass: "Paladin", order: 0 },
+  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["26993", "27011"]), preferredClass: "Druid", order: 1 },
+  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]), preferredClass: "Warrior", order: 2 },
+  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 3 },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 4 },
+  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 5, defaultMaxStacks: 5 },
+  { key: "blood-frenzy", label: "Blood Frenzy", aliases: ["blood frenzy"], spellIds: new Set(["30070", "30069"]), preferredClass: "Warrior", order: 6 },
+  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]), preferredClass: "Hunter", order: 7 },
+  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]), preferredClass: "Hunter", order: 8 },
 ];
 const RESOURCE_RECOVERY_SPELL_IDS = ["28499", "27869", "16666"];
 const RESOURCE_RECOVERY_ABILITY_IDS = new Set(RESOURCE_RECOVERY_SPELL_IDS);
@@ -1148,6 +1148,7 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
       }
     }
     const sourcesByDebuffKey = collectTrackedBossDebuffSourcesFromEvents(sourceEvents, sourceLookup);
+    const maxStacksByDebuffKey = collectTrackedBossDebuffMaxStacksFromEvents(sourceEvents);
 
     snapshots.push({
       fightId: String(fight.id),
@@ -1158,6 +1159,7 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
       durationMs,
       debuffs: debuffSummary.map(entry => ({
         ...entry,
+        maxStacks: Number(maxStacksByDebuffKey.get(entry.key) || entry.maxStacks || 0),
         sources: [...(sourcesByDebuffKey.get(entry.key)?.values() || [])].sort((a, b) => {
           if (b.casts !== a.casts) return b.casts - a.casts;
           return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
@@ -1320,10 +1322,13 @@ function summarizeTrackedBossDebuffs(tableData, fightStartMs, fightEndMs) {
     const existing = grouped.get(tracker.key) || {
       key: tracker.key,
       label: tracker.label,
+      preferredClass: tracker.preferredClass || "",
+      order: Number(tracker.order || 0),
       guid: row?.guid ?? row?.gameID ?? row?.abilityGameID ?? row?.id ?? null,
       totalUses: 0,
       totalUptime: 0,
       bands: [],
+      maxStacks: 0,
       sources: new Map(),
     };
 
@@ -1363,10 +1368,13 @@ function summarizeTrackedBossDebuffs(tableData, fightStartMs, fightEndMs) {
       return {
         key: entry.key,
         label: entry.label,
+        preferredClass: entry.preferredClass || "",
+        order: Number(entry.order || 0),
         guid: entry.guid,
         totalUses: entry.totalUses,
         totalUptime: cappedTotalUptime,
         bands: mergedBands,
+        maxStacks: Number(entry.maxStacks || 0),
         uptimePercent: fightDurationMs > 0 ? (cappedTotalUptime / fightDurationMs) * 100 : 0,
         sources: [...entry.sources.values()].sort((a, b) => {
           if (b.casts !== a.casts) return b.casts - a.casts;
@@ -1377,6 +1385,8 @@ function summarizeTrackedBossDebuffs(tableData, fightStartMs, fightEndMs) {
     .sort((a, b) => {
       if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
       if (b.totalUses !== a.totalUses) return b.totalUses - a.totalUses;
+      const orderDelta = Number(a.order || 0) - Number(b.order || 0);
+      if (orderDelta !== 0) return orderDelta;
       return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
     });
 }
@@ -1461,6 +1471,37 @@ function collectTrackedBossDebuffSourcesFromEvents(events = [], sourceLookup = n
     sourceEntry.casts += 1;
     sourceMap.set(sourceKey, sourceEntry);
     grouped.set(tracker.key, sourceMap);
+  }
+
+  return grouped;
+}
+
+function collectTrackedBossDebuffMaxStacksFromEvents(events = []) {
+  const grouped = new Map();
+
+  for (const event of events) {
+    const tracker = matchTrackedBossDebuff(
+      event?.abilityGameID
+      ?? event?.ability?.guid
+      ?? event?.ability?.gameID
+      ?? event?.guid
+      ?? null,
+      event?.ability?.name || event?.name || ""
+    );
+    if (!tracker) continue;
+
+    const eventType = String(event?.type || "").toLowerCase();
+    const explicitStack = Number(event?.stack ?? event?.stacks ?? 0);
+    let value = Number.isFinite(explicitStack) && explicitStack > 0 ? explicitStack : 0;
+    if (!value && tracker.key === "armor-reduction" && String(event?.ability?.guid || event?.abilityGameID || "") === "26866") {
+      value = Number(tracker.defaultMaxStacks || 5);
+    }
+    if (value > Number(grouped.get(tracker.key) || 0)) {
+      grouped.set(tracker.key, value);
+    }
+    if (eventType === "applydebuff" && tracker.key === "armor-reduction" && String(event?.ability?.guid || event?.abilityGameID || "") === "26866") {
+      grouped.set(tracker.key, Math.max(Number(grouped.get(tracker.key) || 0), Number(tracker.defaultMaxStacks || 5)));
+    }
   }
 
   return grouped;
