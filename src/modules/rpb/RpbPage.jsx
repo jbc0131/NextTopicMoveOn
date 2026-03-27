@@ -3852,8 +3852,20 @@ function buildTimelineTickMarks(totalDurationMs) {
   return marks;
 }
 
-function buildArmorStackMarkers(maxStacks) {
-  const reachedStacks = Math.max(0, Math.min(ARMOR_STACK_MARKER_COUNT, Math.floor(Number(maxStacks || 0))));
+function getArmorReachedStackCount(maxStacks, sources = []) {
+  const explicitStacks = Math.max(0, Math.min(ARMOR_STACK_MARKER_COUNT, Math.floor(Number(maxStacks || 0))));
+  if (explicitStacks > 0) return explicitStacks;
+
+  const warriorSunderCasts = (sources || []).reduce((sum, source) => {
+    if (String(source?.type || "").toLowerCase() !== "warrior") return sum;
+    return sum + Number(source?.casts || 0);
+  }, 0);
+
+  return Math.max(0, Math.min(ARMOR_STACK_MARKER_COUNT, Math.floor(warriorSunderCasts)));
+}
+
+function buildArmorStackMarkers(maxStacks, sources = []) {
+  const reachedStacks = getArmorReachedStackCount(maxStacks, sources);
   return Array.from({ length: ARMOR_STACK_MARKER_COUNT }, (_, index) => ({
     stack: index + 1,
     active: index < reachedStacks,
@@ -6274,7 +6286,7 @@ export default function RpbPage() {
                           const isExpanded = expandedDebuffKeys.has(entry.key);
                           const timelineTickMarks = buildTimelineTickMarks(entry.totalEncounterDurationMs);
                           const isArmorRow = entry.key === "armor-reduction";
-                          const armorStackMarkers = isArmorRow ? buildArmorStackMarkers(entry.maxStacks) : [];
+                          const armorStackMarkers = isArmorRow ? buildArmorStackMarkers(entry.maxStacks, entry.sources) : [];
                           return (
                             <div
                               key={`debuff-${entry.key}`}
