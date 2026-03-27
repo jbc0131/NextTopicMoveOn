@@ -11,6 +11,7 @@ import {
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, MarkerIcon,
   StatusChip, SyncBadge, SearchBox, EmptyState, LoadingSpinner, ParseScoresPanel,
+  useIsMobile,
 } from "../../shared/components";
 import {
   fetchTwentyFiveState, subscribeToTwentyFiveState, fetchTwentyFiveSnapshots,
@@ -96,6 +97,7 @@ function PublicPanel({ title, icon, subtitle, bossImage, rows, assignments, text
 }
 
 function PublicCubeTeamsGrid({ assignments, roster, searchName, wclScores, activeTab }) {
+  const isMobile = useIsMobile();
   return (
     <div style={{
       border: `2px solid ${accent.blue}`, borderRadius: radius.lg,
@@ -109,7 +111,7 @@ function PublicCubeTeamsGrid({ assignments, roster, searchName, wclScores, activ
         CUBE CLICKERS — THE CORE OF WINNING
       </div>
       <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr", gap: space[3],
+        display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: space[3],
       }}>
       {CUBE_TEAMS.map(team => {
         const teamPlayers = team.rows

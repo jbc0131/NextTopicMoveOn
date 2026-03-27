@@ -367,7 +367,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", 
 }
 
 // ── Mobile detection hook ─────────────────────────────────────────────────────
-function useIsMobile(breakpoint = 768) {
+export function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < breakpoint);
