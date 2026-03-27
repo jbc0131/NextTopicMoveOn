@@ -55,6 +55,11 @@ const UNDER_DEVELOPMENT_BADGE_STYLE = {
   letterSpacing: "0.04em",
   textTransform: "uppercase",
 };
+const RAID_ANALYTICS_FILTERS_BY_SLICE = {
+  damage: ["missing-enchants", "engineering"],
+  consumables: ["consumables"],
+  healing: ["hearthstone"],
+};
 
 const MOBILE_BREAKPOINT = 960;
 
@@ -4690,6 +4695,107 @@ export default function RpbPage() {
     }
   }
 
+  function renderTabScopedRaidAnalyticsControls() {
+    if (sliceType === "damage") {
+      return (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setRaidAnalyticsFilter("")}
+            disabled={!hasTabScopedAnalyticsFilter}
+            style={{
+              ...btnStyle(hasTabScopedAnalyticsFilter ? "danger" : "default", false),
+              height: 32,
+              opacity: hasTabScopedAnalyticsFilter ? 1 : 0.65,
+              background: hasTabScopedAnalyticsFilter ? "rgba(205, 78, 78, 0.24)" : "transparent",
+              borderColor: hasTabScopedAnalyticsFilter ? "rgba(255, 134, 134, 0.98)" : border.subtle,
+              color: hasTabScopedAnalyticsFilter ? "#ffdede" : text.secondary,
+              boxShadow: hasTabScopedAnalyticsFilter ? "0 0 0 2px rgba(255, 134, 134, 0.22)" : "none",
+            }}
+          >
+            Clear Filter
+          </button>
+          <MetricTag
+            label="Gear Issues"
+            value={filteredRaidAnalytics.playersMissingEnchants.length}
+            tone="danger"
+            active={raidAnalyticsFilter === "missing-enchants"}
+            onClick={() => setRaidAnalyticsFilter(current => current === "missing-enchants" ? "" : "missing-enchants")}
+          />
+          <MetricTag
+            label="Engineering Damage"
+            value={filteredRaidAnalytics.engineeringDamageTaken.length}
+            tone="warning"
+            active={raidAnalyticsFilter === "engineering"}
+            onClick={() => setRaidAnalyticsFilter(current => current === "engineering" ? "" : "engineering")}
+          />
+        </div>
+      );
+    }
+
+    if (sliceType === "consumables") {
+      return (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setRaidAnalyticsFilter("")}
+            disabled={!hasTabScopedAnalyticsFilter}
+            style={{
+              ...btnStyle(hasTabScopedAnalyticsFilter ? "danger" : "default", false),
+              height: 32,
+              opacity: hasTabScopedAnalyticsFilter ? 1 : 0.65,
+              background: hasTabScopedAnalyticsFilter ? "rgba(205, 78, 78, 0.24)" : "transparent",
+              borderColor: hasTabScopedAnalyticsFilter ? "rgba(255, 134, 134, 0.98)" : border.subtle,
+              color: hasTabScopedAnalyticsFilter ? "#ffdede" : text.secondary,
+              boxShadow: hasTabScopedAnalyticsFilter ? "0 0 0 2px rgba(255, 134, 134, 0.22)" : "none",
+            }}
+          >
+            Clear Filter
+          </button>
+          <MetricTag
+            label="Consumable Issues"
+            value={filteredRaidAnalytics.playersWithConsumableIssues.reduce((sum, entry) => sum + Number(entry.total || 0), 0)}
+            tone="warning"
+            active={raidAnalyticsFilter === "consumables"}
+            onClick={() => setRaidAnalyticsFilter(current => current === "consumables" ? "" : "consumables")}
+          />
+        </div>
+      );
+    }
+
+    if (sliceType === "healing") {
+      return (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setRaidAnalyticsFilter("")}
+            disabled={!hasTabScopedAnalyticsFilter}
+            style={{
+              ...btnStyle(hasTabScopedAnalyticsFilter ? "danger" : "default", false),
+              height: 32,
+              opacity: hasTabScopedAnalyticsFilter ? 1 : 0.65,
+              background: hasTabScopedAnalyticsFilter ? "rgba(205, 78, 78, 0.24)" : "transparent",
+              borderColor: hasTabScopedAnalyticsFilter ? "rgba(255, 134, 134, 0.98)" : border.subtle,
+              color: hasTabScopedAnalyticsFilter ? "#ffdede" : text.secondary,
+              boxShadow: hasTabScopedAnalyticsFilter ? "0 0 0 2px rgba(255, 134, 134, 0.22)" : "none",
+            }}
+          >
+            Clear Filter
+          </button>
+          <MetricTag
+            label="Healthstone Uses"
+            value={filteredRaidAnalytics.playersUsingHearthstone.reduce((sum, entry) => sum + Number(entry.total || 0), 0)}
+            tone="warning"
+            active={raidAnalyticsFilter === "hearthstone"}
+            onClick={() => setRaidAnalyticsFilter(current => current === "hearthstone" ? "" : "hearthstone")}
+          />
+        </div>
+      );
+    }
+
+    return null;
+  }
+
   function renderDesktopRaidCard(raid, options = {}) {
     const { layout = "large", index = 0 } = options;
     const active = raid.id === raidId;
@@ -4956,6 +5062,8 @@ export default function RpbPage() {
       playersUsingHearthstone: playersUsingHearthstone.sort((a, b) => b.total - a.total),
     };
   }, [filteredEngineeringTotalsByPlayerId, filteredOilTotalsByPlayerId, filteredPlayerAnalyticsById, raidAnalytics, selectedRaid]);
+  const activeSliceAnalyticsFilters = RAID_ANALYTICS_FILTERS_BY_SLICE[sliceType] || [];
+  const hasTabScopedAnalyticsFilter = activeSliceAnalyticsFilters.includes(raidAnalyticsFilter);
   const raidAnalyticsFilterIds = useMemo(() => {
     switch (raidAnalyticsFilter) {
       case "missing-enchants":
@@ -4978,6 +5086,11 @@ export default function RpbPage() {
         return null;
     }
   }, [filteredRaidAnalytics, raidAnalytics, raidAnalyticsFilter]);
+  useEffect(() => {
+    if (!raidAnalyticsFilter) return;
+    if (activeSliceAnalyticsFilters.includes(raidAnalyticsFilter)) return;
+    setRaidAnalyticsFilter("");
+  }, [activeSliceAnalyticsFilters, raidAnalyticsFilter]);
   const sortedRaids = useMemo(() => {
     return [...raids].sort((a, b) => new Date(b.start || b.importedAt || 0) - new Date(a.start || a.importedAt || 0));
   }, [raids]);
@@ -6220,107 +6333,6 @@ export default function RpbPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-            <div style={{ fontSize: fontSize.xs, color: text.muted }}>
-              Raid Analytics
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
-              <button
-                type="button"
-                onClick={() => setRaidAnalyticsFilter("")}
-                disabled={!raidAnalyticsFilter}
-                style={{
-                  ...btnStyle(raidAnalyticsFilter ? "danger" : "default", false),
-                  height: 32,
-                  opacity: raidAnalyticsFilter ? 1 : 0.65,
-                  background: raidAnalyticsFilter ? "rgba(205, 78, 78, 0.24)" : "transparent",
-                  borderColor: raidAnalyticsFilter ? "rgba(255, 134, 134, 0.98)" : border.subtle,
-                  color: raidAnalyticsFilter ? "#ffdede" : text.secondary,
-                  boxShadow: raidAnalyticsFilter ? "0 0 0 2px rgba(255, 134, 134, 0.22)" : "none",
-                }}
-              >
-                Clear Filter
-              </button>
-              <MetricTag
-                label="Gear Issues"
-                value={filteredRaidAnalytics.playersMissingEnchants.length}
-                tone="danger"
-                active={raidAnalyticsFilter === "missing-enchants"}
-                onClick={() => setRaidAnalyticsFilter(current => current === "missing-enchants" ? "" : "missing-enchants")}
-              />
-              <MetricTag
-                label="Engineering Damage Done Entries"
-                value={filteredRaidAnalytics.engineeringDamageTaken.length}
-                tone="warning"
-                active={raidAnalyticsFilter === "engineering"}
-                onClick={() => setRaidAnalyticsFilter(current => current === "engineering" ? "" : "engineering")}
-              />
-              <MetricTag
-                label="Players Using Drums"
-                value={filteredRaidAnalytics.playersUsingDrums.length}
-                tone="info"
-                active={raidAnalyticsFilter === "drums"}
-                onClick={() => {
-                  setRaidAnalyticsFilter(current => current === "drums" ? "" : "drums");
-                  setSliceType("drums");
-                }}
-              />
-              <MetricTag
-                label="Consumable Issues"
-                value={filteredRaidAnalytics.playersWithConsumableIssues.reduce((sum, entry) => sum + Number(entry.total || 0), 0)}
-                tone="warning"
-                active={raidAnalyticsFilter === "consumables"}
-                onClick={() => {
-                  setRaidAnalyticsFilter(current => current === "consumables" ? "" : "consumables");
-                  setSliceType("consumables");
-                }}
-              />
-              <MetricTag
-                label="Healthstone Uses"
-                value={filteredRaidAnalytics.playersUsingHearthstone.reduce((sum, entry) => sum + Number(entry.total || 0), 0)}
-                tone="warning"
-                active={raidAnalyticsFilter === "hearthstone"}
-                onClick={() => {
-                  setRaidAnalyticsFilter(current => current === "hearthstone" ? "" : "hearthstone");
-                  setSliceType("healing");
-                }}
-              />
-            </div>
-          </div>
-
-          {sliceType !== "debuffs" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-              <div style={{ fontSize: fontSize.xs, color: text.muted }}>
-                Player Selection
-              </div>
-              <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
-                {filteredPlayers.map(player => {
-                  const active = String(player.id) === String(selectedPlayerId);
-                  return (
-                    <button
-                      key={player.id}
-                      onClick={() => handlePlayerSelection(player.id)}
-                      style={{
-                        ...btnStyle(active ? "primary" : "default", active),
-                        height: 30,
-                        borderWidth: active ? 2 : 1,
-                        boxShadow: active ? `0 0 0 2px ${getClassColor(player.type)}33` : "none",
-                        borderColor: active ? getClassColor(player.type) : border.subtle,
-                        color: getClassColor(player.type),
-                        fontWeight: fontWeight.semibold,
-                      }}
-                    >
-                      {player.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div style={{ fontSize: fontSize.xs, color: text.muted }}>
-            Filters now apply directly to the slicer totals, encounter picks, and player detail breakdowns.
-          </div>
         </div>
       )}
 
@@ -6399,6 +6411,7 @@ export default function RpbPage() {
                           </button>
                         ))}
                       </div>
+                      {renderTabScopedRaidAnalyticsControls()}
                       <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                         {((sliceType === "consumables"
                           ? visibleConsumableSliceEntries
