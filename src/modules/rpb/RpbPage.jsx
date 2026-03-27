@@ -619,6 +619,7 @@ function ReportPickerSheet({
   isAdmin,
   openRaidMenuId,
   setOpenRaidMenuId,
+  openRaidActionsMenu,
   openRenameModal,
   openTagModal,
   mutateRaidMetadata,
@@ -907,13 +908,15 @@ function PlayerDetailPanel({
     const itemLevel = resolvedItem?.itemLevel ?? itemMetaById?.[String(resolvedItem.id)]?.itemLevel ?? null;
     if (itemLevel != null) previewLines.push(`ilvl ${itemLevel}`);
 
-    const permanentEnchant = getPermanentEnchantLabel(resolvedItem) || (getItemEnchantId(resolvedItem) ? `Enchant ${getItemEnchantId(resolvedItem)}` : "");
+    const permanentEnchant = getPermanentEnchantLabel(resolvedItem)
+      || options.enchantName
+      || (getItemEnchantId(resolvedItem) ? `Enchant ${getItemEnchantId(resolvedItem)}` : "");
     if (permanentEnchant) previewLines.push(permanentEnchant);
 
     const temporaryEnchant = getTemporaryEnchantLabel(resolvedItem);
     if (temporaryEnchant) previewLines.push(temporaryEnchant);
 
-    for (const gem of resolvedItem?.gems || []) {
+    for (const gem of options.gems || resolvedItem?.gems || []) {
       previewLines.push(`Gem: ${getResolvedDisplayName(gem, itemMetaById, "Gem")}`);
     }
 
@@ -1053,7 +1056,9 @@ function PlayerDetailPanel({
       minWidth: 0,
       overflow: "hidden",
       position: "relative",
-      transform: enableSwipeClose ? `translate3d(${swipeOffset.x}px, ${swipeOffset.y}px, 0)` : "translate3d(0, 0, 0)",
+      transform: enableSwipeClose && (swipeOffset.x !== 0 || swipeOffset.y !== 0)
+        ? `translate3d(${swipeOffset.x}px, ${swipeOffset.y}px, 0)`
+        : undefined,
       transition: swipeStartRef.current ? "none" : "transform 180ms ease",
     }}
       onTouchStart={handleTouchStart}
@@ -1860,7 +1865,12 @@ function PlayerDetailPanel({
                       <div style={{ minWidth: 0, paddingTop: 2 }}>
                         {!isEmptySlot ? (
                           <div style={{ fontSize: compactDetail ? fontSize.xs : fontSize.sm, fontWeight: fontWeight.semibold, minWidth: 0, lineHeight: 1.35, overflowWrap: "anywhere" }}>
-                            <WowheadGearItemLink item={item} gear={selectedFightGear} onPreview={compactDetail ? () => openItemPreview(item, { gear: selectedFightGear, slotLabel }) : null}>
+                            <WowheadGearItemLink item={item} gear={selectedFightGear} onPreview={compactDetail ? () => openItemPreview(item, {
+                              gear: selectedFightGear,
+                              slotLabel,
+                              enchantName: getPermanentEnchantLabel(item),
+                              gems: item.gems || [],
+                            }) : null}>
                               <span style={{ color: getResolvedQualityColor(item, itemMetaById) }}>
                                 {getResolvedDisplayName(item, itemMetaById, "Item")}
                               </span>
@@ -1944,7 +1954,14 @@ function getDisplayName(entry, fallbackPrefix = "Item") {
 }
 
 function getResolvedDisplayName(entry, itemMetaById, fallbackPrefix = "Item") {
-  const direct = getDisplayName(entry, "");
+  const direct = entry?.name
+    || entry?.itemName
+    || entry?.itemname
+    || entry?.item?.name
+    || entry?.item?.itemName
+    || entry?.gemName
+    || entry?.displayName
+    || entry?.display_name;
   if (direct) return direct;
   const meta = itemMetaById?.[String(entry?.id ?? "")];
   return meta?.name || `${fallbackPrefix} ${entry?.id ?? ""}`.trim();
@@ -6374,6 +6391,7 @@ export default function RpbPage() {
             isAdmin={isAdmin}
             openRaidMenuId={openRaidMenuId}
             setOpenRaidMenuId={setOpenRaidMenuId}
+            openRaidActionsMenu={openRaidActionsMenu}
             openRenameModal={openRenameModal}
             openTagModal={openTagModal}
             mutateRaidMetadata={mutateRaidMetadata}
