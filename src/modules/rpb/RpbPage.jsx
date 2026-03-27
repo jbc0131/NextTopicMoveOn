@@ -751,7 +751,6 @@ function ReportPickerSheet({
                     textAlign: "left",
                     paddingRight: 42,
                     minWidth: 0,
-                    overflow: "hidden",
                   }}
                 >
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", minWidth: 0, maxWidth: "100%" }}>
