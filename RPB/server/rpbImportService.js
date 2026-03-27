@@ -26,16 +26,15 @@ const DRUMS_TYPE_LABELS = new Map([
   ["351358", "Restoration"],
 ]);
 const TRACKED_BOSS_DEBUFFS = [
-  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", aliases: ["judgement of wisdom"], spellIds: new Set(["27164"]), preferredClass: "Paladin", order: 0 },
-  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["26993", "27011"]), preferredClass: "Druid", order: 1 },
-  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]), preferredClass: "Warrior", order: 2 },
-  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 3 },
-  { key: "curse-of-recklessness", label: "Curse of Recklessness", aliases: ["curse of recklessness"], spellIds: new Set(["27226"]), preferredClass: "Warlock", order: 4 },
-  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 5 },
-  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 6 },
-  { key: "blood-frenzy", label: "Blood Frenzy", aliases: ["blood frenzy"], spellIds: new Set(["29859"]), preferredClass: "Warrior", order: 7 },
-  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]), preferredClass: "Hunter", order: 8 },
-  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]), preferredClass: "Hunter", order: 9 },
+  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 0 },
+  { key: "curse-of-recklessness", label: "Curse of Recklessness", aliases: ["curse of recklessness"], spellIds: new Set(["27226"]), preferredClass: "Warlock", order: 1 },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 2 },
+  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 3 },
+  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]), preferredClass: "Warrior", order: 4 },
+  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]), preferredClass: "Hunter", order: 5 },
+  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]), preferredClass: "Hunter", order: 6 },
+  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["26993", "27011"]), preferredClass: "Druid", order: 7 },
+  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", aliases: ["judgement of wisdom"], spellIds: new Set(["27164"]), preferredClass: "Paladin", order: 8 },
 ];
 const TRACKED_BOSS_DEBUFF_SPELL_IDS = new Set(
   TRACKED_BOSS_DEBUFFS.flatMap(entry => [...(entry.spellIds || [])])

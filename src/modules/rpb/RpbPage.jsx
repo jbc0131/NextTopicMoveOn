@@ -30,16 +30,15 @@ const CLASS_COLORS = {
 };
 
 const TRACKED_DEBUFF_ROWS = [
-  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", className: "Paladin", order: 0 },
-  { key: "faerie-fire", label: "Faerie Fire", className: "Druid", order: 1 },
-  { key: "demoralizing-shout", label: "Demoralizing Shout", className: "Warrior", order: 2 },
-  { key: "curse-of-weakness", label: "Curse of Weakness", className: "Warlock", order: 3 },
-  { key: "curse-of-recklessness", label: "Curse of Recklessness", className: "Warlock", order: 4 },
-  { key: "curse-of-the-elements", label: "Curse of the Elements", className: "Warlock", order: 5 },
-  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", className: "Warrior", order: 6 },
-  { key: "blood-frenzy", label: "Blood Frenzy", className: "Warrior", order: 7 },
-  { key: "expose-weakness", label: "Expose Weakness", className: "Hunter", order: 8 },
-  { key: "hunters-mark", label: "Hunter's Mark", className: "Hunter", order: 9 },
+  { key: "curse-of-weakness", label: "Curse of Weakness", className: "Warlock", order: 0 },
+  { key: "curse-of-recklessness", label: "Curse of Recklessness", className: "Warlock", order: 1 },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", className: "Warlock", order: 2 },
+  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", className: "Warrior", order: 3 },
+  { key: "demoralizing-shout", label: "Demoralizing Shout", className: "Warrior", order: 4 },
+  { key: "hunters-mark", label: "Hunter's Mark", className: "Hunter", order: 5 },
+  { key: "expose-weakness", label: "Expose Weakness", className: "Hunter", order: 6 },
+  { key: "faerie-fire", label: "Faerie Fire", className: "Druid", order: 7 },
+  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", className: "Paladin", order: 8 },
 ];
 const SUNDER_BAR_COLOR = "#4fb26f";
 const ARMOR_STACK_MARKER_COUNT = 5;
@@ -4933,6 +4932,12 @@ export default function RpbPage() {
   const visibleDebuffSliceEntries = useMemo(() => {
     return buildDebuffSliceEntries(filteredFights, selectedRaid?.importPayload);
   }, [filteredFights, selectedRaid]);
+  const hasSpecificEncounterSelection = useMemo(() => (
+    Boolean(selectedFightId)
+    && selectedFightId !== ALL_VISIBLE_ENCOUNTERS_ID
+    && selectedFightId !== ALL_KILLS_ENCOUNTERS_ID
+    && selectedFightId !== ALL_WIPES_ENCOUNTERS_ID
+  ), [selectedFightId]);
   const selectedPlayerDamageBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "damageDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerHealingBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "healingDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSummaryDamageBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "damage"), [selectedPlayer?.summary]);
@@ -6345,9 +6350,15 @@ export default function RpbPage() {
                                               height: 18,
                                               padding: "0 6px",
                                               borderRadius: radius.pill,
-                                              background: marker.active ? "rgba(79, 178, 111, 0.18)" : "rgba(191, 72, 72, 0.18)",
-                                              border: marker.active ? "1px solid rgba(79, 178, 111, 0.55)" : "1px solid rgba(191, 72, 72, 0.55)",
-                                              color: marker.active ? "#8be3a6" : "#ff8e8e",
+                                              background: !hasSpecificEncounterSelection
+                                                ? "rgba(255, 255, 255, 0.08)"
+                                                : (marker.active ? "rgba(79, 178, 111, 0.18)" : "rgba(191, 72, 72, 0.18)"),
+                                              border: !hasSpecificEncounterSelection
+                                                ? `1px solid ${border.subtle}`
+                                                : (marker.active ? "1px solid rgba(79, 178, 111, 0.55)" : "1px solid rgba(191, 72, 72, 0.55)"),
+                                              color: !hasSpecificEncounterSelection
+                                                ? text.muted
+                                                : (marker.active ? "#8be3a6" : "#ff8e8e"),
                                               fontSize: fontSize.xs,
                                               fontWeight: fontWeight.semibold,
                                               lineHeight: 1,
