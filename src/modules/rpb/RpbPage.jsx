@@ -2617,11 +2617,38 @@ function buildDrumSliceEntries(players, analyticsByPlayerId, filterIds = null) {
 function buildDebuffSliceEntries(fights, importPayload = null) {
   const visibleFightIds = new Set((fights || []).map(fight => String(fight?.id || "")).filter(Boolean));
   const grouped = new Map();
+  let totalEncounterDurationMs = 0;
+
+  function mergeTimelineBands(bands = []) {
+    const normalized = (bands || [])
+      .map(band => ({
+        startMs: Number(band?.startMs || 0),
+        endMs: Number(band?.endMs || 0),
+      }))
+      .filter(band => band.endMs > band.startMs)
+      .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
+
+    const merged = [];
+    for (const band of normalized) {
+      const previous = merged[merged.length - 1];
+      if (!previous || band.startMs > previous.endMs) {
+        merged.push({ ...band });
+        continue;
+      }
+
+      previous.endMs = Math.max(previous.endMs, band.endMs);
+    }
+
+    return merged;
+  }
 
   for (const snapshot of importPayload?.debuffsByFight?.snapshots || []) {
     if (!visibleFightIds.has(String(snapshot?.fightId || ""))) continue;
 
     const fightDurationMs = Number(snapshot?.durationMs || 0);
+    const fightOffsetMs = totalEncounterDurationMs;
+    totalEncounterDurationMs += fightDurationMs;
+
     for (const debuff of snapshot?.debuffs || []) {
       const key = String(debuff?.key || debuff?.label || "unknown-debuff");
       const existing = grouped.get(key) || {
@@ -2630,12 +2657,17 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
         totalUptime: 0,
         totalPossibleUptime: 0,
         casts: 0,
+        timelineBands: [],
         sources: new Map(),
       };
 
       existing.totalUptime += Number(debuff?.totalUptime || 0);
       existing.totalPossibleUptime += fightDurationMs;
       existing.casts += Number(debuff?.totalUses || 0);
+      existing.timelineBands.push(...(debuff?.bands || []).map(band => ({
+        startMs: fightOffsetMs + Number(band?.startMs || 0),
+        endMs: fightOffsetMs + Number(band?.endMs || 0),
+      })));
 
       for (const source of debuff?.sources || []) {
         const sourceKey = String(source?.sourceId ?? source?.name ?? `source-${existing.sources.size + 1}`);
@@ -2661,6 +2693,8 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
       totalPossibleUptime: entry.totalPossibleUptime,
       uptimePercent: entry.totalPossibleUptime > 0 ? Math.min(100, (entry.totalUptime / entry.totalPossibleUptime) * 100) : 0,
       casts: entry.casts,
+      timelineBands: mergeTimelineBands(entry.timelineBands),
+      totalEncounterDurationMs,
       sources: [...entry.sources.values()].sort((a, b) => {
         if (b.casts !== a.casts) return b.casts - a.casts;
         return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
@@ -6202,13 +6236,31 @@ export default function RpbPage() {
                                   </span>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
-                                  <div style={{ flex: 1, height: 10, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}` }}>
-                                    <div style={{
-                                      width: `${Math.max(entry.uptimePercent > 0 ? 3 : 0, Math.min(100, Math.round(entry.uptimePercent)))}%`,
-                                      height: "100%",
-                                      background: intent.success,
-                                      opacity: 0.9,
-                                    }} />
+                                  <div style={{ flex: 1, height: 12, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}`, position: "relative" }}>
+                                    {entry.timelineBands.map((band, index) => {
+                                      const totalDurationMs = Number(entry.totalEncounterDurationMs || 0);
+                                      const leftPercent = totalDurationMs > 0 ? (Number(band.startMs || 0) / totalDurationMs) * 100 : 0;
+                                      const widthPercent = totalDurationMs > 0 ? ((Number(band.endMs || 0) - Number(band.startMs || 0)) / totalDurationMs) * 100 : 0;
+                                      if (widthPercent <= 0) return null;
+
+                                      return (
+                                        <div
+                                          key={`${entry.key}-band-${index}`}
+                                          style={{
+                                            position: "absolute",
+                                            left: `${Math.max(0, Math.min(100, leftPercent))}%`,
+                                            width: `${Math.max(0.6, Math.min(100, widthPercent))}%`,
+                                            top: 0,
+                                            bottom: 0,
+                                            background: intent.success,
+                                            opacity: 0.92,
+                                          }}
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                  <div style={{ fontSize: fontSize.xs, color: text.muted, minWidth: 70, textAlign: "right" }}>
+                                    Coverage
                                   </div>
                                   <span style={{ color: text.muted, fontSize: fontSize.base, lineHeight: 1 }}>
                                     {isExpanded ? "▾" : "▸"}

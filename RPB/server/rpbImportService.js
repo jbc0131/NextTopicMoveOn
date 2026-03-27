@@ -26,16 +26,15 @@ const DRUMS_TYPE_LABELS = new Map([
   ["351358", "Restoration"],
 ]);
 const TRACKED_BOSS_DEBUFFS = [
-  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", aliases: ["judgement of wisdom"] },
-  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"] },
-  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"] },
-  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"] },
-  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"] },
-  { key: "sunder-armor", label: "Sunder Armor", aliases: ["sunder armor"] },
-  { key: "improved-expose-armor", label: "Improved Expose Armor", aliases: ["improved expose armor", "expose armor"] },
+  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", aliases: ["judgement of wisdom"], spellIds: new Set(["27164"]) },
+  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["26993", "27011"]) },
+  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]) },
+  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]) },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]) },
+  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]) },
   { key: "blood-frenzy", label: "Blood Frenzy", aliases: ["blood frenzy"] },
-  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"] },
-  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"] },
+  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]) },
+  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]) },
 ];
 const RESOURCE_RECOVERY_SPELL_IDS = ["28499", "27869", "16666"];
 const RESOURCE_RECOVERY_ABILITY_IDS = new Set(RESOURCE_RECOVERY_SPELL_IDS);
@@ -1119,7 +1118,11 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
       });
     }
 
-    const debuffSummary = summarizeTrackedBossDebuffs(debuffsByAbility, durationMs);
+    const debuffSummary = summarizeTrackedBossDebuffs(
+      debuffsByAbility,
+      Number(fight.start_time ?? 0),
+      Number(fight.end_time ?? 0)
+    );
     const trackedSpellIds = new Set(
       debuffSummary
         .map(entry => String(entry?.guid || "").trim())
@@ -1234,6 +1237,61 @@ function getDebuffUptimeMs(entry) {
   return Number.isFinite(value) ? value : 0;
 }
 
+function normalizeDebuffBands(entry, fightStartMs, fightEndMs) {
+  const bands = Array.isArray(entry?.bands) ? entry.bands : [];
+  const normalizedBands = [];
+
+  for (const band of bands) {
+    const startTime = Number(band?.startTime || 0);
+    const endTime = Number(band?.endTime || 0);
+    if (!(endTime > startTime)) continue;
+
+    const clippedStart = Math.max(fightStartMs, startTime);
+    const clippedEnd = Math.min(fightEndMs, endTime);
+    if (!(clippedEnd > clippedStart)) continue;
+
+    normalizedBands.push({
+      startMs: clippedStart - fightStartMs,
+      endMs: clippedEnd - fightStartMs,
+    });
+  }
+
+  if (normalizedBands.length > 0) return normalizedBands;
+
+  const totalUptime = getDebuffUptimeMs(entry);
+  if (totalUptime > 0) {
+    return [{
+      startMs: 0,
+      endMs: Math.max(0, Math.min(fightEndMs - fightStartMs, totalUptime)),
+    }];
+  }
+
+  return [];
+}
+
+function mergeBands(bands = []) {
+  const normalized = (bands || [])
+    .map(band => ({
+      startMs: Number(band?.startMs || 0),
+      endMs: Number(band?.endMs || 0),
+    }))
+    .filter(band => band.endMs > band.startMs)
+    .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
+
+  const merged = [];
+  for (const band of normalized) {
+    const previous = merged[merged.length - 1];
+    if (!previous || band.startMs > previous.endMs) {
+      merged.push({ ...band });
+      continue;
+    }
+
+    previous.endMs = Math.max(previous.endMs, band.endMs);
+  }
+
+  return merged;
+}
+
 function getNestedAbilityRows(entry) {
   return [
     entry?.abilities,
@@ -1244,7 +1302,8 @@ function getNestedAbilityRows(entry) {
   ].find(value => Array.isArray(value) && value.length > 0) || [];
 }
 
-function summarizeTrackedBossDebuffs(tableData, fightDurationMs) {
+function summarizeTrackedBossDebuffs(tableData, fightStartMs, fightEndMs) {
+  const fightDurationMs = Math.max(0, fightEndMs - fightStartMs);
   const grouped = new Map();
   const rows = [
     ...(Array.isArray(tableData?.entries) ? tableData.entries : []),
@@ -1264,11 +1323,13 @@ function summarizeTrackedBossDebuffs(tableData, fightDurationMs) {
       guid: row?.guid ?? row?.gameID ?? row?.abilityGameID ?? row?.id ?? null,
       totalUses: 0,
       totalUptime: 0,
+      bands: [],
       sources: new Map(),
     };
 
     existing.totalUses += getDebuffCastCount(row);
     existing.totalUptime += getDebuffUptimeMs(row);
+    existing.bands.push(...normalizeDebuffBands(row, fightStartMs, fightEndMs));
 
     for (const sourceRow of getNestedSourceRows(row)) {
       const casts = getDebuffCastCount(sourceRow);
@@ -1297,13 +1358,15 @@ function summarizeTrackedBossDebuffs(tableData, fightDurationMs) {
 
   return [...grouped.values()]
     .map(entry => {
-      const cappedTotalUptime = fightDurationMs > 0 ? Math.min(fightDurationMs, entry.totalUptime) : entry.totalUptime;
+      const mergedBands = mergeBands(entry.bands);
+      const cappedTotalUptime = mergedBands.reduce((sum, band) => sum + Math.max(0, band.endMs - band.startMs), 0);
       return {
         key: entry.key,
         label: entry.label,
         guid: entry.guid,
         totalUses: entry.totalUses,
         totalUptime: cappedTotalUptime,
+        bands: mergedBands,
         uptimePercent: fightDurationMs > 0 ? (cappedTotalUptime / fightDurationMs) * 100 : 0,
         sources: [...entry.sources.values()].sort((a, b) => {
           if (b.casts !== a.casts) return b.casts - a.casts;
