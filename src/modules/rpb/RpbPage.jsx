@@ -30,9 +30,9 @@ const CLASS_COLORS = {
 };
 
 const TRACKED_DEBUFF_ROWS = [
-  { key: "curse-of-weakness", label: "Curse of Weakness", className: "Warlock", order: 0 },
-  { key: "curse-of-recklessness", label: "Curse of Recklessness", className: "Warlock", order: 1 },
-  { key: "curse-of-the-elements", label: "Curse of the Elements", className: "Warlock", order: 2 },
+  { key: "curse-of-recklessness", label: "Curse of Recklessness", className: "Warlock", order: 0 },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", className: "Warlock", order: 1 },
+  { key: "curse-of-weakness", label: "Curse of Weakness", className: "Warlock", order: 2 },
   { key: "blood-frenzy-estimate", label: "Blood Frenzy", className: "Warrior", order: 3, estimated: true },
   { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", className: "Warrior", order: 4 },
   { key: "demoralizing-shout", label: "Demoralizing Shout", className: "Warrior", order: 5 },

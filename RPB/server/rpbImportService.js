@@ -26,9 +26,9 @@ const DRUMS_TYPE_LABELS = new Map([
   ["351358", "Restoration"],
 ]);
 const TRACKED_BOSS_DEBUFFS = [
-  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 0 },
-  { key: "curse-of-recklessness", label: "Curse of Recklessness", aliases: ["curse of recklessness"], spellIds: new Set(["27226"]), preferredClass: "Warlock", order: 1 },
-  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 2 },
+  { key: "curse-of-recklessness", label: "Curse of Recklessness", aliases: ["curse of recklessness"], spellIds: new Set(["27226"]), preferredClass: "Warlock", order: 0 },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 1 },
+  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 2 },
   { key: "blood-frenzy-estimate", label: "Blood Frenzy", aliases: [], spellIds: new Set(), preferredClass: "Warrior", order: 3, estimated: true },
   { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 4 },
   { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]), preferredClass: "Warrior", order: 5 },
