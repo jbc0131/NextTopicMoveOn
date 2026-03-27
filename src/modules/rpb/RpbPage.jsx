@@ -704,10 +704,11 @@ function ReportPickerSheet({
           {!loadingList && filteredRaids.length === 0 && (
             <div style={{ color: text.muted }}>No reports available for the current team filter.</div>
           )}
-          {filteredRaids.map(raid => {
+          {filteredRaids.map((raid, index) => {
             const active = raid.id === raidId;
             const teamOption = getTeamOption(raid.teamTag);
             const reportSpeedPercent = getRaidReportSpeedPercent(raid);
+            const isNewestReport = index === 0;
             const wclReportUrl = raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
             return (
               <div
@@ -751,8 +752,15 @@ function ReportPickerSheet({
                     paddingRight: isAdmin ? 42 : space[3],
                   }}
                 >
-                  <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold }}>
-                    {raid.title || raid.reportId}
+                  <div style={{ display: "flex", gap: space[2], flexWrap: "wrap", alignItems: "center" }}>
+                    {isNewestReport && (
+                      <span style={tagStyle("success")}>
+                        Newest Report
+                      </span>
+                    )}
+                    <div style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold }}>
+                      {raid.title || raid.reportId}
+                    </div>
                   </div>
                   <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
                     <span style={tagStyle(teamOption.tone)}>{teamOption.shortLabel}</span>
@@ -794,11 +802,13 @@ function PlayerDetailPanel({
   itemMetaById,
   closeSelectedPlayer,
   enableSwipeClose = false,
+  onSwipeDismiss = null,
 }) {
   const detailPanelRef = useRef(null);
   const [detailPanelWidth, setDetailPanelWidth] = useState(0);
   const compactDetail = isMobile || (detailPanelWidth > 0 && detailPanelWidth < 760);
   const swipeStartRef = useRef(null);
+  const [swipeOffset, setSwipeOffset] = useState({ x: 0, y: 0 });
   const deathGridColumns = compactDetail
     ? "minmax(72px, 88px) minmax(0, 1fr)"
     : "72px 72px minmax(120px, 1.25fr) 96px 72px minmax(120px, 1fr)";
@@ -948,6 +958,32 @@ function PlayerDetailPanel({
     const touch = event.touches?.[0];
     if (!touch) return;
     swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+    setSwipeOffset({ x: 0, y: 0 });
+  }
+
+  function handleTouchMove(event) {
+    if (!enableSwipeClose) return;
+    const start = swipeStartRef.current;
+    const touch = event.touches?.[0];
+    if (!start || !touch) return;
+
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    if (deltaX > 0 && absX > absY) {
+      event.preventDefault();
+      setSwipeOffset({ x: deltaX, y: 0 });
+      return;
+    }
+
+    if (absY > absX) {
+      if (deltaY > 0 || deltaY < 0) {
+        event.preventDefault();
+        setSwipeOffset({ x: 0, y: deltaY });
+      }
+    }
   }
 
   function handleTouchEnd(event) {
@@ -961,15 +997,31 @@ function PlayerDetailPanel({
     const deltaY = touch.clientY - start.y;
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
+    const dismiss = direction => {
+      setSwipeOffset({ x: 0, y: 0 });
+      if (onSwipeDismiss) {
+        onSwipeDismiss(direction);
+      } else {
+        closeSelectedPlayer();
+      }
+    };
 
     if (deltaX >= 72 && absX > absY) {
-      closeSelectedPlayer();
+      dismiss("right");
+      return;
+    }
+
+    if (deltaY >= 72 && absY > absX) {
+      dismiss("down");
       return;
     }
 
     if (deltaY <= -72 && absY > absX) {
-      closeSelectedPlayer();
+      dismiss("up");
+      return;
     }
+
+    setSwipeOffset({ x: 0, y: 0 });
   }
 
   return (
@@ -978,8 +1030,11 @@ function PlayerDetailPanel({
       minWidth: 0,
       overflow: "hidden",
       position: "relative",
+      transform: enableSwipeClose ? `translate3d(${swipeOffset.x}px, ${swipeOffset.y}px, 0)` : "translate3d(0, 0, 0)",
+      transition: swipeStartRef.current ? "none" : "transform 180ms ease",
     }}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       <div style={{
@@ -1004,7 +1059,13 @@ function PlayerDetailPanel({
             </div>
           )}
         </div>
-        <button onClick={closeSelectedPlayer} style={{ ...btnStyle("default"), height: 30 }}>
+        <button onClick={() => {
+          if (enableSwipeClose && onSwipeDismiss) {
+            onSwipeDismiss("right");
+            return;
+          }
+          closeSelectedPlayer();
+        }} style={{ ...btnStyle("default"), height: 30 }}>
           {isMobile ? "Back" : "Close"}
         </button>
       </div>
@@ -4497,8 +4558,11 @@ export default function RpbPage() {
     typeof window !== "undefined" ? window.innerWidth <= MOBILE_BREAKPOINT : false
   ));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileDetailClosing, setMobileDetailClosing] = useState(false);
+  const [mobileDetailCloseDirection, setMobileDetailCloseDirection] = useState("");
   const [liveAbilityBreakdowns, setLiveAbilityBreakdowns] = useState({});
   const abilityBreakdownRef = useRef(null);
+  const mobileDetailCloseTimerRef = useRef(null);
   const [importProgress, setImportProgress] = useState({
     open: false,
     completed: 0,
@@ -4679,6 +4743,21 @@ export default function RpbPage() {
   function closeSelectedPlayer() {
     suppressAutoSelectPlayerRef.current = true;
     setSelectedPlayerId("");
+  }
+
+  function requestMobileDetailClose(direction = "right") {
+    if (mobileDetailClosing) return;
+    setMobileDetailCloseDirection(direction);
+    setMobileDetailClosing(true);
+    if (mobileDetailCloseTimerRef.current) {
+      window.clearTimeout(mobileDetailCloseTimerRef.current);
+    }
+    mobileDetailCloseTimerRef.current = window.setTimeout(() => {
+      closeSelectedPlayer();
+      setMobileDetailClosing(false);
+      setMobileDetailCloseDirection("");
+      mobileDetailCloseTimerRef.current = null;
+    }, 220);
   }
 
   function toggleDebuffExpansion(debuffKey) {
@@ -5663,6 +5742,17 @@ export default function RpbPage() {
   }, [sliceType]);
 
   useEffect(() => {
+    if (isPlayerDetailOpen) return undefined;
+    if (mobileDetailCloseTimerRef.current) {
+      window.clearTimeout(mobileDetailCloseTimerRef.current);
+      mobileDetailCloseTimerRef.current = null;
+    }
+    setMobileDetailClosing(false);
+    setMobileDetailCloseDirection("");
+    return undefined;
+  }, [isPlayerDetailOpen]);
+
+  useEffect(() => {
     if (loadingList) return;
     if (!teamFilter) return;
 
@@ -5973,6 +6063,7 @@ export default function RpbPage() {
 
   return (
     <AppShell>
+      <style>{`@keyframes rpbMobileDetailSlideIn { from { transform: translate3d(-100%, 0, 0); } to { transform: translate3d(0, 0, 0); } }`}</style>
       <ImportProgressModal
         open={importProgress.open}
         progress={importProgress}
@@ -6932,6 +7023,7 @@ export default function RpbPage() {
                   itemMetaById={itemMetaById}
                   closeSelectedPlayer={closeSelectedPlayer}
                   enableSwipeClose={false}
+                  onSwipeDismiss={null}
                 />
               )}
             </div>
@@ -6940,30 +7032,45 @@ export default function RpbPage() {
                 position: "fixed",
                 inset: 0,
                 zIndex: 10001,
-                background: "rgba(4, 10, 18, 0.78)",
+                background: mobileDetailClosing ? "rgba(4, 10, 18, 0)" : "rgba(4, 10, 18, 0.78)",
                 padding: space[2],
                 overflowY: "auto",
+                overscrollBehavior: "contain",
+                transition: "background 220ms ease",
               }}>
-                <PlayerDetailPanel
-                  isMobile
-                  selectedPlayer={selectedPlayer}
-                  selectedPlayerMetricTags={selectedPlayerMetricTags}
-                  sliceType={sliceType}
-                  abilityBreakdownRef={abilityBreakdownRef}
-                  selectedPlayerDeathRows={selectedPlayerDeathRows}
-                  selectedPlayerAnalytics={selectedPlayerAnalytics}
-                  visiblePlayerHealingBreakdown={visiblePlayerHealingBreakdown}
-                  visiblePlayerDamageBreakdown={visiblePlayerDamageBreakdown}
-                  selectedPlayerIssueGroups={selectedPlayerIssueGroups}
-                  selectedFightId={selectedFightId}
-                  selectedFightSnapshot={selectedFightSnapshot}
-                  selectedFightGear={selectedFightGear}
-                  fightGearLoaded={fightGearLoaded}
-                  loadSelectedFightGear={() => setFightGearLoaded(true)}
-                  itemMetaById={itemMetaById}
-                  closeSelectedPlayer={closeSelectedPlayer}
-                  enableSwipeClose
-                />
+                <div style={{
+                  transform: mobileDetailClosing
+                    ? (mobileDetailCloseDirection === "down"
+                      ? "translate3d(0, 100%, 0)"
+                      : (mobileDetailCloseDirection === "up"
+                        ? "translate3d(0, -100%, 0)"
+                        : "translate3d(100%, 0, 0)"))
+                    : "translate3d(0, 0, 0)",
+                  transition: "transform 220ms ease",
+                  animation: mobileDetailClosing ? "none" : "rpbMobileDetailSlideIn 220ms ease",
+                }}>
+                  <PlayerDetailPanel
+                    isMobile
+                    selectedPlayer={selectedPlayer}
+                    selectedPlayerMetricTags={selectedPlayerMetricTags}
+                    sliceType={sliceType}
+                    abilityBreakdownRef={abilityBreakdownRef}
+                    selectedPlayerDeathRows={selectedPlayerDeathRows}
+                    selectedPlayerAnalytics={selectedPlayerAnalytics}
+                    visiblePlayerHealingBreakdown={visiblePlayerHealingBreakdown}
+                    visiblePlayerDamageBreakdown={visiblePlayerDamageBreakdown}
+                    selectedPlayerIssueGroups={selectedPlayerIssueGroups}
+                    selectedFightId={selectedFightId}
+                    selectedFightSnapshot={selectedFightSnapshot}
+                    selectedFightGear={selectedFightGear}
+                    fightGearLoaded={fightGearLoaded}
+                    loadSelectedFightGear={() => setFightGearLoaded(true)}
+                    itemMetaById={itemMetaById}
+                    closeSelectedPlayer={closeSelectedPlayer}
+                    enableSwipeClose
+                    onSwipeDismiss={requestMobileDetailClose}
+                  />
+                </div>
               </div>
             )}
             </>
