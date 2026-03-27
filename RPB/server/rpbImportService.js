@@ -25,6 +25,18 @@ const DRUMS_TYPE_LABELS = new Map([
   ["35478", "Restoration"],
   ["351358", "Restoration"],
 ]);
+const TRACKED_BOSS_DEBUFFS = [
+  { key: "judgement-of-wisdom", label: "Judgement of Wisdom", aliases: ["judgement of wisdom"] },
+  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"] },
+  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"] },
+  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"] },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"] },
+  { key: "sunder-armor", label: "Sunder Armor", aliases: ["sunder armor"] },
+  { key: "improved-expose-armor", label: "Improved Expose Armor", aliases: ["improved expose armor", "expose armor"] },
+  { key: "blood-frenzy", label: "Blood Frenzy", aliases: ["blood frenzy"] },
+  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"] },
+  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"] },
+];
 const RESOURCE_RECOVERY_SPELL_IDS = ["28499", "27869", "16666"];
 const RESOURCE_RECOVERY_ABILITY_IDS = new Set(RESOURCE_RECOVERY_SPELL_IDS);
 const MANA_POTION_ABILITY_IDS = new Set(["28499"]);
@@ -1074,6 +1086,86 @@ async function fetchFightBuffSnapshots(reportId, apiKeyOverride = "") {
   return { snapshots };
 }
 
+async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
+  const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
+  const snapshotFights = (fightsData.fights || []).filter(fight =>
+    (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
+  );
+  const sourceLookup = new Map(
+    (fightsData.friendlies || [])
+      .filter(entry => entry?.id != null)
+      .map(entry => [String(entry.id), { name: entry.name || "Unknown", type: entry.type || "" }])
+  );
+
+  const snapshots = [];
+  for (const fight of snapshotFights) {
+    const durationMs = getDurationMs(fight.start_time, fight.end_time);
+    let debuffsByAbility = {};
+
+    try {
+      debuffsByAbility = await wclFetch(`/report/tables/debuffs/${reportId}`, {
+        start: fight.start_time ?? 0,
+        end: fight.end_time ?? 0,
+        hostility: 1,
+        by: "ability",
+        options: 2,
+      }, apiKeyOverride);
+    } catch (error) {
+      console.warn("RPB debuffsByFight lookup failed", {
+        reportId,
+        fightId: fight?.id,
+        fightName: fight?.name,
+        error: error?.message || String(error),
+      });
+    }
+
+    const debuffSummary = summarizeTrackedBossDebuffs(debuffsByAbility, durationMs);
+    const trackedSpellIds = new Set(
+      debuffSummary
+        .map(entry => String(entry?.guid || "").trim())
+        .filter(Boolean)
+    );
+
+    let sourceEvents = [];
+    if (trackedSpellIds.size > 0) {
+      try {
+        sourceEvents = await fetchAllEventPages(`/report/events/debuffs/${reportId}`, {
+          start: fight.start_time ?? 0,
+          end: fight.end_time ?? 0,
+          hostility: 1,
+          filter: buildAbilityIdFilter(trackedSpellIds),
+        }, apiKeyOverride);
+      } catch (error) {
+        console.warn("RPB debuff source event lookup failed", {
+          reportId,
+          fightId: fight?.id,
+          fightName: fight?.name,
+          error: error?.message || String(error),
+        });
+      }
+    }
+    const sourcesByDebuffKey = collectTrackedBossDebuffSourcesFromEvents(sourceEvents, sourceLookup);
+
+    snapshots.push({
+      fightId: String(fight.id),
+      encounterId: fight.boss || 0,
+      fightName: fight.name || "Unknown Fight",
+      startTime: fight.start_time ?? 0,
+      endTime: fight.end_time ?? 0,
+      durationMs,
+      debuffs: debuffSummary.map(entry => ({
+        ...entry,
+        sources: [...(sourcesByDebuffKey.get(entry.key)?.values() || [])].sort((a, b) => {
+          if (b.casts !== a.casts) return b.casts - a.casts;
+          return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+        }),
+      })),
+    });
+  }
+
+  return { snapshots };
+}
+
 async function fetchAllEventPages(path, params = {}, apiKeyOverride = "") {
   const events = [];
   let nextStart = params.start ?? 0;
@@ -1092,6 +1184,223 @@ async function fetchAllEventPages(path, params = {}, apiKeyOverride = "") {
 
 function getDrumTypeLabel(guid) {
   return DRUMS_TYPE_LABELS.get(String(guid || "")) || "Unknown";
+}
+
+function normalizeTrackedAuraName(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function matchTrackedBossDebuff(guid, name) {
+  const normalizedGuid = String(guid || "").trim();
+  const normalizedName = normalizeTrackedAuraName(name);
+
+  return TRACKED_BOSS_DEBUFFS.find(entry => (
+    (entry.spellIds && entry.spellIds.has(normalizedGuid))
+    || entry.aliases.some(alias => normalizedName === alias || normalizedName.includes(alias))
+  )) || null;
+}
+
+function getNestedSourceRows(entry) {
+  return [
+    entry?.sources,
+    entry?.entries,
+    entry?.targets,
+  ].find(value => Array.isArray(value) && value.length > 0) || [];
+}
+
+function getDebuffCastCount(entry) {
+  const value = Number(
+    entry?.totalUses
+    ?? entry?.uses
+    ?? entry?.casts
+    ?? entry?.useCount
+    ?? entry?.count
+    ?? 0
+  );
+  return Number.isFinite(value) ? value : 0;
+}
+
+function getDebuffUptimeMs(entry) {
+  const value = Number(
+    entry?.totalUptime
+    ?? entry?.uptime
+    ?? entry?.activeTime
+    ?? 0
+  );
+  return Number.isFinite(value) ? value : 0;
+}
+
+function getNestedAbilityRows(entry) {
+  return [
+    entry?.abilities,
+    entry?.entries,
+    entry?.spells,
+    entry?.targets,
+    entry?.auras,
+  ].find(value => Array.isArray(value) && value.length > 0) || [];
+}
+
+function summarizeTrackedBossDebuffs(tableData, fightDurationMs) {
+  const grouped = new Map();
+  const rows = [
+    ...(Array.isArray(tableData?.entries) ? tableData.entries : []),
+    ...(Array.isArray(tableData?.auras) ? tableData.auras : []),
+  ];
+
+  for (const row of rows) {
+    const tracker = matchTrackedBossDebuff(
+      row?.guid ?? row?.gameID ?? row?.abilityGameID ?? row?.id ?? null,
+      row?.name || row?.abilityName || row?.ability?.name || ""
+    );
+    if (!tracker) continue;
+
+    const existing = grouped.get(tracker.key) || {
+      key: tracker.key,
+      label: tracker.label,
+      guid: row?.guid ?? row?.gameID ?? row?.abilityGameID ?? row?.id ?? null,
+      totalUses: 0,
+      totalUptime: 0,
+      sources: new Map(),
+    };
+
+    existing.totalUses += getDebuffCastCount(row);
+    existing.totalUptime += getDebuffUptimeMs(row);
+
+    for (const sourceRow of getNestedSourceRows(row)) {
+      const casts = getDebuffCastCount(sourceRow);
+      if (casts <= 0) continue;
+
+      const sourceKey = String(
+        sourceRow?.id
+        ?? sourceRow?.sourceID
+        ?? sourceRow?.sourceId
+        ?? sourceRow?.guid
+        ?? sourceRow?.name
+        ?? `source-${existing.sources.size + 1}`
+      );
+      const sourceEntry = existing.sources.get(sourceKey) || {
+        sourceId: sourceRow?.id ?? sourceRow?.sourceID ?? sourceRow?.sourceId ?? null,
+        name: sourceRow?.name || sourceRow?.sourceName || "Unknown",
+        type: sourceRow?.type || sourceRow?.sourceType || "",
+        casts: 0,
+      };
+      sourceEntry.casts += casts;
+      existing.sources.set(sourceKey, sourceEntry);
+    }
+
+    grouped.set(tracker.key, existing);
+  }
+
+  return [...grouped.values()]
+    .map(entry => {
+      const cappedTotalUptime = fightDurationMs > 0 ? Math.min(fightDurationMs, entry.totalUptime) : entry.totalUptime;
+      return {
+        key: entry.key,
+        label: entry.label,
+        guid: entry.guid,
+        totalUses: entry.totalUses,
+        totalUptime: cappedTotalUptime,
+        uptimePercent: fightDurationMs > 0 ? (cappedTotalUptime / fightDurationMs) * 100 : 0,
+        sources: [...entry.sources.values()].sort((a, b) => {
+          if (b.casts !== a.casts) return b.casts - a.casts;
+          return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+        }),
+      };
+    })
+    .sort((a, b) => {
+      if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
+      if (b.totalUses !== a.totalUses) return b.totalUses - a.totalUses;
+      return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
+    });
+}
+
+function collectTrackedBossDebuffSources(tableData) {
+  const grouped = new Map();
+  const sourceRows = [
+    ...(Array.isArray(tableData?.entries) ? tableData.entries : []),
+    ...(Array.isArray(tableData?.sources) ? tableData.sources : []),
+  ];
+
+  for (const sourceRow of sourceRows) {
+    const sourceName = sourceRow?.name || sourceRow?.sourceName || "Unknown";
+    const sourceId = sourceRow?.id ?? sourceRow?.sourceID ?? sourceRow?.sourceId ?? null;
+    const sourceType = sourceRow?.type || sourceRow?.sourceType || "";
+
+    for (const debuffRow of getNestedAbilityRows(sourceRow)) {
+      const tracker = matchTrackedBossDebuff(
+        debuffRow?.guid ?? debuffRow?.gameID ?? debuffRow?.abilityGameID ?? debuffRow?.id ?? null,
+        debuffRow?.name || debuffRow?.abilityName || debuffRow?.ability?.name || ""
+      );
+      if (!tracker) continue;
+
+      const casts = getDebuffCastCount(debuffRow);
+      if (casts <= 0) continue;
+
+      const trackedSources = grouped.get(tracker.key) || new Map();
+      const trackedSourceKey = String(sourceId ?? sourceName);
+      const trackedSource = trackedSources.get(trackedSourceKey) || {
+        sourceId,
+        name: sourceName,
+        type: sourceType,
+        casts: 0,
+      };
+      trackedSource.casts += casts;
+      trackedSources.set(trackedSourceKey, trackedSource);
+      grouped.set(tracker.key, trackedSources);
+    }
+  }
+
+  return grouped;
+}
+
+function collectTrackedBossDebuffSourcesFromEvents(events = [], sourceLookup = new Map()) {
+  const grouped = new Map();
+
+  for (const event of events) {
+    const eventType = String(event?.type || "").toLowerCase();
+    if (!eventType.startsWith("applydebuff") && !eventType.startsWith("refreshdebuff")) continue;
+
+    const tracker = matchTrackedBossDebuff(
+      event?.abilityGameID
+      ?? event?.ability?.guid
+      ?? event?.ability?.gameID
+      ?? event?.guid
+      ?? null,
+      event?.ability?.name || event?.name || ""
+    );
+    if (!tracker) continue;
+
+    const sourceMap = grouped.get(tracker.key) || new Map();
+    const sourceKey = String(
+      event?.sourceID
+      ?? event?.sourceId
+      ?? event?.source?.id
+      ?? event?.sourceName
+      ?? event?.source?.name
+      ?? "unknown-source"
+    );
+    const lookupEntry = sourceLookup.get(String(
+      event?.sourceID
+      ?? event?.sourceId
+      ?? event?.source?.id
+      ?? ""
+    )) || null;
+    const sourceEntry = sourceMap.get(sourceKey) || {
+      sourceId: event?.sourceID ?? event?.sourceId ?? event?.source?.id ?? null,
+      name: event?.sourceName || event?.source?.name || lookupEntry?.name || "Unknown",
+      type: event?.source?.type || lookupEntry?.type || "",
+      casts: 0,
+    };
+    sourceEntry.casts += 1;
+    sourceMap.set(sourceKey, sourceEntry);
+    grouped.set(tracker.key, sourceMap);
+  }
+
+  return grouped;
 }
 
 function normalizeTrackedConsumableName(name) {
@@ -2459,6 +2768,8 @@ export async function fetchRpbImportStep(action, input = {}) {
       return fetchFightHealingSnapshots(reportId, apiKey);
     case "deathsByFight":
       return fetchFightDeathsSnapshots(reportId, apiKey);
+    case "debuffsByFight":
+      return fetchFightDebuffSnapshots(reportId, apiKey);
     case "buffsByFight":
       return fetchFightBuffSnapshots(reportId, apiKey);
     case "playerAbilityBreakdown":
@@ -2609,6 +2920,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
       damageByFight: datasets.damageByFight || {},
       healingByFight: datasets.healingByFight || {},
       deathsByFight: datasets.deathsByFight || {},
+      debuffsByFight: datasets.debuffsByFight || {},
       buffsByFight: datasets.buffsByFight || {},
     },
     fights,
@@ -2641,6 +2953,7 @@ export async function importRpbRaid({ reportUrl, reportId: rawReportId, apiKey =
     "damageByFight",
     "healingByFight",
     "deathsByFight",
+    "debuffsByFight",
     "buffsByFight",
   ];
   const datasets = {};

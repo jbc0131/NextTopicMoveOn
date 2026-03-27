@@ -2614,6 +2614,65 @@ function buildDrumSliceEntries(players, analyticsByPlayerId, filterIds = null) {
   });
 }
 
+function buildDebuffSliceEntries(fights, importPayload = null) {
+  const visibleFightIds = new Set((fights || []).map(fight => String(fight?.id || "")).filter(Boolean));
+  const grouped = new Map();
+
+  for (const snapshot of importPayload?.debuffsByFight?.snapshots || []) {
+    if (!visibleFightIds.has(String(snapshot?.fightId || ""))) continue;
+
+    const fightDurationMs = Number(snapshot?.durationMs || 0);
+    for (const debuff of snapshot?.debuffs || []) {
+      const key = String(debuff?.key || debuff?.label || "unknown-debuff");
+      const existing = grouped.get(key) || {
+        key,
+        label: debuff?.label || "Unknown Debuff",
+        totalUptime: 0,
+        totalPossibleUptime: 0,
+        casts: 0,
+        sources: new Map(),
+      };
+
+      existing.totalUptime += Number(debuff?.totalUptime || 0);
+      existing.totalPossibleUptime += fightDurationMs;
+      existing.casts += Number(debuff?.totalUses || 0);
+
+      for (const source of debuff?.sources || []) {
+        const sourceKey = String(source?.sourceId ?? source?.name ?? `source-${existing.sources.size + 1}`);
+        const current = existing.sources.get(sourceKey) || {
+          sourceId: source?.sourceId ?? null,
+          name: source?.name || "Unknown",
+          type: source?.type || "",
+          casts: 0,
+        };
+        current.casts += Number(source?.casts || 0);
+        existing.sources.set(sourceKey, current);
+      }
+
+      grouped.set(key, existing);
+    }
+  }
+
+  return [...grouped.values()]
+    .map(entry => ({
+      key: entry.key,
+      label: entry.label,
+      totalUptime: entry.totalUptime,
+      totalPossibleUptime: entry.totalPossibleUptime,
+      uptimePercent: entry.totalPossibleUptime > 0 ? Math.min(100, (entry.totalUptime / entry.totalPossibleUptime) * 100) : 0,
+      casts: entry.casts,
+      sources: [...entry.sources.values()].sort((a, b) => {
+        if (b.casts !== a.casts) return b.casts - a.casts;
+        return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+      }),
+    }))
+    .sort((a, b) => {
+      if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
+      if (b.casts !== a.casts) return b.casts - a.casts;
+      return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
+    });
+}
+
 function buildPotionSliceEntries(players, analyticsByPlayerId, filterIds = null) {
   const rows = [];
 
@@ -4182,6 +4241,7 @@ export default function RpbPage() {
   const [raids, setRaids] = useState([]);
   const [selectedRaid, setSelectedRaid] = useState(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [expandedDebuffKeys, setExpandedDebuffKeys] = useState(() => new Set());
   const suppressAutoSelectPlayerRef = useRef(false);
   const [itemMetaById, setItemMetaById] = useState({});
   const [fightGearLoaded, setFightGearLoaded] = useState(false);
@@ -4376,6 +4436,18 @@ export default function RpbPage() {
   function closeSelectedPlayer() {
     suppressAutoSelectPlayerRef.current = true;
     setSelectedPlayerId("");
+  }
+
+  function toggleDebuffExpansion(debuffKey) {
+    setExpandedDebuffKeys(current => {
+      const next = new Set(current);
+      if (next.has(debuffKey)) {
+        next.delete(debuffKey);
+      } else {
+        next.add(debuffKey);
+      }
+      return next;
+    });
   }
 
   function handleRaidSelection(targetRaidId) {
@@ -4740,6 +4812,9 @@ export default function RpbPage() {
   const visibleDrumSliceEntries = useMemo(() => {
     return buildDrumSliceEntries(selectedRaid?.players || [], filteredPlayerAnalyticsById, raidAnalyticsFilterIds);
   }, [filteredPlayerAnalyticsById, raidAnalyticsFilterIds, selectedRaid]);
+  const visibleDebuffSliceEntries = useMemo(() => {
+    return buildDebuffSliceEntries(filteredFights, selectedRaid?.importPayload);
+  }, [filteredFights, selectedRaid]);
   const selectedPlayerDamageBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "damageDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerHealingBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "healingDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSummaryDamageBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "damage"), [selectedPlayer?.summary]);
@@ -4762,6 +4837,8 @@ export default function RpbPage() {
     : selectedPlayerSummaryHealingBreakdown;
   const selectedPlayerDeathRows = useMemo(() => buildDeathDetailRows(filteredFights, selectedPlayerId), [filteredFights, selectedPlayerId]);
   const defaultVisiblePlayerId = useMemo(() => {
+    if (sliceType === "debuffs") return "";
+
     const source = sliceType === "consumables"
       ? visibleConsumableSliceEntries
       : (sliceType === "potions"
@@ -5176,6 +5253,15 @@ export default function RpbPage() {
       setSelectedPlayerId(defaultVisiblePlayerId);
     }
   }, [defaultVisiblePlayerId, filteredPlayers, isMobileViewport, selectedPlayerId]);
+
+  useEffect(() => {
+    setExpandedDebuffKeys(current => {
+      if (!current.size) return current;
+      const visibleKeys = new Set(visibleDebuffSliceEntries.map(entry => entry.key));
+      const next = new Set([...current].filter(key => visibleKeys.has(key)));
+      return next.size === current.size ? current : next;
+    });
+  }, [visibleDebuffSliceEntries]);
 
   useEffect(() => {
     if (loadingList) return;
@@ -6022,6 +6108,7 @@ export default function RpbPage() {
                           { id: "damage", label: "Damage" },
                           { id: "healing", label: "Healing" },
                           { id: "deaths", label: "Deaths" },
+                          { id: "debuffs", label: "Debuffs" },
                           { id: "drums", label: "Drums" },
                           { id: "potions", label: "Potions" },
                           { id: "consumables", label: "Consumables" },
@@ -6040,13 +6127,122 @@ export default function RpbPage() {
                           ? visibleConsumableSliceEntries
                           : (sliceType === "potions"
                             ? visiblePotionSliceEntries
-                            : (sliceType === "drums" ? visibleDrumSliceEntries : visibleAggregatedSliceEntries))).length === 0) && (
+                            : (sliceType === "drums"
+                              ? visibleDrumSliceEntries
+                              : (sliceType === "debuffs" ? visibleDebuffSliceEntries : visibleAggregatedSliceEntries)))).length === 0) && (
                           <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                            {raidAnalyticsFilter
-                              ? "No players match the active raid analytics filter in this slice."
-                              : "Select encounters and re-import a raid with boss data to populate encounter slices."}
+                            {sliceType === "debuffs"
+                              ? "No tracked boss debuffs were found in the current filtered fights. Reimport the report if this raid predates debuff snapshots."
+                              : (raidAnalyticsFilter
+                                ? "No players match the active raid analytics filter in this slice."
+                                : "Select encounters and re-import a raid with boss data to populate encounter slices.")}
                           </div>
                         )}
+                        {sliceType === "debuffs" && visibleDebuffSliceEntries.map(entry => {
+                          const isExpanded = expandedDebuffKeys.has(entry.key);
+                          return (
+                            <div
+                              key={`debuff-${entry.key}`}
+                              style={{
+                                border: `1px solid ${isExpanded ? accent.blue : border.subtle}`,
+                                boxShadow: isExpanded ? `0 0 0 2px ${accent.blue}22` : "none",
+                                borderRadius: radius.base,
+                                background: isExpanded ? `${accent.blue}08` : "transparent",
+                                overflow: "hidden",
+                              }}
+                            >
+                              <button
+                                onClick={() => toggleDebuffExpansion(entry.key)}
+                                style={{
+                                  width: "100%",
+                                  border: "none",
+                                  background: "transparent",
+                                  padding: space[3],
+                                  textAlign: "left",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 8, alignItems: "flex-start" }}>
+                                  <span style={{ color: text.primary, fontWeight: fontWeight.semibold }}>
+                                    {entry.label}
+                                  </span>
+                                  <span style={{ minWidth: 112, textAlign: "right", display: "flex", flexDirection: "column", gap: 4 }}>
+                                    <span style={{ color: "#d7ffdf", fontWeight: fontWeight.bold }}>
+                                      {`${entry.uptimePercent.toFixed(1)}% uptime`}
+                                    </span>
+                                    <span style={{ fontSize: fontSize.xs, color: text.secondary }}>
+                                      {`${entry.casts} cast${entry.casts === 1 ? "" : "s"}`}
+                                    </span>
+                                  </span>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
+                                  <div style={{ flex: 1, height: 10, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}` }}>
+                                    <div style={{
+                                      width: `${Math.max(entry.uptimePercent > 0 ? 3 : 0, Math.min(100, Math.round(entry.uptimePercent)))}%`,
+                                      height: "100%",
+                                      background: intent.success,
+                                      opacity: 0.9,
+                                    }} />
+                                  </div>
+                                  <span style={{ color: text.muted, fontSize: fontSize.base, lineHeight: 1 }}>
+                                    {isExpanded ? "▾" : "▸"}
+                                  </span>
+                                </div>
+                              </button>
+                              {isExpanded && (
+                                <div style={{ padding: `0 ${space[3]}px ${space[3]}px`, display: "flex", flexDirection: "column", gap: space[2] }}>
+                                  <div style={{ fontSize: fontSize.xs, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                    Caster Breakdown
+                                  </div>
+                                  {entry.sources.length === 0 && (
+                                    <div style={{ fontSize: fontSize.sm, color: text.muted }}>
+                                      No source cast data was returned for this debuff.
+                                    </div>
+                                  )}
+                                  {entry.sources.length > 0 && (
+                                    <>
+                                      <div style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "minmax(0, 1fr) 88px",
+                                        gap: space[2],
+                                        padding: `0 ${space[1]}px`,
+                                        fontSize: fontSize.xs,
+                                        color: text.muted,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.06em",
+                                      }}>
+                                        <div>Caster</div>
+                                        <div style={{ textAlign: "right" }}>Casts</div>
+                                      </div>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                        {entry.sources.map(source => (
+                                          <div
+                                            key={`${entry.key}-${source.sourceId ?? source.name}`}
+                                            style={{
+                                              display: "grid",
+                                              gridTemplateColumns: "minmax(0, 1fr) 88px",
+                                              gap: space[2],
+                                              alignItems: "center",
+                                              padding: `${space[2]}px ${space[1]}px`,
+                                              borderTop: `1px solid ${border.subtle}`,
+                                            }}
+                                          >
+                                            <div style={{ fontSize: fontSize.sm, color: text.primary, minWidth: 0, overflowWrap: "anywhere" }}>
+                                              {source.name}
+                                            </div>
+                                            <div style={{ fontSize: fontSize.sm, color: "#d6e7ff", fontWeight: fontWeight.semibold, textAlign: "right" }}>
+                                              {source.casts}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                         {sliceType === "drums" && visibleDrumSliceEntries.map(entry => {
                           const active = String(entry.id) === String(selectedPlayerId);
                           const maxAffectedTargets = Math.max(0, Number(entry.casts || 0) * 5);
@@ -6249,7 +6445,7 @@ export default function RpbPage() {
                   </div>
                 </div>
 
-                {!isMobileViewport && isPlayerDetailOpen && (
+                {!isMobileViewport && isPlayerDetailOpen && sliceType !== "debuffs" && (
                   <PlayerDetailPanel
                     isMobile={isMobileViewport}
                     selectedPlayer={selectedPlayer}
@@ -6271,7 +6467,7 @@ export default function RpbPage() {
                   />
                 )}
             </div>
-            {isMobileViewport && isPlayerDetailOpen && (
+            {isMobileViewport && isPlayerDetailOpen && sliceType !== "debuffs" && (
               <div style={{
                 position: "fixed",
                 inset: 0,
