@@ -41,6 +41,7 @@ const TRACKED_DEBUFF_ROWS = [
   { key: "hunters-mark", label: "Hunter's Mark", className: "Hunter", order: 8 },
 ];
 const SUNDER_BAR_COLOR = "#4fb26f";
+const ARMOR_STACK_MARKER_COUNT = 5;
 
 const MOBILE_BREAKPOINT = 960;
 
@@ -3851,8 +3852,11 @@ function buildTimelineTickMarks(totalDurationMs) {
 }
 
 function buildArmorStackMarkers(maxStacks) {
-  const count = Math.max(0, Math.floor(Number(maxStacks || 0)));
-  return Array.from({ length: count }, (_, index) => index + 1);
+  const reachedStacks = Math.max(0, Math.min(ARMOR_STACK_MARKER_COUNT, Math.floor(Number(maxStacks || 0))));
+  return Array.from({ length: ARMOR_STACK_MARKER_COUNT }, (_, index) => ({
+    stack: index + 1,
+    active: index < reachedStacks,
+  }));
 }
 
 function formatEncounterSelectionDuration(ms) {
@@ -6317,9 +6321,9 @@ export default function RpbPage() {
                                   <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                                     {isArmorRow && armorStackMarkers.length > 0 && (
                                       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                                        {armorStackMarkers.map(stack => (
+                                        {armorStackMarkers.map(marker => (
                                           <span
-                                            key={`${entry.key}-stack-${stack}`}
+                                            key={`${entry.key}-stack-${marker.stack}`}
                                             style={{
                                               display: "inline-flex",
                                               alignItems: "center",
@@ -6328,15 +6332,15 @@ export default function RpbPage() {
                                               height: 18,
                                               padding: "0 6px",
                                               borderRadius: radius.pill,
-                                              background: "rgba(79, 178, 111, 0.18)",
-                                              border: "1px solid rgba(79, 178, 111, 0.55)",
-                                              color: "#8be3a6",
+                                              background: marker.active ? "rgba(79, 178, 111, 0.18)" : "rgba(191, 72, 72, 0.18)",
+                                              border: marker.active ? "1px solid rgba(79, 178, 111, 0.55)" : "1px solid rgba(191, 72, 72, 0.55)",
+                                              color: marker.active ? "#8be3a6" : "#ff8e8e",
                                               fontSize: fontSize.xs,
                                               fontWeight: fontWeight.semibold,
                                               lineHeight: 1,
                                             }}
                                           >
-                                            {stack}
+                                            {marker.stack}
                                           </span>
                                         ))}
                                       </div>
