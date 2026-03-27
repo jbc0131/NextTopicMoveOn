@@ -30,11 +30,12 @@ const TRACKED_BOSS_DEBUFFS = [
   { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["26993", "27011"]), preferredClass: "Druid", order: 1 },
   { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]), preferredClass: "Warrior", order: 2 },
   { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 3 },
-  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 4 },
-  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 5, defaultMaxStacks: 5 },
-  { key: "blood-frenzy", label: "Blood Frenzy", aliases: ["blood frenzy"], spellIds: new Set(["30070", "30069"]), preferredClass: "Warrior", order: 6 },
-  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]), preferredClass: "Hunter", order: 7 },
-  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]), preferredClass: "Hunter", order: 8 },
+  { key: "curse-of-recklessness", label: "Curse of Recklessness", aliases: ["curse of recklessness"], spellIds: new Set(["27226"]), preferredClass: "Warlock", order: 4 },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 5 },
+  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 6 },
+  { key: "blood-frenzy", label: "Blood Frenzy", aliases: ["blood frenzy"], spellIds: new Set(["29859"]), preferredClass: "Warrior", order: 7 },
+  { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]), preferredClass: "Hunter", order: 8 },
+  { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]), preferredClass: "Hunter", order: 9 },
 ];
 const TRACKED_BOSS_DEBUFF_SPELL_IDS = new Set(
   TRACKED_BOSS_DEBUFFS.flatMap(entry => [...(entry.spellIds || [])])
@@ -1597,7 +1598,7 @@ function mergeTrackedBossDebuffRows(
       totalUses: 0,
       totalUptime,
       bands,
-      maxStacks: Number(tracker.defaultMaxStacks || 0),
+      maxStacks: 0,
       uptimePercent: durationMs > 0 ? (totalUptime / durationMs) * 100 : 0,
       sources: [],
     });
@@ -1645,17 +1646,10 @@ function collectTrackedBossDebuffMaxStacksFromEvents(events = []) {
     );
     if (!tracker) continue;
 
-    const eventType = String(event?.type || "").toLowerCase();
     const explicitStack = Number(event?.stack ?? event?.stacks ?? 0);
-    let value = Number.isFinite(explicitStack) && explicitStack > 0 ? explicitStack : 0;
-    if (!value && tracker.key === "armor-reduction" && String(event?.ability?.guid || event?.abilityGameID || "") === "26866") {
-      value = Number(tracker.defaultMaxStacks || 5);
-    }
+    const value = Number.isFinite(explicitStack) && explicitStack > 0 ? explicitStack : 0;
     if (value > Number(grouped.get(tracker.key) || 0)) {
       grouped.set(tracker.key, value);
-    }
-    if (eventType === "applydebuff" && tracker.key === "armor-reduction" && String(event?.ability?.guid || event?.abilityGameID || "") === "26866") {
-      grouped.set(tracker.key, Math.max(Number(grouped.get(tracker.key) || 0), Number(tracker.defaultMaxStacks || 5)));
     }
   }
 
