@@ -2673,6 +2673,9 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
     const fightDurationMs = Number(snapshot?.durationMs || 0);
     const fightOffsetMs = totalEncounterDurationMs;
     totalEncounterDurationMs += fightDurationMs;
+    for (const entry of grouped.values()) {
+      entry.totalPossibleUptime += fightDurationMs;
+    }
 
     for (const debuff of snapshot?.debuffs || []) {
       const key = String(debuff?.key || debuff?.label || "unknown-debuff");
@@ -2693,7 +2696,6 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
       existing.preferredClass = debuff?.preferredClass || existing.preferredClass;
       existing.order = Number.isFinite(Number(debuff?.order)) ? Number(debuff.order) : existing.order;
       existing.totalUptime += Number(debuff?.totalUptime || 0);
-      existing.totalPossibleUptime += fightDurationMs;
       existing.casts += Number(debuff?.totalUses || 0);
       existing.maxStacks = Math.max(Number(existing.maxStacks || 0), Number(debuff?.maxStacks || 0));
       existing.timelineBands.push(...(debuff?.bands || []).map(band => ({
@@ -3823,6 +3825,28 @@ function formatDuration(ms) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function buildTimelineTickMarks(totalDurationMs) {
+  const durationMs = Math.max(0, Number(totalDurationMs || 0));
+  const ratios = [0, 0.25, 0.5, 0.75, 1];
+  const marks = [];
+  const seen = new Set();
+
+  for (const ratio of ratios) {
+    const timestampMs = Math.round(durationMs * ratio);
+    const label = formatDuration(timestampMs);
+    const key = `${timestampMs}-${label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    marks.push({
+      ratio,
+      label,
+      timestampMs,
+    });
+  }
+
+  return marks;
 }
 
 function formatEncounterSelectionDuration(ms) {
@@ -6237,6 +6261,8 @@ export default function RpbPage() {
                         )}
                         {sliceType === "debuffs" && visibleDebuffSliceEntries.map(entry => {
                           const isExpanded = expandedDebuffKeys.has(entry.key);
+                          const timelineTickMarks = buildTimelineTickMarks(entry.totalEncounterDurationMs);
+                          const isArmorRow = entry.key === "armor-reduction";
                           return (
                             <div
                               key={`debuff-${entry.key}`}
@@ -6260,8 +6286,16 @@ export default function RpbPage() {
                                 }}
                               >
                                 <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 8, alignItems: "flex-start" }}>
-                                  <span style={{ color: getClassColor(entry.preferredClass), fontWeight: fontWeight.semibold }}>
-                                    {entry.label}
+                                  <span style={{ fontWeight: fontWeight.semibold }}>
+                                    {isArmorRow ? (
+                                      <>
+                                        <span style={{ color: getClassColor("Warrior") }}>Sunder Armor</span>
+                                        <span style={{ color: text.secondary }}> / </span>
+                                        <span style={{ color: getClassColor("Rogue") }}>Improved Expose Armor</span>
+                                      </>
+                                    ) : (
+                                      <span style={{ color: getClassColor(entry.preferredClass) }}>{entry.label}</span>
+                                    )}
                                   </span>
                                   <span style={{ minWidth: 112, textAlign: "right", display: "flex", flexDirection: "column", gap: 4 }}>
                                     <span style={{ color: "#d7ffdf", fontWeight: fontWeight.bold }}>
@@ -6296,12 +6330,48 @@ export default function RpbPage() {
                                       );
                                     })}
                                   </div>
-                                  <div style={{ fontSize: fontSize.xs, color: text.muted, minWidth: 70, textAlign: "right" }}>
-                                    {entry.maxStacks > 0 ? `${entry.maxStacks} stacks` : "Coverage"}
+                                  <div style={{ minWidth: isArmorRow ? 108 : 80, textAlign: "right" }}>
+                                    {isArmorRow ? (
+                                      <span
+                                        style={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          padding: "3px 8px",
+                                          borderRadius: radius.pill,
+                                          background: entry.maxStacks > 0 ? "rgba(245, 200, 66, 0.18)" : "rgba(255, 255, 255, 0.06)",
+                                          border: `1px solid ${entry.maxStacks > 0 ? "rgba(245, 200, 66, 0.5)" : border.subtle}`,
+                                          color: entry.maxStacks > 0 ? "#ffd54a" : text.secondary,
+                                          fontSize: fontSize.xs,
+                                          fontWeight: fontWeight.semibold,
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {entry.maxStacks > 0 ? `Max ${entry.maxStacks} stacks` : "No stacks seen"}
+                                      </span>
+                                    ) : (
+                                      <span style={{ fontSize: fontSize.xs, color: text.muted }}>Coverage</span>
+                                    )}
                                   </div>
                                   <span style={{ color: text.muted, fontSize: fontSize.base, lineHeight: 1 }}>
                                     {isExpanded ? "▾" : "▸"}
                                   </span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: space[2], marginTop: 6, paddingRight: 96 }}>
+                                  {timelineTickMarks.map(mark => (
+                                    <span
+                                      key={`${entry.key}-tick-${mark.ratio}`}
+                                      style={{
+                                        color: text.muted,
+                                        fontSize: fontSize.xs,
+                                        minWidth: 0,
+                                        textAlign: mark.ratio === 0 ? "left" : (mark.ratio === 1 ? "right" : "center"),
+                                        flex: 1,
+                                      }}
+                                    >
+                                      {mark.label}
+                                    </span>
+                                  ))}
                                 </div>
                               </button>
                               {isExpanded && (
