@@ -43,6 +43,18 @@ const TRACKED_DEBUFF_ROWS = [
 ];
 const SUNDER_BAR_COLOR = "#4fb26f";
 const ARMOR_STACK_MARKER_COUNT = 5;
+const UNDER_DEVELOPMENT_BADGE_STYLE = {
+  alignSelf: "flex-start",
+  padding: "6px 10px",
+  borderRadius: radius.pill,
+  background: "rgba(245, 200, 66, 0.18)",
+  border: "1px solid rgba(245, 200, 66, 0.55)",
+  color: "#ffd54a",
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.semibold,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+};
 
 const MOBILE_BREAKPOINT = 960;
 
@@ -6299,24 +6311,6 @@ export default function RpbPage() {
                           </button>
                         ))}
                       </div>
-                      {sliceType === "debuffs" && (
-                        <div
-                          style={{
-                            alignSelf: "flex-start",
-                            padding: `6px 10px`,
-                            borderRadius: radius.pill,
-                            background: "rgba(245, 200, 66, 0.18)",
-                            border: "1px solid rgba(245, 200, 66, 0.55)",
-                            color: "#ffd54a",
-                            fontSize: fontSize.xs,
-                            fontWeight: fontWeight.semibold,
-                            letterSpacing: "0.04em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          This Tab Is Under Development
-                        </div>
-                      )}
                       <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                         {((sliceType === "consumables"
                           ? visibleConsumableSliceEntries
@@ -6461,7 +6455,7 @@ export default function RpbPage() {
                                       <span style={{ fontSize: fontSize.xs, color: text.muted }}>Estimate</span>
                                     )}
                                   </div>
-                                  <span style={{ color: text.muted, fontSize: fontSize.base, lineHeight: 1 }}>
+                                  <span style={{ color: text.muted, fontSize: `calc(${fontSize.base} * 3)`, lineHeight: 0.8, fontWeight: fontWeight.bold }}>
                                     {isExpanded ? "▾" : "▸"}
                                   </span>
                                 </div>
