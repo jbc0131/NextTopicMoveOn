@@ -619,6 +619,8 @@ function ReportPickerSheet({
   handleReimportRaid,
   setDeleteConfirmRaid,
   handleRaidSelection,
+  openWclReport,
+  copyRaidPublicUrl,
   reportUrl,
   setReportUrl,
   handleImport,
@@ -700,6 +702,7 @@ function ReportPickerSheet({
             const active = raid.id === raidId;
             const teamOption = getTeamOption(raid.teamTag);
             const reportSpeedPercent = getRaidReportSpeedPercent(raid);
+            const wclReportUrl = raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
             return (
               <div
                 key={raid.id}
@@ -709,8 +712,7 @@ function ReportPickerSheet({
                   flexDirection: "column",
                 }}
               >
-                {isAdmin && (
-                  <div style={{ position: "absolute", top: 10, right: 10, zIndex: 3 }} onClick={event => event.stopPropagation()}>
+                <div style={{ position: "absolute", top: 10, right: 10, zIndex: 30 }} onClick={event => event.stopPropagation()}>
                     <button
                       type="button"
                       onClick={event => {
@@ -732,6 +734,15 @@ function ReportPickerSheet({
                     {openRaidMenuId === raid.id && (
                       <RaidActionsMenu
                         raid={raid}
+                        isAdmin={isAdmin}
+                        onOpenWcl={() => {
+                          setOpenRaidMenuId("");
+                          openWclReport(raid);
+                        }}
+                        onCopyReportUrl={() => {
+                          setOpenRaidMenuId("");
+                          copyRaidPublicUrl(raid);
+                        }}
                         onRename={() => openRenameModal(raid)}
                         onTag={() => openTagModal(raid)}
                         onDeleteTag={async () => {
@@ -751,7 +762,6 @@ function ReportPickerSheet({
                       />
                     )}
                   </div>
-                )}
                 <button
                   type="button"
                   onClick={() => handleRaidSelection(raid.id)}
@@ -4300,7 +4310,17 @@ function RenameReportModal({ open, value, onChange, onConfirm, onCancel }) {
   );
 }
 
-function RaidActionsMenu({ raid, onRename, onTag, onDeleteTag, onReimport, onDelete }) {
+function RaidActionsMenu({
+  raid,
+  isAdmin = false,
+  onOpenWcl,
+  onCopyReportUrl,
+  onRename,
+  onTag,
+  onDeleteTag,
+  onReimport,
+  onDelete,
+}) {
   const teamTag = normalizeTeamTag(raid?.teamTag);
 
   const itemStyle = {
@@ -4336,30 +4356,42 @@ function RaidActionsMenu({ raid, onRename, onTag, onDeleteTag, onReimport, onDel
         gap: 4,
         overflow: "visible",
         maxHeight: "none",
-        zIndex: 250,
+        zIndex: 10050,
       }}
       onClick={event => event.stopPropagation()}
     >
-      <button onClick={onTag} style={itemStyle}>
-        <span aria-hidden="true">🏷</span>
-        <span>Add Tag</span>
+      <button onClick={onOpenWcl} style={itemStyle}>
+        <span aria-hidden="true">🔗</span>
+        <span>{`WCL: ${raid?.reportId || "Report"}`}</span>
       </button>
-      <button onClick={onDeleteTag} disabled={!teamTag} style={{ ...itemStyle, opacity: teamTag ? 1 : 0.45, cursor: teamTag ? "pointer" : "not-allowed" }}>
-        <span aria-hidden="true">⌫</span>
-        <span>Delete Tag</span>
+      <button onClick={onCopyReportUrl} style={itemStyle}>
+        <span aria-hidden="true">⧉</span>
+        <span>Copy Report URL</span>
       </button>
-      <button onClick={onRename} style={itemStyle}>
-        <span aria-hidden="true">✎</span>
-        <span>Rename Report</span>
-      </button>
-      <button onClick={onReimport} style={itemStyle}>
-        <span aria-hidden="true">↻</span>
-        <span>Reimport Report</span>
-      </button>
-      <button onClick={onDelete} style={{ ...itemStyle, color: intent.danger }}>
-        <span aria-hidden="true">🗑</span>
-        <span>Delete Report</span>
-      </button>
+      {isAdmin && (
+        <>
+          <button onClick={onTag} style={itemStyle}>
+            <span aria-hidden="true">🏷</span>
+            <span>Add Tag</span>
+          </button>
+          <button onClick={onDeleteTag} disabled={!teamTag} style={{ ...itemStyle, opacity: teamTag ? 1 : 0.45, cursor: teamTag ? "pointer" : "not-allowed" }}>
+            <span aria-hidden="true">⌫</span>
+            <span>Delete Tag</span>
+          </button>
+          <button onClick={onRename} style={itemStyle}>
+            <span aria-hidden="true">✎</span>
+            <span>Rename Report</span>
+          </button>
+          <button onClick={onReimport} style={itemStyle}>
+            <span aria-hidden="true">↻</span>
+            <span>Reimport Report</span>
+          </button>
+          <button onClick={onDelete} style={{ ...itemStyle, color: intent.danger }}>
+            <span aria-hidden="true">🗑</span>
+            <span>Delete Report</span>
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -4626,6 +4658,41 @@ export default function RpbPage() {
     navigate(`/rpb/${targetRaidId}`);
   }
 
+  function buildWclReportUrl(raid) {
+    return raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
+  }
+
+  function buildRaidPublicUrl(raid) {
+    const baseUrl = typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "https://nexttopicmoveon.com";
+    return raid?.id ? `${baseUrl.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid.id))}` : "";
+  }
+
+  function openWclReport(raid) {
+    const url = buildWclReportUrl(raid);
+    if (!url) return;
+    if (typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  }
+
+  async function copyRaidPublicUrl(raid) {
+    const url = buildRaidPublicUrl(raid);
+    if (!url) return;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        throw new Error("Clipboard unavailable");
+      }
+      toast({ message: "Copied report URL.", type: "success" });
+    } catch (error) {
+      toast({ message: `Copy failed: ${error.message || "Clipboard unavailable"}`, type: "danger" });
+    }
+  }
+
   function renderDesktopRaidCard(raid, options = {}) {
     const { layout = "large", index = 0 } = options;
     const active = raid.id === raidId;
@@ -4644,10 +4711,12 @@ export default function RpbPage() {
           position: "relative",
           minWidth: isLarge ? 220 : 160,
           flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: isLarge ? 6 : 0,
         }}
       >
-        {isAdmin && (
-          <div style={{ position: "absolute", top: isLarge ? 8 : 6, right: isLarge ? 8 : 6, zIndex: 30 }} onClick={event => event.stopPropagation()}>
+        <div style={{ position: "absolute", top: isLarge ? 8 : 6, right: isLarge ? 8 : 6, zIndex: 30 }} onClick={event => event.stopPropagation()}>
             <button
               onClick={event => {
                 event.stopPropagation();
@@ -4669,6 +4738,15 @@ export default function RpbPage() {
             {openRaidMenuId === raid.id && (
               <RaidActionsMenu
                 raid={raid}
+                isAdmin={isAdmin}
+                onOpenWcl={() => {
+                  setOpenRaidMenuId("");
+                  openWclReport(raid);
+                }}
+                onCopyReportUrl={() => {
+                  setOpenRaidMenuId("");
+                  copyRaidPublicUrl(raid);
+                }}
                 onRename={() => openRenameModal(raid)}
                 onTag={() => openTagModal(raid)}
                 onDeleteTag={async () => {
@@ -4688,7 +4766,6 @@ export default function RpbPage() {
               />
             )}
           </div>
-        )}
 
         <button
           onClick={() => handleRaidSelection(raid.id)}
@@ -6001,6 +6078,8 @@ export default function RpbPage() {
             handleReimportRaid={handleReimportRaid}
             setDeleteConfirmRaid={setDeleteConfirmRaid}
             handleRaidSelection={handleRaidSelection}
+            openWclReport={openWclReport}
+            copyRaidPublicUrl={copyRaidPublicUrl}
             reportUrl={reportUrl}
             setReportUrl={setReportUrl}
             handleImport={handleImport}
