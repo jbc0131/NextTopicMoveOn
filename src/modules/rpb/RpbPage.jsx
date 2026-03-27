@@ -803,11 +803,13 @@ function PlayerDetailPanel({
   closeSelectedPlayer,
   enableSwipeClose = false,
   onSwipeDismiss = null,
+  scrollContainerRef = null,
 }) {
   const detailPanelRef = useRef(null);
   const [detailPanelWidth, setDetailPanelWidth] = useState(0);
   const compactDetail = isMobile || (detailPanelWidth > 0 && detailPanelWidth < 760);
   const swipeStartRef = useRef(null);
+  const swipeDismissModeRef = useRef("");
   const [swipeOffset, setSwipeOffset] = useState({ x: 0, y: 0 });
   const deathGridColumns = compactDetail
     ? "minmax(72px, 88px) minmax(0, 1fr)"
@@ -958,6 +960,7 @@ function PlayerDetailPanel({
     const touch = event.touches?.[0];
     if (!touch) return;
     swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+    swipeDismissModeRef.current = "";
     setSwipeOffset({ x: 0, y: 0 });
   }
 
@@ -971,19 +974,38 @@ function PlayerDetailPanel({
     const deltaY = touch.clientY - start.y;
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
+    const scrollContainer = scrollContainerRef?.current || null;
+    const scrollTop = Number(scrollContainer?.scrollTop || 0);
+    const scrollHeight = Number(scrollContainer?.scrollHeight || 0);
+    const clientHeight = Number(scrollContainer?.clientHeight || 0);
+    const atTop = scrollTop <= 0;
+    const atBottom = scrollHeight > 0 && (scrollTop + clientHeight >= scrollHeight - 2);
 
     if (deltaX > 0 && absX > absY) {
       event.preventDefault();
+      swipeDismissModeRef.current = "right";
       setSwipeOffset({ x: deltaX, y: 0 });
       return;
     }
 
     if (absY > absX) {
-      if (deltaY > 0 || deltaY < 0) {
+      if (deltaY > 0 && atTop) {
         event.preventDefault();
+        swipeDismissModeRef.current = "down";
         setSwipeOffset({ x: 0, y: deltaY });
+        return;
+      }
+
+      if (deltaY < 0 && atBottom) {
+        event.preventDefault();
+        swipeDismissModeRef.current = "up";
+        setSwipeOffset({ x: 0, y: deltaY });
+        return;
       }
     }
+
+    swipeDismissModeRef.current = "";
+    setSwipeOffset({ x: 0, y: 0 });
   }
 
   function handleTouchEnd(event) {
@@ -997,6 +1019,8 @@ function PlayerDetailPanel({
     const deltaY = touch.clientY - start.y;
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
+    const swipeMode = swipeDismissModeRef.current;
+    swipeDismissModeRef.current = "";
     const dismiss = direction => {
       setSwipeOffset({ x: 0, y: 0 });
       if (onSwipeDismiss) {
@@ -1006,17 +1030,17 @@ function PlayerDetailPanel({
       }
     };
 
-    if (deltaX >= 72 && absX > absY) {
+    if (swipeMode === "right" && deltaX >= 72 && absX > absY) {
       dismiss("right");
       return;
     }
 
-    if (deltaY >= 72 && absY > absX) {
+    if (swipeMode === "down" && deltaY >= 72 && absY > absX) {
       dismiss("down");
       return;
     }
 
-    if (deltaY <= -72 && absY > absX) {
+    if (swipeMode === "up" && deltaY <= -72 && absY > absX) {
       dismiss("up");
       return;
     }
@@ -4563,6 +4587,7 @@ export default function RpbPage() {
   const [liveAbilityBreakdowns, setLiveAbilityBreakdowns] = useState({});
   const abilityBreakdownRef = useRef(null);
   const mobileDetailCloseTimerRef = useRef(null);
+  const mobileDetailOverlayRef = useRef(null);
   const [importProgress, setImportProgress] = useState({
     open: false,
     completed: 0,
@@ -7035,9 +7060,10 @@ export default function RpbPage() {
                 background: mobileDetailClosing ? "rgba(4, 10, 18, 0)" : "rgba(4, 10, 18, 0.78)",
                 padding: space[2],
                 overflowY: "auto",
+                WebkitOverflowScrolling: "touch",
                 overscrollBehavior: "contain",
                 transition: "background 220ms ease",
-              }}>
+              }} ref={mobileDetailOverlayRef}>
                 <div style={{
                   transform: mobileDetailClosing
                     ? (mobileDetailCloseDirection === "down"
@@ -7069,6 +7095,7 @@ export default function RpbPage() {
                     closeSelectedPlayer={closeSelectedPlayer}
                     enableSwipeClose
                     onSwipeDismiss={requestMobileDetailClose}
+                    scrollContainerRef={mobileDetailOverlayRef}
                   />
                 </div>
               </div>
