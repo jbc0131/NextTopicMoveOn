@@ -3966,7 +3966,7 @@ function filterFights(fights, mode, selectedFightId, outcome = "") {
   });
 }
 
-function ImportProgressModal({ open, progress }) {
+function ImportProgressModal({ open, progress, onClose }) {
   const [displayPercent, setDisplayPercent] = useState(0);
 
   useEffect(() => {
@@ -3991,6 +3991,7 @@ function ImportProgressModal({ open, progress }) {
 
   if (!open) return null;
   const visibleSteps = (progress.steps || []).slice(0, 10);
+  const canClose = typeof onClose === "function";
 
   return (
     <div style={{
@@ -4012,15 +4013,39 @@ function ImportProgressModal({ open, progress }) {
         flexDirection: "column",
         gap: space[4],
       }}>
-        <div>
-          <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: text.primary }}>Importing Raid</div>
-          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 4 }}>
-            {progress.message}
-          </div>
-          {!!progress.detail && (
-            <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 8, fontFamily: font.mono }}>
-              {progress.detail}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: space[3] }}>
+          <div>
+            <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: text.primary }}>Importing Raid</div>
+            <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 4 }}>
+              {progress.message}
             </div>
+            {!!progress.detail && (
+              <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 8, fontFamily: font.mono }}>
+                {progress.detail}
+              </div>
+            )}
+          </div>
+          {canClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close import progress"
+              style={{
+                ...btnStyle("default", false),
+                minWidth: 32,
+                width: 32,
+                height: 32,
+                padding: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: fontSize.base,
+                lineHeight: 1,
+                flexShrink: 0,
+              }}
+            >
+              ×
+            </button>
           )}
         </div>
 
@@ -5719,7 +5744,11 @@ export default function RpbPage() {
 
   return (
     <AppShell>
-      <ImportProgressModal open={importProgress.open} progress={importProgress} />
+      <ImportProgressModal
+        open={importProgress.open}
+        progress={importProgress}
+        onClose={() => setImportProgress(prev => ({ ...prev, open: false }))}
+      />
       <TeamTagModal
         open={importTagPrompt.open}
         title={`Tag ${importTagPrompt.raid?.title || "Imported Report"}`}
