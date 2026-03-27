@@ -2740,10 +2740,10 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
       }),
     }))
     .sort((a, b) => {
-      if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
-      if (b.casts !== a.casts) return b.casts - a.casts;
       const orderDelta = Number(a.order || 99) - Number(b.order || 99);
       if (orderDelta !== 0) return orderDelta;
+      if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
+      if (b.casts !== a.casts) return b.casts - a.casts;
       return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
     });
 }
