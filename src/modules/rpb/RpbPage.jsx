@@ -742,6 +742,7 @@ function ReportPickerSheet({
                   style={{
                     ...btnStyle(active ? "primary" : "default", active),
                     width: "100%",
+                    height: "auto",
                     minHeight: 88,
                     padding: space[3],
                     display: "flex",
