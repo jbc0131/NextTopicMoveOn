@@ -1182,8 +1182,10 @@ function PlayerDetailPanel({
                               </WowheadSpellLink>
                             ) : getAbilityName(event, "Unknown")}
                           </div>
-                          <div style={{ fontSize: fontSize.xs, color: text.secondary, marginTop: 6 }}>
-                            {`${getDeathEventAmountLabel(event)} · HP ${getDeathEventHpLabel(event)} · ${getSourceName(event)}`}
+                          <div style={{ fontSize: fontSize.xs, color: text.secondary, marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            <span style={{ color: getDeathTimelineEventTone(event) }}>{getDeathEventAmountLabel(event)}</span>
+                            <span>{`· HP ${getDeathEventHpLabel(event)}`}</span>
+                            <span>{`· `}<span style={{ color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold }}>{getSourceName(event)}</span></span>
                           </div>
                         </div>
                       ))}
@@ -1220,13 +1222,13 @@ function PlayerDetailPanel({
                                 </WowheadSpellLink>
                               ) : getAbilityName(event, "Unknown")}
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), minWidth: 0, whiteSpace: "nowrap" }}>
                               {getDeathEventAmountLabel(event)}
                             </div>
                             <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, whiteSpace: "nowrap" }}>
                               {getDeathEventHpLabel(event)}
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, overflowWrap: "anywhere" }}>
+                            <div style={{ fontSize: fontSize.sm, color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
                               {getSourceName(event)}
                             </div>
                           </div>
@@ -3858,6 +3860,12 @@ function getSourceName(value) {
     if (typeof source.type === "string" && source.type.trim()) return source.type;
   }
   return "Unknown Source";
+}
+
+function getDeathEventSourceColor(event) {
+  if (event?.sourceIsEnemy) return "#ff8d8d";
+  if (event?.sourceType) return getClassColor(event.sourceType);
+  return text.secondary;
 }
 
 function formatEventSummary(event) {

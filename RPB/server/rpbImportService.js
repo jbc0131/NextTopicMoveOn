@@ -3055,24 +3055,35 @@ function getEntryParsePercent(entry) {
 function resolveDeathActorName(actorId, actorLookup = null) {
   const normalizedId = actorId == null ? "" : String(actorId);
   if (!normalizedId || !(actorLookup instanceof Map)) return "";
-  return String(actorLookup.get(normalizedId) || "").trim();
+  return String(actorLookup.get(normalizedId)?.name || "").trim();
+}
+
+function resolveDeathActorMeta(actorId, actorLookup = null) {
+  const normalizedId = actorId == null ? "" : String(actorId);
+  if (!normalizedId || !(actorLookup instanceof Map)) return null;
+  return actorLookup.get(normalizedId) || null;
 }
 
 function buildDeathActorLookup(fightsData = {}) {
   const lookup = new Map();
   const collections = [
-    fightsData?.friendlies,
-    fightsData?.friendlyPets,
-    fightsData?.enemies,
-    fightsData?.enemyPets,
+    { entries: fightsData?.friendlies, hostile: false },
+    { entries: fightsData?.friendlyPets, hostile: false },
+    { entries: fightsData?.enemies, hostile: true },
+    { entries: fightsData?.enemyPets, hostile: true },
   ];
 
   for (const collection of collections) {
-    for (const actor of collection || []) {
+    for (const actor of collection.entries || []) {
       const actorId = actor?.id;
       const actorName = String(actor?.name || "").trim();
       if (actorId == null || !actorName) continue;
-      lookup.set(String(actorId), actorName);
+      lookup.set(String(actorId), {
+        id: String(actorId),
+        name: actorName,
+        type: String(actor?.type || "").trim(),
+        hostile: !!collection.hostile,
+      });
     }
   }
 
@@ -3084,6 +3095,8 @@ function normalizeDeathEvent(event, actorLookup = null) {
 
   const sourceId = event.sourceID ?? event.sourceId ?? event.source?.id ?? null;
   const targetId = event.targetID ?? event.targetId ?? event.target?.id ?? null;
+  const sourceMeta = resolveDeathActorMeta(sourceId, actorLookup);
+  const targetMeta = resolveDeathActorMeta(targetId, actorLookup);
 
   return {
     timestamp: event.timestamp ?? event.time ?? event.offset ?? 0,
@@ -3092,6 +3105,8 @@ function normalizeDeathEvent(event, actorLookup = null) {
     abilityName: event.ability?.name || event.abilityName || event.spellName || event.name || "",
     sourceId,
     sourceName: event.sourceName || event.source?.name || (typeof event.source === "string" ? event.source : "") || resolveDeathActorName(sourceId, actorLookup),
+    sourceType: event.sourceType || sourceMeta?.type || "",
+    sourceIsEnemy: typeof event.sourceIsEnemy === "boolean" ? event.sourceIsEnemy : !!sourceMeta?.hostile,
     amount: event.amount ?? event.hitPoints ?? event.value ?? 0,
     hitPoints: event.hitPoints ?? event.hitpoints ?? event.hitPoint ?? event.hp ?? null,
     overkill: event.overkill ?? 0,
@@ -3102,6 +3117,8 @@ function normalizeDeathEvent(event, actorLookup = null) {
     healing: event.healing ?? event.healingReceived ?? 0,
     targetId,
     targetName: event.targetName || event.target?.name || (typeof event.target === "string" ? event.target : "") || resolveDeathActorName(targetId, actorLookup),
+    targetType: event.targetType || targetMeta?.type || "",
+    targetIsEnemy: typeof event.targetIsEnemy === "boolean" ? event.targetIsEnemy : !!targetMeta?.hostile,
     events: (event.events || []).map(nestedEvent => normalizeDeathEvent(nestedEvent, actorLookup)).filter(Boolean),
     healingWindowEvents: (event.healingWindowEvents || []).map(nestedEvent => normalizeDeathEvent(nestedEvent, actorLookup)).filter(Boolean),
   };
