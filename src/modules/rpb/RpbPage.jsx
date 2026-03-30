@@ -722,7 +722,7 @@ function ReportPickerSheet({
             <div style={{ color: text.muted }}>No reports available for the current team filter.</div>
           )}
           {filteredRaids.map((raid, index) => {
-            const active = raid.id === raidId;
+            const active = raid.id === raidId || raid.reportId === raidId;
             const teamOption = getTeamOption(raid.teamTag);
             const reportSpeedPercent = getRaidReportSpeedPercent(raid);
             const isNewestReport = index === 0;
@@ -5086,7 +5086,7 @@ export default function RpbPage() {
 
   function renderDesktopRaidCard(raid, options = {}) {
     const { layout = "large", index = 0 } = options;
-    const active = raid.id === raidId;
+    const active = raid.id === raidId || raid.reportId === raidId;
     const isLarge = layout === "large";
     const teamOption = getTeamOption(raid.teamTag);
     const teamScheduleLabel = getTeamScheduleLabel(raid.teamTag);
@@ -5876,11 +5876,13 @@ export default function RpbPage() {
     if (loadingList) return;
     if (!teamFilter) return;
 
-    const visibleRaidIds = new Set(filteredRaids.map(raid => raid.id));
+    const visibleRaidIds = new Set(
+      filteredRaids.flatMap(raid => [String(raid.id || ""), String(raid.reportId || "")]).filter(Boolean)
+    );
     if (raidId && visibleRaidIds.has(raidId)) return;
 
     if (filteredRaids[0]?.id) {
-      navigate(`/rpb/${filteredRaids[0].id}`, { replace: true });
+      navigate(`/rpb/${filteredRaids[0].reportId || filteredRaids[0].id}`, { replace: true });
       return;
     }
 
@@ -6120,6 +6122,7 @@ export default function RpbPage() {
       const saveResult = await readApiJson(saveResponse);
       if (!saveResponse.ok) throw new Error(saveResult.error || "Failed to save imported raid");
       const savedRaidId = saveResult.raidId || assembledRaid.id;
+      const savedRaidRouteId = assembledRaid.reportId || savedRaidId;
       setLiveAbilityBreakdowns({});
       const nextRaids = await fetchRpbRaidList();
       setRaids(nextRaids);
@@ -6133,7 +6136,7 @@ export default function RpbPage() {
         type: "success",
         duration: 7000,
       });
-      navigate(`/rpb/${savedRaidId}`);
+      navigate(`/rpb/${savedRaidRouteId}`);
       setTimeout(() => {
         setImportProgress(prev => ({ ...prev, open: false }));
       }, 500);
