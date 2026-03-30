@@ -223,12 +223,32 @@ export async function saveRaidBundle(raid, options = {}) {
 
 async function getRaidBundle(raidId) {
   assertRedisConfigured();
-  const keys = getRaidKeys(raidId);
-  const [meta, fights, players] = await Promise.all([
+  let resolvedRaidId = String(raidId || "").trim();
+  if (!resolvedRaidId) return null;
+
+  let keys = getRaidKeys(resolvedRaidId);
+  let [meta, fights, players] = await Promise.all([
     getJsonCache(keys.meta),
     getJsonCache(keys.fights),
     getJsonCache(keys.players),
   ]);
+
+  if (!meta) {
+    const currentIndex = (await getJsonCache(RPB_INDEX_KEY)) || [];
+    const matchedEntry = currentIndex.find(entry =>
+      String(entry?.reportId || "").trim() === resolvedRaidId
+      || String(entry?.id || "").trim() === resolvedRaidId
+    ) || null;
+
+    if (!matchedEntry?.id) return null;
+    resolvedRaidId = String(matchedEntry.id);
+    keys = getRaidKeys(resolvedRaidId);
+    [meta, fights, players] = await Promise.all([
+      getJsonCache(keys.meta),
+      getJsonCache(keys.fights),
+      getJsonCache(keys.players),
+    ]);
+  }
 
   if (!meta) return null;
   return {

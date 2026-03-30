@@ -4653,7 +4653,7 @@ export default function RpbPage() {
     steps: [],
   });
   const pendingRaidSummary = useMemo(() => (
-    raids.find(raid => raid.id === raidId) || null
+    raids.find(raid => raid.id === raidId || raid.reportId === raidId) || null
   ), [raids, raidId]);
   const pendingRaidLoadingEmoji = pendingRaidSummary?.teamTag === "Team Dick"
     ? "🍆"
@@ -4672,25 +4672,19 @@ export default function RpbPage() {
   }, [sliceType, tabParam]);
 
   useEffect(() => {
-    const currentFightParam = searchParams.get("fight") || "";
-    const currentTabParam = normalizeRpbTab(searchParams.get("tab"));
-    if (currentFightParam === selectedFightId && currentTabParam === sliceType) return;
+    if (fightParam === selectedFightId && tabParam === sliceType) return;
 
-    const nextParams = new URLSearchParams(searchParams);
+    const nextParams = new URLSearchParams();
     if (selectedFightId) {
       nextParams.set("fight", String(selectedFightId));
-    } else {
-      nextParams.delete("fight");
     }
 
     if (sliceType && sliceType !== "damage") {
       nextParams.set("tab", sliceType);
-    } else {
-      nextParams.delete("tab");
     }
 
     setSearchParams(nextParams, { replace: true });
-  }, [searchParams, selectedFightId, setSearchParams, sliceType]);
+  }, [fightParam, selectedFightId, setSearchParams, sliceType, tabParam]);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -4750,7 +4744,7 @@ export default function RpbPage() {
         if (!cancelled) {
           setRaids(nextRaids);
           if (!raidId && nextRaids[0]?.id) {
-            navigate(`/rpb/${nextRaids[0].id}`, { replace: true });
+            navigate(`/rpb/${nextRaids[0].reportId || nextRaids[0].id}`, { replace: true });
           }
         }
       } catch (error) {
@@ -4773,7 +4767,7 @@ export default function RpbPage() {
         ? raids.filter(raid => normalizeTeamTag(raid.teamTag) === normalizedTeamFilter)
         : raids;
       const noReportsForFilter = !loadingList && !!normalizedTeamFilter && visibleRaids.length === 0;
-      const raidVisibleForFilter = !raidId || !normalizedTeamFilter || visibleRaids.some(raid => raid.id === raidId);
+      const raidVisibleForFilter = !raidId || !normalizedTeamFilter || visibleRaids.some(raid => raid.id === raidId || raid.reportId === raidId);
 
       if (!raidId || noReportsForFilter || !raidVisibleForFilter) {
         setSelectedRaid(null);
@@ -4887,11 +4881,12 @@ export default function RpbPage() {
     setMobileMenuOpen(false);
     setOpenRaidMenuId("");
     setOpenRaidMenuAnchor(null);
+    const targetRaid = raids.find(raid => String(raid.id) === String(targetRaidId) || String(raid.reportId) === String(targetRaidId)) || null;
     const nextParams = new URLSearchParams();
     if (sliceType && sliceType !== "damage") {
       nextParams.set("tab", sliceType);
     }
-    navigate(`/rpb/${targetRaidId}${nextParams.toString() ? `?${nextParams.toString()}` : ""}`);
+    navigate(`/rpb/${targetRaid?.reportId || targetRaidId}${nextParams.toString() ? `?${nextParams.toString()}` : ""}`);
   }
 
   function openRaidActionsMenu(event, targetRaidId) {
@@ -4931,7 +4926,7 @@ export default function RpbPage() {
       nextParams.set("tab", sliceType);
     }
 
-    return `${baseUrl.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid.id))}${nextParams.toString() ? `?${nextParams.toString()}` : ""}`;
+    return `${baseUrl.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid.reportId || raid.id))}${nextParams.toString() ? `?${nextParams.toString()}` : ""}`;
   }
 
   function openWclReport(raid) {

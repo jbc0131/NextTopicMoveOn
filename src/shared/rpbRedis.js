@@ -115,17 +115,22 @@ async function fetchRpbRaid(raidId) {
   const normalizedRaidId = String(raidId || "").trim();
   if (!normalizedRaidId) return null;
 
+  const findLocalRaid = () => readLocalRpbRaids().find(raid => (
+    String(raid?.id || "") === normalizedRaidId
+    || String(raid?.reportId || "") === normalizedRaidId
+  )) || null;
+
   try {
     const response = await fetch(`/api/rpb-store?raidId=${encodeURIComponent(normalizedRaidId)}`);
     if (response.status === 404) {
-      return readLocalRpbRaids().find(raid => raid.id === normalizedRaidId) || null;
+      return findLocalRaid();
     }
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Failed to load RPB raid");
     if (data) upsertLocalRpbRaid(data);
     return data || null;
   } catch {
-    return readLocalRpbRaids().find(raid => raid.id === normalizedRaidId) || null;
+    return findLocalRaid();
   }
 }
 
