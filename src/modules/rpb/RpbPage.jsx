@@ -802,6 +802,7 @@ function ReportPickerSheet({
 function PlayerDetailPanel({
   isMobile,
   selectedPlayer,
+  selectedPlayerId,
   selectedPlayerMetricTags,
   sliceType,
   abilityBreakdownRef,
@@ -7350,6 +7351,7 @@ export default function RpbPage() {
                   <PlayerDetailPanel
                     isMobile={isMobileViewport}
                     selectedPlayer={selectedPlayer}
+                    selectedPlayerId={selectedPlayerId}
                     selectedPlayerMetricTags={selectedPlayerMetricTags}
                     sliceType={sliceType}
                     abilityBreakdownRef={abilityBreakdownRef}
@@ -7398,6 +7400,7 @@ export default function RpbPage() {
                   <PlayerDetailPanel
                     isMobile
                     selectedPlayer={selectedPlayer}
+                    selectedPlayerId={selectedPlayerId}
                     selectedPlayerMetricTags={selectedPlayerMetricTags}
                     sliceType={sliceType}
                     abilityBreakdownRef={abilityBreakdownRef}
