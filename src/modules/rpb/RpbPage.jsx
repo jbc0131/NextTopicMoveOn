@@ -3716,9 +3716,9 @@ function normalizeFetchedAbilityBreakdown(entries = []) {
       name: entry?.name || "Unknown Ability",
       total: Number(entry?.total || 0),
       activeTime: Number(entry?.activeTime || 0),
-      hits: Number(entry?.hits || 0),
-      casts: Number(entry?.casts || 0),
-      crits: Number(entry?.crits || 0),
+      hits: Number(entry?.hits ?? entry?.totalHits ?? entry?.hitCount ?? entry?.landedHits ?? entry?.count ?? 0),
+      casts: Number(entry?.casts ?? entry?.totalUses ?? entry?.uses ?? entry?.useCount ?? entry?.executeCount ?? 0),
+      crits: Number(entry?.crits ?? entry?.criticalHits ?? entry?.critCount ?? entry?.critHits ?? entry?.critHitCount ?? 0),
       overheal: Number(entry?.overheal || 0),
       absorbed: Number(entry?.absorbed || 0),
     }))
