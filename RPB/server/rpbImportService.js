@@ -1004,13 +1004,40 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
               crits: Number(entry?.crits || 0) + petContribution.crits,
             };
           });
+        const hydratedEntries = [];
+        for (const entry of enrichedEntries) {
+          if (!shouldHydrateDamageEntry(entry)) {
+            hydratedEntries.push(entry);
+            continue;
+          }
+
+          try {
+            hydratedEntries.push(await hydrateSourceScopedFightEntry({
+              reportId,
+              fight,
+              entry,
+              apiKey: apiKeyOverride,
+              mode: "damage",
+            }));
+          } catch (error) {
+            console.warn("RPB damage source hydration fallback", {
+              reportId,
+              fightId: String(fight.id),
+              fightName: fight?.name || "Unknown Fight",
+              sourceId: String(entry?.id || ""),
+              sourceName: entry?.name || "Unknown Source",
+              message: error?.message || String(error || ""),
+            });
+            hydratedEntries.push(entry);
+          }
+        }
         snapshots.push({
           fightId: String(fight.id),
           encounterId: fight.boss || 0,
           fightName: fight.name || "Unknown Fight",
           damageDone: {
             ...damageDone,
-            entries: enrichedEntries,
+            entries: hydratedEntries,
           },
         });
       } catch (error) {
@@ -1071,6 +1098,33 @@ async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "") {
     ]);
 
     const enrichedEntries = enrichFightMetricEntries(healing?.entries || [], casts, "All Healing");
+    const hydratedEntries = [];
+    for (const entry of enrichedEntries) {
+      if (!shouldHydrateHealingEntry(entry)) {
+        hydratedEntries.push(entry);
+        continue;
+      }
+
+      try {
+        hydratedEntries.push(await hydrateSourceScopedFightEntry({
+          reportId,
+          fight,
+          entry,
+          apiKey: apiKeyOverride,
+          mode: "healing",
+        }));
+      } catch (error) {
+        console.warn("RPB healing source hydration fallback", {
+          reportId,
+          fightId: String(fight.id),
+          fightName: fight?.name || "Unknown Fight",
+          sourceId: String(entry?.id || ""),
+          sourceName: entry?.name || "Unknown Source",
+          message: error?.message || String(error || ""),
+        });
+        hydratedEntries.push(entry);
+      }
+    }
 
     snapshots.push({
       fightId: String(fight.id),
@@ -1078,7 +1132,7 @@ async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "") {
       fightName: fight.name || "Unknown Fight",
       healing: {
         ...healing,
-        entries: enrichedEntries,
+        entries: hydratedEntries,
       },
     });
   }
@@ -3682,6 +3736,9 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
             type: entry.type || "",
             total: entry.total ?? 0,
             activeTime: entry.activeTime ?? 0,
+            casts: entry.casts ?? entry.totalUses ?? entry.uses ?? entry.useCount ?? entry.executeCount ?? 0,
+            hits: entry.hits ?? entry.totalHits ?? entry.hitCount ?? entry.landedHits ?? entry.count ?? 0,
+            crits: entry.crits ?? entry.criticalHits ?? entry.critCount ?? entry.critHits ?? entry.critHitCount ?? 0,
             parsePercent: rankingSnapshot.damage?.byId?.[String(entry.id)] ?? rankingSnapshot.damage?.byName?.[entry.name] ?? getEntryParsePercent(entry),
             abilities: getAbilityRows(entry, "All Damage"),
           })),
@@ -3693,6 +3750,9 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
             type: entry.type || "",
             total: entry.total ?? 0,
             activeTime: entry.activeTime ?? 0,
+            casts: entry.casts ?? entry.totalUses ?? entry.uses ?? entry.useCount ?? entry.executeCount ?? 0,
+            hits: entry.hits ?? entry.totalHits ?? entry.hitCount ?? entry.landedHits ?? entry.count ?? 0,
+            crits: entry.crits ?? entry.criticalHits ?? entry.critCount ?? entry.critHits ?? entry.critHitCount ?? 0,
             parsePercent: rankingSnapshot.healing?.byId?.[String(entry.id)] ?? rankingSnapshot.healing?.byName?.[entry.name] ?? getEntryParsePercent(entry),
             abilities: getAbilityRows(entry, "All Healing"),
           })),
