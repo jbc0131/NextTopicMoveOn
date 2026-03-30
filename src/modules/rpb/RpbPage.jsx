@@ -5503,21 +5503,9 @@ export default function RpbPage() {
   }, [filteredRaids]);
   const noReportsForActiveTeamFilter = !loadingList && !!teamFilter && filteredRaids.length === 0;
   const sliceField = sliceType === "healing" ? "healingDoneEntries" : (sliceType === "deaths" ? "deathEntries" : "damageDoneEntries");
-  const showKillParseForSlice = useMemo(() => (
-    sliceType !== "deaths"
-    && filteredFights.length === 1
-    && Number(filteredFights[0]?.encounterId) > 0
-  ), [filteredFights, sliceType]);
   const aggregatedSliceEntries = useMemo(() => {
-    const entries = aggregateMetricEntries(filteredFights, sliceField);
-    if (showKillParseForSlice) return entries;
-    return entries.map(entry => ({
-      ...entry,
-      parsePercent: null,
-      parseTotal: 0,
-      parseCount: 0,
-    }));
-  }, [filteredFights, showKillParseForSlice, sliceField]);
+    return aggregateMetricEntries(filteredFights, sliceField);
+  }, [filteredFights, sliceField]);
   const visibleAggregatedSliceEntries = useMemo(() => {
     if (!raidAnalyticsFilterIds) return aggregatedSliceEntries;
     return aggregatedSliceEntries.filter(entry => raidAnalyticsFilterIds.has(String(entry.id)));
