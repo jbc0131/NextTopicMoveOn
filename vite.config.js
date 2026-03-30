@@ -1,9 +1,11 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { assembleRpbRaid, fetchRpbImportStep, importRpbRaid } from './RPB/server/rpbImportService.js'
 import { fetchWowheadItemMetaBatch } from './RPB/server/wowheadItemMeta.js'
+import { buildAutoReportTitle } from './src/modules/rpb/reportTitle.js'
 import rpbStoreHandler from './api/rpb-store.js'
 import profileStoreHandler from './api/profile-store.js'
+import { saveRaidBundle } from './api/rpb-store.js'
 
 function attachVercelStyleHelpers(res) {
   res.status = (code) => {
@@ -89,6 +91,16 @@ function rpbDevApiPlugin() {
             result = await fetchRpbImportStep(payload.step, payload)
           } else if (payload.action === 'assemble') {
             result = assembleRpbRaid(payload, payload.datasets || {})
+          } else if (payload.action === 'assembleAndSave') {
+            const raid = assembleRpbRaid(payload, payload.datasets || {})
+            raid.teamTag = payload?.teamTag || ''
+            raid.title = String(payload?.title || '').trim() || buildAutoReportTitle({ start: raid.start, teamTag: raid.teamTag })
+            const summary = await saveRaidBundle(raid, { notifyIfNew: payload?.notifyIfNew !== false })
+            result = {
+              persistence: 'remote',
+              raidId: raid.id,
+              summary,
+            }
           } else {
             result = await importRpbRaid(payload)
           }
@@ -154,14 +166,19 @@ function rpbDevApiPlugin() {
   }
 }
 
-export default defineConfig({
-  plugins: [react(), rpbDevApiPlugin()],
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'firebase': ['firebase/app', 'firebase/firestore'],
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  Object.assign(process.env, env)
+
+  return {
+    plugins: [react(), rpbDevApiPlugin()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'firebase': ['firebase/app', 'firebase/firestore'],
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          }
         }
       }
     }

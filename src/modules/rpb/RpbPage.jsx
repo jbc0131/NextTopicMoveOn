@@ -829,7 +829,7 @@ function PlayerDetailPanel({
   const [swipeOffset, setSwipeOffset] = useState({ x: 0, y: 0 });
   const deathGridColumns = compactDetail
     ? "minmax(72px, 88px) minmax(0, 1fr)"
-    : "72px 72px minmax(120px, 1.25fr) 96px 72px minmax(120px, 1fr)";
+    : "72px 72px minmax(120px, 1.25fr) 96px minmax(132px, 0.9fr) minmax(120px, 1fr)";
   const utilityGridColumns = compactDetail
     ? "minmax(0, 1fr) 72px 88px"
     : "minmax(0, 1.3fr) 84px 112px 96px";
@@ -1182,9 +1182,11 @@ function PlayerDetailPanel({
                               </WowheadSpellLink>
                             ) : getAbilityName(event, "Unknown")}
                           </div>
+                          <div style={{ marginTop: 6 }}>
+                            <DeathEventHpBar event={event} compact />
+                          </div>
                           <div style={{ fontSize: fontSize.xs, color: text.secondary, marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
                             <span style={{ color: getDeathTimelineEventTone(event) }}>{getDeathEventAmountLabel(event)}</span>
-                            <span>{`· HP ${getDeathEventHpLabel(event)}`}</span>
                             <span>{`· `}<span style={{ color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold }}>{getSourceName(event)}</span></span>
                           </div>
                         </div>
@@ -1225,8 +1227,8 @@ function PlayerDetailPanel({
                             <div style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), minWidth: 0, whiteSpace: "nowrap" }}>
                               {getDeathEventAmountLabel(event)}
                             </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, whiteSpace: "nowrap" }}>
-                              {getDeathEventHpLabel(event)}
+                            <div style={{ minWidth: 0 }}>
+                              <DeathEventHpBar event={event} />
                             </div>
                             <div style={{ fontSize: fontSize.sm, color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
                               {getSourceName(event)}
@@ -3936,12 +3938,79 @@ function getDeathEventAmountLabel(event) {
   return overkill > 0 ? `${formatMetricValue(damage)} (O: ${formatMetricValue(overkill)})` : formatMetricValue(damage);
 }
 
-function getDeathEventHpLabel(event) {
+function getDeathEventHpPercent(event) {
   const rawHp = event?.hitPoints;
-  if (rawHp == null || rawHp === "") return "";
+  if (rawHp == null || rawHp === "") return null;
 
   const hp = Number(rawHp);
-  return Number.isFinite(hp) ? `${formatMetricValue(hp)}%` : "";
+  if (!Number.isFinite(hp)) return null;
+
+  const maxHp = Number(event?.maxHitPoints);
+  if (Number.isFinite(maxHp) && maxHp > 0 && maxHp !== 100) {
+    return Math.max(0, Math.min(100, (hp / maxHp) * 100));
+  }
+
+  return Math.max(0, Math.min(100, hp));
+}
+
+function getDeathEventHpLabel(event) {
+  const hpPercent = getDeathEventHpPercent(event);
+  return hpPercent == null ? "" : `${formatMetricValue(hpPercent)}%`;
+}
+
+function getDeathEventHpFillGradient(hpPercent) {
+  if (!(hpPercent > 0)) return "linear-gradient(90deg, #0a0a0d 0%, #0a0a0d 100%)";
+
+  return "linear-gradient(90deg, #0a0a0d 0%, #7f1d1d 16%, #c24141 38%, #c7a44c 64%, #5ea977 84%, #8a8f98 100%)";
+}
+
+function DeathEventHpBar({ event, compact = false }) {
+  const hpPercent = getDeathEventHpPercent(event) ?? 0;
+  const label = `${formatMetricValue(hpPercent)}%`;
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        minWidth: compact ? 120 : 0,
+        height: compact ? 20 : 24,
+        borderRadius: 999,
+        overflow: "hidden",
+        background: "#0a0a0d",
+        border: `1px solid ${border.subtle}`,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: `${hpPercent}%`,
+          minWidth: hpPercent > 0 ? 2 : 0,
+          background: getDeathEventHpFillGradient(hpPercent),
+          transition: "width 160ms ease-out",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: compact ? fontSize.xs : fontSize.sm,
+          fontWeight: fontWeight.semibold,
+          color: "#ffffff",
+          letterSpacing: "0.02em",
+          textShadow: "0 1px 2px rgba(0,0,0,0.7)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
 }
 
 function mergeDeathTimelineEvents(recapEvents = [], healingWindowEvents = []) {
@@ -3968,6 +4037,49 @@ function mergeDeathTimelineEvents(recapEvents = [], healingWindowEvents = []) {
   return merged;
 }
 
+function fillDeathTimelineHpValues(events = []) {
+  const normalizedEvents = (events || []).map(event => ({ ...event }));
+  let lastKnownHp = null;
+  let lastKnownMaxHp = null;
+
+  for (const event of normalizedEvents) {
+    const hpPercent = getDeathEventHpPercent(event);
+    if (hpPercent != null) {
+      lastKnownHp = event?.hitPoints ?? null;
+      lastKnownMaxHp = event?.maxHitPoints ?? null;
+      continue;
+    }
+
+    if (lastKnownHp != null) {
+      event.hitPoints = lastKnownHp;
+      if (lastKnownMaxHp != null) {
+        event.maxHitPoints = lastKnownMaxHp;
+      }
+    }
+  }
+
+  let nextKnownHp = null;
+  let nextKnownMaxHp = null;
+  for (let index = normalizedEvents.length - 1; index >= 0; index -= 1) {
+    const event = normalizedEvents[index];
+    const hpPercent = getDeathEventHpPercent(event);
+    if (hpPercent != null) {
+      nextKnownHp = event?.hitPoints ?? null;
+      nextKnownMaxHp = event?.maxHitPoints ?? null;
+      continue;
+    }
+
+    if (nextKnownHp != null) {
+      event.hitPoints = nextKnownHp;
+      if (nextKnownMaxHp != null) {
+        event.maxHitPoints = nextKnownMaxHp;
+      }
+    }
+  }
+
+  return normalizedEvents;
+}
+
 function buildDeathDetailRows(fights, playerId) {
   if (!playerId) return [];
 
@@ -3984,7 +4096,7 @@ function buildDeathDetailRows(fights, playerId) {
         const healingWindowEvents = deathEntry === entry
           ? (entry?.healingWindowEvents || [])
           : (deathEntry?.healingWindowEvents || []);
-        const timelineEvents = mergeDeathTimelineEvents(recapEvents, healingWindowEvents)
+        const timelineEvents = fillDeathTimelineHpValues(mergeDeathTimelineEvents(recapEvents, healingWindowEvents))
           .map(event => ({
             ...event,
             timestampMs: normalizeEncounterEventTimestamp(event.timestamp, fight),
@@ -4000,6 +4112,7 @@ function buildDeathDetailRows(fights, playerId) {
           sourceName: deathEntry?.killingBlow?.sourceName ?? entry?.killingBlow?.sourceName ?? finalEvent?.sourceName ?? "",
           overkill: Number(deathEntry?.overkill ?? entry?.overkill ?? finalEvent?.overkill ?? 0),
           hitPoints: 0,
+          maxHitPoints: 100,
         };
 
         rows.push({
