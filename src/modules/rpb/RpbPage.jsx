@@ -4660,12 +4660,6 @@ export default function RpbPage() {
     : (pendingRaidSummary?.teamTag === "Team Balls" ? "🍒" : "⏳");
 
   useEffect(() => {
-    if (tabParam !== sliceType) {
-      setSliceType(tabParam);
-    }
-  }, [sliceType, tabParam]);
-
-  useEffect(() => {
     if (fightParam === selectedFightId && tabParam === sliceType) return;
 
     const nextParams = new URLSearchParams();
