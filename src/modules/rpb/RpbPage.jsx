@@ -32,11 +32,11 @@ const CLASS_COLORS = {
 
 const TRACKED_DEBUFF_ROWS = [
   { key: "blood-frenzy-estimate", label: "Blood Frenzy", className: "Warrior", order: 0, estimated: true },
-  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", className: "Warrior", order: 1 },
-  { key: "curse-of-recklessness", label: "Curse of Recklessness", className: "Warlock", order: 2 },
-  { key: "curse-of-the-elements", label: "Curse of the Elements", className: "Warlock", order: 3 },
-  { key: "curse-of-weakness", label: "Curse of Weakness", className: "Warlock", order: 4 },
-  { key: "demoralizing-shout", label: "Demoralizing Shout", className: "Warrior", order: 5 },
+  { key: "armor-reduction", label: "Sunder Armor / IEA", className: "Warrior", order: 1 },
+  { key: "demoralizing-shout", label: "Demoralizing Shout", className: "Warrior", order: 2 },
+  { key: "curse-of-recklessness", label: "Curse of Recklessness", className: "Warlock", order: 3 },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", className: "Warlock", order: 4 },
+  { key: "curse-of-weakness", label: "Curse of Weakness", className: "Warlock", order: 5 },
   { key: "hunters-mark", label: "Hunter's Mark", className: "Hunter", order: 6 },
   { key: "expose-weakness", label: "Expose Weakness", className: "Hunter", order: 7 },
   { key: "faerie-fire", label: "Faerie Fire", className: "Druid", order: 8 },
@@ -2910,13 +2910,7 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
         return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
       }),
     }))
-    .sort((a, b) => {
-      const orderDelta = Number(a.order || 99) - Number(b.order || 99);
-      if (orderDelta !== 0) return orderDelta;
-      if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
-      if (b.casts !== a.casts) return b.casts - a.casts;
-      return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
-    });
+    .sort((a, b) => Number(a.order || 99) - Number(b.order || 99));
 }
 
 function buildPotionSliceEntries(players, analyticsByPlayerId, filterIds = null) {

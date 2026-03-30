@@ -27,11 +27,11 @@ const DRUMS_TYPE_LABELS = new Map([
 ]);
 const TRACKED_BOSS_DEBUFFS = [
   { key: "blood-frenzy-estimate", label: "Blood Frenzy", aliases: [], spellIds: new Set(), preferredClass: "Warrior", order: 0, estimated: true },
-  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 1 },
-  { key: "curse-of-recklessness", label: "Curse of Recklessness", aliases: ["curse of recklessness"], spellIds: new Set(["27226"]), preferredClass: "Warlock", order: 2 },
-  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 3 },
-  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 4 },
-  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]), preferredClass: "Warrior", order: 5 },
+  { key: "armor-reduction", label: "Sunder Armor / IEA", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 1 },
+  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]), preferredClass: "Warrior", order: 2 },
+  { key: "curse-of-recklessness", label: "Curse of Recklessness", aliases: ["curse of recklessness"], spellIds: new Set(["27226"]), preferredClass: "Warlock", order: 3 },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 4 },
+  { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 5 },
   { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]), preferredClass: "Hunter", order: 6 },
   { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]), preferredClass: "Hunter", order: 7 },
   { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["26993", "27011"]), preferredClass: "Druid", order: 8 },
@@ -1180,13 +1180,7 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
     );
     if (bloodFrenzyEstimate) {
       mergedDebuffs.push(bloodFrenzyEstimate);
-      mergedDebuffs.sort((a, b) => {
-        const orderDelta = Number(a.order || 99) - Number(b.order || 99);
-        if (orderDelta !== 0) return orderDelta;
-        if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
-        if (b.totalUses !== a.totalUses) return b.totalUses - a.totalUses;
-        return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
-      });
+      mergedDebuffs.sort((a, b) => Number(a.order || 99) - Number(b.order || 99));
     }
 
     snapshots.push({
@@ -1576,11 +1570,7 @@ function summarizeTrackedBossDebuffs(tableData, fightStartMs, fightEndMs) {
       };
     })
     .sort((a, b) => {
-      if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
-      if (b.totalUses !== a.totalUses) return b.totalUses - a.totalUses;
-      const orderDelta = Number(a.order || 0) - Number(b.order || 0);
-      if (orderDelta !== 0) return orderDelta;
-      return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
+      return Number(a.order || 99) - Number(b.order || 99);
     });
 }
 
@@ -1812,11 +1802,7 @@ function mergeTrackedBossDebuffRows(
       };
     })
     .sort((a, b) => {
-      if (b.uptimePercent !== a.uptimePercent) return b.uptimePercent - a.uptimePercent;
-      if (b.totalUses !== a.totalUses) return b.totalUses - a.totalUses;
-      const orderDelta = Number(a.order || 0) - Number(b.order || 0);
-      if (orderDelta !== 0) return orderDelta;
-      return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
+      return Number(a.order || 99) - Number(b.order || 99);
     });
 }
 
