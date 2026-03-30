@@ -1,7 +1,32 @@
 import { assembleRpbRaid, fetchRpbImportStep, importRpbRaid, parseReportId } from "../RPB/server/rpbImportService.js";
-import { acquireLock, buildCacheKey, releaseLock } from "../RPB/server/upstashRedis.js";
+import { acquireLock, buildCacheKey, deleteKey, getJsonCache, releaseLock, setJsonCache } from "../RPB/server/upstashRedis.js";
 import { buildAutoReportTitle } from "../src/modules/rpb/reportTitle.js";
 import { saveRaidBundle } from "./rpb-store.js";
+
+const IMPORT_SESSION_TTL_SECONDS = 60 * 30;
+
+function getImportSessionKey(importSessionId) {
+  const normalized = String(importSessionId || "").trim();
+  return normalized ? buildCacheKey("rpb:import-session", [normalized]) : "";
+}
+
+async function loadStagedDatasets(importSessionId) {
+  const key = getImportSessionKey(importSessionId);
+  if (!key) return null;
+  return (await getJsonCache(key)) || {};
+}
+
+async function saveStagedDatasets(importSessionId, datasets) {
+  const key = getImportSessionKey(importSessionId);
+  if (!key) return false;
+  return setJsonCache(key, datasets || {}, IMPORT_SESSION_TTL_SECONDS);
+}
+
+async function deleteStagedDatasets(importSessionId) {
+  const key = getImportSessionKey(importSessionId);
+  if (!key) return false;
+  return deleteKey(key);
+}
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -27,19 +52,32 @@ export default async function handler(req, res) {
 
     if (req.body?.action === "step") {
       const data = await fetchRpbImportStep(req.body.step, req.body || {});
+      if (req.body?.importSessionId) {
+        const stagedDatasets = (await loadStagedDatasets(req.body.importSessionId)) || {};
+        stagedDatasets[req.body.step] = data;
+        const saved = await saveStagedDatasets(req.body.importSessionId, stagedDatasets);
+        if (!saved) {
+          return res.status(500).json({ error: "Failed to stage import data in Redis." });
+        }
+      }
       return res.status(200).json(data);
     }
 
     if (req.body?.action === "assemble") {
-      const raid = assembleRpbRaid(req.body || {}, req.body.datasets || {});
+      const datasets = req.body.datasets || (await loadStagedDatasets(req.body?.importSessionId)) || {};
+      const raid = assembleRpbRaid(req.body || {}, datasets);
       return res.status(200).json(raid);
     }
 
     if (req.body?.action === "assembleAndSave") {
-      const raid = assembleRpbRaid(req.body || {}, req.body.datasets || {});
+      const datasets = req.body.datasets || (await loadStagedDatasets(req.body?.importSessionId)) || {};
+      const raid = assembleRpbRaid(req.body || {}, datasets);
       raid.teamTag = req.body?.teamTag || "";
       raid.title = String(req.body?.title || "").trim() || buildAutoReportTitle({ start: raid.start, teamTag: raid.teamTag });
       const summary = await saveRaidBundle(raid, { notifyIfNew: req.body?.notifyIfNew !== false });
+      if (req.body?.importSessionId) {
+        await deleteStagedDatasets(req.body.importSessionId);
+      }
       return res.status(200).json({
         persistence: "remote",
         raidId: raid.id,

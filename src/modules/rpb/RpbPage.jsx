@@ -6166,6 +6166,7 @@ export default function RpbPage() {
       };
 
       const datasets = {};
+      const importSessionId = `rpb-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       const completedStepKeys = new Set();
       updateImportProgressState(1, "Preparing import payload...", "Initializing staged Warcraft Logs requests", {
         subdetail: "Import will stage every Warcraft Logs call first, then save a single payload-backed raid bundle.",
@@ -6191,6 +6192,7 @@ export default function RpbPage() {
           body: JSON.stringify({
             action: "step",
             step: step.key,
+            importSessionId,
             reportUrl: normalizedReportInput,
             apiKey: profileApiKey,
             wclV2ClientId: profileV2ClientId,
@@ -6219,7 +6221,7 @@ export default function RpbPage() {
       const assembleResponse = await fetch(`/api/rpb-import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "assemble", reportUrl: normalizedReportInput, datasets }),
+        body: JSON.stringify({ action: "assemble", reportUrl: normalizedReportInput, importSessionId }),
       });
 
       const assembledRaid = await readApiJson(assembleResponse);
@@ -6279,7 +6281,7 @@ export default function RpbPage() {
         body: JSON.stringify({
           action: "assembleAndSave",
           reportUrl: normalizedReportInput,
-          datasets,
+          importSessionId,
           teamTag: assembledRaid.teamTag || "",
           title: assembledRaid.title,
           notifyIfNew: shouldPostWebhook,
