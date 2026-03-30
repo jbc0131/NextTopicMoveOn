@@ -518,8 +518,10 @@ function aggregateLegacyAbilityRows(entries = [], castsByGuid = new Map()) {
     existing.total += Number(entry.total ?? entry.amount ?? entry.effectiveHealing ?? 0);
     existing.activeTime += Number(entry.activeTime ?? entry.uptime ?? 0);
     existing.hits += Number(entry.hitCount ?? entry.hits ?? entry.totalHits ?? entry.landedHits ?? entry.count ?? 0);
+    existing.hits += Number(entry.tickCount ?? 0);
     existing.hits += Number(entry.missCount ?? 0);
     existing.crits += Number(entry.critHitCount ?? entry.criticalHits ?? entry.crits ?? entry.critCount ?? entry.critHits ?? 0);
+    existing.crits += Number(entry.critTickCount ?? 0);
     existing.overheal += Number(entry.overheal ?? 0);
     existing.absorbed += Number(entry.absorbed ?? 0);
 
@@ -2971,24 +2973,37 @@ function normalizeFight(fight) {
 function normalizeAbilityEntry(ability) {
   if (!ability) return null;
 
-  const hits = ability.hits
+  const directHits = Number(
+    ability.hits
     ?? ability.totalHits
     ?? ability.hitCount
     ?? ability.landedHits
     ?? ability.count
-    ?? 0;
+    ?? NaN
+  );
+  const tickHits = Number(ability.tickCount ?? 0);
+  const missHits = Number(ability.missCount ?? 0);
+  const hits = Number.isFinite(directHits)
+    ? directHits + tickHits + missHits
+    : (tickHits + missHits);
   const casts = ability.casts
     ?? ability.totalUses
     ?? ability.uses
     ?? ability.useCount
     ?? ability.executeCount
     ?? 0;
-  const crits = ability.crits
+  const directCrits = Number(
+    ability.crits
     ?? ability.criticalHits
     ?? ability.critCount
     ?? ability.critHits
     ?? ability.critHitCount
-    ?? 0;
+    ?? NaN
+  );
+  const tickCrits = Number(ability.critTickCount ?? 0);
+  const crits = Number.isFinite(directCrits)
+    ? directCrits + tickCrits
+    : tickCrits;
 
   return {
     guid: ability.guid ?? ability.gameID ?? ability.abilityGameID ?? null,
@@ -3126,7 +3141,7 @@ function normalizeDeathEvent(event, actorLookup = null) {
     sourceName: event.sourceName || event.source?.name || (typeof event.source === "string" ? event.source : "") || resolveDeathActorName(sourceId, actorLookup),
     sourceType: event.sourceType || sourceMeta?.type || "",
     sourceIsEnemy: typeof event.sourceIsEnemy === "boolean" ? event.sourceIsEnemy : !!sourceMeta?.hostile,
-    amount: event.amount ?? event.hitPoints ?? event.value ?? 0,
+    amount: event.amount ?? event.value ?? event.damage ?? event.damageTaken ?? event.healing ?? event.healingReceived ?? 0,
     hitPoints: event.hitPoints ?? event.hitpoints ?? event.hitPoint ?? event.hp ?? null,
     maxHitPoints: event.maxHitPoints ?? event.maxHP ?? event.maxHp ?? null,
     overkill: event.overkill ?? 0,
