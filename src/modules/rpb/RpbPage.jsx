@@ -31,16 +31,17 @@ const CLASS_COLORS = {
 };
 
 const TRACKED_DEBUFF_ROWS = [
-  { key: "curse-of-recklessness", label: "Curse of Recklessness", className: "Warlock", order: 0 },
-  { key: "curse-of-the-elements", label: "Curse of the Elements", className: "Warlock", order: 1 },
-  { key: "curse-of-weakness", label: "Curse of Weakness", className: "Warlock", order: 2 },
-  { key: "blood-frenzy-estimate", label: "Blood Frenzy", className: "Warrior", order: 3, estimated: true },
-  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", className: "Warrior", order: 4 },
+  { key: "blood-frenzy-estimate", label: "Blood Frenzy", className: "Warrior", order: 0, estimated: true },
+  { key: "armor-reduction", label: "Sunder Armor / Improved Expose Armor", className: "Warrior", order: 1 },
+  { key: "curse-of-recklessness", label: "Curse of Recklessness", className: "Warlock", order: 2 },
+  { key: "curse-of-the-elements", label: "Curse of the Elements", className: "Warlock", order: 3 },
+  { key: "curse-of-weakness", label: "Curse of Weakness", className: "Warlock", order: 4 },
   { key: "demoralizing-shout", label: "Demoralizing Shout", className: "Warrior", order: 5 },
   { key: "hunters-mark", label: "Hunter's Mark", className: "Hunter", order: 6 },
   { key: "expose-weakness", label: "Expose Weakness", className: "Hunter", order: 7 },
   { key: "faerie-fire", label: "Faerie Fire", className: "Druid", order: 8 },
   { key: "judgement-of-wisdom", label: "Judgement of Wisdom", className: "Paladin", order: 9 },
+  { key: "judgement-of-the-crusader", label: "Judgement of the Crusader", className: "Paladin", order: 10 },
 ];
 const SUNDER_BAR_COLOR = "#4fb26f";
 const ARMOR_STACK_MARKER_COUNT = 5;
@@ -6620,7 +6621,7 @@ export default function RpbPage() {
                           { id: "drums", label: "Drums" },
                           { id: "potions", label: "Potions" },
                           { id: "consumables", label: "Consumables" },
-                          { id: "debuffs", label: "Debuffs" },
+                          { id: "debuffs", label: "Boss Debuffs" },
                         ].map(option => (
                           <button
                             key={option.id}
