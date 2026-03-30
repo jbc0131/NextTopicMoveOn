@@ -3202,7 +3202,7 @@ function buildParseFallbackByMetric(fights, field) {
   const counts = new Map();
 
   for (const fight of fights || []) {
-    if (!(Number(fight?.encounterId) > 0)) continue;
+    if (!fight?.kill || !(Number(fight?.encounterId) > 0)) continue;
 
     for (const entry of fight?.[field] || []) {
       const value = Number(entry?.parsePercent);
