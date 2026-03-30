@@ -4660,12 +4660,6 @@ export default function RpbPage() {
     : (pendingRaidSummary?.teamTag === "Team Balls" ? "🍒" : "⏳");
 
   useEffect(() => {
-    if (fightParam !== selectedFightId) {
-      setSelectedFightId(fightParam);
-    }
-  }, [fightParam, selectedFightId]);
-
-  useEffect(() => {
     if (tabParam !== sliceType) {
       setSliceType(tabParam);
     }
@@ -4787,6 +4781,7 @@ export default function RpbPage() {
         const raid = await fetchRpbRaidBundle(raidId);
         if (!cancelled) {
           setSelectedRaid(raid);
+          setSelectedFightId(fightParam || "");
           setSelectedPlayerId("");
         }
       } catch (error) {
@@ -4880,6 +4875,7 @@ export default function RpbPage() {
     setMobileMenuOpen(false);
     setOpenRaidMenuId("");
     setOpenRaidMenuAnchor(null);
+    setSelectedFightId("");
     const targetRaid = raids.find(raid => String(raid.id) === String(targetRaidId) || String(raid.reportId) === String(targetRaidId)) || null;
     const nextParams = new URLSearchParams();
     if (sliceType && sliceType !== "damage") {
