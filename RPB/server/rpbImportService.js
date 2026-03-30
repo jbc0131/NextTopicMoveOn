@@ -83,6 +83,8 @@ const POTION_CAST_MATCH_WINDOW_MS = 5000;
 const POTION_HEAL_MATCH_WINDOW_MS = 5000;
 const POTION_RESOURCE_MATCH_WINDOW_MS = 5000;
 const DEATH_HEALING_LOOKBACK_MS = 15 * 1000;
+const DEATH_SUMMARY_LOOKBACK_PADDING_MS = 250;
+const DEATH_SUMMARY_LOOKAHEAD_PADDING_MS = 250;
 const WCL_CACHE_TTL_SECONDS = 60 * 15;
 const WCL_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
 const WCL_V1_MIN_REQUEST_GAP_MS = 350;
@@ -1097,6 +1099,23 @@ async function fetchFightDeathsSnapshots(reportId, apiKeyOverride = "") {
       end: fight.end_time ?? 0,
       by: "target",
     }, apiKeyOverride);
+    let summaryEvents = [];
+    try {
+      const bounds = getDeathEntriesSummaryBounds(deaths?.entries || []);
+      if (bounds) {
+        summaryEvents = await fetchAllEventPages(`/report/events/summary/${reportId}`, {
+          start: bounds.start,
+          end: bounds.end,
+        }, apiKeyOverride);
+      }
+    } catch (error) {
+      console.warn("RPB death summary HP lookup failed", {
+        reportId,
+        fightId: fight?.id,
+        fightName: fight?.name,
+        error: error?.message || String(error),
+      });
+    }
     let healingEvents = [];
     try {
       healingEvents = await fetchAllEventPages(`/report/events/healing/${reportId}`, {
@@ -1112,6 +1131,11 @@ async function fetchFightDeathsSnapshots(reportId, apiKeyOverride = "") {
       });
     }
     const healingEventsByTarget = groupHealingEventsByTarget(healingEvents, deathActorLookup);
+    const summaryStateByTarget = groupSummaryEventsByTarget(summaryEvents);
+    const deathsWithSummaryState = attachSummaryStateToDeathEntries(
+      deaths?.entries || [],
+      summaryStateByTarget
+    );
 
     snapshots.push({
       fightId: String(fight.id),
@@ -1120,7 +1144,7 @@ async function fetchFightDeathsSnapshots(reportId, apiKeyOverride = "") {
       deaths: {
         ...deaths,
         entries: attachHealingWindowsToDeathEntries(
-          deaths?.entries || [],
+          deathsWithSummaryState,
           healingEventsByTarget,
           DEATH_HEALING_LOOKBACK_MS
         ),
@@ -3109,6 +3133,7 @@ function normalizeDeathEvent(event, actorLookup = null) {
     sourceIsEnemy: typeof event.sourceIsEnemy === "boolean" ? event.sourceIsEnemy : !!sourceMeta?.hostile,
     amount: event.amount ?? event.hitPoints ?? event.value ?? 0,
     hitPoints: event.hitPoints ?? event.hitpoints ?? event.hitPoint ?? event.hp ?? null,
+    maxHitPoints: event.maxHitPoints ?? event.maxHP ?? event.maxHp ?? null,
     overkill: event.overkill ?? 0,
     overheal: event.overheal ?? 0,
     absorbed: event.absorbed ?? 0,
@@ -3184,6 +3209,161 @@ function attachHealingWindowsToDeathEntry(entry, healingEventsByTarget, lookback
 
 function attachHealingWindowsToDeathEntries(entries = [], healingEventsByTarget, lookbackMs) {
   return (entries || []).map(entry => attachHealingWindowsToDeathEntry(entry, healingEventsByTarget, lookbackMs));
+}
+
+function collectDeathEntryTimestamps(entry, timestamps = []) {
+  if (!entry || typeof entry !== "object") return timestamps;
+
+  const timestamp = Number(entry?.timestamp || 0);
+  if (timestamp > 0) timestamps.push(timestamp);
+
+  for (const child of entry?.events || []) {
+    collectDeathEntryTimestamps(child, timestamps);
+  }
+
+  return timestamps;
+}
+
+function getDeathEntriesSummaryBounds(entries = []) {
+  const timestamps = [];
+
+  for (const entry of entries || []) {
+    collectDeathEntryTimestamps(entry, timestamps);
+  }
+
+  if (!timestamps.length) return null;
+
+  const start = Math.max(0, Math.min(...timestamps) - DEATH_SUMMARY_LOOKBACK_PADDING_MS);
+  const end = Math.max(...timestamps) + DEATH_SUMMARY_LOOKAHEAD_PADDING_MS;
+  return end > start ? { start, end } : null;
+}
+
+function getSummaryTargetId(event) {
+  const targetId = event?.targetID ?? event?.targetId ?? event?.target?.id ?? null;
+  return targetId == null ? "" : String(targetId);
+}
+
+function getSummarySourceId(event) {
+  const sourceId = event?.sourceID ?? event?.sourceId ?? event?.source?.id ?? null;
+  return sourceId == null ? "" : String(sourceId);
+}
+
+function getSummaryAbilityGuid(event) {
+  return String(event?.abilityGameID ?? event?.guid ?? event?.ability?.guid ?? "");
+}
+
+function getSummaryAbilityName(event) {
+  return String(event?.ability?.name || event?.abilityName || event?.spellName || event?.name || "");
+}
+
+function getSummaryEventAmount(event) {
+  const candidates = [
+    event?.amount,
+    event?.damage,
+    event?.damageTaken,
+    event?.healing,
+    event?.healingReceived,
+    event?.value,
+  ];
+
+  for (const candidate of candidates) {
+    const numeric = Number(candidate);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+
+  return 0;
+}
+
+function buildDeathSummaryMatchKey(event) {
+  return [
+    Number(event?.timestamp || event?.time || event?.offset || 0),
+    String(event?.type || ""),
+    getSummarySourceId(event),
+    getSummaryTargetId(event),
+    getSummaryAbilityGuid(event),
+    getSummaryAbilityName(event),
+    Number(getSummaryEventAmount(event) || 0),
+    Number(event?.overkill || 0),
+    Number(event?.hitType ?? -1),
+    event?.tick ? 1 : 0,
+  ].join("|");
+}
+
+function shouldCaptureSummaryState(event) {
+  if (!event || typeof event !== "object") return false;
+  if (!("hitPoints" in event) && !("maxHitPoints" in event)) return false;
+
+  const type = String(event?.type || "").toLowerCase();
+  return [
+    "damage",
+    "heal",
+    "absorbed",
+    "cast",
+    "begincast",
+    "resourcechange",
+    "death",
+  ].includes(type);
+}
+
+function groupSummaryEventsByTarget(events = []) {
+  const grouped = new Map();
+
+  for (const event of events || []) {
+    if (!shouldCaptureSummaryState(event)) continue;
+
+    const targetId = getSummaryTargetId(event);
+    if (!targetId) continue;
+
+    const targetMap = grouped.get(targetId) || new Map();
+    const matchKey = buildDeathSummaryMatchKey(event);
+    const bucket = targetMap.get(matchKey) || [];
+    bucket.push(event);
+    targetMap.set(matchKey, bucket);
+    grouped.set(targetId, targetMap);
+  }
+
+  return grouped;
+}
+
+function pullMatchedSummaryState(rawEvent, summaryStateByTarget) {
+  const targetId = getSummaryTargetId(rawEvent);
+  if (!targetId || !(summaryStateByTarget instanceof Map)) return null;
+
+  const targetMap = summaryStateByTarget.get(targetId);
+  if (!(targetMap instanceof Map)) return null;
+
+  const matchKey = buildDeathSummaryMatchKey(rawEvent);
+  const bucket = targetMap.get(matchKey);
+  if (!Array.isArray(bucket) || !bucket.length) return null;
+
+  const matched = bucket.shift();
+  if (!bucket.length) {
+    targetMap.delete(matchKey);
+  } else {
+    targetMap.set(matchKey, bucket);
+  }
+
+  return matched || null;
+}
+
+function attachSummaryStateToDeathEntry(entry, summaryStateByTarget) {
+  if (!entry || typeof entry !== "object") return entry;
+
+  const matched = pullMatchedSummaryState(entry, summaryStateByTarget);
+  const nestedEvents = Array.isArray(entry?.events)
+    ? entry.events.map(event => attachSummaryStateToDeathEntry(event, summaryStateByTarget))
+    : [];
+
+  return {
+    ...entry,
+    hitPoints: entry?.hitPoints ?? entry?.hitpoints ?? matched?.hitPoints ?? null,
+    maxHitPoints: entry?.maxHitPoints ?? entry?.maxHP ?? entry?.maxHp ?? matched?.maxHitPoints ?? null,
+    events: nestedEvents,
+  };
+}
+
+function attachSummaryStateToDeathEntries(entries = [], summaryStateByTarget) {
+  return (entries || []).map(entry => attachSummaryStateToDeathEntry(entry, summaryStateByTarget));
 }
 
 function extractPlayerSnapshots(summaryData = {}) {
