@@ -1185,7 +1185,7 @@ function PlayerDetailPanel({
                           <div style={{ marginTop: 6 }}>
                             <DeathEventHpBar event={event} compact />
                           </div>
-                          <div style={{ fontSize: fontSize.xs, color: text.secondary, marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", textAlign: "center" }}>
                             <span style={{ color: getDeathTimelineEventTone(event) }}>{getDeathEventAmountLabel(event)}</span>
                             <span>{`· `}<span style={{ color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold }}>{getSourceName(event)}</span></span>
                           </div>
@@ -1193,50 +1193,40 @@ function PlayerDetailPanel({
                       ))}
                     </div>
                   ) : (
-                    <>
-                      <div style={{ display: "grid", gridTemplateColumns: deathGridColumns, gap: space[2], padding: `0 ${space[1]}px`, width: "100%", minWidth: 0, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                        <div style={{ minWidth: 0 }}>Time</div>
-                        <div style={{ minWidth: 0 }}>Type</div>
-                        <div style={{ minWidth: 0 }}>Ability</div>
-                        <div style={{ minWidth: 0 }}>Amount</div>
-                        <div style={{ minWidth: 0 }}>HP</div>
-                        <div style={{ minWidth: 0 }}>Source</div>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        {row.events.map((event, index) => (
-                          <div key={`${row.key}-event-${index}`} style={{ display: "grid", gridTemplateColumns: deathGridColumns, gap: space[2], alignItems: "start", width: "100%", minWidth: 0, padding: `${space[1]}px ${space[1]}px` }}>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0, whiteSpace: "nowrap" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+                      {row.events.map((event, index) => (
+                        <div key={`${row.key}-event-${index}`} style={{ padding: `${space[2]}px 0`, borderTop: index === 0 ? "none" : `1px solid ${border.subtle}` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], flexWrap: "wrap" }}>
+                            <span style={{ fontSize: fontSize.sm, color: text.secondary, whiteSpace: "nowrap" }}>
                               {formatDeathRelativeTime(
                                 event.timestampMs ?? normalizeEncounterEventTimestamp(event.timestamp, { startTime: 0, durationMs: 0 }),
                                 row.timestampMs
                               )}
-                            </div>
-                            <div style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold, minWidth: 0 }}>
+                            </span>
+                            <span style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold }}>
                               {getDeathTimelineEventLabel(event)}
-                            </div>
-                            <div style={{ fontSize: fontSize.sm, color: text.secondary, minWidth: 0 }}>
-                              {event?.abilityGuid ? (
-                                <WowheadSpellLink
-                                  spellId={event.abilityGuid}
-                                  onPreview={compactDetail ? () => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event)) : null}
-                                >
-                                  {getAbilityName(event, "Unknown")}
-                                </WowheadSpellLink>
-                              ) : getAbilityName(event, "Unknown")}
-                            </div>
-                            <div style={{ fontSize: fontSize.sm, color: getDeathTimelineEventTone(event), minWidth: 0, whiteSpace: "nowrap" }}>
-                              {getDeathEventAmountLabel(event)}
-                            </div>
-                            <div style={{ minWidth: 0 }}>
-                              <DeathEventHpBar event={event} />
-                            </div>
-                            <div style={{ fontSize: fontSize.sm, color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold, minWidth: 0, overflowWrap: "anywhere" }}>
-                              {getSourceName(event)}
-                            </div>
+                            </span>
                           </div>
-                        ))}
-                      </div>
-                    </>
+                          <div style={{ fontSize: fontSize.base, color: text.secondary, marginTop: 4 }}>
+                            {event?.abilityGuid ? (
+                              <WowheadSpellLink
+                                spellId={event.abilityGuid}
+                                onPreview={compactDetail ? () => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event)) : null}
+                              >
+                                {getAbilityName(event, "Unknown")}
+                              </WowheadSpellLink>
+                            ) : getAbilityName(event, "Unknown")}
+                          </div>
+                          <div style={{ marginTop: 8 }}>
+                            <DeathEventHpBar event={event} />
+                          </div>
+                          <div style={{ fontSize: fontSize.base, color: text.secondary, marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", textAlign: "center" }}>
+                            <span style={{ color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold }}>{getDeathEventAmountLabel(event)}</span>
+                            <span>{`· `}<span style={{ color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold }}>{getSourceName(event)}</span></span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               ))}
