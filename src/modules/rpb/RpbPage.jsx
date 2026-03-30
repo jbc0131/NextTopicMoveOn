@@ -1172,22 +1172,22 @@ function PlayerDetailPanel({
                               {getDeathTimelineEventLabel(event)}
                             </span>
                           </div>
-                          <div style={{ fontSize: fontSize.sm, color: text.primary, marginTop: 4 }}>
-                            {event?.abilityGuid ? (
-                              <WowheadSpellLink
-                                spellId={event.abilityGuid}
-                                onPreview={compactDetail ? () => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event)) : null}
-                              >
-                                {getAbilityName(event, "Unknown")}
-                              </WowheadSpellLink>
-                            ) : getAbilityName(event, "Unknown")}
-                          </div>
                           <div style={{ marginTop: 6 }}>
                             <DeathEventHpBar event={event} compact />
                           </div>
-                          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", textAlign: "center" }}>
-                            <span style={{ color: getDeathTimelineEventTone(event) }}>{getDeathEventAmountLabel(event)}</span>
-                            <span>{`· `}<span style={{ color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold }}>{getSourceName(event)}</span></span>
+                          <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 8, display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", textAlign: "center", alignItems: "center" }}>
+                            <span style={{ color: text.primary }}>
+                              {event?.abilityGuid ? (
+                                <WowheadSpellLink
+                                  spellId={event.abilityGuid}
+                                  onPreview={() => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event))}
+                                >
+                                  {getAbilityName(event, "Unknown")}
+                                </WowheadSpellLink>
+                              ) : getAbilityName(event, "Unknown")}
+                            </span>
+                            <span style={{ color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold }}>{getDeathEventAmountLabel(event)}</span>
+                            <span style={{ color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold }}>{getSourceName(event)}</span>
                           </div>
                         </div>
                       ))}
@@ -1207,22 +1207,22 @@ function PlayerDetailPanel({
                               {getDeathTimelineEventLabel(event)}
                             </span>
                           </div>
-                          <div style={{ fontSize: fontSize.base, color: text.secondary, marginTop: 4 }}>
-                            {event?.abilityGuid ? (
-                              <WowheadSpellLink
-                                spellId={event.abilityGuid}
-                                onPreview={compactDetail ? () => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event)) : null}
-                              >
-                                {getAbilityName(event, "Unknown")}
-                              </WowheadSpellLink>
-                            ) : getAbilityName(event, "Unknown")}
-                          </div>
                           <div style={{ marginTop: 8 }}>
                             <DeathEventHpBar event={event} />
                           </div>
-                          <div style={{ fontSize: fontSize.base, color: text.secondary, marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", textAlign: "center" }}>
+                          <div style={{ fontSize: fontSize.lg, color: text.secondary, marginTop: 8, display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", textAlign: "center", alignItems: "center" }}>
+                            <span style={{ color: text.primary }}>
+                              {event?.abilityGuid ? (
+                                <WowheadSpellLink
+                                  spellId={event.abilityGuid}
+                                  onPreview={() => openSpellPreview(event.abilityGuid, getAbilityName(event, "Unknown"), getDeathTimelineEventLabel(event))}
+                                >
+                                  {getAbilityName(event, "Unknown")}
+                                </WowheadSpellLink>
+                              ) : getAbilityName(event, "Unknown")}
+                            </span>
                             <span style={{ color: getDeathTimelineEventTone(event), fontWeight: fontWeight.semibold }}>{getDeathEventAmountLabel(event)}</span>
-                            <span>{`· `}<span style={{ color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold }}>{getSourceName(event)}</span></span>
+                            <span style={{ color: getDeathEventSourceColor(event), fontWeight: fontWeight.semibold }}>{getSourceName(event)}</span>
                           </div>
                         </div>
                       ))}
@@ -4008,11 +4008,11 @@ function DeathEventHpBar({ event, compact = false }) {
   );
 }
 
-function mergeDeathTimelineEvents(recapEvents = [], healingWindowEvents = []) {
+function mergeDeathTimelineEvents(recapEvents = [], healingWindowEvents = [], deathWindowEvents = []) {
   const seen = new Set();
   const merged = [];
 
-  for (const event of [...(recapEvents || []), ...(healingWindowEvents || [])]) {
+  for (const event of [...(recapEvents || []), ...(healingWindowEvents || []), ...(deathWindowEvents || [])]) {
     const key = [
       Number(event?.timestamp || 0),
       String(event?.type || ""),
@@ -4091,7 +4091,10 @@ function buildDeathDetailRows(fights, playerId) {
         const healingWindowEvents = deathEntry === entry
           ? (entry?.healingWindowEvents || [])
           : (deathEntry?.healingWindowEvents || []);
-        const timelineEvents = fillDeathTimelineHpValues(mergeDeathTimelineEvents(recapEvents, healingWindowEvents))
+        const deathWindowEvents = deathEntry === entry
+          ? (entry?.deathWindowEvents || [])
+          : (deathEntry?.deathWindowEvents || []);
+        const timelineEvents = fillDeathTimelineHpValues(mergeDeathTimelineEvents(recapEvents, healingWindowEvents, deathWindowEvents))
           .map(event => ({
             ...event,
             timestampMs: normalizeEncounterEventTimestamp(event.timestamp, fight),

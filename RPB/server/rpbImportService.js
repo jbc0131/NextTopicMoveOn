@@ -3141,6 +3141,7 @@ function normalizeDeathEvent(event, actorLookup = null) {
     targetIsEnemy: typeof event.targetIsEnemy === "boolean" ? event.targetIsEnemy : !!targetMeta?.hostile,
     events: (event.events || []).map(nestedEvent => normalizeDeathEvent(nestedEvent, actorLookup)).filter(Boolean),
     healingWindowEvents: (event.healingWindowEvents || []).map(nestedEvent => normalizeDeathEvent(nestedEvent, actorLookup)).filter(Boolean),
+    deathWindowEvents: (event.deathWindowEvents || []).map(nestedEvent => normalizeDeathEvent(nestedEvent, actorLookup)).filter(Boolean),
   };
 }
 
@@ -3196,17 +3197,18 @@ function resolveDeathWindowStartTimestamp(targetId, deathTimestamp, summaryTimel
   return lastFullTimestamp ?? end;
 }
 
-function buildHealingWindowEvents(targetId, deathTimestamp, healingEventsByTarget, summaryTimelineByTarget) {
+function buildDeathWindowEvents(targetId, deathTimestamp, summaryTimelineByTarget) {
   const normalizedTargetId = targetId == null ? "" : String(targetId);
   if (!normalizedTargetId) return [];
 
-  const allTargetEvents = healingEventsByTarget.get(normalizedTargetId) || [];
+  const allActorEvents = summaryTimelineByTarget.get(normalizedTargetId) || [];
   const end = Number(deathTimestamp || 0);
   const start = resolveDeathWindowStartTimestamp(targetId, deathTimestamp, summaryTimelineByTarget);
 
-  return allTargetEvents.filter(event => {
+  return allActorEvents.filter(event => {
     const timestamp = Number(event?.timestamp || 0);
-    return timestamp >= start && timestamp <= end;
+    if (!(timestamp >= start && timestamp <= end)) return false;
+    return String(event?.type || "").toLowerCase() !== "death";
   });
 }
 
@@ -3223,6 +3225,7 @@ function attachHealingWindowsToDeathEntry(entry, healingEventsByTarget, summaryT
     ...entry,
     events: nestedEvents,
     healingWindowEvents: buildHealingWindowEvents(targetId, timestamp, healingEventsByTarget, summaryTimelineByTarget),
+    deathWindowEvents: buildDeathWindowEvents(targetId, timestamp, summaryTimelineByTarget),
   };
 }
 
@@ -3321,15 +3324,22 @@ function groupSummaryTimelineEventsByTarget(events = [], actorLookup = null) {
   const grouped = new Map();
 
   for (const event of events || []) {
-    const targetId = getSummaryTargetId(event);
-    if (!targetId) continue;
+    if (!shouldCaptureSummaryState(event)) continue;
 
     const normalized = normalizeDeathEvent(event, actorLookup);
     if (!normalized) continue;
 
-    const targetEvents = grouped.get(targetId) || [];
-    targetEvents.push(normalized);
-    grouped.set(targetId, targetEvents);
+    const actorIds = new Set([
+      getSummaryTargetId(event),
+      getSummarySourceId(event),
+    ]);
+
+    for (const actorId of actorIds) {
+      if (!actorId) continue;
+      const targetEvents = grouped.get(actorId) || [];
+      targetEvents.push(normalized);
+      grouped.set(actorId, targetEvents);
+    }
   }
 
   for (const [targetId, targetEvents] of grouped.entries()) {
@@ -3677,6 +3687,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
             }),
             events: (entry.events || []).map(event => normalizeDeathEvent(event, deathActorLookup)).filter(Boolean),
             healingWindowEvents: (entry.healingWindowEvents || []).map(event => normalizeDeathEvent(event, deathActorLookup)).filter(Boolean),
+            deathWindowEvents: (entry.deathWindowEvents || []).map(event => normalizeDeathEvent(event, deathActorLookup)).filter(Boolean),
           })),
       };
     });
