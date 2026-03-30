@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getLoginUrl, useAuth } from "../../shared/auth";
 import { getScoreColor } from "../../shared/useWarcraftLogs";
 import { getRaidCardLeaders } from "./leaderboard.js";
@@ -63,6 +63,15 @@ const RAID_ANALYTICS_FILTERS_BY_SLICE = {
   consumables: ["consumables"],
   healing: ["hearthstone"],
 };
+const VALID_RPB_TABS = new Set([
+  "damage",
+  "healing",
+  "deaths",
+  "drums",
+  "potions",
+  "consumables",
+  "debuffs",
+]);
 
 const MOBILE_BREAKPOINT = 960;
 
@@ -436,6 +445,11 @@ function getDefaultSelectedFightId(raid) {
   if (firstEncounter?.id != null) return String(firstEncounter.id);
 
   return "";
+}
+
+function normalizeRpbTab(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return VALID_RPB_TABS.has(normalized) ? normalized : "damage";
 }
 
 function getRaidAwardWinner(raid, role, parseField) {
@@ -4586,6 +4600,9 @@ export default function RpbPage() {
   const auth = useAuth();
   const navigate = useNavigate();
   const { raidId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fightParam = searchParams.get("fight") || "";
+  const tabParam = normalizeRpbTab(searchParams.get("tab"));
 
   const [reportUrl, setReportUrl] = useState("");
   const [profileApiKey, setProfileApiKey] = useState("");
@@ -4612,8 +4629,8 @@ export default function RpbPage() {
   const [raidAnalyticsFilter, setRaidAnalyticsFilter] = useState("");
   const [filterMode, setFilterMode] = useState("encounters-and-trash");
   const [fightOutcomeFilter, setFightOutcomeFilter] = useState("");
-  const [selectedFightId, setSelectedFightId] = useState("");
-  const [sliceType, setSliceType] = useState("damage");
+  const [selectedFightId, setSelectedFightId] = useState(() => fightParam);
+  const [sliceType, setSliceType] = useState(() => tabParam);
   const [isMobileViewport, setIsMobileViewport] = useState(() => (
     typeof window !== "undefined" ? window.innerWidth <= MOBILE_BREAKPOINT : false
   ));
@@ -4641,6 +4658,39 @@ export default function RpbPage() {
   const pendingRaidLoadingEmoji = pendingRaidSummary?.teamTag === "Team Dick"
     ? "🍆"
     : (pendingRaidSummary?.teamTag === "Team Balls" ? "🍒" : "⏳");
+
+  useEffect(() => {
+    if (fightParam !== selectedFightId) {
+      setSelectedFightId(fightParam);
+    }
+  }, [fightParam, selectedFightId]);
+
+  useEffect(() => {
+    if (tabParam !== sliceType) {
+      setSliceType(tabParam);
+    }
+  }, [sliceType, tabParam]);
+
+  useEffect(() => {
+    const currentFightParam = searchParams.get("fight") || "";
+    const currentTabParam = normalizeRpbTab(searchParams.get("tab"));
+    if (currentFightParam === selectedFightId && currentTabParam === sliceType) return;
+
+    const nextParams = new URLSearchParams(searchParams);
+    if (selectedFightId) {
+      nextParams.set("fight", String(selectedFightId));
+    } else {
+      nextParams.delete("fight");
+    }
+
+    if (sliceType && sliceType !== "damage") {
+      nextParams.set("tab", sliceType);
+    } else {
+      nextParams.delete("tab");
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, selectedFightId, setSearchParams, sliceType]);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -4743,7 +4793,7 @@ export default function RpbPage() {
         const raid = await fetchRpbRaidBundle(raidId);
         if (!cancelled) {
           setSelectedRaid(raid);
-          setSelectedFightId(getDefaultSelectedFightId(raid));
+          setSelectedFightId(fightParam || getDefaultSelectedFightId(raid));
           setSelectedPlayerId("");
         }
       } catch (error) {
@@ -4755,7 +4805,7 @@ export default function RpbPage() {
 
     loadRaid();
     return () => { cancelled = true; };
-  }, [loadingList, raidId, raids, teamFilter]);
+  }, [fightParam, loadingList, raidId, raids, teamFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -4837,7 +4887,11 @@ export default function RpbPage() {
     setMobileMenuOpen(false);
     setOpenRaidMenuId("");
     setOpenRaidMenuAnchor(null);
-    navigate(`/rpb/${targetRaidId}`);
+    const nextParams = new URLSearchParams();
+    if (sliceType && sliceType !== "damage") {
+      nextParams.set("tab", sliceType);
+    }
+    navigate(`/rpb/${targetRaidId}${nextParams.toString() ? `?${nextParams.toString()}` : ""}`);
   }
 
   function openRaidActionsMenu(event, targetRaidId) {
@@ -4867,7 +4921,17 @@ export default function RpbPage() {
     const baseUrl = typeof window !== "undefined" && window.location?.origin
       ? window.location.origin
       : "https://nexttopicmoveon.com";
-    return raid?.id ? `${baseUrl.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid.id))}` : "";
+    if (!raid?.id) return "";
+
+    const nextParams = new URLSearchParams();
+    if (selectedFightId) {
+      nextParams.set("fight", String(selectedFightId));
+    }
+    if (sliceType && sliceType !== "damage") {
+      nextParams.set("tab", sliceType);
+    }
+
+    return `${baseUrl.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid.id))}${nextParams.toString() ? `?${nextParams.toString()}` : ""}`;
   }
 
   function openWclReport(raid) {
