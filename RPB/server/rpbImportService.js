@@ -85,11 +85,31 @@ const POTION_RESOURCE_MATCH_WINDOW_MS = 5000;
 const DEATH_HEALING_LOOKBACK_MS = 15 * 1000;
 const WCL_CACHE_TTL_SECONDS = 60 * 15;
 const WCL_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
+const WCL_V1_MIN_REQUEST_GAP_MS = 350;
 let cachedV2Token = null;
 let cachedV2TokenExpiresAt = 0;
+let wclV1RequestQueue = Promise.resolve();
+let wclV1LastRequestStartedAt = 0;
+const wclV1InFlightRequests = new Map();
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function runQueuedWclV1Request(task) {
+  const scheduled = wclV1RequestQueue.catch(() => undefined).then(async () => {
+    const now = Date.now();
+    const waitMs = Math.max(0, WCL_V1_MIN_REQUEST_GAP_MS - (now - wclV1LastRequestStartedAt));
+    if (waitMs > 0) {
+      await sleep(waitMs);
+    }
+
+    wclV1LastRequestStartedAt = Date.now();
+    return task();
+  });
+
+  wclV1RequestQueue = scheduled.then(() => undefined, () => undefined);
+  return scheduled;
 }
 
 async function getWclV2AccessToken(clientIdOverride = "", clientSecretOverride = "") {
@@ -872,104 +892,158 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
 
   const snapshots = [];
   for (const fight of snapshotFights) {
-    const [casts, damageDone] = await Promise.all([
-      wclFetch(`/report/tables/casts/${reportId}`, {
-        start: fight.start_time ?? 0,
-        end: fight.end_time ?? 0,
-        by: "source",
-      }, apiKeyOverride),
-      wclFetch(`/report/tables/damage-done/${reportId}`, {
-        start: fight.start_time ?? 0,
-        end: fight.end_time ?? 0,
-        by: "source",
-        options: 2,
-      }, apiKeyOverride),
-    ]);
-    const ownedPets = ownedDamagePetsByFightId.get(String(fight.id)) || [];
-    const petDamageByOwnerId = new Map();
-
-    if (ownedPets.length > 0) {
-      const petPayloads = await Promise.all(ownedPets.map(async pet => {
-        const petDamage = await wclFetch(`/report/tables/damage-done/${reportId}`, {
+    try {
+      let casts = { entries: [] };
+      try {
+        casts = await wclFetch(`/report/tables/casts/${reportId}`, {
           start: fight.start_time ?? 0,
           end: fight.end_time ?? 0,
-          sourceid: pet.id,
+          by: "source",
         }, apiKeyOverride);
-
-        return {
-          ...pet,
-          entries: petDamage?.entries || [],
-        };
-      }));
-
-      for (const pet of petPayloads) {
-        const total = (pet.entries || []).reduce((sum, entry) => sum + Number(entry?.total || 0), 0);
-        if (total <= 0) continue;
-
-        const abilities = (pet.entries || []).map(entry => normalizeAbilityEntry({
-          guid: `pet:${pet.id}:${entry?.guid ?? entry?.name ?? "unknown"}`,
-          name: `${pet.name}: ${entry?.name || "Unknown Ability"}`,
-          icon: entry?.abilityIcon || entry?.icon || entry?.iconName || "",
-          total: entry?.total ?? 0,
-          activeTime: 0,
-          hits: entry?.hits ?? entry?.totalHits ?? entry?.hitCount ?? entry?.count ?? 0,
-          casts: entry?.casts ?? entry?.totalUses ?? entry?.uses ?? entry?.useCount ?? entry?.executeCount ?? 0,
-          crits: entry?.crits ?? entry?.criticalHits ?? entry?.critCount ?? entry?.critHits ?? entry?.critHitCount ?? 0,
-          overheal: 0,
-          absorbed: entry?.absorbed ?? 0,
-        })).filter(Boolean);
-        const ownerEntry = petDamageByOwnerId.get(pet.ownerId) || {
-          total: 0,
-          abilities: [],
-          casts: 0,
-          hits: 0,
-          crits: 0,
-        };
-
-        ownerEntry.total += total;
-        ownerEntry.abilities.push(...abilities);
-        ownerEntry.casts += abilities.reduce((sum, ability) => sum + Number(ability?.casts || 0), 0);
-        ownerEntry.hits += abilities.reduce((sum, ability) => sum + Number(ability?.hits || 0), 0);
-        ownerEntry.crits += abilities.reduce((sum, ability) => sum + Number(ability?.crits || 0), 0);
-        petDamageByOwnerId.set(pet.ownerId, ownerEntry);
+      } catch (error) {
+        console.warn("RPB damage casts fallback", {
+          reportId,
+          fightId: String(fight.id),
+          fightName: fight?.name || "Unknown Fight",
+          message: error?.message || String(error || ""),
+        });
       }
-    }
 
-    const enrichedEntries = enrichFightMetricEntries(damageDone?.entries || [], casts, "All Damage")
-      .map(entry => {
-        const petContribution = petDamageByOwnerId.get(String(entry?.id || ""));
-        if (!petContribution) return entry;
+      try {
+        let damageDone = { entries: [] };
+        try {
+          damageDone = await wclFetch(`/report/tables/damage-done/${reportId}`, {
+            start: fight.start_time ?? 0,
+            end: fight.end_time ?? 0,
+            by: "source",
+            options: 2,
+          }, apiKeyOverride);
+        } catch (error) {
+          console.warn("RPB damage table fallback", {
+            reportId,
+            fightId: String(fight.id),
+            fightName: fight?.name || "Unknown Fight",
+            message: error?.message || String(error || ""),
+          });
+        }
+        const ownedPets = ownedDamagePetsByFightId.get(String(fight.id)) || [];
+        const petDamageByOwnerId = new Map();
 
-        return {
-          ...entry,
-          total: Number(entry?.total || 0) + petContribution.total,
-          abilities: [...(entry?.abilities || []), ...petContribution.abilities],
-          casts: Number(entry?.casts || 0) + petContribution.casts,
-          hits: Number(entry?.hits || 0) + petContribution.hits,
-          crits: Number(entry?.crits || 0) + petContribution.crits,
-        };
-      });
-    const normalizedEntries = await Promise.all(enrichedEntries.map(async entry => {
-      if (!shouldHydrateDamageEntry(entry)) return entry;
+        if (ownedPets.length > 0) {
+          const petPayloads = [];
+          for (const pet of ownedPets) {
+            try {
+              const petDamage = await wclFetch(`/report/tables/damage-done/${reportId}`, {
+                start: fight.start_time ?? 0,
+                end: fight.end_time ?? 0,
+                sourceid: pet.id,
+              }, apiKeyOverride);
 
-      return hydrateSourceScopedFightEntry({
+              petPayloads.push({
+                ...pet,
+                entries: petDamage?.entries || [],
+              });
+            } catch (error) {
+              console.warn("RPB pet damage fallback", {
+                reportId,
+                fightId: String(fight.id),
+                fightName: fight?.name || "Unknown Fight",
+                petId: String(pet?.id || ""),
+                petName: pet?.name || "Pet",
+                ownerId: String(pet?.ownerId || ""),
+                message: error?.message || String(error || ""),
+              });
+            }
+          }
+
+          for (const pet of petPayloads) {
+            const total = (pet.entries || []).reduce((sum, entry) => sum + Number(entry?.total || 0), 0);
+            if (total <= 0) continue;
+
+            const abilities = (pet.entries || []).map(entry => normalizeAbilityEntry({
+              guid: `pet:${pet.id}:${entry?.guid ?? entry?.name ?? "unknown"}`,
+              name: `${pet.name}: ${entry?.name || "Unknown Ability"}`,
+              icon: entry?.abilityIcon || entry?.icon || entry?.iconName || "",
+              total: entry?.total ?? 0,
+              activeTime: 0,
+              hits: entry?.hits ?? entry?.totalHits ?? entry?.hitCount ?? entry?.count ?? 0,
+              casts: entry?.casts ?? entry?.totalUses ?? entry?.uses ?? entry?.useCount ?? entry?.executeCount ?? 0,
+              crits: entry?.crits ?? entry?.criticalHits ?? entry?.critCount ?? entry?.critHits ?? entry?.critHitCount ?? 0,
+              overheal: 0,
+              absorbed: entry?.absorbed ?? 0,
+            })).filter(Boolean);
+            const ownerEntry = petDamageByOwnerId.get(pet.ownerId) || {
+              total: 0,
+              abilities: [],
+              casts: 0,
+              hits: 0,
+              crits: 0,
+            };
+
+            ownerEntry.total += total;
+            ownerEntry.abilities.push(...abilities);
+            ownerEntry.casts += abilities.reduce((sum, ability) => sum + Number(ability?.casts || 0), 0);
+            ownerEntry.hits += abilities.reduce((sum, ability) => sum + Number(ability?.hits || 0), 0);
+            ownerEntry.crits += abilities.reduce((sum, ability) => sum + Number(ability?.crits || 0), 0);
+            petDamageByOwnerId.set(pet.ownerId, ownerEntry);
+          }
+        }
+
+        const enrichedEntries = enrichFightMetricEntries(damageDone?.entries || [], casts, "All Damage")
+          .map(entry => {
+            const petContribution = petDamageByOwnerId.get(String(entry?.id || ""));
+            if (!petContribution) return entry;
+
+            return {
+              ...entry,
+              total: Number(entry?.total || 0) + petContribution.total,
+              abilities: [...(entry?.abilities || []), ...petContribution.abilities],
+              casts: Number(entry?.casts || 0) + petContribution.casts,
+              hits: Number(entry?.hits || 0) + petContribution.hits,
+              crits: Number(entry?.crits || 0) + petContribution.crits,
+            };
+          });
+        snapshots.push({
+          fightId: String(fight.id),
+          encounterId: fight.boss || 0,
+          fightName: fight.name || "Unknown Fight",
+          damageDone: {
+            ...damageDone,
+            entries: enrichedEntries,
+          },
+        });
+      } catch (error) {
+        console.warn("RPB damage fight snapshot fallback", {
+          reportId,
+          fightId: String(fight.id),
+          fightName: fight?.name || "Unknown Fight",
+          message: error?.message || String(error || ""),
+        });
+        snapshots.push({
+          fightId: String(fight.id),
+          encounterId: fight.boss || 0,
+          fightName: fight.name || "Unknown Fight",
+          damageDone: {
+            entries: [],
+          },
+        });
+      }
+    } catch (error) {
+      console.warn("RPB damage fight iteration fallback", {
         reportId,
-        fight,
-        entry,
-        apiKey: apiKeyOverride,
-        mode: "damage",
+        fightId: String(fight.id),
+        fightName: fight?.name || "Unknown Fight",
+        message: error?.message || String(error || ""),
       });
-    }));
-
-    snapshots.push({
-      fightId: String(fight.id),
-      encounterId: fight.boss || 0,
-      fightName: fight.name || "Unknown Fight",
-      damageDone: {
-        ...damageDone,
-        entries: normalizedEntries,
-      },
-    });
+      snapshots.push({
+        fightId: String(fight.id),
+        encounterId: fight.boss || 0,
+        fightName: fight.name || "Unknown Fight",
+        damageDone: {
+          entries: [],
+        },
+      });
+    }
   }
 
   return { snapshots };
@@ -996,32 +1070,6 @@ async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "") {
     ]);
 
     const enrichedEntries = enrichFightMetricEntries(healing?.entries || [], casts, "All Healing");
-    const normalizedEntries = [];
-    for (const entry of enrichedEntries) {
-      if (!shouldHydrateHealingEntry(entry)) {
-        normalizedEntries.push(entry);
-        continue;
-      }
-
-      try {
-        const hydrated = await hydrateSourceScopedFightEntry({
-          reportId,
-          fight,
-          entry,
-          apiKey: apiKeyOverride,
-          mode: "healing",
-        });
-        normalizedEntries.push(hydrated);
-      } catch (error) {
-        console.warn("RPB healing hydration fallback", {
-          reportId,
-          fightId: String(fight.id),
-          playerId: String(entry?.id || ""),
-          message: error?.message || String(error || ""),
-        });
-        normalizedEntries.push(entry);
-      }
-    }
 
     snapshots.push({
       fightId: String(fight.id),
@@ -1029,7 +1077,7 @@ async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "") {
       fightName: fight.name || "Unknown Fight",
       healing: {
         ...healing,
-        entries: normalizedEntries,
+        entries: enrichedEntries,
       },
     });
   }
@@ -1040,6 +1088,7 @@ async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "") {
 async function fetchFightDeathsSnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
   const snapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
+  const deathActorLookup = buildDeathActorLookup(fightsData);
 
   const snapshots = [];
   for (const fight of snapshotFights) {
@@ -1062,7 +1111,7 @@ async function fetchFightDeathsSnapshots(reportId, apiKeyOverride = "") {
         error: error?.message || String(error),
       });
     }
-    const healingEventsByTarget = groupHealingEventsByTarget(healingEvents);
+    const healingEventsByTarget = groupHealingEventsByTarget(healingEvents, deathActorLookup);
 
     snapshots.push({
       fightId: String(fight.id),
@@ -2727,44 +2776,57 @@ async function wclFetch(path, params = {}, apiKeyOverride = "") {
   const cacheKey = buildCacheKey("wcl:v1", cacheParts);
   const cached = await getJsonCache(cacheKey);
   if (cached) return cached;
+  const inFlightKey = `${apiKey}:${cacheKey}`;
+  if (wclV1InFlightRequests.has(inFlightKey)) {
+    return wclV1InFlightRequests.get(inFlightKey);
+  }
 
-  let lastError = null;
-  for (let attempt = 0; attempt <= WCL_RETRY_DELAYS_MS.length; attempt += 1) {
-    try {
-      const res = await fetch(url.toString());
-      if (!res.ok) {
-        const text = await res.text();
-        const shouldRetry = [429, 502, 503, 504].includes(res.status) && attempt < WCL_RETRY_DELAYS_MS.length;
-        if (shouldRetry) {
+  const requestPromise = (async () => {
+    let lastError = null;
+    for (let attempt = 0; attempt <= WCL_RETRY_DELAYS_MS.length; attempt += 1) {
+      try {
+        const res = await runQueuedWclV1Request(() => fetch(url.toString()));
+        if (!res.ok) {
+          const text = await res.text();
+          const shouldRetry = [429, 502, 503, 504].includes(res.status) && attempt < WCL_RETRY_DELAYS_MS.length;
+          if (shouldRetry) {
+            await sleep(WCL_RETRY_DELAYS_MS[attempt]);
+            continue;
+          }
+          throw new Error(`WCL v1 ${res.status}: ${formatWclErrorBody(text, res.status)}`);
+        }
+
+        const data = await res.json();
+        await setJsonCache(cacheKey, data, WCL_CACHE_TTL_SECONDS);
+        return data;
+      } catch (error) {
+        lastError = error;
+        const isNetworkRetryable = attempt < WCL_RETRY_DELAYS_MS.length
+          && !String(error?.message || "").startsWith("WCL v1 ")
+          && (
+            error?.cause?.code === "EAI_AGAIN"
+            || error?.cause?.code === "ECONNRESET"
+            || error?.cause?.code === "ETIMEDOUT"
+            || error?.name === "TypeError"
+          );
+
+        if (isNetworkRetryable) {
           await sleep(WCL_RETRY_DELAYS_MS[attempt]);
           continue;
         }
-        throw new Error(`WCL v1 ${res.status}: ${formatWclErrorBody(text, res.status)}`);
+        throw error;
       }
-
-      const data = await res.json();
-      await setJsonCache(cacheKey, data, WCL_CACHE_TTL_SECONDS);
-      return data;
-    } catch (error) {
-      lastError = error;
-      const isNetworkRetryable = attempt < WCL_RETRY_DELAYS_MS.length
-        && !String(error?.message || "").startsWith("WCL v1 ")
-        && (
-          error?.cause?.code === "EAI_AGAIN"
-          || error?.cause?.code === "ECONNRESET"
-          || error?.cause?.code === "ETIMEDOUT"
-          || error?.name === "TypeError"
-        );
-
-      if (isNetworkRetryable) {
-        await sleep(WCL_RETRY_DELAYS_MS[attempt]);
-        continue;
-      }
-      throw error;
     }
-  }
 
-  throw lastError || new Error("WCL v1 request failed");
+    throw lastError || new Error("WCL v1 request failed");
+  })();
+
+  wclV1InFlightRequests.set(inFlightKey, requestPromise);
+  try {
+    return await requestPromise;
+  } finally {
+    wclV1InFlightRequests.delete(inFlightKey);
+  }
 }
 
 function formatWclErrorBody(body, status = 0) {
@@ -2990,16 +3052,46 @@ function getEntryParsePercent(entry) {
   return null;
 }
 
-function normalizeDeathEvent(event) {
+function resolveDeathActorName(actorId, actorLookup = null) {
+  const normalizedId = actorId == null ? "" : String(actorId);
+  if (!normalizedId || !(actorLookup instanceof Map)) return "";
+  return String(actorLookup.get(normalizedId) || "").trim();
+}
+
+function buildDeathActorLookup(fightsData = {}) {
+  const lookup = new Map();
+  const collections = [
+    fightsData?.friendlies,
+    fightsData?.friendlyPets,
+    fightsData?.enemies,
+    fightsData?.enemyPets,
+  ];
+
+  for (const collection of collections) {
+    for (const actor of collection || []) {
+      const actorId = actor?.id;
+      const actorName = String(actor?.name || "").trim();
+      if (actorId == null || !actorName) continue;
+      lookup.set(String(actorId), actorName);
+    }
+  }
+
+  return lookup;
+}
+
+function normalizeDeathEvent(event, actorLookup = null) {
   if (!event) return null;
+
+  const sourceId = event.sourceID ?? event.sourceId ?? event.source?.id ?? null;
+  const targetId = event.targetID ?? event.targetId ?? event.target?.id ?? null;
 
   return {
     timestamp: event.timestamp ?? event.time ?? event.offset ?? 0,
     type: event.type || "",
     abilityGuid: event.abilityGameID ?? event.guid ?? event.ability?.guid ?? null,
     abilityName: event.ability?.name || event.abilityName || event.spellName || event.name || "",
-    sourceId: event.sourceID ?? event.sourceId ?? null,
-    sourceName: event.sourceName || event.source || event.source?.name || "",
+    sourceId,
+    sourceName: event.sourceName || event.source?.name || (typeof event.source === "string" ? event.source : "") || resolveDeathActorName(sourceId, actorLookup),
     amount: event.amount ?? event.hitPoints ?? event.value ?? 0,
     hitPoints: event.hitPoints ?? event.hitpoints ?? event.hitPoint ?? event.hp ?? null,
     overkill: event.overkill ?? 0,
@@ -3008,10 +3100,10 @@ function normalizeDeathEvent(event) {
     hitType: event.hitType ?? null,
     damage: event.damage ?? event.damageTaken ?? 0,
     healing: event.healing ?? event.healingReceived ?? 0,
-    targetId: event.targetID ?? event.targetId ?? event.target?.id ?? null,
-    targetName: event.targetName || event.target?.name || "",
-    events: (event.events || []).map(normalizeDeathEvent).filter(Boolean),
-    healingWindowEvents: (event.healingWindowEvents || []).map(normalizeDeathEvent).filter(Boolean),
+    targetId,
+    targetName: event.targetName || event.target?.name || (typeof event.target === "string" ? event.target : "") || resolveDeathActorName(targetId, actorLookup),
+    events: (event.events || []).map(nestedEvent => normalizeDeathEvent(nestedEvent, actorLookup)).filter(Boolean),
+    healingWindowEvents: (event.healingWindowEvents || []).map(nestedEvent => normalizeDeathEvent(nestedEvent, actorLookup)).filter(Boolean),
   };
 }
 
@@ -3020,14 +3112,14 @@ function getHealingTargetId(event) {
   return targetId == null ? "" : String(targetId);
 }
 
-function groupHealingEventsByTarget(events = []) {
+function groupHealingEventsByTarget(events = [], actorLookup = null) {
   const grouped = new Map();
 
   for (const event of events || []) {
     const targetId = getHealingTargetId(event);
     if (!targetId) continue;
 
-    const normalized = normalizeDeathEvent(event);
+    const normalized = normalizeDeathEvent(event, actorLookup);
     if (!normalized) continue;
 
     const targetEvents = grouped.get(targetId) || [];
@@ -3304,6 +3396,7 @@ export async function fetchRpbImportStep(action, input = {}) {
 export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) {
   const reportId = getResolvedReportId({ reportUrl, reportId: rawReportId });
   const fightsData = datasets.fights || {};
+  const deathActorLookup = buildDeathActorLookup(fightsData);
   const summaryData = datasets.summary || {};
   const deathsData = datasets.deaths || {};
   const trackedData = datasets.tracked || {};
@@ -3370,8 +3463,8 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
               healing: Number(entry?.healing?.total || 0),
               overkill: entry.overkill ?? 0,
             }),
-            events: (entry.events || []).map(normalizeDeathEvent).filter(Boolean),
-            healingWindowEvents: (entry.healingWindowEvents || []).map(normalizeDeathEvent).filter(Boolean),
+            events: (entry.events || []).map(event => normalizeDeathEvent(event, deathActorLookup)).filter(Boolean),
+            healingWindowEvents: (entry.healingWindowEvents || []).map(event => normalizeDeathEvent(event, deathActorLookup)).filter(Boolean),
           })),
       };
     });
