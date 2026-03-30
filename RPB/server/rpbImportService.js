@@ -1047,12 +1047,34 @@ async function fetchFightDeathsSnapshots(reportId, apiKeyOverride = "") {
       end: fight.end_time ?? 0,
       by: "target",
     }, apiKeyOverride);
+    let healingEvents = [];
+    try {
+      healingEvents = await fetchAllEventPages(`/report/events/healing/${reportId}`, {
+        start: fight.start_time ?? 0,
+        end: fight.end_time ?? 0,
+      }, apiKeyOverride);
+    } catch (error) {
+      console.warn("RPB death healing window lookup failed", {
+        reportId,
+        fightId: fight?.id,
+        fightName: fight?.name,
+        error: error?.message || String(error),
+      });
+    }
+    const healingEventsByTarget = groupHealingEventsByTarget(healingEvents);
 
     snapshots.push({
       fightId: String(fight.id),
       encounterId: fight.boss || 0,
       fightName: fight.name || "Unknown Fight",
-      deaths,
+      deaths: {
+        ...deaths,
+        entries: attachHealingWindowsToDeathEntries(
+          deaths?.entries || [],
+          healingEventsByTarget,
+          DEATH_HEALING_LOOKBACK_MS
+        ),
+      },
     });
   }
 
@@ -2985,8 +3007,73 @@ function normalizeDeathEvent(event) {
     hitType: event.hitType ?? null,
     damage: event.damage ?? event.damageTaken ?? 0,
     healing: event.healing ?? event.healingReceived ?? 0,
+    targetId: event.targetID ?? event.targetId ?? event.target?.id ?? null,
+    targetName: event.targetName || event.target?.name || "",
     events: (event.events || []).map(normalizeDeathEvent).filter(Boolean),
+    healingWindowEvents: (event.healingWindowEvents || []).map(normalizeDeathEvent).filter(Boolean),
   };
+}
+
+function getHealingTargetId(event) {
+  const targetId = event?.targetID ?? event?.targetId ?? event?.target?.id ?? null;
+  return targetId == null ? "" : String(targetId);
+}
+
+function groupHealingEventsByTarget(events = []) {
+  const grouped = new Map();
+
+  for (const event of events || []) {
+    const targetId = getHealingTargetId(event);
+    if (!targetId) continue;
+
+    const normalized = normalizeDeathEvent(event);
+    if (!normalized) continue;
+
+    const targetEvents = grouped.get(targetId) || [];
+    targetEvents.push(normalized);
+    grouped.set(targetId, targetEvents);
+  }
+
+  for (const [targetId, targetEvents] of grouped.entries()) {
+    targetEvents.sort((a, b) => Number(a?.timestamp || 0) - Number(b?.timestamp || 0));
+    grouped.set(targetId, targetEvents);
+  }
+
+  return grouped;
+}
+
+function buildHealingWindowEvents(targetId, deathTimestamp, healingEventsByTarget, lookbackMs) {
+  const normalizedTargetId = targetId == null ? "" : String(targetId);
+  if (!normalizedTargetId) return [];
+
+  const allTargetEvents = healingEventsByTarget.get(normalizedTargetId) || [];
+  const end = Number(deathTimestamp || 0);
+  const start = Math.max(0, end - Number(lookbackMs || 0));
+
+  return allTargetEvents.filter(event => {
+    const timestamp = Number(event?.timestamp || 0);
+    return timestamp >= start && timestamp <= end;
+  });
+}
+
+function attachHealingWindowsToDeathEntry(entry, healingEventsByTarget, lookbackMs, inheritedTargetId = null) {
+  if (!entry || typeof entry !== "object") return entry;
+
+  const targetId = entry?.id ?? entry?.targetID ?? entry?.targetId ?? inheritedTargetId ?? null;
+  const timestamp = entry?.timestamp ?? 0;
+  const nestedEvents = Array.isArray(entry?.events)
+    ? entry.events.map(event => attachHealingWindowsToDeathEntry(event, healingEventsByTarget, lookbackMs, targetId))
+    : [];
+
+  return {
+    ...entry,
+    events: nestedEvents,
+    healingWindowEvents: buildHealingWindowEvents(targetId, timestamp, healingEventsByTarget, lookbackMs),
+  };
+}
+
+function attachHealingWindowsToDeathEntries(entries = [], healingEventsByTarget, lookbackMs) {
+  return (entries || []).map(entry => attachHealingWindowsToDeathEntry(entry, healingEventsByTarget, lookbackMs));
 }
 
 function extractPlayerSnapshots(summaryData = {}) {
@@ -3283,6 +3370,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
               overkill: entry.overkill ?? 0,
             }),
             events: (entry.events || []).map(normalizeDeathEvent).filter(Boolean),
+            healingWindowEvents: (entry.healingWindowEvents || []).map(normalizeDeathEvent).filter(Boolean),
           })),
       };
     });

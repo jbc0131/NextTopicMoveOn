@@ -3933,6 +3933,30 @@ function getDeathEventHpLabel(event) {
   return Number.isFinite(hp) ? formatMetricValue(hp) : "";
 }
 
+function mergeDeathTimelineEvents(recapEvents = [], healingWindowEvents = []) {
+  const seen = new Set();
+  const merged = [];
+
+  for (const event of [...(recapEvents || []), ...(healingWindowEvents || [])]) {
+    const key = [
+      Number(event?.timestamp || 0),
+      String(event?.type || ""),
+      String(event?.abilityGuid || ""),
+      String(event?.sourceId || ""),
+      String(event?.targetId || ""),
+      Number(event?.amount ?? event?.damage ?? event?.healing ?? 0),
+      Number(event?.overkill || 0),
+      Number(event?.overheal || 0),
+      Number(event?.absorbed || 0),
+    ].join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(event);
+  }
+
+  return merged;
+}
+
 function buildDeathDetailRows(fights, playerId) {
   if (!playerId) return [];
 
@@ -3946,7 +3970,10 @@ function buildDeathDetailRows(fights, playerId) {
       for (const deathEntry of getDeathSequenceEntries(entry)) {
         const deathTimestampMs = normalizeEncounterEventTimestamp(deathEntry?.timestamp ?? entry?.timestamp, fight);
         const recapEvents = deathEntry === entry ? (entry?.events || []) : (deathEntry?.events || []);
-        const timelineEvents = recapEvents
+        const healingWindowEvents = deathEntry === entry
+          ? (entry?.healingWindowEvents || [])
+          : (deathEntry?.healingWindowEvents || []);
+        const timelineEvents = mergeDeathTimelineEvents(recapEvents, healingWindowEvents)
           .map(event => ({
             ...event,
             timestampMs: normalizeEncounterEventTimestamp(event.timestamp, fight),
