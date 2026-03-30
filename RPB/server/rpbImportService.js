@@ -1349,7 +1349,7 @@ async function estimateBloodFrenzyContribution(reportId, fight, apiKeyOverride =
     key: "blood-frenzy-estimate",
     label: "Blood Frenzy",
     preferredClass: "Warrior",
-    order: 3,
+    order: 0,
     guid: null,
     totalUses: qualifyingEventCount,
     totalUptime,

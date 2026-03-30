@@ -2857,7 +2857,9 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
 
       existing.label = debuff?.label || existing.label;
       existing.preferredClass = debuff?.preferredClass || existing.preferredClass;
-      existing.order = Number.isFinite(Number(debuff?.order)) ? Number(debuff.order) : existing.order;
+      if (!grouped.has(key) && Number.isFinite(Number(debuff?.order))) {
+        existing.order = Number(debuff.order);
+      }
       existing.estimated = Boolean(debuff?.estimated || existing.estimated);
       existing.totalUptime += Number(debuff?.totalUptime || 0);
       existing.casts += Number(debuff?.totalUses || 0);
