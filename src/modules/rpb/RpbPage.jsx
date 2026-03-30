@@ -3725,16 +3725,34 @@ function normalizeFetchedAbilityBreakdown(entries = []) {
     .sort((a, b) => b.total - a.total);
 }
 
-function mergeDamageBreakdownWithImportedPets(liveEntries = [], importedEntries = []) {
+function mergeLiveBreakdownWithImportedStats(liveEntries = [], importedEntries = [], { includeImportedPets = false } = {}) {
   if (!Array.isArray(liveEntries) || liveEntries.length === 0) return importedEntries || [];
   if (!Array.isArray(importedEntries) || importedEntries.length === 0) return liveEntries || [];
 
-  const merged = [...liveEntries];
+  const importedByKey = new Map(
+    importedEntries.map(entry => [String(entry?.key ?? entry?.guid ?? entry?.name ?? ""), entry])
+  );
+
+  const merged = liveEntries.map(entry => {
+    const key = String(entry?.key ?? entry?.guid ?? entry?.name ?? "");
+    const imported = importedByKey.get(key);
+    if (!imported) return entry;
+
+    return {
+      ...entry,
+      casts: Number(entry?.casts || 0) > 0 ? entry.casts : imported.casts,
+      hits: Number(entry?.hits || 0) > 0 ? entry.hits : imported.hits,
+      crits: Number(entry?.crits || 0) > 0 ? entry.crits : imported.crits,
+      overheal: Number(entry?.overheal || 0) > 0 ? entry.overheal : imported.overheal,
+      absorbed: Number(entry?.absorbed || 0) > 0 ? entry.absorbed : imported.absorbed,
+    };
+  });
+
   const existingKeys = new Set(merged.map(entry => String(entry?.key ?? entry?.guid ?? entry?.name ?? "")));
 
   for (const entry of importedEntries) {
     const key = String(entry?.key ?? entry?.guid ?? entry?.name ?? "");
-    if (!key.startsWith("pet:")) continue;
+    if (!includeImportedPets || !key.startsWith("pet:")) continue;
     if (existingKeys.has(key)) continue;
     merged.push(entry);
     existingKeys.add(key);
@@ -5592,15 +5610,15 @@ export default function RpbPage() {
     return normalizeFetchedAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.healing?.entries || []);
   }, [liveAbilityBreakdowns, liveBreakdownCacheKey]);
   const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(liveDamageBreakdown)
-    ? mergeDamageBreakdownWithImportedPets(liveDamageBreakdown, selectedPlayerDamageBreakdown)
+    ? mergeLiveBreakdownWithImportedStats(liveDamageBreakdown, selectedPlayerDamageBreakdown, { includeImportedPets: true })
     : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
       ? selectedPlayerDamageBreakdown
       : selectedPlayerSummaryDamageBreakdown;
   const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(liveHealingBreakdown)
-    ? liveHealingBreakdown
+    ? mergeLiveBreakdownWithImportedStats(liveHealingBreakdown, selectedPlayerHealingBreakdown)
     : hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
       ? selectedPlayerHealingBreakdown
-    : selectedPlayerSummaryHealingBreakdown;
+      : selectedPlayerSummaryHealingBreakdown;
   const selectedPlayerDeathRows = useMemo(() => buildDeathDetailRows(filteredFights, selectedPlayerId), [filteredFights, selectedPlayerId]);
   const defaultVisiblePlayerId = useMemo(() => {
     if (sliceType === "debuffs") return "";
