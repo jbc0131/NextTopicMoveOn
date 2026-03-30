@@ -3208,7 +3208,11 @@ function buildDeathWindowEvents(targetId, deathTimestamp, summaryTimelineByTarge
   return allActorEvents.filter(event => {
     const timestamp = Number(event?.timestamp || 0);
     if (!(timestamp >= start && timestamp <= end)) return false;
-    return String(event?.type || "").toLowerCase() !== "death";
+    if (String(event?.targetId ?? "") !== normalizedTargetId) return false;
+
+    const type = String(event?.type || "").toLowerCase();
+    if (type === "death") return false;
+    return type === "damage" || type === "heal" || type === "absorbed";
   });
 }
 
