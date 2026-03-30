@@ -3226,20 +3226,6 @@ function buildParseFallbackByMetric(fights, field) {
   return next;
 }
 
-function buildOverallPlayerParseMap(players = [], sliceType = "damage") {
-  const parseField = sliceType === "healing" ? "healingParsePercent" : "damageParsePercent";
-  const next = new Map();
-
-  for (const player of players || []) {
-    const playerId = String(player?.id || "");
-    const parsePercent = Number(player?.[parseField]);
-    if (!playerId || !Number.isFinite(parsePercent) || parsePercent < 0) continue;
-    next.set(playerId, parsePercent);
-  }
-
-  return next;
-}
-
 function getDeathEntryTotal(entry) {
   if (!entry) return 0;
   const explicitDeaths = Number(entry.deaths || 0);
@@ -5522,20 +5508,16 @@ export default function RpbPage() {
     && filteredFights.length === 1
     && Number(filteredFights[0]?.encounterId) > 0
   ), [filteredFights, sliceType]);
-  const overallSliceParseByPlayerId = useMemo(() => {
-    if (sliceType !== "damage" && sliceType !== "healing") return null;
-    return buildOverallPlayerParseMap(selectedRaid?.players || [], sliceType);
-  }, [selectedRaid, sliceType]);
   const aggregatedSliceEntries = useMemo(() => {
-    const entries = aggregateMetricEntries(
-      filteredFights,
-      sliceField,
-      overallSliceParseByPlayerId,
-      !showKillParseForSlice
-    );
+    const entries = aggregateMetricEntries(filteredFights, sliceField);
     if (showKillParseForSlice) return entries;
-    return entries;
-  }, [filteredFights, overallSliceParseByPlayerId, showKillParseForSlice, sliceField]);
+    return entries.map(entry => ({
+      ...entry,
+      parsePercent: null,
+      parseTotal: 0,
+      parseCount: 0,
+    }));
+  }, [filteredFights, showKillParseForSlice, sliceField]);
   const visibleAggregatedSliceEntries = useMemo(() => {
     if (!raidAnalyticsFilterIds) return aggregatedSliceEntries;
     return aggregatedSliceEntries.filter(entry => raidAnalyticsFilterIds.has(String(entry.id)));
