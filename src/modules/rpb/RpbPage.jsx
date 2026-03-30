@@ -4787,7 +4787,6 @@ export default function RpbPage() {
         const raid = await fetchRpbRaidBundle(raidId);
         if (!cancelled) {
           setSelectedRaid(raid);
-          setSelectedFightId(fightParam || getDefaultSelectedFightId(raid));
           setSelectedPlayerId("");
         }
       } catch (error) {
@@ -4799,7 +4798,7 @@ export default function RpbPage() {
 
     loadRaid();
     return () => { cancelled = true; };
-  }, [fightParam, loadingList, raidId, raids, teamFilter]);
+  }, [loadingList, raidId, raids, teamFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -5804,6 +5803,7 @@ export default function RpbPage() {
   ]);
 
   useEffect(() => {
+    if (loadingRaid || !selectedRaid) return;
     if (!selectedFightId) return;
 
     const validSpecialSelections = new Set([ALL_KILLS_ENCOUNTERS_ID, ALL_WIPES_ENCOUNTERS_ID, ALL_VISIBLE_ENCOUNTERS_ID]);
@@ -5820,7 +5820,7 @@ export default function RpbPage() {
     if (!encounterSelectionOptions.some(option => String(option.id) === String(selectedFightId))) {
       setSelectedFightId("");
     }
-  }, [encounterSelectionOptions, fightOutcomeFilter, selectedFightId]);
+  }, [encounterSelectionOptions, fightOutcomeFilter, loadingRaid, selectedFightId, selectedRaid]);
 
   useEffect(() => {
     if (!filteredPlayers.length || !defaultVisiblePlayerId) {
