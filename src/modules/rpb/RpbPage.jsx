@@ -3226,20 +3226,6 @@ function buildParseFallbackByMetric(fights, field) {
   return next;
 }
 
-function buildOverallPlayerParseMap(players = [], sliceType = "damage") {
-  const parseField = sliceType === "healing" ? "healingParsePercent" : "damageParsePercent";
-  const next = new Map();
-
-  for (const player of players || []) {
-    const key = String(player?.id || "");
-    const value = Number(player?.[parseField]);
-    if (!key || !Number.isFinite(value) || value < 0) continue;
-    next.set(key, value);
-  }
-
-  return next;
-}
-
 function getDeathEntryTotal(entry) {
   if (!entry) return 0;
   const explicitDeaths = Number(entry.deaths || 0);
@@ -5517,18 +5503,24 @@ export default function RpbPage() {
   }, [filteredRaids]);
   const noReportsForActiveTeamFilter = !loadingList && !!teamFilter && filteredRaids.length === 0;
   const sliceField = sliceType === "healing" ? "healingDoneEntries" : (sliceType === "deaths" ? "deathEntries" : "damageDoneEntries");
-  const overallSliceParseByPlayerId = useMemo(() => {
-    if (sliceType !== "damage" && sliceType !== "healing") return null;
-    return buildOverallPlayerParseMap(selectedRaid?.players || [], sliceType);
-  }, [selectedRaid, sliceType]);
+  const showKillParseForSlice = useMemo(() => (
+    sliceType !== "deaths"
+    && filteredFights.length === 1
+    && Number(filteredFights[0]?.encounterId) > 0
+  ), [filteredFights, sliceType]);
+  const averageSliceParseByPlayerId = useMemo(() => {
+    if (sliceType === "damage") return buildParseFallbackByMetric(filteredFights, "damageDoneEntries");
+    if (sliceType === "healing") return buildParseFallbackByMetric(filteredFights, "healingDoneEntries");
+    return null;
+  }, [filteredFights, sliceType]);
   const aggregatedSliceEntries = useMemo(() => {
     return aggregateMetricEntries(
       filteredFights,
       sliceField,
-      overallSliceParseByPlayerId,
-      sliceType === "damage" || sliceType === "healing"
+      averageSliceParseByPlayerId,
+      !showKillParseForSlice && (sliceType === "damage" || sliceType === "healing")
     );
-  }, [filteredFights, overallSliceParseByPlayerId, sliceField, sliceType]);
+  }, [averageSliceParseByPlayerId, filteredFights, showKillParseForSlice, sliceField, sliceType]);
   const visibleAggregatedSliceEntries = useMemo(() => {
     if (!raidAnalyticsFilterIds) return aggregatedSliceEntries;
     return aggregatedSliceEntries.filter(entry => raidAnalyticsFilterIds.has(String(entry.id)));
