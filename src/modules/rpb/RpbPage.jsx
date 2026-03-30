@@ -3937,8 +3937,11 @@ function getDeathEventAmountLabel(event) {
 }
 
 function getDeathEventHpLabel(event) {
-  const hp = Number(event?.hitPoints);
-  return Number.isFinite(hp) ? formatMetricValue(hp) : "";
+  const rawHp = event?.hitPoints;
+  if (rawHp == null || rawHp === "") return "";
+
+  const hp = Number(rawHp);
+  return Number.isFinite(hp) ? `${formatMetricValue(hp)}%` : "";
 }
 
 function mergeDeathTimelineEvents(recapEvents = [], healingWindowEvents = []) {
@@ -4184,10 +4187,12 @@ function filterFights(fights, mode, selectedFightId, outcome = "") {
 
 function ImportProgressModal({ open, progress, onClose }) {
   const [displayPercent, setDisplayPercent] = useState(0);
+  const [displayEtaMs, setDisplayEtaMs] = useState(null);
 
   useEffect(() => {
     if (!open) {
       setDisplayPercent(0);
+      setDisplayEtaMs(null);
       return undefined;
     }
 
@@ -4205,8 +4210,33 @@ function ImportProgressModal({ open, progress, onClose }) {
     return () => window.clearInterval(intervalId);
   }, [open, progress?.percent]);
 
+  useEffect(() => {
+    if (!open) {
+      setDisplayEtaMs(null);
+      return undefined;
+    }
+
+    const startedAtMs = Number(progress?.startedAtMs || 0);
+    const estimatedRemainingMs = Number(progress?.estimatedRemainingMs);
+    const etaUpdatedAtMs = Number(progress?.etaUpdatedAtMs || 0);
+
+    if (!(startedAtMs > 0) || !Number.isFinite(estimatedRemainingMs)) {
+      setDisplayEtaMs(Number(progress?.percent || 0) >= 100 ? 0 : null);
+      return undefined;
+    }
+
+    const tick = () => {
+      const referenceMs = etaUpdatedAtMs > 0 ? etaUpdatedAtMs : Date.now();
+      const elapsedSinceEstimateMs = Math.max(0, Date.now() - referenceMs);
+      setDisplayEtaMs(Math.max(0, Math.round(estimatedRemainingMs - elapsedSinceEstimateMs)));
+    };
+
+    tick();
+    const intervalId = window.setInterval(tick, 250);
+    return () => window.clearInterval(intervalId);
+  }, [open, progress?.estimatedRemainingMs, progress?.etaUpdatedAtMs, progress?.percent, progress?.startedAtMs]);
+
   if (!open) return null;
-  const visibleSteps = (progress.steps || []).slice(0, 10);
   const canClose = typeof onClose === "function";
 
   return (
@@ -4235,11 +4265,6 @@ function ImportProgressModal({ open, progress, onClose }) {
             <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 4 }}>
               {progress.message}
             </div>
-            {!!progress.detail && (
-              <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 8, fontFamily: font.mono }}>
-                {progress.detail}
-              </div>
-            )}
           </div>
           {canClose && (
             <button
@@ -4274,68 +4299,17 @@ function ImportProgressModal({ open, progress, onClose }) {
           }} />
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: fontSize.sm, color: text.muted }}>
-          <span>{progress.completed} / {progress.total} steps</span>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: space[3],
+          fontSize: fontSize.sm,
+          color: text.muted,
+        }}>
+          <span>{displayEtaMs != null ? formatEstimatedTimeRemaining(displayEtaMs) : ""}</span>
           <span>{Math.round(displayPercent)}%</span>
         </div>
-
-        {!!visibleSteps.length && (
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: space[2],
-            padding: space[3],
-            border: `1px solid ${border.subtle}`,
-            borderRadius: radius.base,
-            background: "rgba(14, 24, 38, 0.72)",
-          }}>
-            <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-              Staged API Calls
-            </div>
-            {visibleSteps.map(step => {
-              const isActive = step.key === progress.activeStepKey;
-              const isDone = !!step.completed;
-              const tone = isDone ? "#7fd6a3" : (isActive ? "#8fc8ff" : text.muted);
-              return (
-                <div
-                  key={step.key}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "18px minmax(0, 1fr)",
-                    gap: space[2],
-                    alignItems: "start",
-                  }}
-                >
-                  <div style={{ color: tone, fontSize: fontSize.sm, lineHeight: 1.2 }}>
-                    {isDone ? "●" : (isActive ? "◉" : "○")}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: fontSize.sm, color: isDone || isActive ? text.primary : text.secondary }}>
-                      {step.label}
-                    </div>
-                    <div style={{ fontSize: fontSize.xs, color: tone, fontFamily: font.mono, marginTop: 2, whiteSpace: "pre-wrap" }}>
-                      {step.detail}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {!!progress.subdetail && (
-          <div style={{
-            fontSize: fontSize.xs,
-            color: "#8fc8ff",
-            fontFamily: font.mono,
-            padding: `${space[2]}px ${space[3]}px`,
-            borderRadius: radius.base,
-            background: "rgba(61, 125, 202, 0.12)",
-            border: `1px solid rgba(61, 125, 202, 0.24)`,
-          }}>
-            {progress.subdetail}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -4416,6 +4390,21 @@ function TeamTagModal({ open, title, confirmLabel, value, onChange, onConfirm, o
       </div>
     </div>
   );
+}
+
+function formatEstimatedTimeRemaining(ms) {
+  const totalSeconds = Math.max(0, Math.round(Number(ms || 0) / 1000));
+  if (totalSeconds <= 0) return "Less than 1s remaining";
+  if (totalSeconds < 60) return `${totalSeconds}s remaining`;
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m remaining`;
+  }
+  return seconds > 0 ? `${minutes}m ${seconds}s remaining` : `${minutes}m remaining`;
 }
 
 function ImportWebhookModal({ open, raidTitle, onYes, onNo }) {
@@ -4682,6 +4671,9 @@ export default function RpbPage() {
     total: 17,
     percent: 0,
     message: "",
+    startedAtMs: 0,
+    estimatedRemainingMs: null,
+    etaUpdatedAtMs: 0,
     detail: "",
     subdetail: "",
     activeStepKey: "",
@@ -5994,33 +5986,54 @@ export default function RpbPage() {
     setImporting(true);
     try {
       const steps = [
-        { key: "fights", label: "Scanning report structure...", detail: "GET /report/fights" },
-        { key: "summary", label: "Pulling summary roster data...", detail: "GET /report/tables/summary" },
-        { key: "deaths", label: "Pulling death recap data...", detail: "GET /report/tables/deaths" },
-        { key: "tracked", label: "Collecting tracked raid cooldown casts...", detail: "GET /report/tables/casts (tracked filter)" },
-        { key: "hostile", label: "Collecting hostile-player damage...", detail: "GET /report/tables/damage-taken (hostility=1)" },
-        { key: "fullCasts", label: "Capturing combatant and gear snapshots...", detail: "GET /report/tables/casts (full report)" },
-        { key: "engineering", label: "Scanning engineering explosives...", detail: "GET /report/tables/damage-done (engineering filter)" },
-        { key: "oil", label: "Scanning oil of immolation ticks...", detail: "GET /report/tables/damage-taken (ability 11351)" },
-        { key: "buffs", label: "Extracting buff and consumable auras...", detail: "GET /report/tables/buffs" },
-        { key: "buffsByFight", label: "Saving consumable coverage per boss fight...", detail: "GET /report/tables/buffs per boss fight" },
-        { key: "drums", label: "Extracting drums usage...", detail: "GET /report/tables/casts (drums filter)" },
-        { key: "drumsByFight", label: "Saving drums effectiveness per boss fight...", detail: "GET /report/events/casts + /report/events/buffs per boss fight" },
-        { key: "potionsByFight", label: "Saving potion and recovery timelines...", detail: "GET /report/events/casts + /report/events/buffs + /report/events/healing per boss fight" },
-        { key: "reportRankings", label: "Fetching Warcraft Logs parse rankings...", detail: "POST /api/v2/client report.rankings" },
-        { key: "reportSpeed", label: "Fetching report and boss speed rankings...", detail: "POST /api/v2/client report.rankings speed rows" },
-        { key: "raiderData", label: "Capturing boss-pull player snapshots...", detail: "GET /report/tables/summary per boss fight" },
-        { key: "damageByFight", label: "Saving damage ability breakdowns...", detail: "GET /report/tables/damage-done per fight (options=2)" },
-        { key: "healingByFight", label: "Saving healing ability breakdowns...", detail: "GET /report/tables/healing per fight (options=2)" },
-        { key: "deathsByFight", label: "Saving death events per fight...", detail: "GET /report/tables/deaths per fight" },
-        { key: "debuffsByFight", label: "Saving tracked boss debuffs per fight...", detail: "GET /report/tables/debuffs + /report/events/debuffs per boss fight" },
+        { key: "fights", label: "Scanning report structure...", detail: "GET /report/fights", estimateMs: 1200 },
+        { key: "summary", label: "Pulling summary roster data...", detail: "GET /report/tables/summary", estimateMs: 1800 },
+        { key: "deaths", label: "Pulling death recap data...", detail: "GET /report/tables/deaths", estimateMs: 1800 },
+        { key: "tracked", label: "Collecting tracked raid cooldown casts...", detail: "GET /report/tables/casts (tracked filter)", estimateMs: 1800 },
+        { key: "hostile", label: "Collecting hostile-player damage...", detail: "GET /report/tables/damage-taken (hostility=1)", estimateMs: 1800 },
+        { key: "fullCasts", label: "Capturing combatant and gear snapshots...", detail: "GET /report/tables/casts (full report)", estimateMs: 2600 },
+        { key: "engineering", label: "Scanning engineering explosives...", detail: "GET /report/tables/damage-done (engineering filter)", estimateMs: 1400 },
+        { key: "oil", label: "Scanning oil of immolation ticks...", detail: "GET /report/tables/damage-taken (ability 11351)", estimateMs: 1200 },
+        { key: "buffs", label: "Extracting buff and consumable auras...", detail: "GET /report/tables/buffs", estimateMs: 2600 },
+        { key: "buffsByFight", label: "Saving consumable coverage per boss fight...", detail: "GET /report/tables/buffs per boss fight", estimateMs: 7000 },
+        { key: "drums", label: "Extracting drums usage...", detail: "GET /report/tables/casts (drums filter)", estimateMs: 1400 },
+        { key: "drumsByFight", label: "Saving drums effectiveness per boss fight...", detail: "GET /report/events/casts + /report/events/buffs per boss fight", estimateMs: 8000 },
+        { key: "potionsByFight", label: "Saving potion and recovery timelines...", detail: "GET /report/events/casts + /report/events/buffs + /report/events/healing per boss fight", estimateMs: 10000 },
+        { key: "reportRankings", label: "Fetching Warcraft Logs parse rankings...", detail: "POST /api/v2/client report.rankings", estimateMs: 2500 },
+        { key: "reportSpeed", label: "Fetching report and boss speed rankings...", detail: "POST /api/v2/client report.rankings speed rows", estimateMs: 2000 },
+        { key: "raiderData", label: "Capturing boss-pull player snapshots...", detail: "GET /report/tables/summary per boss fight", estimateMs: 8000 },
+        { key: "damageByFight", label: "Saving damage ability breakdowns...", detail: "GET /report/tables/damage-done per fight (options=2)", estimateMs: 20000 },
+        { key: "healingByFight", label: "Saving healing ability breakdowns...", detail: "GET /report/tables/healing per fight (options=2)", estimateMs: 15000 },
+        { key: "deathsByFight", label: "Saving death events per fight...", detail: "GET /report/tables/deaths per fight", estimateMs: 8000 },
+        { key: "debuffsByFight", label: "Saving tracked boss debuffs per fight...", detail: "GET /report/tables/debuffs + /report/events/debuffs per boss fight", estimateMs: 9000 },
       ];
+      const phaseEstimateMs = {
+        prepare: 1500,
+        assemble: 3500,
+        save: 3500,
+      };
+      const stepsEstimatedTotalMs = steps.reduce((sum, step) => sum + Number(step.estimateMs || 0), 0);
+      const importEstimatedTotalMs = phaseEstimateMs.prepare + stepsEstimatedTotalMs + phaseEstimateMs.assemble + phaseEstimateMs.save;
       const getProgressSteps = (activeStepKey = "", completedKeys = new Set()) => steps.map(step => ({
         ...step,
         completed: completedKeys.has(step.key),
         active: step.key === activeStepKey,
       }));
       const totalUnits = (steps.length * 2) + 4;
+      const importStartedAtMs = Date.now();
+      const getEstimatedRemainingMs = ({ completedEstimatedMs = 0, hideEta = false } = {}) => {
+        if (hideEta) return null;
+
+        const elapsedMs = Math.max(0, Date.now() - importStartedAtMs);
+        const normalizedCompletedEstimate = Math.max(0, Number(completedEstimatedMs || 0));
+        const remainingEstimate = Math.max(0, importEstimatedTotalMs - normalizedCompletedEstimate);
+        if (remainingEstimate <= 0) return 0;
+        if (normalizedCompletedEstimate <= 0 || elapsedMs <= 0) return remainingEstimate;
+
+        const observedScale = elapsedMs / normalizedCompletedEstimate;
+        const clampedScale = Math.max(0.85, Math.min(2.5, observedScale));
+        return Math.round(remainingEstimate * clampedScale);
+      };
       const updateImportProgressState = (completed, message, detail = "", extra = {}) => {
         setImportProgress({
           open: true,
@@ -6028,6 +6041,12 @@ export default function RpbPage() {
           total: totalUnits,
           percent: Math.max(0, Math.min(100, Math.round((completed / totalUnits) * 100))),
           message,
+          startedAtMs: importStartedAtMs,
+          estimatedRemainingMs: getEstimatedRemainingMs({
+            completedEstimatedMs: extra.completedEstimatedMs || 0,
+            hideEta: !!extra.hideEta,
+          }),
+          etaUpdatedAtMs: Date.now(),
           detail,
           subdetail: extra.subdetail || "",
           activeStepKey: extra.activeStepKey || "",
@@ -6039,13 +6058,18 @@ export default function RpbPage() {
       const completedStepKeys = new Set();
       updateImportProgressState(1, "Preparing import payload...", "Initializing staged Warcraft Logs requests", {
         subdetail: "Import will stage every Warcraft Logs call first, then save a single payload-backed raid bundle.",
+        completedEstimatedMs: phaseEstimateMs.prepare * 0.35,
         steps: getProgressSteps("", completedStepKeys),
       });
 
       for (let index = 0; index < steps.length; index++) {
         const step = steps[index];
+        const completedStepEstimateMs = steps
+          .slice(0, index)
+          .reduce((sum, currentStep) => sum + Number(currentStep.estimateMs || 0), 0);
         updateImportProgressState((index * 2) + 2, step.label, step.detail, {
           subdetail: `Stage ${index + 1} of ${steps.length}`,
+          completedEstimatedMs: phaseEstimateMs.prepare + completedStepEstimateMs + (Number(step.estimateMs || 0) * 0.35),
           activeStepKey: step.key,
           steps: getProgressSteps(step.key, completedStepKeys),
         });
@@ -6069,6 +6093,7 @@ export default function RpbPage() {
         completedStepKeys.add(step.key);
         updateImportProgressState((index * 2) + 3, `Stored ${step.label.replace(/\.\.\.$/, "").toLowerCase()}`, step.detail, {
           subdetail: `Captured ${step.key} into the saved import payload`,
+          completedEstimatedMs: phaseEstimateMs.prepare + completedStepEstimateMs + Number(step.estimateMs || 0),
           activeStepKey: step.key,
           steps: getProgressSteps(step.key, completedStepKeys),
         });
@@ -6076,6 +6101,7 @@ export default function RpbPage() {
 
       updateImportProgressState((steps.length * 2) + 2, "Assembling raid payload...", "Normalizing fights, players, analytics, and saved breakdown rows", {
         subdetail: "Converting staged Warcraft Logs responses into persisted raid, fight, player, and breakdown data",
+        completedEstimatedMs: phaseEstimateMs.prepare + stepsEstimatedTotalMs + (phaseEstimateMs.assemble * 0.45),
         steps: getProgressSteps("", completedStepKeys),
       });
 
@@ -6093,6 +6119,8 @@ export default function RpbPage() {
       } else if (isAdmin) {
         updateImportProgressState((steps.length * 2) + 3, "Waiting for team tag selection...", "Admin confirmation required before persisting the raid", {
           subdetail: "Choose the team tag before the import is finalized",
+          hideEta: true,
+          completedEstimatedMs: phaseEstimateMs.prepare + stepsEstimatedTotalMs + phaseEstimateMs.assemble,
           steps: getProgressSteps("", completedStepKeys),
         });
 
@@ -6115,6 +6143,8 @@ export default function RpbPage() {
 
       updateImportProgressState(totalUnits - 1, "Waiting for webhook selection...", "Choose whether this import should post to the Discord webhook", {
         subdetail: "This only affects the webhook post. The raid will still be saved either way.",
+        hideEta: true,
+        completedEstimatedMs: phaseEstimateMs.prepare + stepsEstimatedTotalMs + phaseEstimateMs.assemble,
         steps: getProgressSteps("", completedStepKeys),
       });
 
@@ -6128,6 +6158,7 @@ export default function RpbPage() {
 
       updateImportProgressState(totalUnits - 1, "Saving imported raid...", "Persisting raid bundle, fights, players, analytics, and ability rows", {
         subdetail: "Writing the fully payload-backed raid bundle to Redis",
+        completedEstimatedMs: phaseEstimateMs.prepare + stepsEstimatedTotalMs + phaseEstimateMs.assemble + (phaseEstimateMs.save * 0.5),
         steps: getProgressSteps("", completedStepKeys),
       });
 
@@ -6154,6 +6185,7 @@ export default function RpbPage() {
       setReportUrl("");
       updateImportProgressState(totalUnits, "Import complete.", "RPB payload is ready for saved-raid browsing", {
         subdetail: "Saved raid views now resolve from persisted payload data only",
+        completedEstimatedMs: importEstimatedTotalMs,
         steps: getProgressSteps("", new Set(steps.map(step => step.key))),
       });
       toast({
@@ -6172,6 +6204,9 @@ export default function RpbPage() {
         total: 1,
         percent: 0,
         message: `Import failed: ${error.message}`,
+        startedAtMs: 0,
+        estimatedRemainingMs: null,
+        etaUpdatedAtMs: 0,
         detail: "",
         subdetail: "",
         activeStepKey: "",
