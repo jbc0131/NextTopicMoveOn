@@ -1534,6 +1534,17 @@ function PlayerDetailPanel({
               {sliceType === "healing" ? "Healing breakdown" : "Damage breakdown"}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+              {!!selectedPlayerId && (
+                <div style={{ fontSize: fontSize.xs, color: liveBreakdownState?.error ? intent.warning : text.muted }}>
+                  {liveBreakdownState?.loading
+                    ? "Loading live Warcraft Logs breakdown..."
+                    : (hasLiveBreakdownStats
+                      ? "Showing live Warcraft Logs breakdown."
+                      : (liveBreakdownState?.error
+                        ? `Showing imported breakdown fallback. Live Warcraft Logs request failed: ${liveBreakdownState.error}`
+                        : "Showing imported breakdown fallback."))}
+                </div>
+              )}
               {!(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) && (
                 <div style={{ fontSize: fontSize.sm, color: text.muted }}>
                   {`No ${sliceType} ability breakdown found for this player in the current filtered fights.`}
@@ -5614,6 +5625,10 @@ export default function RpbPage() {
   const liveHealingBreakdown = useMemo(() => {
     return normalizeFetchedAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.healing?.entries || []);
   }, [liveAbilityBreakdowns, liveBreakdownCacheKey]);
+  const liveBreakdownState = liveAbilityBreakdowns[liveBreakdownCacheKey]?.[sliceType] || null;
+  const hasLiveBreakdownStats = sliceType === "healing"
+    ? hasVisibleBreakdownStats(liveHealingBreakdown)
+    : hasVisibleBreakdownStats(liveDamageBreakdown);
   const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(liveDamageBreakdown)
     ? mergeLiveBreakdownWithImportedStats(liveDamageBreakdown, selectedPlayerDamageBreakdown, { includeImportedPets: true })
     : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
