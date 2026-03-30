@@ -226,6 +226,7 @@ function collectRankingRows(node, rows = []) {
 function normalizeRankingRows(rawRanking) {
   const byId = {};
   const byName = {};
+  const byNormalizedName = {};
   const rows = collectRankingRows(rawRanking, []);
 
   for (const row of rows) {
@@ -234,10 +235,32 @@ function normalizeRankingRows(rawRanking) {
     }
     if (row.name) {
       byName[row.name] = Math.max(Number(byName[row.name] || 0), row.percentile);
+      const normalizedName = String(row.name || "").trim().toLowerCase();
+      if (normalizedName) {
+        byNormalizedName[normalizedName] = Math.max(Number(byNormalizedName[normalizedName] || 0), row.percentile);
+      }
     }
   }
 
-  return { byId, byName };
+  return { byId, byName, byNormalizedName };
+}
+
+function getRankingSnapshotPercent(snapshot = {}, entry = {}, fallbackValue = null) {
+  const entryId = String(entry?.id || "").trim();
+  const entryName = String(entry?.name || "").trim();
+  const normalizedEntryName = entryName.toLowerCase();
+  const hasSnapshotData = Boolean(
+    Object.keys(snapshot?.byId || {}).length
+    || Object.keys(snapshot?.byName || {}).length
+    || Object.keys(snapshot?.byNormalizedName || {}).length
+  );
+
+  const value = snapshot?.byId?.[entryId]
+    ?? snapshot?.byName?.[entryName]
+    ?? snapshot?.byNormalizedName?.[normalizedEntryName];
+
+  if (value != null) return value;
+  return hasSnapshotData ? null : fallbackValue;
 }
 
 function getRootRankingPercentile(rawRanking) {
@@ -3509,12 +3532,16 @@ function normalizePlayer(friendly, lookups) {
   const tracked = lookups.tracked.byId.get(String(friendly.id)) || lookups.tracked.byName.get(friendly.name) || null;
   const hostile = lookups.hostile.byId.get(String(friendly.id)) || lookups.hostile.byName.get(friendly.name) || null;
   const role = lookups.roles.roleById.get(String(friendly.id)) || lookups.roles.roleByName.get(friendly.name) || "DPS";
-  const damageParsePercent = lookups.reportRankings?.overall?.damage?.byId?.[String(friendly.id)]
-    ?? lookups.reportRankings?.overall?.damage?.byName?.[friendly.name]
-    ?? null;
-  const healingParsePercent = lookups.reportRankings?.overall?.healing?.byId?.[String(friendly.id)]
-    ?? lookups.reportRankings?.overall?.healing?.byName?.[friendly.name]
-    ?? null;
+  const damageParsePercent = getRankingSnapshotPercent(
+    lookups.reportRankings?.overall?.damage || {},
+    { id: friendly.id, name: friendly.name },
+    null
+  );
+  const healingParsePercent = getRankingSnapshotPercent(
+    lookups.reportRankings?.overall?.healing || {},
+    { id: friendly.id, name: friendly.name },
+    null
+  );
 
   return {
     id: String(friendly.id),
@@ -3739,7 +3766,11 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
             casts: entry.casts ?? entry.totalUses ?? entry.uses ?? entry.useCount ?? entry.executeCount ?? 0,
             hits: entry.hits ?? entry.totalHits ?? entry.hitCount ?? entry.landedHits ?? entry.count ?? 0,
             crits: entry.crits ?? entry.criticalHits ?? entry.critCount ?? entry.critHits ?? entry.critHitCount ?? 0,
-            parsePercent: rankingSnapshot.damage?.byId?.[String(entry.id)] ?? rankingSnapshot.damage?.byName?.[entry.name] ?? getEntryParsePercent(entry),
+            parsePercent: getRankingSnapshotPercent(
+              rankingSnapshot.damage || {},
+              entry,
+              getEntryParsePercent(entry)
+            ),
             abilities: getAbilityRows(entry, "All Damage"),
           })),
         healingDoneEntries: (healingSnapshot?.healing?.entries || [])
@@ -3753,7 +3784,11 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
             casts: entry.casts ?? entry.totalUses ?? entry.uses ?? entry.useCount ?? entry.executeCount ?? 0,
             hits: entry.hits ?? entry.totalHits ?? entry.hitCount ?? entry.landedHits ?? entry.count ?? 0,
             crits: entry.crits ?? entry.criticalHits ?? entry.critCount ?? entry.critHits ?? entry.critHitCount ?? 0,
-            parsePercent: rankingSnapshot.healing?.byId?.[String(entry.id)] ?? rankingSnapshot.healing?.byName?.[entry.name] ?? getEntryParsePercent(entry),
+            parsePercent: getRankingSnapshotPercent(
+              rankingSnapshot.healing || {},
+              entry,
+              getEntryParsePercent(entry)
+            ),
             abilities: getAbilityRows(entry, "All Healing"),
           })),
         deathEntries: (deathsSnapshot?.deaths?.entries || [])
