@@ -809,6 +809,8 @@ function PlayerDetailPanel({
   selectedPlayerAnalytics,
   visiblePlayerHealingBreakdown,
   visiblePlayerDamageBreakdown,
+  liveBreakdownState,
+  hasLiveBreakdownStats = false,
   selectedPlayerIssueGroups,
   selectedFightId,
   selectedFightSnapshot,
@@ -7355,6 +7357,8 @@ export default function RpbPage() {
                     selectedPlayerAnalytics={selectedPlayerAnalytics}
                     visiblePlayerHealingBreakdown={visiblePlayerHealingBreakdown}
                     visiblePlayerDamageBreakdown={visiblePlayerDamageBreakdown}
+                    liveBreakdownState={liveBreakdownState}
+                    hasLiveBreakdownStats={hasLiveBreakdownStats}
                     selectedPlayerIssueGroups={selectedPlayerIssueGroups}
                     selectedFightId={selectedFightId}
                     selectedFightSnapshot={selectedFightSnapshot}
@@ -7401,6 +7405,8 @@ export default function RpbPage() {
                     selectedPlayerAnalytics={selectedPlayerAnalytics}
                     visiblePlayerHealingBreakdown={visiblePlayerHealingBreakdown}
                     visiblePlayerDamageBreakdown={visiblePlayerDamageBreakdown}
+                    liveBreakdownState={liveBreakdownState}
+                    hasLiveBreakdownStats={hasLiveBreakdownStats}
                     selectedPlayerIssueGroups={selectedPlayerIssueGroups}
                     selectedFightId={selectedFightId}
                     selectedFightSnapshot={selectedFightSnapshot}
