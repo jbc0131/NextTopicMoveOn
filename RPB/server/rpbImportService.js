@@ -3212,6 +3212,20 @@ function buildDeathWindowEvents(targetId, deathTimestamp, summaryTimelineByTarge
   });
 }
 
+function buildHealingWindowEvents(targetId, deathTimestamp, healingEventsByTarget, summaryTimelineByTarget) {
+  const normalizedTargetId = targetId == null ? "" : String(targetId);
+  if (!normalizedTargetId) return [];
+
+  const allHealingEvents = healingEventsByTarget.get(normalizedTargetId) || [];
+  const end = Number(deathTimestamp || 0);
+  const start = resolveDeathWindowStartTimestamp(targetId, deathTimestamp, summaryTimelineByTarget);
+
+  return allHealingEvents.filter(event => {
+    const timestamp = Number(event?.timestamp || 0);
+    return timestamp >= start && timestamp <= end;
+  });
+}
+
 function attachHealingWindowsToDeathEntry(entry, healingEventsByTarget, summaryTimelineByTarget, inheritedTargetId = null) {
   if (!entry || typeof entry !== "object") return entry;
 
