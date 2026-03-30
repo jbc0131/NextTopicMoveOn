@@ -810,8 +810,6 @@ function PlayerDetailPanel({
   selectedPlayerAnalytics,
   visiblePlayerHealingBreakdown,
   visiblePlayerDamageBreakdown,
-  liveBreakdownState,
-  hasLiveBreakdownStats = false,
   selectedPlayerIssueGroups,
   selectedFightId,
   selectedFightSnapshot,
@@ -1537,17 +1535,6 @@ function PlayerDetailPanel({
               {sliceType === "healing" ? "Healing breakdown" : "Damage breakdown"}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-              {!!selectedPlayerId && (
-                <div style={{ fontSize: fontSize.xs, color: liveBreakdownState?.error ? intent.warning : text.muted }}>
-                  {liveBreakdownState?.loading
-                    ? "Loading live Warcraft Logs breakdown..."
-                    : (hasLiveBreakdownStats
-                      ? "Showing live Warcraft Logs breakdown."
-                      : (liveBreakdownState?.error
-                        ? `Showing imported breakdown fallback. Live Warcraft Logs request failed: ${liveBreakdownState.error}`
-                        : "Showing imported breakdown fallback."))}
-                </div>
-              )}
               {!(sliceType === "healing" ? visiblePlayerHealingBreakdown.length : visiblePlayerDamageBreakdown.length) && (
                 <div style={{ fontSize: fontSize.sm, color: text.muted }}>
                   {`No ${sliceType} ability breakdown found for this player in the current filtered fights.`}
@@ -3721,65 +3708,6 @@ function hasVisibleBreakdownStats(entries = []) {
   );
 }
 
-function normalizeFetchedAbilityBreakdown(entries = []) {
-  return (entries || [])
-    .map(entry => ({
-      key: String(entry?.guid ?? entry?.name ?? "unknown"),
-      guid: entry?.guid ?? null,
-      icon: entry?.icon || entry?.iconName || entry?.iconname || "",
-      name: entry?.name || "Unknown Ability",
-      total: Number(entry?.total || 0),
-      activeTime: Number(entry?.activeTime || 0),
-      hits:
-        Number(entry?.hits ?? entry?.totalHits ?? entry?.hitCount ?? entry?.landedHits ?? entry?.count ?? 0)
-        + Number(entry?.tickCount ?? 0)
-        + Number(entry?.missCount ?? 0),
-      casts: Number(entry?.casts ?? entry?.totalUses ?? entry?.uses ?? entry?.useCount ?? entry?.executeCount ?? 0),
-      crits:
-        Number(entry?.crits ?? entry?.criticalHits ?? entry?.critCount ?? entry?.critHits ?? entry?.critHitCount ?? 0)
-        + Number(entry?.critTickCount ?? 0),
-      overheal: Number(entry?.overheal || 0),
-      absorbed: Number(entry?.absorbed || 0),
-    }))
-    .sort((a, b) => b.total - a.total);
-}
-
-function mergeLiveBreakdownWithImportedStats(liveEntries = [], importedEntries = [], { includeImportedPets = false } = {}) {
-  if (!Array.isArray(liveEntries) || liveEntries.length === 0) return importedEntries || [];
-  if (!Array.isArray(importedEntries) || importedEntries.length === 0) return liveEntries || [];
-
-  const importedByKey = new Map(
-    importedEntries.map(entry => [String(entry?.key ?? entry?.guid ?? entry?.name ?? ""), entry])
-  );
-
-  const merged = liveEntries.map(entry => {
-    const key = String(entry?.key ?? entry?.guid ?? entry?.name ?? "");
-    const imported = importedByKey.get(key);
-    if (!imported) return entry;
-
-    return {
-      ...entry,
-      casts: Number(entry?.casts || 0) > 0 ? entry.casts : imported.casts,
-      hits: Number(entry?.hits || 0) > 0 ? entry.hits : imported.hits,
-      crits: Number(entry?.crits || 0) > 0 ? entry.crits : imported.crits,
-      overheal: Number(entry?.overheal || 0) > 0 ? entry.overheal : imported.overheal,
-      absorbed: Number(entry?.absorbed || 0) > 0 ? entry.absorbed : imported.absorbed,
-    };
-  });
-
-  const existingKeys = new Set(merged.map(entry => String(entry?.key ?? entry?.guid ?? entry?.name ?? "")));
-
-  for (const entry of importedEntries) {
-    const key = String(entry?.key ?? entry?.guid ?? entry?.name ?? "");
-    if (!includeImportedPets || !key.startsWith("pet:")) continue;
-    if (existingKeys.has(key)) continue;
-    merged.push(entry);
-    existingKeys.add(key);
-  }
-
-  return merged.sort((a, b) => Number(b?.total || 0) - Number(a?.total || 0));
-}
-
 function getPlayerAbilityTotalFromFights(fights, playerId, abilityIds) {
   if (!playerId) return 0;
 
@@ -4809,7 +4737,6 @@ export default function RpbPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileDetailClosing, setMobileDetailClosing] = useState(false);
   const [mobileDetailCloseDirection, setMobileDetailCloseDirection] = useState("");
-  const [liveAbilityBreakdowns, setLiveAbilityBreakdowns] = useState({});
   const abilityBreakdownRef = useRef(null);
   const mobileDetailCloseTimerRef = useRef(null);
   const mobileDetailOverlayRef = useRef(null);
@@ -5404,11 +5331,6 @@ export default function RpbPage() {
   const filteredFightIds = useMemo(() => {
     return filteredFights.map(fight => String(fight.id)).filter(Boolean);
   }, [filteredFights]);
-  const liveBreakdownCacheKey = useMemo(() => {
-    if (!selectedRaid?.reportId || !selectedPlayerId || filteredFightIds.length === 0) return "";
-    const revision = selectedRaid?.updatedAt || selectedRaid?.importedAt || "";
-    return [selectedRaid.id || "", selectedRaid.reportId, revision, selectedPlayerId, filteredFightIds.join(",")].join("|");
-  }, [filteredFightIds, selectedPlayerId, selectedRaid?.id, selectedRaid?.importedAt, selectedRaid?.reportId, selectedRaid?.updatedAt]);
   const filteredPlayerAnalyticsById = useMemo(() => {
     const next = new Map();
 
@@ -5622,26 +5544,12 @@ export default function RpbPage() {
   const selectedPlayerHealingBreakdown = useMemo(() => aggregateAbilityBreakdown(filteredFights, "healingDoneEntries", selectedPlayerId), [filteredFights, selectedPlayerId]);
   const selectedPlayerSummaryDamageBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "damage"), [selectedPlayer?.summary]);
   const selectedPlayerSummaryHealingBreakdown = useMemo(() => buildSummaryAbilityBreakdown(selectedPlayer?.summary, "healing"), [selectedPlayer?.summary]);
-  const liveDamageBreakdown = useMemo(() => {
-    return normalizeFetchedAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.damage?.entries || []);
-  }, [liveAbilityBreakdowns, liveBreakdownCacheKey]);
-  const liveHealingBreakdown = useMemo(() => {
-    return normalizeFetchedAbilityBreakdown(liveAbilityBreakdowns[liveBreakdownCacheKey]?.healing?.entries || []);
-  }, [liveAbilityBreakdowns, liveBreakdownCacheKey]);
-  const liveBreakdownState = liveAbilityBreakdowns[liveBreakdownCacheKey]?.[sliceType] || null;
-  const hasLiveBreakdownStats = sliceType === "healing"
-    ? hasVisibleBreakdownStats(liveHealingBreakdown)
-    : hasVisibleBreakdownStats(liveDamageBreakdown);
-  const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(liveDamageBreakdown)
-    ? mergeLiveBreakdownWithImportedStats(liveDamageBreakdown, selectedPlayerDamageBreakdown, { includeImportedPets: true })
-    : hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
-      ? selectedPlayerDamageBreakdown
-      : selectedPlayerSummaryDamageBreakdown;
-  const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(liveHealingBreakdown)
-    ? mergeLiveBreakdownWithImportedStats(liveHealingBreakdown, selectedPlayerHealingBreakdown)
-    : hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
-      ? selectedPlayerHealingBreakdown
-      : selectedPlayerSummaryHealingBreakdown;
+  const visiblePlayerDamageBreakdown = hasVisibleBreakdownStats(selectedPlayerDamageBreakdown)
+    ? selectedPlayerDamageBreakdown
+    : selectedPlayerSummaryDamageBreakdown;
+  const visiblePlayerHealingBreakdown = hasVisibleBreakdownStats(selectedPlayerHealingBreakdown)
+    ? selectedPlayerHealingBreakdown
+    : selectedPlayerSummaryHealingBreakdown;
   const selectedPlayerDeathRows = useMemo(() => buildDeathDetailRows(filteredFights, selectedPlayerId), [filteredFights, selectedPlayerId]);
   const defaultVisiblePlayerId = useMemo(() => {
     if (sliceType === "debuffs") return "";
@@ -5877,99 +5785,6 @@ export default function RpbPage() {
     hydrateVisibleItemMeta();
     return () => { cancelled = true; };
   }, [itemMetaById, selectedFightGear]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function hydrateLiveAbilityBreakdown(mode) {
-      if (!liveBreakdownCacheKey || !profileApiKey.trim()) return;
-
-      const existing = liveAbilityBreakdowns[liveBreakdownCacheKey]?.[mode];
-      if (existing?.loaded || existing?.loading) return;
-
-      setLiveAbilityBreakdowns(prev => ({
-        ...prev,
-        [liveBreakdownCacheKey]: {
-          ...(prev[liveBreakdownCacheKey] || {}),
-          [mode]: {
-            error: "",
-            loaded: false,
-            loading: true,
-            entries: existing?.entries || [],
-          },
-        },
-      }));
-
-      try {
-        const controller = typeof AbortController === "function" ? new AbortController() : null;
-        const timeoutId = controller ? window.setTimeout(() => controller.abort(), 15000) : 0;
-        const response = await fetch("/api/rpb-import", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: controller?.signal,
-          body: JSON.stringify({
-            action: "step",
-            step: "playerAbilityBreakdown",
-            reportId: selectedRaid.reportId,
-            apiKey: profileApiKey,
-            sourceId: selectedPlayerId,
-            fightIds: filteredFightIds,
-            mode,
-          }),
-        });
-        if (timeoutId) window.clearTimeout(timeoutId);
-
-        const data = await readApiJson(response);
-        if (!response.ok) throw new Error(data.error || `Failed to load ${mode} breakdown`);
-
-        if (!cancelled) {
-          setLiveAbilityBreakdowns(prev => ({
-            ...prev,
-            [liveBreakdownCacheKey]: {
-              ...(prev[liveBreakdownCacheKey] || {}),
-              [mode]: {
-                error: "",
-                loaded: true,
-                loading: false,
-                entries: Array.isArray(data?.entries) ? data.entries : [],
-              },
-            },
-          }));
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setLiveAbilityBreakdowns(prev => ({
-            ...prev,
-            [liveBreakdownCacheKey]: {
-              ...(prev[liveBreakdownCacheKey] || {}),
-              [mode]: {
-                error: error?.name === "AbortError"
-                  ? "Live Warcraft Logs breakdown request timed out."
-                  : (error?.message || `Failed to load ${mode} breakdown.`),
-                loaded: true,
-                loading: false,
-                entries: [],
-              },
-            },
-          }));
-        }
-      }
-    }
-
-    if (sliceType === "damage" || sliceType === "healing") {
-      hydrateLiveAbilityBreakdown(sliceType);
-    }
-
-    return () => { cancelled = true; };
-  }, [
-    filteredFightIds,
-    liveAbilityBreakdowns,
-    liveBreakdownCacheKey,
-    profileApiKey,
-    selectedPlayerId,
-    selectedRaid?.reportId,
-    sliceType,
-  ]);
 
   useEffect(() => {
     if (loadingRaid || !selectedRaid) return;
@@ -7359,8 +7174,6 @@ export default function RpbPage() {
                     selectedPlayerAnalytics={selectedPlayerAnalytics}
                     visiblePlayerHealingBreakdown={visiblePlayerHealingBreakdown}
                     visiblePlayerDamageBreakdown={visiblePlayerDamageBreakdown}
-                    liveBreakdownState={liveBreakdownState}
-                    hasLiveBreakdownStats={hasLiveBreakdownStats}
                     selectedPlayerIssueGroups={selectedPlayerIssueGroups}
                     selectedFightId={selectedFightId}
                     selectedFightSnapshot={selectedFightSnapshot}
@@ -7408,8 +7221,6 @@ export default function RpbPage() {
                     selectedPlayerAnalytics={selectedPlayerAnalytics}
                     visiblePlayerHealingBreakdown={visiblePlayerHealingBreakdown}
                     visiblePlayerDamageBreakdown={visiblePlayerDamageBreakdown}
-                    liveBreakdownState={liveBreakdownState}
-                    hasLiveBreakdownStats={hasLiveBreakdownStats}
                     selectedPlayerIssueGroups={selectedPlayerIssueGroups}
                     selectedFightId={selectedFightId}
                     selectedFightSnapshot={selectedFightSnapshot}
