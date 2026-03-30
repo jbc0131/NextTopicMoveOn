@@ -1180,7 +1180,7 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
     );
     if (bloodFrenzyEstimate) {
       mergedDebuffs.push(bloodFrenzyEstimate);
-      mergedDebuffs.sort((a, b) => Number(a.order || 99) - Number(b.order || 99));
+      mergedDebuffs.sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99));
     }
 
     snapshots.push({
@@ -1570,7 +1570,7 @@ function summarizeTrackedBossDebuffs(tableData, fightStartMs, fightEndMs) {
       };
     })
     .sort((a, b) => {
-      return Number(a.order || 99) - Number(b.order || 99);
+      return Number(a.order ?? 99) - Number(b.order ?? 99);
     });
 }
 
@@ -1802,7 +1802,7 @@ function mergeTrackedBossDebuffRows(
       };
     })
     .sort((a, b) => {
-      return Number(a.order || 99) - Number(b.order || 99);
+      return Number(a.order ?? 99) - Number(b.order ?? 99);
     });
 }
 

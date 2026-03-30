@@ -2842,7 +2842,7 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
         key,
         label: debuff?.label || "Unknown Debuff",
         preferredClass: debuff?.preferredClass || "",
-        order: Number(debuff?.order || 99),
+        order: Number(debuff?.order ?? 99),
         estimated: Boolean(debuff?.estimated),
         totalUptime: 0,
         totalPossibleUptime: 0,
@@ -2910,7 +2910,7 @@ function buildDebuffSliceEntries(fights, importPayload = null) {
         return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
       }),
     }))
-    .sort((a, b) => Number(a.order || 99) - Number(b.order || 99));
+    .sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99));
 }
 
 function buildPotionSliceEntries(players, analyticsByPlayerId, filterIds = null) {
