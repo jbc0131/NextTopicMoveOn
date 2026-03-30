@@ -6148,7 +6148,6 @@ export default function RpbPage() {
       if (!saveResponse.ok) throw new Error(saveResult.error || "Failed to save imported raid");
       const savedRaidId = saveResult.raidId || assembledRaid.id;
       const savedRaidRouteId = assembledRaid.reportId || savedRaidId;
-      setLiveAbilityBreakdowns({});
       const nextRaids = await fetchRpbRaidList();
       setRaids(nextRaids);
       setReportUrl("");
