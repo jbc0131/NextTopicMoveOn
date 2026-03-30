@@ -3958,10 +3958,15 @@ function getDeathEventHpLabel(event) {
   return hpPercent == null ? "" : `${formatMetricValue(hpPercent)}%`;
 }
 
-function getDeathEventHpFillGradient(hpPercent) {
-  if (!(hpPercent > 0)) return "linear-gradient(90deg, #0a0a0d 0%, #0a0a0d 100%)";
+function getDeathEventHpFillColor(hpPercent) {
+  if (!(hpPercent > 0)) return "#0a0a0d";
+  if (hpPercent >= 100) return "#8a8f98";
 
-  return "linear-gradient(90deg, #0a0a0d 0%, #7f1d1d 16%, #c24141 38%, #c7a44c 64%, #5ea977 84%, #8a8f98 100%)";
+  const clamped = Math.max(0, Math.min(100, hpPercent));
+  const hue = Math.max(0, Math.min(120, clamped * 1.2));
+  const saturation = 52;
+  const lightness = 48;
+  return `hsl(${hue} ${saturation}% ${lightness}%)`;
 }
 
 function DeathEventHpBar({ event, compact = false }) {
@@ -3988,7 +3993,7 @@ function DeathEventHpBar({ event, compact = false }) {
           inset: 0,
           width: `${hpPercent}%`,
           minWidth: hpPercent > 0 ? 2 : 0,
-          background: getDeathEventHpFillGradient(hpPercent),
+          background: getDeathEventHpFillColor(hpPercent),
           transition: "width 160ms ease-out",
         }}
       />
