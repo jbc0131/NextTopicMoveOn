@@ -151,6 +151,30 @@ function buildModifierRows(unit, config) {
   return rows;
 }
 
+function buildInferredBuffRows(unit, config) {
+  const buffIds = new Set([
+    ...Object.keys(config.initialBuffs?.All || {}),
+    ...Object.keys(unit.buffs || {}),
+  ]);
+
+  return [...buffIds].map(buffId => ({
+    buffId: String(buffId),
+    label: config.buffNames[buffId] || `Buff ${buffId}`,
+    state: unit.buffs?.[buffId] ? "Inferred on" : "Infer",
+  })).sort((left, right) => sortName(left.label, right.label));
+}
+
+function buildTalentRows(unit) {
+  return Object.entries(unit.talents || {})
+    .map(([name, talent]) => ({
+      label: name,
+      rank: Number(talent?.rank || 0),
+      maxRank: Number(talent?.maxRank || 0),
+    }))
+    .filter(row => row.maxRank > 0)
+    .sort((left, right) => sortName(left.label, right.label));
+}
+
 const THREAT_CONFIG = {
   preferredSpellSchools: {
     Mage: SCHOOL.FROST,
@@ -994,6 +1018,9 @@ function buildFightEnemySnapshot(enemy, fight) {
       color: PLAYER_CLASS_COLORS[target?.type] || "#71d5ff",
       series,
       highestThreat,
+      abilities: trace.threatBySkill(fight.start),
+      inferredBuffs: buildInferredBuffRows(target, THREAT_CONFIG),
+      inferredTalents: buildTalentRows(target),
       modifiers: buildModifierRows(target, THREAT_CONFIG),
     };
   }).sort((left, right) => right.highestThreat - left.highestThreat || sortName(left.name, right.name));
