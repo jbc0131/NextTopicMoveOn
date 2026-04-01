@@ -114,6 +114,30 @@ function formatThreatCoefficient(value) {
   return Number.isFinite(numeric) ? numeric.toFixed(1) : "";
 }
 
+function formatThreatMetric(value) {
+  return coerceNumber(value, 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function buildAbilityTotals(rows = [], fightDurationMs = 0) {
+  const totals = new Map();
+  for (const row of rows || []) {
+    const label = String(row?.label || "Unknown").trim() || "Unknown";
+    totals.set(label, coerceNumber(totals.get(label), 0) + coerceNumber(row?.threat, 0));
+  }
+
+  const durationSeconds = Math.max(1, coerceNumber(fightDurationMs, 0) / 1000);
+  return [...totals.entries()]
+    .map(([label, threat]) => ({
+      label,
+      threat,
+      tps: threat / durationSeconds,
+    }))
+    .sort((left, right) => right.threat - left.threat || left.label.localeCompare(right.label, "en", { sensitivity: "base" }));
+}
+
 function buildThreatChartPath(points, width, height, maxTimeMs, maxThreat) {
   if (!points.length || maxTimeMs <= 0 || maxThreat <= 0) return "";
   return points.map((point, index) => {
@@ -198,7 +222,10 @@ function ThreatChart({
     setTalentRanks(Object.fromEntries((selectedRaider.inferredTalents || []).map(row => [row.label, row.rank])));
   }, [selectedRaider]);
 
-  const abilityRows = Array.isArray(selectedRaider?.abilities) ? selectedRaider.abilities : [];
+  const abilityRows = useMemo(
+    () => buildAbilityTotals(selectedRaider?.abilities || [], fightDurationMs),
+    [selectedRaider, fightDurationMs],
+  );
   const abilityTotalThreat = abilityRows.reduce((sum, row) => sum + coerceNumber(row.threat, 0), 0);
   const abilityTotalTps = abilityRows.reduce((sum, row) => sum + coerceNumber(row.tps, 0), 0);
 
@@ -284,7 +311,6 @@ function ThreatChart({
                     </path>
                     {player.series.map((point, index) => {
                       const position = getChartPoint(point, width, height, maxTimeMs, maxThreat);
-                      const bossTarget = getBossTargetAtTime(targetHistory, point.timeMs);
                       return (
                         <circle
                           key={`${player.playerId}-${index}-${point.timeMs}`}
@@ -311,7 +337,7 @@ function ThreatChart({
                           <title>{`${player.name}
 Ability: ${point.label || "Unknown"}
 Threat: ${Math.round(coerceNumber(point.deltaThreat, point.threat)).toLocaleString()}
-Boss Target: ${bossTarget?.name || "Unknown"}`}</title>
+Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}</title>
                         </circle>
                       );
                     })}
@@ -390,90 +416,129 @@ Boss Target: ${bossTarget?.name || "Unknown"}`}</title>
         {selectedRaider ? (
           <div style={{ marginTop: space[4], display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: space[4] }}>
             <div style={{ border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
-              <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.base, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.base, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${border.subtle}` }}>
                 Threat by Ability
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 90px 90px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, fontSize: fontSize.xs, color: text.muted, borderBottom: `1px solid ${border.subtle}` }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 108px 92px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, fontSize: fontSize.xs, color: text.muted, borderBottom: `1px solid ${border.subtle}`, background: `${surface.base}cc` }}>
                 <div>Ability</div>
                 <div style={{ textAlign: "right" }}>Threat</div>
                 <div style={{ textAlign: "right" }}>TPS</div>
               </div>
-              <div style={{ maxHeight: 240, overflowY: "auto" }}>
-                {abilityRows.map(row => (
-                  <div key={`${selectedRaider.playerId}-${row.label}`} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 90px 90px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`, fontSize: fontSize.sm }}>
-                    <div style={{ color: text.primary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.label}</div>
-                    <div style={{ textAlign: "right", color: text.secondary }}>{coerceNumber(row.threat, 0).toFixed(2)}</div>
-                    <div style={{ textAlign: "right", color: text.secondary }}>{coerceNumber(row.tps, 0).toFixed(2)}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 90px 90px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
+              {abilityRows.length ? abilityRows.map((row, index) => (
+                <div
+                  key={`${selectedRaider.playerId}-${row.label}`}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr) 108px 92px",
+                    gap: space[2],
+                    padding: `${space[2]}px ${space[3]}px`,
+                    borderBottom: `1px solid ${border.subtle}`,
+                    fontSize: fontSize.sm,
+                    background: index % 2 === 0 ? "transparent" : `${surface.base}80`,
+                  }}
+                >
+                  <div style={{ color: text.primary, overflowWrap: "anywhere", fontWeight: fontWeight.medium }}>{row.label}</div>
+                  <div style={{ textAlign: "right", color: text.secondary, fontVariantNumeric: "tabular-nums" }}>{formatThreatMetric(row.threat)}</div>
+                  <div style={{ textAlign: "right", color: text.secondary, fontVariantNumeric: "tabular-nums" }}>{formatThreatMetric(row.tps)}</div>
+                </div>
+              )) : (
+                <div style={{ padding: `${space[3]}px ${space[3]}px`, color: text.muted, fontSize: fontSize.sm }}>
+                  No threat ability totals available for this raider.
+                </div>
+              )}
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 108px 92px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, background: "rgba(248,250,252,0.96)", color: "#111827" }}>
                 <div>Total</div>
-                <div style={{ textAlign: "right" }}>{abilityTotalThreat.toFixed(2)}</div>
-                <div style={{ textAlign: "right" }}>{abilityTotalTps.toFixed(2)}</div>
+                <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{formatThreatMetric(abilityTotalThreat)}</div>
+                <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{formatThreatMetric(abilityTotalTps)}</div>
               </div>
             </div>
 
             <div style={{ border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
-              <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.base, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.base, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${border.subtle}` }}>
                 Buff Inference
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 132px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, fontSize: fontSize.xs, color: text.muted, borderBottom: `1px solid ${border.subtle}` }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 132px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, fontSize: fontSize.xs, color: text.muted, borderBottom: `1px solid ${border.subtle}`, background: `${surface.base}cc` }}>
                 <div>Buff</div>
                 <div>State</div>
               </div>
-              <div style={{ maxHeight: 280, overflowY: "auto" }}>
-                {(selectedRaider.inferredBuffs || []).map(row => {
-                  const key = row.buffId || row.label;
-                  return (
-                    <div key={`${selectedRaider.playerId}-${key}`} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 132px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`, alignItems: "center" }}>
-                      <div style={{ color: text.primary, fontSize: fontSize.sm }}>{row.label}</div>
-                      <select
-                        value={buffStates[key] || row.state || "Infer"}
-                        onChange={event => setBuffStates(current => ({ ...current, [key]: event.target.value }))}
-                        style={{ ...inputStyle, minHeight: 30 }}
-                      >
-                        <option value="Infer">Infer</option>
-                        <option value="On">On</option>
-                        <option value="Off">Off</option>
-                        <option value="Inferred on">Inferred on</option>
-                        <option value="Inferred off">Inferred off</option>
-                      </select>
-                    </div>
-                  );
-                })}
-              </div>
+              {(selectedRaider.inferredBuffs || []).length ? (selectedRaider.inferredBuffs || []).map((row, index) => {
+                const key = row.buffId || row.label;
+                return (
+                  <div
+                    key={`${selectedRaider.playerId}-${key}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "minmax(0, 1fr) 132px",
+                      gap: space[2],
+                      padding: `${space[2]}px ${space[3]}px`,
+                      borderBottom: `1px solid ${border.subtle}`,
+                      alignItems: "center",
+                      background: index % 2 === 0 ? "transparent" : `${surface.base}80`,
+                    }}
+                  >
+                    <div style={{ color: text.primary, fontSize: fontSize.sm, overflowWrap: "anywhere", fontWeight: fontWeight.medium }}>{row.label}</div>
+                    <select
+                      value={buffStates[key] || row.state || "Infer"}
+                      onChange={event => setBuffStates(current => ({ ...current, [key]: event.target.value }))}
+                      style={{ ...inputStyle, minHeight: 30 }}
+                    >
+                      <option value="Infer">Infer</option>
+                      <option value="On">On</option>
+                      <option value="Off">Off</option>
+                      <option value="Inferred on">Inferred on</option>
+                      <option value="Inferred off">Inferred off</option>
+                    </select>
+                  </div>
+                );
+              }) : (
+                <div style={{ padding: `${space[3]}px ${space[3]}px`, color: text.muted, fontSize: fontSize.sm }}>
+                  No buff inference rows available for this raider.
+                </div>
+              )}
             </div>
 
             <div style={{ border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
-              <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.base, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.base, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${border.subtle}` }}>
                 Talent Inference
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 90px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, fontSize: fontSize.xs, color: text.muted, borderBottom: `1px solid ${border.subtle}` }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 90px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, fontSize: fontSize.xs, color: text.muted, borderBottom: `1px solid ${border.subtle}`, background: `${surface.base}cc` }}>
                 <div>Talent</div>
                 <div>Rank</div>
               </div>
-              <div style={{ maxHeight: 280, overflowY: "auto" }}>
-                {(selectedRaider.inferredTalents || []).map(row => (
-                  <div key={`${selectedRaider.playerId}-${row.label}`} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 90px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}`, alignItems: "center" }}>
-                    <div style={{ color: text.primary, fontSize: fontSize.sm }}>{row.label}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <input
-                        type="number"
-                        min="0"
-                        max={String(coerceNumber(row.maxRank, 0))}
-                        value={String(talentRanks[row.label] ?? row.rank ?? 0)}
-                        onChange={event => {
-                          const nextValue = Math.max(0, Math.min(coerceNumber(row.maxRank, 0), coerceNumber(event.target.value, 0)));
-                          setTalentRanks(current => ({ ...current, [row.label]: nextValue }));
-                        }}
-                        style={{ ...inputStyle, minHeight: 30, width: 52 }}
-                      />
-                      <span style={{ color: text.muted, fontSize: fontSize.sm }}>/ {coerceNumber(row.maxRank, 0)}</span>
-                    </div>
+              {(selectedRaider.inferredTalents || []).length ? (selectedRaider.inferredTalents || []).map((row, index) => (
+                <div
+                  key={`${selectedRaider.playerId}-${row.label}`}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr) 90px",
+                    gap: space[2],
+                    padding: `${space[2]}px ${space[3]}px`,
+                    borderBottom: `1px solid ${border.subtle}`,
+                    alignItems: "center",
+                    background: index % 2 === 0 ? "transparent" : `${surface.base}80`,
+                  }}
+                >
+                  <div style={{ color: text.primary, fontSize: fontSize.sm, overflowWrap: "anywhere", fontWeight: fontWeight.medium }}>{row.label}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max={String(coerceNumber(row.maxRank, 0))}
+                      value={String(talentRanks[row.label] ?? row.rank ?? 0)}
+                      onChange={event => {
+                        const nextValue = Math.max(0, Math.min(coerceNumber(row.maxRank, 0), coerceNumber(event.target.value, 0)));
+                        setTalentRanks(current => ({ ...current, [row.label]: nextValue }));
+                      }}
+                      style={{ ...inputStyle, minHeight: 30, width: 52 }}
+                    />
+                    <span style={{ color: text.muted, fontSize: fontSize.sm }}>/ {coerceNumber(row.maxRank, 0)}</span>
                   </div>
-                ))}
-              </div>
+                </div>
+              )) : (
+                <div style={{ padding: `${space[3]}px ${space[3]}px`, color: text.muted, fontSize: fontSize.sm }}>
+                  No talent inference rows available for this raider.
+                </div>
+              )}
             </div>
           </div>
         ) : null}

@@ -141,7 +141,7 @@ function buildInferredBuffRows(unit, config) {
 
   return [...buffIds].map(buffId => ({
     buffId: String(buffId),
-    label: config.buffNames[buffId] || `Buff ${buffId}`,
+    label: unit?.buffLabels?.[buffId] || config.buffNames[buffId] || `Buff ${buffId}`,
     state: unit.buffs?.[buffId] ? "Inferred on" : "Infer",
   })).sort((left, right) => sortName(left.label, right.label));
 }
@@ -183,6 +183,7 @@ const THREAT_CONFIG = {
     768: "Cat Form",
     25780: "Righteous Fury",
     1038: "Blessing of Salvation",
+    25898: "Greater Blessing of Kings",
     25895: "Greater Blessing of Salvation",
     25909: "Tranquil Air Totem",
     2613: "Threat Gloves Enchant",
@@ -711,6 +712,7 @@ class ThreatTrace {
       previousThreat = numeric(this.threat[index], 0);
       if (!delta) continue;
       const label = this.text[index] || "Unknown";
+      if (label === "Joined fight") continue;
       totals[label] = numeric(totals[label], 0) + delta;
     }
 
@@ -739,6 +741,7 @@ class Unit {
     this.type = info?.type || "NPC";
     this.fight = fight;
     this.buffs = {};
+    this.buffLabels = {};
     this.alive = true;
     this.spellSchool = config.preferredSpellSchools[this.type] || SCHOOL.PHYSICAL;
     this.baseThreatCoeff = config.baseThreatCoefficients[this.type] || getThreatCoefficient(1);
@@ -751,6 +754,8 @@ class Unit {
         for (const aura of event.auras || []) {
           if (aura?.ability != null) {
             this.buffs[String(aura.ability)] = true;
+            const auraLabel = String(aura?.name || aura?.ability?.name || "").trim();
+            if (auraLabel) this.buffLabels[String(aura.ability)] = auraLabel;
           }
         }
         config.combatantImplications.All?.(event, this.buffs, this.talents);
@@ -893,6 +898,8 @@ class FightState {
       const abilityGuid = String(event?.ability?.guid || "");
       if (target && this.config.notableBuffs[abilityGuid]) {
         target.buffs[abilityGuid] = true;
+        const buffLabel = String(event?.ability?.name || "").trim();
+        if (buffLabel) target.buffLabels[abilityGuid] = buffLabel;
       }
     }
 
@@ -901,6 +908,8 @@ class FightState {
       const abilityGuid = String(event?.ability?.guid || "");
       if (target && this.config.notableBuffs[abilityGuid]) {
         delete target.buffs[abilityGuid];
+        const buffLabel = String(event?.ability?.name || "").trim();
+        if (buffLabel) target.buffLabels[abilityGuid] = buffLabel;
       }
     }
 
