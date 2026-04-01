@@ -477,19 +477,6 @@ function ThreatChart({
               ))}
             </select>
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
-            <span style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Raider
-            </span>
-            <select value={selectedRaiderId} onChange={event => onSelectRaider(event.target.value)} disabled={!raiderOptions.length} style={{ ...inputStyle, minHeight: 34 }}>
-              {!raiderOptions.length ? <option value="">No raider data available</option> : null}
-              {raiderOptions.map(option => (
-                <option key={option.playerId} value={option.playerId}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
             <div style={underDevelopmentBadgeStyle}>
               This tab is currently under development
@@ -642,7 +629,21 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
           )}
         </div>
         {displaySelectedRaider ? (
-          <div style={{ marginTop: space[4], display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: space[4] }}>
+          <div style={{ marginTop: space[4], display: "flex", flexDirection: "column", gap: space[3] }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: 280 }}>
+              <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Raider
+              </div>
+              <select value={selectedRaiderId} onChange={event => onSelectRaider(event.target.value)} disabled={!raiderOptions.length} style={{ ...inputStyle, minHeight: 34 }}>
+                {!raiderOptions.length ? <option value="">No raider data available</option> : null}
+                {raiderOptions.map(option => (
+                  <option key={option.playerId} value={option.playerId}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: space[4] }}>
             <div style={{ border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
               <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.base, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${border.subtle}` }}>
                 Threat by Ability
@@ -767,6 +768,7 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                 </div>
               )}
             </div>
+          </div>
           </div>
         ) : null}
       </div>
