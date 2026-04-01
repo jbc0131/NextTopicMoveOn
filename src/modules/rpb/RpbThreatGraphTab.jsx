@@ -64,15 +64,11 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
         deltaThreat: pointIndex === 0 ? coerceNumber(point.threat, 0) : Math.max(0, coerceNumber(point.threat, 0) - coerceNumber(series[pointIndex - 1]?.threat, 0)),
       }));
       const highestThreat = normalizedSeries.reduce((max, point) => Math.max(max, point.threat), 0);
-      const modifiers = Array.isArray(player.modifiers) ? player.modifiers : [];
+      const modifiers = [];
       const abilities = Array.isArray(player.abilities) ? player.abilities : [];
       const inferredBuffs = Array.isArray(player.inferredBuffs) ? player.inferredBuffs : [];
       const inferredTalents = Array.isArray(player.inferredTalents) ? player.inferredTalents : [];
-      const initialCoefficient = (() => {
-        const row = modifiers.find(entry => String(entry?.label || "").toLowerCase() === "initial coefficient");
-        const parsed = Number(row?.value);
-        return Number.isFinite(parsed) ? parsed : null;
-      })();
+      const initialCoefficient = Number.isFinite(Number(player.initialCoefficient)) ? Number(player.initialCoefficient) : null;
 
       return {
         playerId: String(player.playerId || player.id || raidPlayer?.id || player.name || index),

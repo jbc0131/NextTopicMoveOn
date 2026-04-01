@@ -133,24 +133,6 @@ function compactThreatSeries(points = [], bucketMs = 1000) {
   return compacted;
 }
 
-function buildModifierRows(unit, config) {
-  const rows = [
-    { label: "Initial coefficient", value: Number(unit.initialCoeff || 1).toFixed(3) },
-  ];
-
-  for (const buffId of Object.keys(unit.buffs || {})) {
-    const label = config.buffNames[buffId];
-    if (label) rows.push({ label, value: "Active" });
-  }
-
-  for (const [talentName, talent] of Object.entries(unit.talents || {})) {
-    const rank = Number(talent?.rank || 0);
-    if (rank > 0) rows.push({ label: talentName, value: `${rank}/${talent.maxRank}` });
-  }
-
-  return rows;
-}
-
 function buildInferredBuffRows(unit, config) {
   const buffIds = new Set([
     ...Object.keys(config.initialBuffs?.All || {}),
@@ -1016,12 +998,16 @@ function buildFightEnemySnapshot(enemy, fight) {
       name: target?.name || "Unknown Player",
       type: target?.type || "",
       color: PLAYER_CLASS_COLORS[target?.type] || "#71d5ff",
+      initialCoefficient: Number((target?.initialCoeff || 1).toFixed(3)),
       series,
       highestThreat,
-      abilities: trace.threatBySkill(fight.start),
+      abilities: trace.threatBySkill(fight.start).map(row => ({
+        label: row.label,
+        threat: Number(numeric(row.threat, 0).toFixed(2)),
+        tps: Number(numeric(row.tps, 0).toFixed(2)),
+      })),
       inferredBuffs: buildInferredBuffRows(target, THREAT_CONFIG),
       inferredTalents: buildTalentRows(target),
-      modifiers: buildModifierRows(target, THREAT_CONFIG),
     };
   }).sort((left, right) => right.highestThreat - left.highestThreat || sortName(left.name, right.name));
 
