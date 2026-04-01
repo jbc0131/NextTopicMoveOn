@@ -15,6 +15,36 @@ const FALLBACK_CLASS_COLORS = {
   Warrior: "#C79C6E",
 };
 
+const THREAT_SCHOOL = {
+  PHYSICAL: 1,
+  HOLY: 2,
+  FIRE: 4,
+  NATURE: 8,
+  FROST: 16,
+  SHADOW: 32,
+  ARCANE: 64,
+};
+
+const PREFERRED_SPELL_SCHOOL = {
+  Mage: THREAT_SCHOOL.FROST,
+  Priest: THREAT_SCHOOL.HOLY,
+  Paladin: THREAT_SCHOOL.HOLY,
+  Warlock: THREAT_SCHOOL.SHADOW,
+};
+
+const BUFF_MULTIPLIERS = {
+  71: { default: 1.3 },
+  5487: { default: 1.3 },
+  9634: { default: 1.3 },
+  25780: { bySchool: { [THREAT_SCHOOL.HOLY]: 1.6 } },
+  1038: { default: 0.7 },
+  25895: { default: 0.7 },
+  25909: { default: 0.8 },
+  2613: { default: 1.02 },
+  2621: { default: 0.98 },
+  40618: { default: 0 },
+};
+
 function getClassColor(type, index = 0) {
   if (FALLBACK_CLASS_COLORS[type]) return FALLBACK_CLASS_COLORS[type];
   const fallbackPalette = ["#71d5ff", "#f7b955", "#82d992", "#ff8d8d", "#b9a6ff", "#7ee0c5"];
@@ -121,6 +151,109 @@ function formatThreatMetric(value) {
   });
 }
 
+function normalizeBuffState(value) {
+  if (value === "On" || value === "Inferred on") return value;
+  if (value === "Off" || value === "Inferred off") return value;
+  return "Inferred off";
+}
+
+function isBuffEnabled(value) {
+  return normalizeBuffState(value) === "Inferred on";
+}
+
+function getPreferredSpellSchool(type) {
+  return PREFERRED_SPELL_SCHOOL[type] || THREAT_SCHOOL.PHYSICAL;
+}
+
+function getBuffMultiplier(buffId, spellSchool) {
+  const multiplier = BUFF_MULTIPLIERS[buffId];
+  if (!multiplier) return 1;
+  if (multiplier.bySchool) return multiplier.bySchool[spellSchool] ?? multiplier.bySchool.default ?? 1;
+  return multiplier.default ?? 1;
+}
+
+function getTalentMultiplier(type, label, rank, activeBuffIds, spellSchool) {
+  const normalizedRank = Math.max(0, coerceNumber(rank, 0));
+  if (normalizedRank <= 0) return 1;
+
+  if (type === "Warrior") {
+    if (label === "Defiance" && activeBuffIds.has("71")) return 1 + (0.05 * normalizedRank);
+    if (label === "Improved Berserker Stance" && activeBuffIds.has("2458")) return 1 - (0.02 * normalizedRank);
+  }
+
+  if (type === "Druid") {
+    if (label === "Feral Instinct" && (activeBuffIds.has("5487") || activeBuffIds.has("9634"))) {
+      return (1.3 + (0.05 * normalizedRank)) / 1.3;
+    }
+  }
+
+  if (type === "Mage") {
+    if (label === "Arcane Subtlety" && spellSchool === THREAT_SCHOOL.ARCANE) return 1 - (0.2 * normalizedRank);
+    if (label === "Burning Soul" && spellSchool === THREAT_SCHOOL.FIRE) return 1 - (0.05 * normalizedRank);
+    if (label === "Frost Channeling" && spellSchool === THREAT_SCHOOL.FROST) return 1 - (0.033333 * normalizedRank);
+  }
+
+  if (type === "Paladin") {
+    if (label === "Improved Righteous Fury" && activeBuffIds.has("25780")) {
+      const amp = 1 + Math.floor((normalizedRank * 50) / 3) / 100;
+      return spellSchool === THREAT_SCHOOL.HOLY ? (1 + (0.6 * amp)) / 1.6 : 1;
+    }
+    if (label === "Fanaticism" && !activeBuffIds.has("25780")) return 1 - (0.06 * normalizedRank);
+  }
+
+  if (type === "Priest") {
+    if (label === "Silent Resolve") return 1 - (0.04 * normalizedRank);
+    if (label === "Shadow Affinity" && spellSchool === THREAT_SCHOOL.SHADOW) {
+      return 1 - (Math.floor((normalizedRank * 25) / 3) / 100);
+    }
+  }
+
+  if (type === "Shaman") {
+    if (label === "Healing Grace") return 1 - (0.05 * normalizedRank);
+    if (label === "Spirit Weapons" && spellSchool === THREAT_SCHOOL.PHYSICAL) return 1 - (0.3 * normalizedRank);
+    if (label === "Elemental Precision (fire)" && spellSchool === THREAT_SCHOOL.FIRE) return 1 - (0.033333 * normalizedRank);
+    if (label === "Elemental Precision (nature)" && spellSchool === THREAT_SCHOOL.NATURE) return 1 - (0.033333 * normalizedRank);
+    if (label === "Elemental Precision (frost)" && spellSchool === THREAT_SCHOOL.FROST) return 1 - (0.033333 * normalizedRank);
+  }
+
+  if (type === "Warlock" && label === "Destructive Reach") {
+    return 1 - (0.05 * normalizedRank);
+  }
+
+  return 1;
+}
+
+function computeThreatCoefficient(type, buffRows = [], buffStates = {}, talentRows = [], talentRanks = {}) {
+  const spellSchool = getPreferredSpellSchool(type);
+  const activeBuffIds = new Set(
+    (buffRows || [])
+      .filter(row => isBuffEnabled(buffStates[row.buffId || row.label] ?? row.state))
+      .map(row => String(row.buffId || row.label)),
+  );
+
+  let coefficient = 1;
+  for (const buffId of activeBuffIds) coefficient *= getBuffMultiplier(buffId, spellSchool);
+
+  for (const row of talentRows || []) {
+    const rank = talentRanks[row.label] ?? row.rank ?? 0;
+    coefficient *= getTalentMultiplier(type, row.label, rank, activeBuffIds, spellSchool);
+  }
+
+  return coefficient;
+}
+
+function scaleThreatSeries(series = [], ratio = 1) {
+  return (series || []).map((point, index, rows) => {
+    const previousThreat = index === 0 ? 0 : coerceNumber(rows[index - 1]?.threat, 0);
+    const threat = coerceNumber(point.threat, 0) * ratio;
+    return {
+      ...point,
+      threat,
+      deltaThreat: Math.max(0, threat - (index === 0 ? 0 : previousThreat * ratio)),
+    };
+  });
+}
+
 function buildAbilityTotals(rows = [], fightDurationMs = 0) {
   const totals = new Map();
   for (const row of rows || []) {
@@ -152,15 +285,6 @@ function getChartPoint(point, width, height, maxTimeMs, maxThreat) {
     x: Math.max(0, Math.min(width, (coerceNumber(point.timeMs, 0) / maxTimeMs) * width)),
     y: Math.max(0, Math.min(height, height - (coerceNumber(point.threat, 0) / maxThreat) * height)),
   };
-}
-
-function getBossTargetAtTime(targetHistory = [], timeMs = 0) {
-  let current = null;
-  for (const entry of targetHistory) {
-    if (coerceNumber(entry.timeMs, 0) <= coerceNumber(timeMs, 0)) current = entry;
-    else break;
-  }
-  return current;
 }
 
 function buildTargetSegments(targetHistory = [], fightDurationMs = 0) {
@@ -195,7 +319,63 @@ function ThreatChart({
   const width = 920;
   const height = 320;
   const targetBandHeight = 28;
-  const visiblePlayers = players.filter(player => !hiddenPlayerIds.has(String(player.playerId)));
+  const [hoveredTooltip, setHoveredTooltip] = useState(null);
+  const [buffStates, setBuffStates] = useState({});
+  const [talentRanks, setTalentRanks] = useState({});
+
+  useEffect(() => {
+    if (!selectedRaider) {
+      setBuffStates({});
+      setTalentRanks({});
+      return;
+    }
+    setBuffStates(Object.fromEntries((selectedRaider.inferredBuffs || []).map(row => [row.buffId || row.label, normalizeBuffState(row.state)])));
+    setTalentRanks(Object.fromEntries((selectedRaider.inferredTalents || []).map(row => [row.label, row.rank])));
+  }, [selectedRaider]);
+
+  const adjustedPlayers = useMemo(() => {
+    if (!selectedRaider) return players;
+
+    const nextCoefficient = computeThreatCoefficient(
+      selectedRaider.type,
+      selectedRaider.inferredBuffs || [],
+      buffStates,
+      selectedRaider.inferredTalents || [],
+      talentRanks,
+    );
+    const baselineCoefficient = Math.max(0.0001, coerceNumber(selectedRaider.initialCoefficient, 1));
+    const scaleRatio = nextCoefficient / baselineCoefficient;
+
+    return players.map(player => {
+      if (String(player.playerId) !== String(selectedRaider.playerId)) return player;
+      const series = scaleThreatSeries(player.series, scaleRatio);
+      const abilities = (player.abilities || []).map(row => ({
+        ...row,
+        threat: coerceNumber(row.threat, 0) * scaleRatio,
+      }));
+      return {
+        ...player,
+        series,
+        abilities,
+        highestThreat: series.reduce((max, point) => Math.max(max, coerceNumber(point.threat, 0)), 0),
+        initialCoefficient: nextCoefficient,
+        inferredBuffs: (player.inferredBuffs || []).map(row => ({
+          ...row,
+          state: normalizeBuffState(buffStates[row.buffId || row.label] ?? row.state),
+        })),
+        inferredTalents: (player.inferredTalents || []).map(row => ({
+          ...row,
+          rank: Math.max(0, Math.min(coerceNumber(row.maxRank, 0), coerceNumber(talentRanks[row.label], row.rank ?? 0))),
+        })),
+      };
+    });
+  }, [players, selectedRaider, buffStates, talentRanks]);
+
+  const displaySelectedRaider = useMemo(
+    () => adjustedPlayers.find(player => String(player.playerId) === String(selectedRaiderId)) || adjustedPlayers[0] || null,
+    [adjustedPlayers, selectedRaiderId],
+  );
+  const visiblePlayers = adjustedPlayers.filter(player => !hiddenPlayerIds.has(String(player.playerId)));
   const maxTimeMs = Math.max(
     coerceNumber(fightDurationMs, 0),
     ...visiblePlayers.flatMap(player => player.series.map(point => point.timeMs)),
@@ -208,23 +388,10 @@ function ThreatChart({
   const hasGraphData = maxThreat > 0 && visiblePlayers.some(player => player.series.length > 1);
   const yTicks = maxThreat > 0 ? [0.25, 0.5, 0.75, 1] : [];
   const targetSegments = buildTargetSegments(targetHistory, maxTimeMs);
-  const [hoveredTooltip, setHoveredTooltip] = useState(null);
-  const [buffStates, setBuffStates] = useState({});
-  const [talentRanks, setTalentRanks] = useState({});
-
-  useEffect(() => {
-    if (!selectedRaider) {
-      setBuffStates({});
-      setTalentRanks({});
-      return;
-    }
-    setBuffStates(Object.fromEntries((selectedRaider.inferredBuffs || []).map(row => [row.buffId || row.label, row.state || "Infer"])));
-    setTalentRanks(Object.fromEntries((selectedRaider.inferredTalents || []).map(row => [row.label, row.rank])));
-  }, [selectedRaider]);
 
   const abilityRows = useMemo(
-    () => buildAbilityTotals(selectedRaider?.abilities || [], fightDurationMs),
-    [selectedRaider, fightDurationMs],
+    () => buildAbilityTotals(displaySelectedRaider?.abilities || [], fightDurationMs),
+    [displaySelectedRaider, fightDurationMs],
   );
   const abilityTotalThreat = abilityRows.reduce((sum, row) => sum + coerceNumber(row.threat, 0), 0);
   const abilityTotalTps = abilityRows.reduce((sum, row) => sum + coerceNumber(row.tps, 0), 0);
@@ -274,12 +441,15 @@ function ThreatChart({
       </div>
 
       <div style={{ padding: space[4] }}>
-        <div style={{
-          border: `1px solid ${border.subtle}`,
-          borderRadius: radius.base,
-          background: "linear-gradient(180deg, rgba(9, 17, 27, 0.96) 0%, rgba(6, 12, 19, 0.98) 100%)",
-          padding: space[3],
-        }}>
+        <div
+          style={{
+            border: `1px solid ${border.subtle}`,
+            borderRadius: radius.base,
+            background: "linear-gradient(180deg, rgba(9, 17, 27, 0.96) 0%, rgba(6, 12, 19, 0.98) 100%)",
+            padding: space[3],
+          }}
+          onMouseLeave={() => setHoveredTooltip(null)}
+        >
           {hasGraphData ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Threat timeline">
@@ -353,7 +523,7 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                   {targetSegments.length ? targetSegments.map((segment, index) => {
                     const x = (coerceNumber(segment.timeMs, 0) / maxTimeMs) * width;
                     const nextX = (coerceNumber(segment.endTimeMs, 0) / maxTimeMs) * width;
-                    const player = players.find(entry => String(entry.playerId) === String(segment.playerId));
+                    const player = adjustedPlayers.find(entry => String(entry.playerId) === String(segment.playerId));
                     return (
                       <g key={`${segment.playerId}-${index}-${segment.timeMs}`}>
                         <rect
@@ -413,7 +583,7 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
             </div>
           )}
         </div>
-        {selectedRaider ? (
+        {displaySelectedRaider ? (
           <div style={{ marginTop: space[4], display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: space[4] }}>
             <div style={{ border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
               <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.base, fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${border.subtle}` }}>
@@ -426,7 +596,7 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
               </div>
               {abilityRows.length ? abilityRows.map((row, index) => (
                 <div
-                  key={`${selectedRaider.playerId}-${row.label}`}
+                  key={`${displaySelectedRaider.playerId}-${row.label}`}
                   style={{
                     display: "grid",
                     gridTemplateColumns: "minmax(0, 1fr) 108px 92px",
@@ -461,11 +631,11 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                 <div>Buff</div>
                 <div>State</div>
               </div>
-              {(selectedRaider.inferredBuffs || []).length ? (selectedRaider.inferredBuffs || []).map((row, index) => {
+              {(displaySelectedRaider.inferredBuffs || []).length ? (displaySelectedRaider.inferredBuffs || []).map((row, index) => {
                 const key = row.buffId || row.label;
                 return (
                   <div
-                    key={`${selectedRaider.playerId}-${key}`}
+                    key={`${displaySelectedRaider.playerId}-${key}`}
                     style={{
                       display: "grid",
                       gridTemplateColumns: "minmax(0, 1fr) 132px",
@@ -478,14 +648,13 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                   >
                     <div style={{ color: text.primary, fontSize: fontSize.sm, overflowWrap: "anywhere", fontWeight: fontWeight.medium }}>{row.label}</div>
                     <select
-                      value={buffStates[key] || row.state || "Infer"}
-                      onChange={event => setBuffStates(current => ({ ...current, [key]: event.target.value }))}
+                      value={normalizeBuffState(buffStates[key] || row.state)}
+                      onChange={event => setBuffStates(current => ({ ...current, [key]: normalizeBuffState(event.target.value) }))}
                       style={{ ...inputStyle, minHeight: 30 }}
                     >
-                      <option value="Infer">Infer</option>
+                      <option value="Inferred on">Inferred on</option>
                       <option value="On">On</option>
                       <option value="Off">Off</option>
-                      <option value="Inferred on">Inferred on</option>
                       <option value="Inferred off">Inferred off</option>
                     </select>
                   </div>
@@ -505,9 +674,9 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                 <div>Talent</div>
                 <div>Rank</div>
               </div>
-              {(selectedRaider.inferredTalents || []).length ? (selectedRaider.inferredTalents || []).map((row, index) => (
+              {(displaySelectedRaider.inferredTalents || []).length ? (displaySelectedRaider.inferredTalents || []).map((row, index) => (
                 <div
-                  key={`${selectedRaider.playerId}-${row.label}`}
+                  key={`${displaySelectedRaider.playerId}-${row.label}`}
                   style={{
                     display: "grid",
                     gridTemplateColumns: "minmax(0, 1fr) 90px",

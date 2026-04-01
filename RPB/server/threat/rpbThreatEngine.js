@@ -142,7 +142,7 @@ function buildInferredBuffRows(unit, config) {
   return [...buffIds].map(buffId => ({
     buffId: String(buffId),
     label: unit?.buffLabels?.[buffId] || config.buffNames[buffId] || `Buff ${buffId}`,
-    state: unit.buffs?.[buffId] ? "Inferred on" : "Infer",
+    state: unit.buffs?.[buffId] ? "Inferred on" : "Inferred off",
   })).sort((left, right) => sortName(left.label, right.label));
 }
 
