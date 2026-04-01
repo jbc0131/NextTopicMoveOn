@@ -45,6 +45,27 @@ const BUFF_MULTIPLIERS = {
   40618: { default: 0 },
 };
 
+const THREAT_BUFF_LABELS = {
+  71: "Defensive Stance",
+  768: "Cat Form",
+  1038: "Blessing of Salvation",
+  2457: "Battle Stance",
+  2458: "Berserker Stance",
+  2613: "Threat Gloves Enchant",
+  2621: "Subtlety Gloves Enchant",
+  5487: "Bear Form",
+  9634: "Dire Bear Form",
+  25780: "Righteous Fury",
+  25895: "Greater Blessing of Salvation",
+  25898: "Greater Blessing of Kings",
+  25909: "Tranquil Air Totem",
+  27141: "Greater Blessing of Might",
+  27143: "Greater Blessing of Wisdom",
+  27168: "Greater Blessing of Sanctuary",
+  40618: "Insignificance",
+  38447: "Improved Mangle (T6 2pc)",
+};
+
 function getClassColor(type, index = 0) {
   if (FALLBACK_CLASS_COLORS[type]) return FALLBACK_CLASS_COLORS[type];
   const fallbackPalette = ["#71d5ff", "#f7b955", "#82d992", "#ff8d8d", "#b9a6ff", "#7ee0c5"];
@@ -75,6 +96,16 @@ function normalizeTracePoint(point = {}, fallbackIndex = 0) {
     threat,
     label: String(point.label || point.text || "").trim(),
   };
+}
+
+function resolveBuffLabel(row = {}) {
+  const buffId = String(row?.buffId || "").trim();
+  const numericBuffId = Number(buffId);
+  const fallbackLabel = Number.isFinite(numericBuffId) ? THREAT_BUFF_LABELS[numericBuffId] : "";
+  const currentLabel = String(row?.label || "").trim();
+  if (!currentLabel) return fallbackLabel || (buffId ? `Buff ${buffId}` : "Unknown Buff");
+  if (/^Buff \d+$/i.test(currentLabel) && fallbackLabel) return fallbackLabel;
+  return currentLabel;
 }
 
 function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
@@ -108,7 +139,10 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
         series: normalizedSeries,
         highestThreat,
         abilities,
-        inferredBuffs,
+        inferredBuffs: inferredBuffs.map(row => ({
+          ...row,
+          label: resolveBuffLabel(row),
+        })),
         inferredTalents,
         modifiers,
         initialCoefficient,
