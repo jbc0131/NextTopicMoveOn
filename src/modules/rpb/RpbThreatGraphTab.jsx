@@ -845,17 +845,21 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: space[3],
-                cursor: "pointer",
                 textAlign: "left",
                 borderBottom: `1px solid ${border.subtle}`,
               }}
             >
               <button
                 type="button"
-                onClick={() => togglePlayer(player.playerId)}
+                onClick={event => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  togglePlayer(player.playerId);
+                }}
                 onKeyDown={event => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
+                    event.stopPropagation();
                     togglePlayer(player.playerId);
                   }
                 }}
@@ -874,22 +878,7 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
                   margin: 0,
                 }}
               />
-              <span
-                onClick={event => {
-                  event.stopPropagation();
-                  setSelectedRaiderId(String(player.playerId));
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={event => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setSelectedRaiderId(String(player.playerId));
-                  }
-                }}
-                style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, cursor: "pointer", flex: 1, marginLeft: 10 }}
-              >
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1, marginLeft: 10 }}>
                 <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: hidden ? text.muted : text.primary, opacity: hidden ? 0.72 : 1, fontWeight: selected ? fontWeight.semibold : fontWeight.normal }}>
                   {player.name}{player.initialCoefficient != null ? ` ${formatThreatCoefficient(player.initialCoefficient)}` : ""}
                 </span>
