@@ -136,7 +136,7 @@ function compactThreatSeries(points = [], bucketMs = 1000) {
 function buildInferredBuffRows(unit, config) {
   const buffIds = new Set([
     ...Object.keys(config.initialBuffs?.All || {}),
-    ...Object.keys(unit.buffs || {}),
+    ...Object.keys(config.initialBuffs?.[unit?.type] || {}),
   ]);
 
   return [...buffIds].map(buffId => ({
