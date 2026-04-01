@@ -839,15 +839,6 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
           return (
             <div
               key={player.playerId}
-              onClick={() => togglePlayer(player.playerId)}
-              onKeyDown={event => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  togglePlayer(player.playerId);
-                }
-              }}
-              role="button"
-              tabIndex={0}
               style={{
                 padding: `${space[2]}px 0`,
                 display: "flex",
@@ -859,6 +850,30 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
                 borderBottom: `1px solid ${border.subtle}`,
               }}
             >
+              <button
+                type="button"
+                onClick={() => togglePlayer(player.playerId)}
+                onKeyDown={event => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    togglePlayer(player.playerId);
+                  }
+                }}
+                aria-label={hidden ? `Show ${player.name} on graph` : `Hide ${player.name} from graph`}
+                title={hidden ? `Show ${player.name}` : `Hide ${player.name}`}
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 999,
+                  border: `1px solid ${hidden ? border.subtle : player.color}`,
+                  background: player.color,
+                  opacity: hidden ? 0.18 : 1,
+                  flexShrink: 0,
+                  cursor: "pointer",
+                  padding: 0,
+                  margin: 0,
+                }}
+              />
               <span
                 onClick={event => {
                   event.stopPropagation();
@@ -873,9 +888,8 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
                     setSelectedRaiderId(String(player.playerId));
                   }
                 }}
-                style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, cursor: "pointer", flex: 1 }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, cursor: "pointer", flex: 1, marginLeft: 10 }}
               >
-                <span style={{ width: 10, height: 10, borderRadius: 999, background: player.color, opacity: hidden ? 0.2 : 1, flexShrink: 0 }} />
                 <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: hidden ? text.muted : text.primary, opacity: hidden ? 0.72 : 1, fontWeight: selected ? fontWeight.semibold : fontWeight.normal }}>
                   {player.name}{player.initialCoefficient != null ? ` ${formatThreatCoefficient(player.initialCoefficient)}` : ""}
                 </span>
