@@ -1,10 +1,10 @@
 import { deriveRpbAnalytics } from "./rpbAnalytics.js";
+import { computeThreatSnapshots } from "./threat/rpbThreatEngine.js";
 import { buildCacheKey, getJsonCache, setJsonCache } from "./upstashRedis.js";
 
 const BASE_URL = "https://classic.warcraftlogs.com/v1";
 const WCL_V2_TOKEN_URL = "https://classic.warcraftlogs.com/oauth/token";
 const WCL_V2_API_URL = "https://classic.warcraftlogs.com/api/v2/client";
-1
 const PLAYER_TYPES = new Set([
   "Warrior", "Paladin", "Hunter", "Rogue", "Priest",
   "Shaman", "Mage", "Warlock", "Druid",
@@ -2864,108 +2864,28 @@ async function fetchFightDrumSnapshots(reportId, apiKeyOverride = "") {
   return { snapshots };
 }
 
-function normalizeThreatEventPayload(event = {}) {
-  if (!event || typeof event !== "object") return null;
-
-  const normalized = {
-    type: event.type || "",
-    timestamp: Number(event.timestamp || 0),
-    sourceID: event.sourceID ?? event.source?.id ?? null,
-    sourceInstance: event.sourceInstance ?? null,
-    sourceIsFriendly: event.sourceIsFriendly ?? null,
-    targetID: event.targetID ?? event.target?.id ?? null,
-    targetInstance: event.targetInstance ?? null,
-    targetIsFriendly: event.targetIsFriendly ?? null,
-    sourceName: event.sourceName || event.source?.name || "",
-    targetName: event.targetName || event.target?.name || "",
-    amount: event.amount ?? null,
-    absorbed: event.absorbed ?? null,
-    overkill: event.overkill ?? null,
-    overheal: event.overheal ?? null,
-    hitType: event.hitType ?? null,
-    tick: event.tick ?? false,
-    resourceChangeType: event.resourceChangeType ?? null,
-    waste: event.waste ?? null,
-    x: event.x ?? null,
-    y: event.y ?? null,
-    stack: event.stack ?? event.stacks ?? null,
-  };
-
-  if (event.ability) {
-    normalized.ability = {
-      guid: event.ability.guid ?? null,
-      name: event.ability.name || "",
-      type: event.ability.type ?? null,
-    };
-  }
-
-  if (event.extraAbility) {
-    normalized.extraAbility = {
-      guid: event.extraAbility.guid ?? null,
-      name: event.extraAbility.name || "",
-      type: event.extraAbility.type ?? null,
-    };
-  }
-
-  if (Array.isArray(event.auras)) {
-    normalized.auras = event.auras.map(aura => ({
-      ability: aura?.ability ?? null,
-      name: aura?.name || "",
-    }));
-  }
-
-  if (Array.isArray(event.gear)) {
-    normalized.gear = event.gear.map(item => ({
-      id: item?.id ?? null,
-      icon: item?.icon || "",
-      itemLevel: item?.itemLevel ?? null,
-      permanentEnchant: item?.permanentEnchant ?? null,
-      temporaryEnchant: item?.temporaryEnchant ?? null,
-      gems: Array.isArray(item?.gems) ? item.gems.map(gem => ({ id: gem?.id ?? null })) : [],
-    }));
-  }
-
-  if (Array.isArray(event.talents)) {
-    normalized.talents = event.talents.map(tab => ({
-      id: tab?.id ?? null,
-      points: tab?.points ?? null,
-    }));
-  }
-
-  return normalized;
-}
-
 async function fetchFightThreatSnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
   const snapshotFights = (fightsData.fights || []).filter(fight =>
     (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
 
-  const snapshots = [];
+  const fightEventsById = {};
   for (const fight of snapshotFights) {
-    const events = await fetchAllEventPages(`/report/events/${reportId}`, {
+    const fightId = String(fight.id || "");
+    fightEventsById[fightId] = await fetchAllEventPages(`/report/events/${reportId}`, {
       start: fight.start_time ?? 0,
       end: fight.end_time ?? 0,
     }, apiKeyOverride);
-
-    snapshots.push({
-      fightId: String(fight.id),
-      encounterId: fight.boss || 0,
-      fightName: fight.name || "Unknown Fight",
-      start: fight.start_time ?? 0,
-      end: fight.end_time ?? 0,
-      events: events.map(normalizeThreatEventPayload).filter(Boolean),
-    });
   }
 
   return {
-    available: true,
     gameVersion: fightsData?.gameVersion ?? null,
-    friendlies: fightsData?.friendlies || [],
-    friendlyPets: fightsData?.friendlyPets || [],
-    enemies: fightsData?.enemies || [],
-    enemyPets: fightsData?.enemyPets || [],
-    snapshots,
+    ...computeThreatSnapshots({
+      fightsData,
+      fights: snapshotFights,
+      fightEventsById,
+    }),
   };
 }
 

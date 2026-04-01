@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  surface, border, text, accent, fontSize, fontWeight, radius, space, btnStyle, panelStyle,
+  border, text, fontSize, fontWeight, radius, space, inputStyle, panelStyle,
 } from "../../shared/theme";
 
 const FALLBACK_CLASS_COLORS = {
@@ -30,16 +30,6 @@ function coerceNumber(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
-function formatThreatNumber(value) {
-  const numeric = coerceNumber(value, 0);
-  return Math.round(numeric).toLocaleString();
-}
-
-function formatThreatRate(value) {
-  const numeric = coerceNumber(value, 0);
-  return `${numeric.toFixed(1)}/s`;
-}
-
 function formatSecondsFromMs(value) {
   return `${(coerceNumber(value, 0) / 1000).toFixed(1)}s`;
 }
@@ -57,20 +47,6 @@ function normalizeTracePoint(point = {}, fallbackIndex = 0) {
   };
 }
 
-function normalizeAbilityRow(entry = {}) {
-  const label = String(entry.label || entry.name || entry.ability || entry.text || "Unknown");
-  const threat = coerceNumber(entry.threat ?? entry.total ?? entry.value, 0);
-  const tps = coerceNumber(entry.tps ?? entry.perSecond ?? entry.threatPerSecond, 0);
-  return { label, threat, tps };
-}
-
-function normalizeModifierRow(entry = {}) {
-  return {
-    label: String(entry.label || entry.name || entry.buff || "Unknown Modifier"),
-    value: String(entry.value || entry.state || entry.coefficient || entry.multiplier || "Assumed"),
-  };
-}
-
 function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
   const snapshotPlayers = Array.isArray(snapshot?.players) ? snapshot.players : [];
   const playersFromFight = Array.isArray(selectedFight?.damageDoneEntries) ? selectedFight.damageDoneEntries : [];
@@ -83,12 +59,6 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
       const series = Array.isArray(rawSeries)
         ? rawSeries.map((point, pointIndex) => normalizeTracePoint(point, pointIndex)).sort((left, right) => left.timeMs - right.timeMs)
         : [];
-      const abilities = Array.isArray(player.abilities)
-        ? player.abilities.map(normalizeAbilityRow)
-        : Object.entries(player.threatBySkill || {}).map(([label, threat]) => normalizeAbilityRow({ label, threat }));
-      const modifiers = Array.isArray(player.modifiers)
-        ? player.modifiers.map(normalizeModifierRow)
-        : (Array.isArray(player.assumedModifiers) ? player.assumedModifiers.map(normalizeModifierRow) : []);
       const highestThreat = series.reduce((max, point) => Math.max(max, point.threat), 0);
 
       return {
@@ -97,8 +67,6 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
         type: player.type || raidPlayer?.type || "",
         color: player.color || getClassColor(player.type || raidPlayer?.type, index),
         series,
-        abilities: abilities.sort((left, right) => right.threat - left.threat),
-        modifiers,
         highestThreat,
       };
     }).sort((left, right) => right.highestThreat - left.highestThreat || left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
@@ -112,8 +80,6 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
       type: entry.type || raidPlayer?.type || "",
       color: getClassColor(entry.type || raidPlayer?.type, index),
       series: [],
-      abilities: [],
-      modifiers: [],
       highestThreat: 0,
     };
   }).sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
@@ -128,10 +94,10 @@ function buildThreatChartPath(points, width, height, maxTimeMs, maxThreat) {
   }).join(" ");
 }
 
-function ThreatChart({ players, hiddenPlayerIds, fightDurationMs }) {
+function ThreatChart({ players, fightDurationMs, enemyOptions, selectedEnemyKey, onSelectEnemy, underDevelopmentBadgeStyle }) {
   const width = 920;
   const height = 360;
-  const visiblePlayers = players.filter(player => !hiddenPlayerIds.has(String(player.playerId)));
+  const visiblePlayers = players;
   const maxTimeMs = Math.max(
     coerceNumber(fightDurationMs, 0),
     ...visiblePlayers.flatMap(player => player.series.map(point => point.timeMs)),
@@ -157,8 +123,28 @@ function ThreatChart({ players, hiddenPlayerIds, fightDurationMs }) {
               : "Threat series data will render here once imported."}
           </div>
         </div>
-        <div style={{ fontSize: fontSize.xs, color: text.muted, alignSelf: "flex-start" }}>
-          {fightDurationMs > 0 ? `Fight length ${formatSecondsFromMs(fightDurationMs)}` : "Awaiting a boss-fight snapshot"}
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: space[3], alignItems: "flex-start" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
+            <span style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Enemy
+            </span>
+            <select value={selectedEnemyKey} onChange={event => onSelectEnemy(event.target.value)} disabled={!enemyOptions.length} style={{ ...inputStyle, minHeight: 34 }}>
+              {!enemyOptions.length ? <option value="">No enemy data available</option> : null}
+              {enemyOptions.map(option => (
+                <option key={option.enemyKey} value={option.enemyKey}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+            <div style={underDevelopmentBadgeStyle}>
+              This tab is currently under development
+            </div>
+            <div style={{ fontSize: fontSize.xs, color: text.muted }}>
+              {fightDurationMs > 0 ? `Fight length ${formatSecondsFromMs(fightDurationMs)}` : "Awaiting a boss-fight snapshot"}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -210,168 +196,11 @@ function ThreatChart({ players, hiddenPlayerIds, fightDurationMs }) {
                   Threat event data is not available in this imported report yet.
                 </div>
                 <div style={{ fontSize: fontSize.sm }}>
-                  The tab shell, boss selection, and raider controls are live. The threat engine payload can slot into `importPayload.threatByFight` without changing this UI structure.
+                  Import `threatByFight` for this report to populate enemy threat tables and raider lines for the selected boss encounter.
                 </div>
               </div>
             </div>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ThreatSidePanel({
-  players,
-  hiddenPlayerIds,
-  setHiddenPlayerIds,
-  selectedPlayerId,
-  setSelectedPlayerId,
-  snapshotLoaded,
-}) {
-  const selectedPlayer = players.find(player => String(player.playerId) === String(selectedPlayerId)) || players[0] || null;
-
-  function togglePlayerVisibility(playerId) {
-    setHiddenPlayerIds(current => {
-      const next = new Set(current);
-      if (next.has(String(playerId))) {
-        next.delete(String(playerId));
-      } else {
-        next.add(String(playerId));
-      }
-      return next;
-    });
-  }
-
-  return (
-    <div style={{ ...panelStyle, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, display: "flex", justifyContent: "space-between", gap: space[2], flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            Threat Controls
-          </div>
-          <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
-            Toggle raider lines and inspect per-player threat tables.
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
-          <button onClick={() => setHiddenPlayerIds(new Set())} style={{ ...btnStyle("default"), height: 28 }}>
-            Show All
-          </button>
-          <button
-            onClick={() => setHiddenPlayerIds(new Set(players.map(player => String(player.playerId))))}
-            style={{ ...btnStyle("default"), height: 28 }}
-          >
-            Hide All
-          </button>
-        </div>
-      </div>
-
-      <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[4], overflowY: "auto" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-          <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            Raiders
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-            {players.map(player => {
-              const hidden = hiddenPlayerIds.has(String(player.playerId));
-              const active = String(selectedPlayer?.playerId || "") === String(player.playerId);
-              return (
-                <div
-                  key={player.playerId}
-                  onClick={() => setSelectedPlayerId(String(player.playerId))}
-                  onKeyDown={event => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setSelectedPlayerId(String(player.playerId));
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  style={{
-                    border: `1px solid ${active ? accent.blue : border.subtle}`,
-                    borderRadius: radius.base,
-                    background: active ? `${accent.blue}10` : surface.card,
-                    padding: space[3],
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: space[2], alignItems: "center" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: 999, background: player.color, flexShrink: 0, opacity: hidden ? 0.3 : 1 }} />
-                      <span style={{ color: player.color, fontWeight: fontWeight.semibold, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {player.name}
-                      </span>
-                    </span>
-                    <button
-                      onClick={event => {
-                        event.stopPropagation();
-                        togglePlayerVisibility(player.playerId);
-                      }}
-                      style={{ ...btnStyle(hidden ? "default" : "primary", !hidden), height: 24, minWidth: 62, padding: `0 ${space[2]}px` }}
-                    >
-                      {hidden ? "Show" : "Hide"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-          <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            {selectedPlayer ? `${selectedPlayer.name} Abilities` : "Abilities"}
-          </div>
-          <div style={{ border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.3fr) 96px 96px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, background: surface.base, color: text.muted, fontSize: fontSize.xs, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              <div>Ability</div>
-              <div style={{ textAlign: "right" }}>Threat</div>
-              <div style={{ textAlign: "right" }}>TPS</div>
-            </div>
-            {(selectedPlayer?.abilities || []).length > 0 ? (
-              selectedPlayer.abilities.slice(0, 12).map(row => (
-                <div key={`${selectedPlayer.playerId}-${row.label}`} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.3fr) 96px 96px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, borderTop: `1px solid ${border.subtle}`, fontSize: fontSize.sm }}>
-                  <div style={{ color: text.primary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.label}</div>
-                  <div style={{ textAlign: "right", color: text.secondary }}>{formatThreatNumber(row.threat)}</div>
-                  <div style={{ textAlign: "right", color: text.secondary }}>{formatThreatRate(row.tps)}</div>
-                </div>
-              ))
-            ) : (
-              <div style={{ padding: space[3], borderTop: `1px solid ${border.subtle}`, color: text.muted, fontSize: fontSize.sm }}>
-                {snapshotLoaded
-                  ? "No ability threat table is available for the selected raider."
-                  : "Ability threat rows will appear here once threat snapshots are imported."}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-          <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            Assumed Threat Modifiers
-          </div>
-          <div style={{ border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 120px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, background: surface.base, color: text.muted, fontSize: fontSize.xs, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              <div>Modifier</div>
-              <div style={{ textAlign: "right" }}>Value</div>
-            </div>
-            {(selectedPlayer?.modifiers || []).length > 0 ? (
-              selectedPlayer.modifiers.map(row => (
-                <div key={`${selectedPlayer.playerId}-${row.label}`} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 120px", gap: space[2], padding: `${space[2]}px ${space[3]}px`, borderTop: `1px solid ${border.subtle}`, fontSize: fontSize.sm }}>
-                  <div style={{ color: text.primary }}>{row.label}</div>
-                  <div style={{ textAlign: "right", color: text.secondary }}>{row.value}</div>
-                </div>
-              ))
-            ) : (
-              <div style={{ padding: space[3], borderTop: `1px solid ${border.subtle}`, color: text.muted, fontSize: fontSize.sm }}>
-                {snapshotLoaded
-                  ? "No inferred threat modifiers are available for the selected raider."
-                  : "The external threat engine’s inferred modifiers will be listed here."}
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
@@ -384,7 +213,6 @@ export default function RpbThreatGraphTab({
   setSelectedFightId,
   encounterSelectionOptions,
   filteredFights,
-  isMobileViewport,
   underDevelopmentBadgeStyle,
 }) {
   const bossFightOptions = useMemo(() => (
@@ -415,59 +243,55 @@ export default function RpbThreatGraphTab({
     return snapshots.find(snapshot => String(snapshot?.fightId || "") === String(activeBossFightId)) || null;
   }, [activeBossFightId, selectedRaid]);
 
-  const players = useMemo(() => (
-    normalizeThreatPlayers(threatSnapshot, selectedRaid?.players || [], selectedFight)
-  ), [selectedFight, selectedRaid, threatSnapshot]);
+  const enemyOptions = useMemo(() => (
+    (threatSnapshot?.enemies || []).map(enemy => ({
+      enemyKey: String(enemy.enemyKey || enemy.enemyId || enemy.name || ""),
+      name: enemy.name || "Unknown Enemy",
+    }))
+  ), [threatSnapshot]);
 
-  const [hiddenPlayerIds, setHiddenPlayerIds] = useState(() => new Set());
-  const [selectedPlayerId, setSelectedPlayerId] = useState("");
-
+  const [selectedEnemyKey, setSelectedEnemyKey] = useState("");
   useEffect(() => {
-    setHiddenPlayerIds(new Set());
-  }, [activeBossFightId]);
-
-  useEffect(() => {
-    if (!players.length) {
-      setSelectedPlayerId("");
+    if (!enemyOptions.length) {
+      setSelectedEnemyKey("");
       return;
     }
-    if (players.some(player => String(player.playerId) === String(selectedPlayerId))) return;
-    setSelectedPlayerId(String(players[0].playerId));
-  }, [players, selectedPlayerId]);
+    if (enemyOptions.some(enemy => enemy.enemyKey === selectedEnemyKey)) return;
+    setSelectedEnemyKey(enemyOptions[0].enemyKey);
+  }, [enemyOptions, selectedEnemyKey]);
+
+  const selectedEnemy = useMemo(() => (
+    (threatSnapshot?.enemies || []).find(enemy => String(enemy.enemyKey || enemy.enemyId || "") === String(selectedEnemyKey))
+    || threatSnapshot?.enemies?.[0]
+    || null
+  ), [selectedEnemyKey, threatSnapshot]);
+
+  const players = useMemo(() => (
+    normalizeThreatPlayers(selectedEnemy, selectedRaid?.players || [], selectedFight)
+  ), [selectedEnemy, selectedFight, selectedRaid]);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: isMobileViewport ? "minmax(0, 1fr)" : "minmax(0, 1.25fr) minmax(340px, 0.75fr)", gap: space[4], alignItems: "start" }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
-        <div style={{ ...panelStyle, padding: space[4], display: "flex", flexDirection: "column", gap: space[3] }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Threat Graph
-              </div>
-              <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
-                This tab uses the shared encounter selection above and stays locked to a single boss fight.
-              </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
+      <div style={{ ...panelStyle, padding: space[4], display: "flex", flexDirection: "column", gap: space[3] }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Threat Graph
             </div>
-            <div style={underDevelopmentBadgeStyle}>
-              This tab is currently under development
+            <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
+              This tab uses the shared encounter selection above and binds the timeline to a single enemy threat table per boss fight.
             </div>
           </div>
         </div>
-
-        <ThreatChart
-          players={players}
-          hiddenPlayerIds={hiddenPlayerIds}
-          fightDurationMs={selectedFight ? Math.max(0, coerceNumber(selectedFight.end_time ?? selectedFight.end, 0) - coerceNumber(selectedFight.start_time ?? selectedFight.start, 0)) : 0}
-        />
       </div>
 
-      <ThreatSidePanel
+      <ThreatChart
         players={players}
-        hiddenPlayerIds={hiddenPlayerIds}
-        setHiddenPlayerIds={setHiddenPlayerIds}
-        selectedPlayerId={selectedPlayerId}
-        setSelectedPlayerId={setSelectedPlayerId}
-        snapshotLoaded={Boolean(threatSnapshot)}
+        enemyOptions={enemyOptions}
+        selectedEnemyKey={selectedEnemyKey}
+        onSelectEnemy={setSelectedEnemyKey}
+        fightDurationMs={selectedFight ? Math.max(0, coerceNumber(selectedFight.end_time ?? selectedFight.end, 0) - coerceNumber(selectedFight.start_time ?? selectedFight.start, 0)) : 0}
+        underDevelopmentBadgeStyle={underDevelopmentBadgeStyle}
       />
     </div>
   );
