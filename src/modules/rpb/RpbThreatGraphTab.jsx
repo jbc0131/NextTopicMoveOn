@@ -146,7 +146,7 @@ function getTooltipPosition(event) {
   const bounds = event.currentTarget.getBoundingClientRect();
   return {
     x: event.clientX - bounds.left + 12,
-    y: event.clientY - bounds.top + 12,
+    y: event.clientY - bounds.top - 12,
   };
 }
 
