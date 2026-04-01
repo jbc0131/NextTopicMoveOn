@@ -704,7 +704,7 @@ class ThreatTrace {
     this.setThreat(this.currentThreat + (numeric(amount, 0) * numeric(coeff?.value, 1)) + numeric(bonusThreat, 0), timestamp, label, coeff);
   }
 
-  threatBySkill(fightStartMs) {
+  threatBySkill(fightStartMs, fightEndMs) {
     const totals = {};
     let previousThreat = 0;
     for (let index = 0; index < this.threat.length; index += 1) {
@@ -716,10 +716,15 @@ class ThreatTrace {
       totals[label] = numeric(totals[label], 0) + delta;
     }
 
+    const encounterDurationSeconds = Math.max(
+      1,
+      (numeric(fightEndMs, fightStartMs) - numeric(fightStartMs, 0)) / 1000,
+    );
+
     return Object.entries(totals).map(([label, threat]) => ({
       label,
       threat,
-      tps: threat / Math.max(1, (numeric(this.time[this.time.length - 1], fightStartMs) - numeric(fightStartMs, 0)) / 1000),
+      tps: threat / encounterDurationSeconds,
     })).sort((left, right) => right.threat - left.threat);
   }
 
@@ -1010,7 +1015,7 @@ function buildFightEnemySnapshot(enemy, fight) {
       initialCoefficient: Number((target?.initialCoeff || 1).toFixed(3)),
       series,
       highestThreat,
-      abilities: trace.threatBySkill(fight.start).map(row => ({
+      abilities: trace.threatBySkill(fight.start, fight.end).map(row => ({
         label: row.label,
         threat: Number(numeric(row.threat, 0).toFixed(2)),
         tps: Number(numeric(row.tps, 0).toFixed(2)),
