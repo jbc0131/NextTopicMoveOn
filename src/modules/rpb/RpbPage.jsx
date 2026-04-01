@@ -3999,25 +3999,74 @@ function DeathEventHpBar({ event, compact = false }) {
   );
 }
 
+function buildDeathTimelineEventKey(event) {
+  const normalizedAmount = Number(event?.amount ?? event?.damage ?? event?.healing ?? 0);
+  const normalizedSource = String(
+    event?.sourceId
+    ?? event?.sourceInstance
+    ?? event?.sourceName
+    ?? ""
+  ).trim().toLowerCase();
+  const normalizedTarget = String(
+    event?.targetId
+    ?? event?.targetInstance
+    ?? event?.targetName
+    ?? ""
+  ).trim().toLowerCase();
+  const normalizedAbility = String(
+    event?.abilityGameID
+    ?? event?.abilityGuid
+    ?? event?.guid
+    ?? event?.abilityName
+    ?? event?.name
+    ?? ""
+  ).trim().toLowerCase();
+
+  return [
+    Number(event?.timestamp || 0),
+    String(event?.type || "").trim().toLowerCase(),
+    normalizedAbility,
+    normalizedSource,
+    normalizedTarget,
+    normalizedAmount,
+    Number(event?.overkill || 0),
+    Number(event?.overheal || 0),
+    Number(event?.absorbed || 0),
+  ].join("|");
+}
+
+function getDeathTimelineEventCompleteness(event) {
+  let score = 0;
+  if (event?.sourceId != null || event?.sourceName) score += 1;
+  if (event?.targetId != null || event?.targetName) score += 1;
+  if (event?.abilityGameID != null || event?.abilityGuid != null || event?.guid != null) score += 1;
+  if (event?.abilityName || event?.name) score += 1;
+  if (event?.hitPoints != null && event?.hitPoints !== "") score += 1;
+  if (event?.maxHitPoints != null && event?.maxHitPoints !== "") score += 1;
+  if (event?.damage != null || event?.healing != null || event?.amount != null) score += 1;
+  return score;
+}
+
 function mergeDeathTimelineEvents(recapEvents = [], healingWindowEvents = [], deathWindowEvents = []) {
-  const seen = new Set();
+  const mergedByKey = new Map();
   const merged = [];
 
   for (const event of [...(recapEvents || []), ...(healingWindowEvents || []), ...(deathWindowEvents || [])]) {
-    const key = [
-      Number(event?.timestamp || 0),
-      String(event?.type || ""),
-      String(event?.abilityGuid || ""),
-      String(event?.sourceId || ""),
-      String(event?.targetId || ""),
-      Number(event?.amount ?? event?.damage ?? event?.healing ?? 0),
-      Number(event?.overkill || 0),
-      Number(event?.overheal || 0),
-      Number(event?.absorbed || 0),
-    ].join("|");
-    if (seen.has(key)) continue;
-    seen.add(key);
-    merged.push(event);
+    const key = buildDeathTimelineEventKey(event);
+    const existingIndex = mergedByKey.get(key);
+    if (existingIndex == null) {
+      mergedByKey.set(key, merged.length);
+      merged.push(event);
+      continue;
+    }
+
+    const existingEvent = merged[existingIndex];
+    if (getDeathTimelineEventCompleteness(event) > getDeathTimelineEventCompleteness(existingEvent)) {
+      merged[existingIndex] = {
+        ...existingEvent,
+        ...event,
+      };
+    }
   }
 
   return merged;
