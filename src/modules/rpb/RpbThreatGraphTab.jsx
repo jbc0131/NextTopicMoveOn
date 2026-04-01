@@ -830,7 +830,7 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
           </button>
         </div>
       </div>
-      <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[2], maxHeight: 360, overflowY: "auto" }}>
+      <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: 0 }}>
         {players.map(player => {
           const hidden = hiddenPlayerIds.has(String(player.playerId));
           const selected = String(selectedRaiderId) === String(player.playerId);
@@ -847,22 +847,19 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
               role="button"
               tabIndex={0}
               style={{
-                border: `1px solid ${selected ? accent.blue : border.subtle}`,
-                borderRadius: radius.base,
-                background: selected ? `${accent.blue}10` : surface.base,
-                padding: space[3],
+                padding: `${space[2]}px 0`,
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: space[3],
-                color: text.primary,
                 cursor: "pointer",
                 textAlign: "left",
+                borderBottom: `1px solid ${border.subtle}`,
               }}
             >
-                <span
-                  onClick={event => {
-                    event.stopPropagation();
+              <span
+                onClick={event => {
+                  event.stopPropagation();
                   setSelectedRaiderId(String(player.playerId));
                 }}
                 role="button"
@@ -874,15 +871,12 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
                     setSelectedRaiderId(String(player.playerId));
                   }
                 }}
-                style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, cursor: "pointer" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, cursor: "pointer", flex: 1 }}
               >
-                <span style={{ width: 10, height: 10, borderRadius: 999, background: player.color, opacity: hidden ? 0.35 : 1, flexShrink: 0 }} />
-                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <span style={{ width: 10, height: 10, borderRadius: 999, background: player.color, opacity: hidden ? 0.2 : 1, flexShrink: 0 }} />
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: hidden ? text.muted : text.primary, opacity: hidden ? 0.72 : 1, fontWeight: selected ? fontWeight.semibold : fontWeight.normal }}>
                   {player.name}{player.initialCoefficient != null ? ` ${formatThreatCoefficient(player.initialCoefficient)}` : ""}
                 </span>
-              </span>
-              <span style={{ fontSize: fontSize.xs, color: text.muted }}>
-                {hidden ? "Hidden" : "Visible"}
               </span>
             </div>
           );
