@@ -783,6 +783,7 @@ class EnemyUnit extends Unit {
     this.isEnemy = true;
     this.threat = {};
     this.target = null;
+    this.targetHistory = [];
   }
 
   getTrace(playerKey, timestamp) {
@@ -804,6 +805,20 @@ class EnemyUnit extends Unit {
     const trace = this.getTrace(playerKey, timestamp);
     if (!trace) return;
     trace.addThreat(amount, timestamp, label, coeff, bonusThreat);
+  }
+
+  setCurrentTarget(targetUnit, timestamp, reason = "") {
+    if (!targetUnit || targetUnit.isEnemy) return;
+    this.target = targetUnit;
+    const lastEntry = this.targetHistory[this.targetHistory.length - 1];
+    if (lastEntry && String(lastEntry.playerKey) === String(targetUnit.key)) return;
+    this.targetHistory.push({
+      playerKey: targetUnit.key,
+      playerId: String(targetUnit.global?.id || targetUnit.key),
+      name: targetUnit.name || "Unknown Player",
+      timeMs: Math.max(0, numeric(timestamp, 0) - numeric(this.fight.start, 0)),
+      reason: String(reason || "").trim(),
+    });
   }
 }
 
@@ -873,8 +888,8 @@ class FightState {
 
     const source = this.eventToUnit(event, "source", false);
     const target = this.eventToUnit(event, "target", false);
-    if (source && source.isEnemy && target && !target.isEnemy && event?.type === "cast") {
-      source.target = target;
+    if (source && source.isEnemy && target && !target.isEnemy && ["begincast", "cast", "damage", "miss"].includes(event?.type)) {
+      source.setCurrentTarget(target, event?.timestamp, event?.ability?.name || event?.type || "");
     }
 
     const globalHandler = this.config.spellFunctions[GLOBAL_SPELL_HANDLER_ID];
@@ -976,6 +991,7 @@ function buildFightEnemySnapshot(enemy, fight) {
     enemyId: String(enemy.info?.id || enemy.key),
     name: enemy.name,
     type: enemy.type,
+    targetHistory: enemy.targetHistory || [],
     players,
     maxThreat: Math.max(...players.map(player => numeric(player.highestThreat, 0)), 0),
   };

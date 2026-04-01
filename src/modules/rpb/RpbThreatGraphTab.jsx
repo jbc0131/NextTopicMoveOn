@@ -59,7 +59,11 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
       const series = Array.isArray(rawSeries)
         ? rawSeries.map((point, pointIndex) => normalizeTracePoint(point, pointIndex)).sort((left, right) => left.timeMs - right.timeMs)
         : [];
-      const highestThreat = series.reduce((max, point) => Math.max(max, point.threat), 0);
+      const normalizedSeries = series.map((point, pointIndex) => ({
+        ...point,
+        deltaThreat: pointIndex === 0 ? coerceNumber(point.threat, 0) : Math.max(0, coerceNumber(point.threat, 0) - coerceNumber(series[pointIndex - 1]?.threat, 0)),
+      }));
+      const highestThreat = normalizedSeries.reduce((max, point) => Math.max(max, point.threat), 0);
       const modifiers = Array.isArray(player.modifiers) ? player.modifiers : [];
       const initialCoefficient = (() => {
         const row = modifiers.find(entry => String(entry?.label || "").toLowerCase() === "initial coefficient");
@@ -72,12 +76,15 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
         name: player.name || raidPlayer?.name || "Unknown Player",
         type: player.type || raidPlayer?.type || "",
         color: player.color || getClassColor(player.type || raidPlayer?.type, index),
-        series,
+        series: normalizedSeries,
         highestThreat,
         modifiers,
         initialCoefficient,
       };
-    }).sort((left, right) => right.highestThreat - left.highestThreat || left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
+    }).sort((left, right) =>
+      coerceNumber(right.initialCoefficient, -1) - coerceNumber(left.initialCoefficient, -1)
+      || right.highestThreat - left.highestThreat
+      || left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
   }
 
   return playersFromFight.map((entry, index) => {
@@ -92,7 +99,9 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
       modifiers: [],
       initialCoefficient: null,
     };
-  }).sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
+  }).sort((left, right) =>
+    coerceNumber(right.initialCoefficient, -1) - coerceNumber(left.initialCoefficient, -1)
+    || left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
 }
 
 function formatThreatCoefficient(value) {
@@ -116,52 +125,28 @@ function getChartPoint(point, width, height, maxTimeMs, maxThreat) {
   };
 }
 
-function buildLeaderAnnotations(players = []) {
-  const leader = players[0] || null;
-  if (!leader || !Array.isArray(leader.series) || leader.series.length < 2) return [];
-
-  let maxPoint = leader.series[0];
-  let biggestGain = null;
-
-  for (let index = 1; index < leader.series.length; index += 1) {
-    const current = leader.series[index];
-    const previous = leader.series[index - 1];
-    if (coerceNumber(current.threat, 0) >= coerceNumber(maxPoint.threat, 0)) {
-      maxPoint = current;
-    }
-    const delta = coerceNumber(current.threat, 0) - coerceNumber(previous.threat, 0);
-    if (delta <= 0) continue;
-    if (!biggestGain || delta > biggestGain.delta) {
-      biggestGain = {
-        point: current,
-        delta,
-      };
-    }
+function getBossTargetAtTime(targetHistory = [], timeMs = 0) {
+  let current = null;
+  for (const entry of targetHistory) {
+    if (coerceNumber(entry.timeMs, 0) <= coerceNumber(timeMs, 0)) current = entry;
+    else break;
   }
+  return current;
+}
 
-  const annotations = [];
-  if (biggestGain && biggestGain.delta >= 100) {
-    annotations.push({
-      key: "big-gain",
-      point: biggestGain.point,
-      title: `${leader.name} spike +${Math.round(biggestGain.delta).toLocaleString()} threat`,
-      badge: "Gain",
-    });
-  }
-  annotations.push({
-    key: "peak-threat",
-    point: maxPoint,
-    title: `${leader.name} peak ${Math.round(coerceNumber(maxPoint.threat, 0)).toLocaleString()} threat`,
-    badge: "Lead",
-  });
-
-  return annotations;
+function buildTargetSegments(targetHistory = [], fightDurationMs = 0) {
+  if (!Array.isArray(targetHistory) || !targetHistory.length) return [];
+  return targetHistory.map((entry, index) => ({
+    ...entry,
+    endTimeMs: index < targetHistory.length - 1 ? coerceNumber(targetHistory[index + 1].timeMs, fightDurationMs) : coerceNumber(fightDurationMs, 0),
+  })).filter(entry => entry.endTimeMs > coerceNumber(entry.timeMs, 0));
 }
 
 function ThreatChart({
   players,
   hiddenPlayerIds,
   fightDurationMs,
+  targetHistory,
   enemyOptions,
   selectedEnemyKey,
   onSelectEnemy,
@@ -171,7 +156,8 @@ function ThreatChart({
   underDevelopmentBadgeStyle,
 }) {
   const width = 920;
-  const height = 360;
+  const height = 320;
+  const targetBandHeight = 28;
   const visiblePlayers = players.filter(player => !hiddenPlayerIds.has(String(player.playerId)));
   const maxTimeMs = Math.max(
     coerceNumber(fightDurationMs, 0),
@@ -184,7 +170,7 @@ function ThreatChart({
   );
   const hasGraphData = maxThreat > 0 && visiblePlayers.some(player => player.series.length > 1);
   const yTicks = maxThreat > 0 ? [0.25, 0.5, 0.75, 1] : [];
-  const annotations = hasGraphData ? buildLeaderAnnotations(visiblePlayers) : [];
+  const targetSegments = buildTargetSegments(targetHistory, maxTimeMs);
 
   return (
     <div style={{ ...panelStyle, overflow: "hidden" }}>
@@ -245,7 +231,8 @@ function ThreatChart({
           padding: space[3],
         }}>
           {hasGraphData ? (
-            <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Threat timeline">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Threat timeline">
               {yTicks.map(tick => {
                 const y = height - (height * tick);
                 const labelValue = Math.round(maxThreat * tick).toLocaleString();
@@ -258,55 +245,82 @@ function ThreatChart({
                   </g>
                 );
               })}
-              {visiblePlayers.map(player => (
-                <path
-                  key={player.playerId}
-                  d={buildThreatChartPath(player.series, width, height, maxTimeMs, maxThreat)}
-                  fill="none"
-                  stroke={player.color}
-                  strokeWidth="3"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  style={{ cursor: "pointer" }}
-                >
-                  <title>{player.name}</title>
-                </path>
-              ))}
-              {annotations.map(annotation => {
-                const position = getChartPoint(annotation.point, width, height, maxTimeMs, maxThreat);
+              {visiblePlayers.map(player => {
                 return (
-                  <g key={annotation.key}>
-                    <circle
-                      cx={position.x}
-                      cy={position.y}
-                      r="6"
-                      fill="#facc15"
-                      stroke="rgba(15,23,42,0.95)"
-                      strokeWidth="2"
-                    />
-                    <title>{annotation.title}</title>
-                    <rect
-                      x={Math.max(8, Math.min(width - 92, position.x + 10))}
-                      y={Math.max(10, position.y - 28)}
-                      width="58"
-                      height="20"
-                      rx="10"
-                      fill="rgba(250,204,21,0.18)"
-                      stroke="rgba(250,204,21,0.7)"
-                    />
-                    <text
-                      x={Math.max(18, Math.min(width - 82, position.x + 20))}
-                      y={Math.max(24, position.y - 14)}
-                      fill="#fde68a"
-                      fontSize="12"
-                      fontWeight="700"
+                  <g key={player.playerId}>
+                    <path
+                      d={buildThreatChartPath(player.series, width, height, maxTimeMs, maxThreat)}
+                      fill="none"
+                      stroke={player.color}
+                      strokeWidth="1.6"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      style={{ cursor: "pointer" }}
                     >
-                      {annotation.badge}
-                    </text>
+                      <title>{player.name}</title>
+                    </path>
+                    {player.series.map((point, index) => {
+                      const position = getChartPoint(point, width, height, maxTimeMs, maxThreat);
+                      const bossTarget = getBossTargetAtTime(targetHistory, point.timeMs);
+                      return (
+                        <circle
+                          key={`${player.playerId}-${index}-${point.timeMs}`}
+                          cx={position.x}
+                          cy={position.y}
+                          r="2.5"
+                          fill={player.color}
+                          stroke="rgba(6,12,19,0.95)"
+                          strokeWidth="0.75"
+                        >
+                          <title>{`${player.name}
+Ability: ${point.label || "Unknown"}
+Threat: ${Math.round(coerceNumber(point.deltaThreat, point.threat)).toLocaleString()}
+Boss Target: ${bossTarget?.name || "Unknown"}`}</title>
+                        </circle>
+                      );
+                    })}
                   </g>
                 );
               })}
-            </svg>
+              </svg>
+              <div style={{ display: "grid", gridTemplateColumns: "110px minmax(0, 1fr)", gap: 10, alignItems: "center" }}>
+                <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Boss Target
+                </div>
+                <svg viewBox={`0 0 ${width} ${targetBandHeight}`} style={{ width: "100%", height: "28px", display: "block" }} role="img" aria-label="Boss target timeline">
+                  {targetSegments.length ? targetSegments.map((segment, index) => {
+                    const x = (coerceNumber(segment.timeMs, 0) / maxTimeMs) * width;
+                    const nextX = (coerceNumber(segment.endTimeMs, 0) / maxTimeMs) * width;
+                    const player = players.find(entry => String(entry.playerId) === String(segment.playerId));
+                    return (
+                      <g key={`${segment.playerId}-${index}-${segment.timeMs}`}>
+                        <rect
+                          x={x}
+                          y="2"
+                          width={Math.max(2, nextX - x)}
+                          height={targetBandHeight - 4}
+                          fill={`${player?.color || "#64748b"}55`}
+                          stroke={player?.color || "#64748b"}
+                          strokeWidth="1"
+                          rx="4"
+                        >
+                          <title>{`Boss Target: ${segment.name}`}</title>
+                        </rect>
+                        {nextX - x > 64 ? (
+                          <text x={x + 6} y={18} fill="rgba(226,232,240,0.9)" fontSize="12">
+                            {segment.name}
+                          </text>
+                        ) : null}
+                      </g>
+                    );
+                  }) : (
+                    <text x="6" y="18" fill="rgba(148,163,184,0.9)" fontSize="12">
+                      No boss target timeline available
+                    </text>
+                  )}
+                </svg>
+              </div>
+            </div>
           ) : (
             <div style={{
               minHeight: 280,
@@ -559,6 +573,7 @@ export default function RpbThreatGraphTab({
       <ThreatChart
         players={players}
         hiddenPlayerIds={hiddenPlayerIds}
+        targetHistory={selectedEnemy?.targetHistory || []}
         enemyOptions={enemyOptions}
         selectedEnemyKey={selectedEnemyKey}
         onSelectEnemy={setSelectedEnemyKey}
