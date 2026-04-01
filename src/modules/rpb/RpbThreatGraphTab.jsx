@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  surface, border, text, accent, intent, fontSize, fontWeight, radius, space, btnStyle, panelStyle,
+  surface, border, text, accent, fontSize, fontWeight, radius, space, btnStyle, panelStyle,
 } from "../../shared/theme";
 
 const FALLBACK_CLASS_COLORS = {
@@ -445,41 +445,11 @@ export default function RpbThreatGraphTab({
                 Threat Graph
               </div>
               <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
-                Single-boss selection only. This uses the current encounter slicers and locks the graph to one fight at a time.
+                This tab uses the shared encounter selection above and stays locked to a single boss fight.
               </div>
             </div>
             <div style={underDevelopmentBadgeStyle}>
               This tab is currently under development
-            </div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
-            <div style={{ fontSize: fontSize.xs, color: text.muted }}>
-              Boss Fight
-            </div>
-            <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
-              {bossFightOptions.length > 0 ? bossFightOptions.map(option => {
-                const active = String(activeBossFightId) === String(option.id);
-                const toneColor = option.kill ? intent.success : intent.danger;
-                return (
-                  <button
-                    key={option.id}
-                    onClick={() => setSelectedFightId(String(option.id))}
-                    style={{
-                      ...btnStyle("default", active),
-                      height: 30,
-                      background: active ? `${toneColor}26` : `${toneColor}14`,
-                      borderColor: active ? toneColor : `${toneColor}66`,
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                );
-              }) : (
-                <div style={{ fontSize: fontSize.sm, color: text.muted }}>
-                  No boss fights are available in the current filter set.
-                </div>
-              )}
             </div>
           </div>
         </div>

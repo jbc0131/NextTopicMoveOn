@@ -6896,11 +6896,11 @@ export default function RpbPage() {
                           { id: "damage", label: "Damage" },
                           { id: "healing", label: "Healing" },
                           { id: "deaths", label: "Deaths" },
-                          { id: "threat-graph", label: "Threat Graph" },
                           { id: "drums", label: "Drums" },
                           { id: "potions", label: "Potions" },
                           { id: "consumables", label: "Consumables" },
                           { id: "debuffs", label: "Boss Debuffs" },
+                          { id: "threat-graph", label: "Threat Graph" },
                         ].map(option => (
                           <button
                             key={option.id}
@@ -6942,11 +6942,11 @@ export default function RpbPage() {
                             { id: "damage", label: "Damage" },
                             { id: "healing", label: "Healing" },
                             { id: "deaths", label: "Deaths" },
-                            { id: "threat-graph", label: "Threat Graph" },
                             { id: "drums", label: "Drums" },
                             { id: "potions", label: "Potions" },
                             { id: "consumables", label: "Consumables" },
                             { id: "debuffs", label: "Boss Debuffs" },
+                            { id: "threat-graph", label: "Threat Graph" },
                           ].map(option => (
                             <button
                               key={option.id}
