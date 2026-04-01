@@ -460,8 +460,13 @@ function ThreatChart({
       onMouseLeave={() => setHoveredTooltip(null)}
     >
       <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, display: "flex", flexDirection: "column", gap: space[3] }}>
-        <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-          Threat Timeline
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Threat Timeline
+          </div>
+          <div style={underDevelopmentBadgeStyle}>
+            This tab is currently under development
+          </div>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: space[3], alignItems: "flex-start", justifyContent: "flex-start" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
@@ -477,11 +482,6 @@ function ThreatChart({
               ))}
             </select>
           </label>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
-            <div style={underDevelopmentBadgeStyle}>
-              This tab is currently under development
-            </div>
-          </div>
         </div>
       </div>
 
