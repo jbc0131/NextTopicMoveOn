@@ -92,6 +92,23 @@ function formatClockFromMs(value) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+function normalizeEncounterEventTimestamp(timestamp, fight) {
+  const value = coerceNumber(timestamp, NaN);
+  if (!Number.isFinite(value)) return 0;
+
+  const durationMs = coerceNumber(fight?.durationMs, 0)
+    || Math.max(
+      0,
+      coerceNumber(fight?.endTime ?? fight?.end_time ?? fight?.end, 0)
+      - coerceNumber(fight?.startTime ?? fight?.start_time ?? fight?.start, 0),
+    );
+  const startTime = coerceNumber(fight?.startTime ?? fight?.start_time ?? fight?.start, 0);
+  if (value > durationMs + 5000 && startTime > 0) {
+    return Math.max(0, value - startTime);
+  }
+  return Math.max(0, value);
+}
+
 function normalizeTracePoint(point = {}, fallbackIndex = 0) {
   const timeMs = coerceNumber(
     point.timeMs ?? point.timestampMs ?? point.timestamp ?? point.time ?? point.x,
@@ -351,7 +368,7 @@ function buildTargetSegments(targetHistory = [], fightDurationMs = 0) {
   })).filter(entry => entry.endTimeMs > coerceNumber(entry.timeMs, 0));
 }
 
-function buildDeathMarkers(deathEntries = [], players = [], fightDurationMs = 0) {
+function buildDeathMarkers(deathEntries = [], players = [], fightDurationMs = 0, fight = null) {
   if (!Array.isArray(deathEntries) || !deathEntries.length) return [];
   const playersById = new Map((players || []).map(player => [String(player.playerId), player]));
 
@@ -360,7 +377,13 @@ function buildDeathMarkers(deathEntries = [], players = [], fightDurationMs = 0)
       const player = playersById.get(String(entry?.id || ""));
       if (!player) return null;
       if (coerceNumber(player.initialCoefficient, 0) <= 1) return null;
-      const timeMs = Math.max(0, Math.min(coerceNumber(entry?.timestamp, 0), coerceNumber(fightDurationMs, 0)));
+      const timeMs = Math.max(
+        0,
+        Math.min(
+          normalizeEncounterEventTimestamp(entry?.timestamp, fight),
+          coerceNumber(fightDurationMs, 0),
+        ),
+      );
       return {
         markerKey: `${player.playerId}-${timeMs}-${index}`,
         playerId: String(player.playerId),
@@ -438,6 +461,7 @@ function ThreatChart({
   fightDurationMs,
   targetHistory,
   deathEntries,
+  fight,
   enemyOptions,
   selectedEnemyKey,
   onSelectEnemy,
@@ -530,11 +554,11 @@ function ThreatChart({
   const yTicks = maxThreat > 0 ? [0.25, 0.5, 0.75, 1] : [];
   const baseTargetSegments = useMemo(() => buildTargetSegments(targetHistory, maxTimeMs), [targetHistory, maxTimeMs]);
   const deathMarkers = useMemo(
-    () => stackDeathMarkers(buildDeathMarkers(deathEntries, adjustedPlayers, maxTimeMs).map(marker => ({
+    () => stackDeathMarkers(buildDeathMarkers(deathEntries, adjustedPlayers, maxTimeMs, fight).map(marker => ({
       ...marker,
       x: (coerceNumber(marker.timeMs, 0) / Math.max(1, maxTimeMs)) * width,
     }))),
-    [deathEntries, adjustedPlayers, maxTimeMs],
+    [deathEntries, adjustedPlayers, maxTimeMs, fight],
   );
   const targetSegments = useMemo(
     () => alignTargetSegmentsWithDeaths(baseTargetSegments, deathMarkers),
@@ -1171,6 +1195,7 @@ export default function RpbThreatGraphTab({
         hiddenPlayerIds={hiddenPlayerIds}
         targetHistory={selectedEnemy?.targetHistory || []}
         deathEntries={selectedFight?.deathEntries || []}
+        fight={selectedFight}
         enemyOptions={enemyOptions}
         selectedEnemyKey={selectedEnemyKey}
         onSelectEnemy={setSelectedEnemyKey}
