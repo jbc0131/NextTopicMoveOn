@@ -23,6 +23,19 @@ const PLAYER_CLASS_COLORS = {
   Warrior: "#C79C6E",
 };
 
+const DRUID = {
+  MOD: {
+    MANGLE: 1 + ((1.5 - 1.15) / 1.15),
+    T6_2PC: 1.5,
+  },
+  BUFF: {
+    T6_2PC: 38447,
+  },
+  TIER: {
+    T6: 676,
+  },
+};
+
 function getThreatCoefficient(values) {
   if (typeof values === "number") values = { 0: values };
   if (!(0 in values)) values[0] = 1;
@@ -49,6 +62,10 @@ function cloneTalentConfig(talents = {}) {
 
 function gearHasEnchant(gear = [], enchantId) {
   return (gear || []).some(item => Number(item?.permanentEnchant || 0) === Number(enchantId));
+}
+
+function gearSetCount(gear = [], setId) {
+  return (gear || []).filter(item => Number(item?.setID || 0) === Number(setId)).length;
 }
 
 function numeric(value, fallback = 0) {
@@ -153,6 +170,7 @@ const THREAT_CONFIG = {
     2613: "Threat Gloves Enchant",
     2621: "Subtlety Gloves Enchant",
     40618: "Insignificance",
+    [DRUID.BUFF.T6_2PC]: "Improved Mangle (T6 2pc)",
   },
   buffMultipliers: {
     71: getThreatCoefficient(1.3),
@@ -165,6 +183,13 @@ const THREAT_CONFIG = {
     2613: getThreatCoefficient(1.02),
     2621: getThreatCoefficient(0.98),
     40618: getThreatCoefficient(0),
+    [DRUID.BUFF.T6_2PC]: (spellSchool, spellId) => {
+      const mangleSpells = { 33878: true, 33986: true, 33987: true };
+      if (spellId in mangleSpells) {
+        return DRUID.MOD.T6_2PC / DRUID.MOD.MANGLE;
+      }
+      return 1;
+    },
   },
   talents: {
     Warrior: {
@@ -283,6 +308,10 @@ const THREAT_CONFIG = {
     All: (info, buffs) => {
       if (gearHasEnchant(info?.gear, 2613)) buffs[2613] = true;
       if (gearHasEnchant(info?.gear, 2621)) buffs[2621] = true;
+    },
+    Druid: (info, buffs, talents) => {
+      if ((info?.talents?.[1]?.id ?? 0) < 8 && talents["Feral Instinct"]) talents["Feral Instinct"].rank = 0;
+      if (gearSetCount(info?.gear, DRUID.TIER.T6) >= 2) buffs[DRUID.BUFF.T6_2PC] = true;
     },
     Warrior: (info, _buffs, talents) => {
       if ((info?.talents?.[1]?.id ?? 0) < 35 && talents["Improved Berserker Stance"]) talents["Improved Berserker Stance"].rank = 0;
@@ -722,7 +751,8 @@ class Unit {
     for (const buffId of Object.keys(this.buffs)) {
       const multiplier = this.config.buffMultipliers[buffId];
       if (!multiplier) continue;
-      coefficient = applyThreatCoefficient(coefficient, multiplier(spellSchool), this.config.buffNames[buffId] || `Buff ${buffId}`);
+      const nextValue = typeof multiplier === "function" ? multiplier(spellSchool, spellId) : multiplier;
+      coefficient = applyThreatCoefficient(coefficient, nextValue, this.config.buffNames[buffId] || `Buff ${buffId}`);
     }
 
     for (const [talentName, talent] of Object.entries(this.talents || {})) {

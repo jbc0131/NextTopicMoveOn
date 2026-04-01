@@ -357,45 +357,51 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
           return (
             <div
               key={player.playerId}
+              onClick={() => togglePlayer(player.playerId)}
+              onKeyDown={event => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  togglePlayer(player.playerId);
+                }
+              }}
+              role="button"
+              tabIndex={0}
               style={{
                 border: `1px solid ${selected ? accent.blue : border.subtle}`,
                 borderRadius: radius.base,
                 background: selected ? `${accent.blue}10` : surface.base,
                 padding: space[3],
                 display: "flex",
-                flexDirection: "column",
-                gap: space[2],
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: space[3],
+                color: text.primary,
+                cursor: "pointer",
+                textAlign: "left",
               }}
             >
-              <button
-                onClick={() => setSelectedRaiderId(String(player.playerId))}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  color: text.primary,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: space[3],
-                  cursor: "pointer",
-                  textAlign: "left",
+              <span
+                onClick={event => {
+                  event.stopPropagation();
+                  setSelectedRaiderId(String(player.playerId));
                 }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={event => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setSelectedRaiderId(String(player.playerId));
+                  }
+                }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, cursor: "pointer" }}
               >
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 999, background: player.color, opacity: hidden ? 0.35 : 1, flexShrink: 0 }} />
-                  <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{player.name}</span>
-                </span>
-                <span style={{ fontSize: fontSize.xs, color: text.muted }}>
-                  {selected ? "Selected" : "Select"}
-                </span>
-              </button>
-              <button
-                onClick={() => togglePlayer(player.playerId)}
-                style={{ ...btnStyle(hidden ? "default" : "primary", !hidden), height: 28, justifyContent: "center" }}
-              >
-                {hidden ? "Show Line" : "Hide Line"}
-              </button>
+                <span style={{ width: 10, height: 10, borderRadius: 999, background: player.color, opacity: hidden ? 0.35 : 1, flexShrink: 0 }} />
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{player.name}</span>
+              </span>
+              <span style={{ fontSize: fontSize.xs, color: text.muted }}>
+                {hidden ? "Hidden" : "Visible"}
+              </span>
             </div>
           );
         })}
