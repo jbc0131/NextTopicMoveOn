@@ -71,6 +71,37 @@ function clampThreat(value) {
   return Math.max(0, numeric(value, 0));
 }
 
+function compactThreatSeries(points = [], bucketMs = 1000) {
+  if (!Array.isArray(points) || !points.length) return [];
+  const compacted = [];
+  let lastBucket = -1;
+
+  for (const point of points) {
+    const timeMs = Math.max(0, Math.round(numeric(point.timeMs, 0)));
+    const threat = Math.round(numeric(point.threat, 0));
+    const bucket = Math.floor(timeMs / Math.max(1, bucketMs));
+    if (bucket !== lastBucket) {
+      compacted.push({ timeMs, threat });
+      lastBucket = bucket;
+      continue;
+    }
+    compacted[compacted.length - 1] = { timeMs, threat };
+  }
+
+  const lastPoint = points[points.length - 1];
+  const normalizedLast = {
+    timeMs: Math.max(0, Math.round(numeric(lastPoint?.timeMs, 0))),
+    threat: Math.round(numeric(lastPoint?.threat, 0)),
+  };
+
+  const tail = compacted[compacted.length - 1];
+  if (!tail || tail.timeMs !== normalizedLast.timeMs || tail.threat !== normalizedLast.threat) {
+    compacted.push(normalizedLast);
+  }
+
+  return compacted;
+}
+
 function buildModifierRows(unit, config) {
   const rows = [
     { label: "Initial coefficient", value: Number(unit.initialCoeff || 1).toFixed(3) },
@@ -894,7 +925,7 @@ function buildGlobalUnitMap(fightsData = {}) {
 function buildFightEnemySnapshot(enemy, fight) {
   const players = Object.entries(enemy.threat || {}).map(([playerKey, trace]) => {
     const target = trace.target;
-    const series = trace.toSeries(fight.start);
+    const series = compactThreatSeries(trace.toSeries(fight.start));
     const highestThreat = Math.max(...series.map(point => numeric(point.threat, 0)), 0);
     return {
       playerId: String(target?.global?.id || playerKey),
@@ -904,8 +935,6 @@ function buildFightEnemySnapshot(enemy, fight) {
       color: PLAYER_CLASS_COLORS[target?.type] || "#71d5ff",
       series,
       highestThreat,
-      abilities: trace.threatBySkill(fight.start),
-      modifiers: buildModifierRows(target, THREAT_CONFIG),
     };
   }).sort((left, right) => right.highestThreat - left.highestThreat || sortName(left.name, right.name));
 

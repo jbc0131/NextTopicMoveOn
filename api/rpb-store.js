@@ -63,7 +63,6 @@ function getRaidMeta(raid) {
     reportSpeedPercent: getReportSpeedPercent(raid),
     topDpsLeader,
     topHealerLeader,
-    importPayload: raid.importPayload || null,
     source: "redis",
   };
 }
@@ -73,6 +72,7 @@ function getRaidKeys(raidId) {
     meta: buildCacheKey("rpb", ["raid", raidId, "meta"]),
     fights: buildCacheKey("rpb", ["raid", raidId, "fights"]),
     players: buildCacheKey("rpb", ["raid", raidId, "players"]),
+    importPayload: buildCacheKey("rpb", ["raid", raidId, "import-payload"]),
   };
 }
 
@@ -204,6 +204,7 @@ export async function saveRaidBundle(raid, options = {}) {
     setJsonCache(keys.meta, meta),
     setJsonCache(keys.fights, raid.fights || []),
     setJsonCache(keys.players, raid.players || []),
+    setJsonCache(keys.importPayload, raid.importPayload || {}),
     setJsonCache(RPB_INDEX_KEY, nextIndex),
   ]);
 
@@ -252,8 +253,10 @@ export async function getRaidBundle(raidId) {
   }
 
   if (!meta) return null;
+  const importPayload = await getJsonCache(keys.importPayload);
   return {
     ...meta,
+    importPayload: importPayload || meta.importPayload || {},
     fights: fights || [],
     players: players || [],
   };
@@ -288,6 +291,7 @@ async function deleteRaidBundle(raidId) {
     deleteKey(keys.meta),
     deleteKey(keys.fights),
     deleteKey(keys.players),
+    deleteKey(keys.importPayload),
     setJsonCache(RPB_INDEX_KEY, nextIndex),
   ]);
 

@@ -112,18 +112,18 @@ function ThreatChart({ players, fightDurationMs, enemyOptions, selectedEnemyKey,
 
   return (
     <div style={{ ...panelStyle, overflow: "hidden" }}>
-      <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, display: "flex", justifyContent: "space-between", gap: space[3], flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            Threat Timeline
+      <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, display: "flex", flexDirection: "column", gap: space[3] }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: space[3], alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Threat Timeline
+            </div>
+            <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
+              {hasGraphData
+                ? `Showing ${visiblePlayers.length} visible raider line${visiblePlayers.length === 1 ? "" : "s"}`
+                : "Threat series data will render here once imported."}
+            </div>
           </div>
-          <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
-            {hasGraphData
-              ? `Showing ${visiblePlayers.length} visible raider line${visiblePlayers.length === 1 ? "" : "s"}`
-              : "Threat series data will render here once imported."}
-          </div>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: space[3], alignItems: "flex-start" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
             <span style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Enemy
@@ -137,14 +137,14 @@ function ThreatChart({ players, fightDurationMs, enemyOptions, selectedEnemyKey,
               ))}
             </select>
           </label>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
             <div style={underDevelopmentBadgeStyle}>
               This tab is currently under development
             </div>
-            <div style={{ fontSize: fontSize.xs, color: text.muted }}>
-              {fightDurationMs > 0 ? `Fight length ${formatSecondsFromMs(fightDurationMs)}` : "Awaiting a boss-fight snapshot"}
-            </div>
           </div>
+        </div>
+        <div style={{ fontSize: fontSize.xs, color: text.muted }}>
+          {fightDurationMs > 0 ? `Fight length ${formatSecondsFromMs(fightDurationMs)}` : "Awaiting a boss-fight snapshot"}
         </div>
       </div>
 
@@ -272,19 +272,6 @@ export default function RpbThreatGraphTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
-      <div style={{ ...panelStyle, padding: space[4], display: "flex", flexDirection: "column", gap: space[3] }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Threat Graph
-            </div>
-            <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
-              This tab uses the shared encounter selection above and binds the timeline to a single enemy threat table per boss fight.
-            </div>
-          </div>
-        </div>
-      </div>
-
       <ThreatChart
         players={players}
         enemyOptions={enemyOptions}
