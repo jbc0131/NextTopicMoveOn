@@ -288,6 +288,21 @@ function scaleThreatSeries(series = [], ratio = 1) {
   });
 }
 
+function hasManualBuffOverrides(buffRows = [], buffStates = {}) {
+  return (buffRows || []).some(row => {
+    const key = row.buffId || row.label;
+    if (!(key in buffStates)) return false;
+    return normalizeBuffState(buffStates[key]) !== normalizeBuffState(row.state);
+  });
+}
+
+function hasManualTalentOverrides(talentRows = [], talentRanks = {}) {
+  return (talentRows || []).some(row => {
+    if (!(row.label in talentRanks)) return false;
+    return coerceNumber(talentRanks[row.label], row.rank ?? 0) !== coerceNumber(row.rank, 0);
+  });
+}
+
 function buildAbilityTotals(rows = [], fightDurationMs = 0) {
   const totals = new Map();
   for (const row of rows || []) {
@@ -369,6 +384,15 @@ function ThreatChart({
 
   const adjustedPlayers = useMemo(() => {
     if (!selectedRaider) return players;
+
+    const hasManualOverrides = hasManualBuffOverrides(
+      selectedRaider.inferredBuffs || [],
+      buffStates,
+    ) || hasManualTalentOverrides(
+      selectedRaider.inferredTalents || [],
+      talentRanks,
+    );
+    if (!hasManualOverrides) return players;
 
     const nextCoefficient = computeThreatCoefficient(
       selectedRaider.type,
