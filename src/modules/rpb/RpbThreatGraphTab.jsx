@@ -344,6 +344,29 @@ function buildTargetSegments(targetHistory = [], fightDurationMs = 0) {
   })).filter(entry => entry.endTimeMs > coerceNumber(entry.timeMs, 0));
 }
 
+function buildDeathMarkers(deathEntries = [], players = [], fightDurationMs = 0) {
+  if (!Array.isArray(deathEntries) || !deathEntries.length) return [];
+  const playersById = new Map((players || []).map(player => [String(player.playerId), player]));
+
+  return deathEntries
+    .map((entry, index) => {
+      const player = playersById.get(String(entry?.id || ""));
+      if (!player) return null;
+      if (coerceNumber(player.initialCoefficient, 0) <= 1) return null;
+      const timeMs = Math.max(0, Math.min(coerceNumber(entry?.timestamp, 0), coerceNumber(fightDurationMs, 0)));
+      return {
+        markerKey: `${player.playerId}-${timeMs}-${index}`,
+        playerId: String(player.playerId),
+        name: player.name,
+        color: player.color,
+        timeMs,
+        label: `${player.name}'s Dead.`,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.timeMs - right.timeMs || left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
+}
+
 function getTooltipPosition(event) {
   return {
     x: event.clientX + 12,
@@ -356,6 +379,7 @@ function ThreatChart({
   hiddenPlayerIds,
   fightDurationMs,
   targetHistory,
+  deathEntries,
   enemyOptions,
   selectedEnemyKey,
   onSelectEnemy,
@@ -368,6 +392,7 @@ function ThreatChart({
   const width = 920;
   const height = 320;
   const targetBandHeight = 28;
+  const deathBandHeight = 28;
   const [hoveredTooltip, setHoveredTooltip] = useState(null);
   const [buffStates, setBuffStates] = useState({});
   const [talentRanks, setTalentRanks] = useState({});
@@ -446,6 +471,10 @@ function ThreatChart({
   const hasGraphData = maxThreat > 0 && visiblePlayers.some(player => player.series.length > 1);
   const yTicks = maxThreat > 0 ? [0.25, 0.5, 0.75, 1] : [];
   const targetSegments = buildTargetSegments(targetHistory, maxTimeMs);
+  const deathMarkers = useMemo(
+    () => buildDeathMarkers(deathEntries, adjustedPlayers, maxTimeMs),
+    [deathEntries, adjustedPlayers, maxTimeMs],
+  );
 
   const abilityRows = useMemo(
     () => buildAbilityTotals(displaySelectedRaider?.abilities || [], fightDurationMs),
@@ -586,11 +615,17 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                               x: tooltip.x,
                               y: tooltip.y,
                               title: segment.name,
-                              lines: [`Boss Target: ${segment.name}`],
+                              lines: [
+                                `Boss Target: ${segment.name}`,
+                                `Start Threat Time: ${formatSecondsFromMs(segment.timeMs)}`,
+                                `End Threat Time: ${formatSecondsFromMs(segment.endTimeMs)}`,
+                              ],
                             });
                           }}
                         >
-                          <title>{`Boss Target: ${segment.name}`}</title>
+                          <title>{`Boss Target: ${segment.name}
+Start Threat Time: ${formatSecondsFromMs(segment.timeMs)}
+End Threat Time: ${formatSecondsFromMs(segment.endTimeMs)}`}</title>
                         </rect>
                         {nextX - x > 64 ? (
                           <text x={x + 6} y={18} fill="rgba(226,232,240,0.9)" fontSize="12">
@@ -602,6 +637,63 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                   }) : (
                     <text x="6" y="18" fill="rgba(148,163,184,0.9)" fontSize="12">
                       No boss target timeline available
+                    </text>
+                  )}
+                </svg>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "110px minmax(0, 1fr)", gap: 10, alignItems: "center" }}>
+                <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Deaths
+                </div>
+                <svg viewBox={`0 0 ${width} ${deathBandHeight}`} style={{ width: "100%", height: "28px", display: "block" }} role="img" aria-label="Death timeline">
+                  {deathMarkers.length ? deathMarkers.map(marker => {
+                    const x = (coerceNumber(marker.timeMs, 0) / maxTimeMs) * width;
+                    const labelWidth = Math.min(132, Math.max(72, marker.label.length * 6.2));
+                    const clampedX = Math.max(0, Math.min(width - labelWidth, x - 4));
+                    const textFits = clampedX + labelWidth <= width;
+                    return (
+                      <g key={marker.markerKey}>
+                        <rect
+                          x={clampedX}
+                          y="2"
+                          width={labelWidth}
+                          height={deathBandHeight - 4}
+                          fill={`${marker.color || "#ef4444"}22`}
+                          stroke={marker.color || "#ef4444"}
+                          strokeWidth="1"
+                          rx="4"
+                          onMouseMove={event => {
+                            const tooltip = getTooltipPosition(event);
+                            setHoveredTooltip({
+                              x: tooltip.x,
+                              y: tooltip.y,
+                              title: marker.label,
+                              lines: [`Time: ${formatSecondsFromMs(marker.timeMs)}`],
+                            });
+                          }}
+                        >
+                          <title>{`${marker.label}
+Time: ${formatSecondsFromMs(marker.timeMs)}`}</title>
+                        </rect>
+                        <line
+                          x1={x}
+                          x2={x}
+                          y1="2"
+                          y2={deathBandHeight - 2}
+                          stroke={marker.color || "#ef4444"}
+                          strokeWidth="1.5"
+                          strokeDasharray="3 2"
+                        />
+                        {textFits ? (
+                          <text x={clampedX + 6} y={18} fill="rgba(226,232,240,0.9)" fontSize="12">
+                            {marker.label}
+                          </text>
+                        ) : null}
+                      </g>
+                    );
+                  }) : (
+                    <text x="6" y="18" fill="rgba(148,163,184,0.9)" fontSize="12">
+                      No tank death timeline available
                     </text>
                   )}
                 </svg>
@@ -1003,6 +1095,7 @@ export default function RpbThreatGraphTab({
         players={players}
         hiddenPlayerIds={hiddenPlayerIds}
         targetHistory={selectedEnemy?.targetHistory || []}
+        deathEntries={selectedFight?.deathEntries || []}
         enemyOptions={enemyOptions}
         selectedEnemyKey={selectedEnemyKey}
         onSelectEnemy={setSelectedEnemyKey}
