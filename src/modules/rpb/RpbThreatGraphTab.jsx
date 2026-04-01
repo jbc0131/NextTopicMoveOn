@@ -68,6 +68,7 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
         color: player.color || getClassColor(player.type || raidPlayer?.type, index),
         series,
         highestThreat,
+        modifiers: Array.isArray(player.modifiers) ? player.modifiers : [],
       };
     }).sort((left, right) => right.highestThreat - left.highestThreat || left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
   }
@@ -81,6 +82,7 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
       color: getClassColor(entry.type || raidPlayer?.type, index),
       series: [],
       highestThreat: 0,
+      modifiers: [],
     };
   }).sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
 }
@@ -150,6 +152,9 @@ function ThreatChart({
   enemyOptions,
   selectedEnemyKey,
   onSelectEnemy,
+  raiderOptions,
+  selectedRaiderId,
+  onSelectRaider,
   underDevelopmentBadgeStyle,
 }) {
   const width = 920;
@@ -190,6 +195,19 @@ function ThreatChart({
               {!enemyOptions.length ? <option value="">No enemy data available</option> : null}
               {enemyOptions.map(option => (
                 <option key={option.enemyKey} value={option.enemyKey}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
+            <span style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Raider
+            </span>
+            <select value={selectedRaiderId} onChange={event => onSelectRaider(event.target.value)} disabled={!raiderOptions.length} style={{ ...inputStyle, minHeight: 34 }}>
+              {!raiderOptions.length ? <option value="">No raider data available</option> : null}
+              {raiderOptions.map(option => (
+                <option key={option.playerId} value={option.playerId}>
                   {option.name}
                 </option>
               ))}
@@ -302,7 +320,7 @@ function ThreatChart({
   );
 }
 
-function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds }) {
+function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, selectedRaiderId, setSelectedRaiderId }) {
   function togglePlayer(playerId) {
     setHiddenPlayerIds(current => {
       const next = new Set(current);
@@ -332,37 +350,97 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds }) {
           </button>
         </div>
       </div>
-      <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[2], maxHeight: 520, overflowY: "auto" }}>
+      <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[2], maxHeight: 360, overflowY: "auto" }}>
         {players.map(player => {
           const hidden = hiddenPlayerIds.has(String(player.playerId));
+          const selected = String(selectedRaiderId) === String(player.playerId);
           return (
-            <button
+            <div
               key={player.playerId}
-              onClick={() => togglePlayer(player.playerId)}
               style={{
-                border: `1px solid ${hidden ? border.subtle : accent.blue}`,
+                border: `1px solid ${selected ? accent.blue : border.subtle}`,
                 borderRadius: radius.base,
-                background: hidden ? surface.base : `${accent.blue}10`,
-                color: text.primary,
+                background: selected ? `${accent.blue}10` : surface.base,
                 padding: space[3],
                 display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: space[3],
-                cursor: "pointer",
-                textAlign: "left",
+                flexDirection: "column",
+                gap: space[2],
               }}
             >
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 999, background: player.color, opacity: hidden ? 0.35 : 1, flexShrink: 0 }} />
-                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{player.name}</span>
-              </span>
-              <span style={{ fontSize: fontSize.xs, color: text.muted }}>
-                {hidden ? "Hidden" : "Visible"}
-              </span>
-            </button>
+              <button
+                onClick={() => setSelectedRaiderId(String(player.playerId))}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  color: text.primary,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: space[3],
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 999, background: player.color, opacity: hidden ? 0.35 : 1, flexShrink: 0 }} />
+                  <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{player.name}</span>
+                </span>
+                <span style={{ fontSize: fontSize.xs, color: text.muted }}>
+                  {selected ? "Selected" : "Select"}
+                </span>
+              </button>
+              <button
+                onClick={() => togglePlayer(player.playerId)}
+                style={{ ...btnStyle(hidden ? "default" : "primary", !hidden), height: 28, justifyContent: "center" }}
+              >
+                {hidden ? "Show Line" : "Hide Line"}
+              </button>
+            </div>
           );
         })}
+      </div>
+      <ThreatModifiersPanel players={players} selectedRaiderId={selectedRaiderId} />
+    </div>
+  );
+}
+
+function ThreatModifiersPanel({ players, selectedRaiderId }) {
+  const selectedPlayer = players.find(player => String(player.playerId) === String(selectedRaiderId)) || players[0] || null;
+  const modifiers = Array.isArray(selectedPlayer?.modifiers) ? selectedPlayer.modifiers : [];
+
+  return (
+    <div style={{ borderTop: `1px solid ${border.subtle}`, padding: space[4], display: "flex", flexDirection: "column", gap: space[2] }}>
+      <div>
+        <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          Assumed Buffs
+        </div>
+        <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
+          {selectedPlayer ? `Threat assumptions for ${selectedPlayer.name}` : "Select a raider to inspect threat assumptions."}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: space[2], maxHeight: 220, overflowY: "auto" }}>
+        {modifiers.length ? modifiers.map(row => (
+          <div
+            key={`${selectedPlayer?.playerId || "none"}-${row.label}`}
+            style={{
+              border: `1px solid ${border.subtle}`,
+              borderRadius: radius.base,
+              background: surface.base,
+              padding: `${space[2]}px ${space[3]}px`,
+              display: "flex",
+              justifyContent: "space-between",
+              gap: space[3],
+            }}
+          >
+            <span style={{ color: text.primary }}>{row.label}</span>
+            <span style={{ color: text.muted, whiteSpace: "nowrap" }}>{row.value}</span>
+          </div>
+        )) : (
+          <div style={{ color: text.muted, fontSize: fontSize.sm }}>
+            No assumed buff or modifier data is available for the selected raider yet.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -432,10 +510,27 @@ export default function RpbThreatGraphTab({
     normalizeThreatPlayers(selectedEnemy, selectedRaid?.players || [], selectedFight)
   ), [selectedEnemy, selectedFight, selectedRaid]);
   const [hiddenPlayerIds, setHiddenPlayerIds] = useState(() => new Set());
+  const [selectedRaiderId, setSelectedRaiderId] = useState("");
+
+  const raiderOptions = useMemo(() => (
+    players.map(player => ({
+      playerId: String(player.playerId),
+      name: player.name,
+    }))
+  ), [players]);
 
   useEffect(() => {
     setHiddenPlayerIds(new Set());
   }, [activeBossFightId, selectedEnemyKey]);
+
+  useEffect(() => {
+    if (!raiderOptions.length) {
+      setSelectedRaiderId("");
+      return;
+    }
+    if (raiderOptions.some(option => option.playerId === selectedRaiderId)) return;
+    setSelectedRaiderId(raiderOptions[0].playerId);
+  }, [raiderOptions, selectedRaiderId]);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobileViewport ? "minmax(0, 1fr)" : "minmax(0, 1.2fr) minmax(280px, 0.52fr)", gap: space[4], minWidth: 0, alignItems: "start" }}>
@@ -445,6 +540,9 @@ export default function RpbThreatGraphTab({
         enemyOptions={enemyOptions}
         selectedEnemyKey={selectedEnemyKey}
         onSelectEnemy={setSelectedEnemyKey}
+        raiderOptions={raiderOptions}
+        selectedRaiderId={selectedRaiderId}
+        onSelectRaider={setSelectedRaiderId}
         fightDurationMs={selectedFight ? Math.max(0, coerceNumber(selectedFight.end_time ?? selectedFight.end, 0) - coerceNumber(selectedFight.start_time ?? selectedFight.start, 0)) : 0}
         underDevelopmentBadgeStyle={underDevelopmentBadgeStyle}
       />
@@ -452,6 +550,8 @@ export default function RpbThreatGraphTab({
         players={players}
         hiddenPlayerIds={hiddenPlayerIds}
         setHiddenPlayerIds={setHiddenPlayerIds}
+        selectedRaiderId={selectedRaiderId}
+        setSelectedRaiderId={setSelectedRaiderId}
       />
     </div>
   );

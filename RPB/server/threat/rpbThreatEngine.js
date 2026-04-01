@@ -937,6 +937,7 @@ function buildFightEnemySnapshot(enemy, fight) {
       color: PLAYER_CLASS_COLORS[target?.type] || "#71d5ff",
       series,
       highestThreat,
+      modifiers: buildModifierRows(target, THREAT_CONFIG),
     };
   }).sort((left, right) => right.highestThreat - left.highestThreat || sortName(left.name, right.name));
 
