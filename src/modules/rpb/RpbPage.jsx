@@ -4002,23 +4002,23 @@ function DeathEventHpBar({ event, compact = false }) {
 function buildDeathTimelineEventKey(event) {
   const normalizedAmount = Number(event?.amount ?? event?.damage ?? event?.healing ?? 0);
   const normalizedSource = String(
-    event?.sourceId
+    event?.sourceName
+    ?? event?.sourceId
     ?? event?.sourceInstance
-    ?? event?.sourceName
     ?? ""
   ).trim().toLowerCase();
   const normalizedTarget = String(
-    event?.targetId
+    event?.targetName
+    ?? event?.targetId
     ?? event?.targetInstance
-    ?? event?.targetName
     ?? ""
   ).trim().toLowerCase();
   const normalizedAbility = String(
-    event?.abilityGameID
+    event?.abilityName
+    ?? event?.name
+    ?? event?.abilityGameID
     ?? event?.abilityGuid
     ?? event?.guid
-    ?? event?.abilityName
-    ?? event?.name
     ?? ""
   ).trim().toLowerCase();
 
