@@ -142,6 +142,14 @@ function buildTargetSegments(targetHistory = [], fightDurationMs = 0) {
   })).filter(entry => entry.endTimeMs > coerceNumber(entry.timeMs, 0));
 }
 
+function getTooltipPosition(event) {
+  const bounds = event.currentTarget.getBoundingClientRect();
+  return {
+    x: event.clientX - bounds.left + 12,
+    y: event.clientY - bounds.top + 12,
+  };
+}
+
 function ThreatChart({
   players,
   hiddenPlayerIds,
@@ -171,9 +179,13 @@ function ThreatChart({
   const hasGraphData = maxThreat > 0 && visiblePlayers.some(player => player.series.length > 1);
   const yTicks = maxThreat > 0 ? [0.25, 0.5, 0.75, 1] : [];
   const targetSegments = buildTargetSegments(targetHistory, maxTimeMs);
+  const [hoveredTooltip, setHoveredTooltip] = useState(null);
 
   return (
-    <div style={{ ...panelStyle, overflow: "hidden" }}>
+    <div
+      style={{ ...panelStyle, overflow: "hidden", position: "relative" }}
+      onMouseLeave={() => setHoveredTooltip(null)}
+    >
       <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, display: "flex", flexDirection: "column", gap: space[3] }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: space[3], alignItems: "flex-start" }}>
           <div>
@@ -271,6 +283,19 @@ function ThreatChart({
                           fill={player.color}
                           stroke="rgba(6,12,19,0.95)"
                           strokeWidth="0.75"
+                          onMouseMove={event => {
+                            const tooltip = getTooltipPosition(event);
+                            setHoveredTooltip({
+                              x: tooltip.x,
+                              y: tooltip.y,
+                              title: player.name,
+                              lines: [
+                                `Ability: ${point.label || "Unknown"}`,
+                                `Threat: ${Math.round(coerceNumber(point.deltaThreat, point.threat)).toLocaleString()}`,
+                                `Boss Target: ${bossTarget?.name || "Unknown"}`,
+                              ],
+                            });
+                          }}
                         >
                           <title>{`${player.name}
 Ability: ${point.label || "Unknown"}
@@ -303,6 +328,15 @@ Boss Target: ${bossTarget?.name || "Unknown"}`}</title>
                           stroke={player?.color || "#64748b"}
                           strokeWidth="1"
                           rx="4"
+                          onMouseMove={event => {
+                            const tooltip = getTooltipPosition(event);
+                            setHoveredTooltip({
+                              x: tooltip.x,
+                              y: tooltip.y,
+                              title: segment.name,
+                              lines: [`Boss Target: ${segment.name}`],
+                            });
+                          }}
                         >
                           <title>{`Boss Target: ${segment.name}`}</title>
                         </rect>
@@ -343,6 +377,32 @@ Boss Target: ${bossTarget?.name || "Unknown"}`}</title>
           )}
         </div>
       </div>
+      {hoveredTooltip ? (
+        <div
+          style={{
+            position: "absolute",
+            left: hoveredTooltip.x,
+            top: hoveredTooltip.y,
+            pointerEvents: "none",
+            zIndex: 5,
+            background: "rgba(2,6,23,0.96)",
+            border: `1px solid ${border.subtle}`,
+            borderRadius: radius.base,
+            padding: `${space[2]}px ${space[3]}px`,
+            boxShadow: "0 12px 24px rgba(0,0,0,0.28)",
+            minWidth: 160,
+          }}
+        >
+          <div style={{ color: text.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
+            {hoveredTooltip.title}
+          </div>
+          {hoveredTooltip.lines.map(line => (
+            <div key={line} style={{ color: text.muted, fontSize: fontSize.xs, marginTop: 2, whiteSpace: "nowrap" }}>
+              {line}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -88,6 +88,18 @@ function clampThreat(value) {
   return Math.max(0, numeric(value, 0));
 }
 
+function isPrimaryTargetAction(event = {}) {
+  const abilityGuid = Number(event?.ability?.guid || 0);
+  const abilityName = String(event?.ability?.name || "").trim().toLowerCase();
+  if (event?.type === "damage" || event?.type === "miss") {
+    return abilityGuid === 1 || abilityName === "attack" || abilityName === "melee";
+  }
+  if (event?.type === "cast" || event?.type === "begincast") {
+    return abilityGuid === 1 || abilityName === "attack" || abilityName === "melee";
+  }
+  return false;
+}
+
 function compactThreatSeries(points = [], bucketMs = 1000) {
   if (!Array.isArray(points) || !points.length) return [];
   const compacted = [];
@@ -888,7 +900,7 @@ class FightState {
 
     const source = this.eventToUnit(event, "source", false);
     const target = this.eventToUnit(event, "target", false);
-    if (source && source.isEnemy && target && !target.isEnemy && ["begincast", "cast", "damage", "miss"].includes(event?.type)) {
+    if (source && source.isEnemy && target && !target.isEnemy && isPrimaryTargetAction(event)) {
       source.setCurrentTarget(target, event?.timestamp, event?.ability?.name || event?.type || "");
     }
 
