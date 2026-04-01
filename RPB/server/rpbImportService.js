@@ -85,6 +85,29 @@ const POTION_RESOURCE_MATCH_WINDOW_MS = 5000;
 const WCL_CACHE_TTL_SECONDS = 60 * 15;
 const WCL_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
 const WCL_V1_MIN_REQUEST_GAP_MS = 350;
+export const RPB_IMPORT_STEP_ORDER = [
+  "fights",
+  "summary",
+  "deaths",
+  "tracked",
+  "hostile",
+  "fullCasts",
+  "engineering",
+  "oil",
+  "buffs",
+  "drums",
+  "drumsByFight",
+  "potionsByFight",
+  "reportRankings",
+  "reportSpeed",
+  "raiderData",
+  "damageByFight",
+  "healingByFight",
+  "deathsByFight",
+  "debuffsByFight",
+  "buffsByFight",
+  "threatByFight",
+];
 let cachedV2Token = null;
 let cachedV2TokenExpiresAt = 0;
 let wclV1RequestQueue = Promise.resolve();
@@ -2841,6 +2864,111 @@ async function fetchFightDrumSnapshots(reportId, apiKeyOverride = "") {
   return { snapshots };
 }
 
+function normalizeThreatEventPayload(event = {}) {
+  if (!event || typeof event !== "object") return null;
+
+  const normalized = {
+    type: event.type || "",
+    timestamp: Number(event.timestamp || 0),
+    sourceID: event.sourceID ?? event.source?.id ?? null,
+    sourceInstance: event.sourceInstance ?? null,
+    sourceIsFriendly: event.sourceIsFriendly ?? null,
+    targetID: event.targetID ?? event.target?.id ?? null,
+    targetInstance: event.targetInstance ?? null,
+    targetIsFriendly: event.targetIsFriendly ?? null,
+    sourceName: event.sourceName || event.source?.name || "",
+    targetName: event.targetName || event.target?.name || "",
+    amount: event.amount ?? null,
+    absorbed: event.absorbed ?? null,
+    overkill: event.overkill ?? null,
+    overheal: event.overheal ?? null,
+    hitType: event.hitType ?? null,
+    tick: event.tick ?? false,
+    resourceChangeType: event.resourceChangeType ?? null,
+    waste: event.waste ?? null,
+    x: event.x ?? null,
+    y: event.y ?? null,
+    stack: event.stack ?? event.stacks ?? null,
+  };
+
+  if (event.ability) {
+    normalized.ability = {
+      guid: event.ability.guid ?? null,
+      name: event.ability.name || "",
+      type: event.ability.type ?? null,
+    };
+  }
+
+  if (event.extraAbility) {
+    normalized.extraAbility = {
+      guid: event.extraAbility.guid ?? null,
+      name: event.extraAbility.name || "",
+      type: event.extraAbility.type ?? null,
+    };
+  }
+
+  if (Array.isArray(event.auras)) {
+    normalized.auras = event.auras.map(aura => ({
+      ability: aura?.ability ?? null,
+      name: aura?.name || "",
+    }));
+  }
+
+  if (Array.isArray(event.gear)) {
+    normalized.gear = event.gear.map(item => ({
+      id: item?.id ?? null,
+      icon: item?.icon || "",
+      itemLevel: item?.itemLevel ?? null,
+      permanentEnchant: item?.permanentEnchant ?? null,
+      temporaryEnchant: item?.temporaryEnchant ?? null,
+      gems: Array.isArray(item?.gems) ? item.gems.map(gem => ({ id: gem?.id ?? null })) : [],
+    }));
+  }
+
+  if (Array.isArray(event.talents)) {
+    normalized.talents = event.talents.map(tab => ({
+      id: tab?.id ?? null,
+      points: tab?.points ?? null,
+    }));
+  }
+
+  return normalized;
+}
+
+async function fetchFightThreatSnapshots(reportId, apiKeyOverride = "") {
+  const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
+  const snapshotFights = (fightsData.fights || []).filter(fight =>
+    (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
+  );
+
+  const snapshots = [];
+  for (const fight of snapshotFights) {
+    const events = await fetchAllEventPages(`/report/events/${reportId}`, {
+      start: fight.start_time ?? 0,
+      end: fight.end_time ?? 0,
+    }, apiKeyOverride);
+
+    snapshots.push({
+      fightId: String(fight.id),
+      encounterId: fight.boss || 0,
+      fightName: fight.name || "Unknown Fight",
+      start: fight.start_time ?? 0,
+      end: fight.end_time ?? 0,
+      events: events.map(normalizeThreatEventPayload).filter(Boolean),
+    });
+  }
+
+  return {
+    available: true,
+    gameVersion: fightsData?.gameVersion ?? null,
+    friendlies: fightsData?.friendlies || [],
+    friendlyPets: fightsData?.friendlyPets || [],
+    enemies: fightsData?.enemies || [],
+    enemyPets: fightsData?.enemyPets || [],
+    snapshots,
+  };
+}
+
 export function parseReportId(input) {
   if (!input || typeof input !== "string") return "";
   const trimmed = input.trim();
@@ -3694,9 +3822,12 @@ export async function fetchRpbImportStep(action, input = {}) {
       }
     case "reportSpeed":
       try {
+        const fightsDataset = input?.fights && Object.keys(input.fights || {}).length > 0
+          ? input.fights
+          : await fetchRpbImportStep("fights", { reportId, apiKey });
         return await fetchReportSpeed(
           reportId,
-          input?.fights || {},
+          fightsDataset || {},
           wclV2ClientId,
           wclV2ClientSecret,
         );
@@ -3715,6 +3846,8 @@ export async function fetchRpbImportStep(action, input = {}) {
       return fetchFightDebuffSnapshots(reportId, apiKey);
     case "buffsByFight":
       return fetchFightBuffSnapshots(reportId, apiKey);
+    case "threatByFight":
+      return fetchFightThreatSnapshots(reportId, apiKey);
     case "playerAbilityBreakdown":
       return fetchPlayerAbilityBreakdown({
         reportUrl,
@@ -3882,6 +4015,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
       deathsByFight: datasets.deathsByFight || {},
       debuffsByFight: datasets.debuffsByFight || {},
       buffsByFight: datasets.buffsByFight || {},
+      threatByFight: datasets.threatByFight || {},
     },
     fights,
     analytics: analytics.overview,
@@ -3894,31 +4028,9 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
 
 export async function importRpbRaid({ reportUrl, reportId: rawReportId, apiKey = "" }) {
   const input = { reportUrl, reportId: rawReportId, apiKey };
-  const stepOrder = [
-    "fights",
-    "summary",
-    "deaths",
-    "tracked",
-    "hostile",
-    "fullCasts",
-    "engineering",
-    "oil",
-    "buffs",
-    "drums",
-    "drumsByFight",
-    "potionsByFight",
-    "reportRankings",
-    "reportSpeed",
-    "raiderData",
-    "damageByFight",
-    "healingByFight",
-    "deathsByFight",
-    "debuffsByFight",
-    "buffsByFight",
-  ];
   const datasets = {};
 
-  for (const step of stepOrder) {
+  for (const step of RPB_IMPORT_STEP_ORDER) {
     datasets[step] = await fetchRpbImportStep(step, input);
     await sleep(250);
   }

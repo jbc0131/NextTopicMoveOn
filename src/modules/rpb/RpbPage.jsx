@@ -5,6 +5,7 @@ import { getLoginUrl, useAuth } from "../../shared/auth";
 import { getScoreColor } from "../../shared/useWarcraftLogs";
 import { getRaidCardLeaders } from "./leaderboard.js";
 import { buildAutoReportTitle } from "./reportTitle.js";
+import RpbThreatGraphTab from "./RpbThreatGraphTab.jsx";
 import {
   fetchRpbRaidBundle,
   deleteRpbRaidImport,
@@ -71,7 +72,32 @@ const VALID_RPB_TABS = new Set([
   "potions",
   "consumables",
   "debuffs",
+  "threat-graph",
 ]);
+const RPB_IMPORT_STEP_DEFINITIONS = [
+  { key: "fights", label: "Scanning report structure...", detail: "GET /report/fights", estimateMs: 1200 },
+  { key: "summary", label: "Pulling summary roster data...", detail: "GET /report/tables/summary", estimateMs: 1800 },
+  { key: "deaths", label: "Pulling death recap data...", detail: "GET /report/tables/deaths", estimateMs: 1800 },
+  { key: "tracked", label: "Collecting tracked raid cooldown casts...", detail: "GET /report/tables/casts (tracked filter)", estimateMs: 1800 },
+  { key: "hostile", label: "Collecting hostile-player damage...", detail: "GET /report/tables/damage-taken (hostility=1)", estimateMs: 1800 },
+  { key: "fullCasts", label: "Capturing combatant and gear snapshots...", detail: "GET /report/tables/casts (full report)", estimateMs: 2600 },
+  { key: "engineering", label: "Scanning engineering explosives...", detail: "GET /report/tables/damage-done (engineering filter)", estimateMs: 1400 },
+  { key: "oil", label: "Scanning oil of immolation ticks...", detail: "GET /report/tables/damage-taken (ability 11351)", estimateMs: 1200 },
+  { key: "buffs", label: "Extracting buff and consumable auras...", detail: "GET /report/tables/buffs", estimateMs: 2600 },
+  { key: "buffsByFight", label: "Saving consumable coverage per boss fight...", detail: "GET /report/tables/buffs per boss fight", estimateMs: 7000 },
+  { key: "drums", label: "Extracting drums usage...", detail: "GET /report/tables/casts (drums filter)", estimateMs: 1400 },
+  { key: "drumsByFight", label: "Saving drums effectiveness per boss fight...", detail: "GET /report/events/casts + /report/events/buffs per boss fight", estimateMs: 8000 },
+  { key: "potionsByFight", label: "Saving potion and recovery timelines...", detail: "GET /report/events/casts + /report/events/buffs + /report/events/healing per boss fight", estimateMs: 10000 },
+  { key: "reportRankings", label: "Fetching Warcraft Logs parse rankings...", detail: "POST /api/v2/client report.rankings", estimateMs: 2500 },
+  { key: "reportSpeed", label: "Fetching report and boss speed rankings...", detail: "POST /api/v2/client report.rankings speed rows", estimateMs: 2000 },
+  { key: "raiderData", label: "Capturing boss-pull player snapshots...", detail: "GET /report/tables/summary per boss fight", estimateMs: 8000 },
+  { key: "damageByFight", label: "Saving damage ability breakdowns...", detail: "GET /report/tables/damage-done per fight (options=2)", estimateMs: 20000 },
+  { key: "healingByFight", label: "Saving healing ability breakdowns...", detail: "GET /report/tables/healing per fight (options=2)", estimateMs: 15000 },
+  { key: "deathsByFight", label: "Saving death events per fight...", detail: "GET /report/tables/deaths per fight", estimateMs: 8000 },
+  { key: "debuffsByFight", label: "Saving tracked boss debuffs per fight...", detail: "GET /report/tables/debuffs + /report/events/debuffs per boss fight", estimateMs: 9000 },
+  { key: "threatByFight", label: "Saving threat-engine event payloads per boss fight...", detail: "GET /report/events per boss fight", estimateMs: 24000 },
+];
+const DEFAULT_RPB_IMPORT_STEP_KEYS = RPB_IMPORT_STEP_DEFINITIONS.map(step => step.key);
 
 const MOBILE_BREAKPOINT = 960;
 
@@ -4569,6 +4595,119 @@ function RenameReportModal({ open, value, onChange, onConfirm, onCancel }) {
   );
 }
 
+function SelectiveImportModal({
+  open,
+  raid,
+  selectedStepKeys,
+  onToggleStep,
+  onSelectAll,
+  onDeselectAll,
+  onConfirm,
+  onCancel,
+  importing = false,
+}) {
+  if (!open) return null;
+
+  const selectedCount = selectedStepKeys.length;
+
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 10060,
+      background: "rgba(4, 10, 18, 0.84)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: space[3],
+    }}>
+      <div style={{
+        ...panelStyle,
+        width: "min(720px, 100%)",
+        maxHeight: "calc(100vh - 32px)",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}>
+        <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, display: "flex", justifyContent: "space-between", gap: space[3], flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: text.primary }}>
+              Selective Reimport
+            </div>
+            <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 4 }}>
+              Choose which Warcraft Logs datasets to refresh for {raid?.title || raid?.reportId || "this report"}.
+            </div>
+            <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 6 }}>
+              Unselected datasets stay persisted and will not be overwritten.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: space[2], alignItems: "flex-start", flexWrap: "wrap" }}>
+            <button onClick={onSelectAll} style={{ ...btnStyle("default"), height: 30 }}>
+              Select All
+            </button>
+            <button onClick={onDeselectAll} style={{ ...btnStyle("default"), height: 30 }}>
+              Deselect All
+            </button>
+          </div>
+        </div>
+
+        <div style={{ padding: `${space[2]}px ${space[4]}px`, borderBottom: `1px solid ${border.subtle}`, fontSize: fontSize.xs, color: text.muted }}>
+          {selectedCount} dataset{selectedCount === 1 ? "" : "s"} selected
+        </div>
+
+        <div style={{ padding: space[4], overflowY: "auto", display: "flex", flexDirection: "column", gap: space[2] }}>
+          {RPB_IMPORT_STEP_DEFINITIONS.map(step => {
+            const checked = selectedStepKeys.includes(step.key);
+            return (
+              <label
+                key={step.key}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "20px minmax(0, 1fr)",
+                  gap: space[3],
+                  alignItems: "start",
+                  border: `1px solid ${checked ? accent.blue : border.subtle}`,
+                  borderRadius: radius.base,
+                  padding: space[3],
+                  background: checked ? `${accent.blue}10` : surface.card,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggleStep(step.key)}
+                  style={{ marginTop: 2 }}
+                />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: fontSize.sm, color: text.primary, fontWeight: fontWeight.semibold }}>
+                    {step.key}
+                  </div>
+                  <div style={{ fontSize: fontSize.sm, color: text.secondary, marginTop: 2 }}>
+                    {step.label.replace(/\.\.\.$/, "")}
+                  </div>
+                  <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
+                    {step.detail}
+                  </div>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+
+        <div style={{ padding: space[4], borderTop: `1px solid ${border.subtle}`, display: "flex", justifyContent: "flex-end", gap: space[2], flexWrap: "wrap" }}>
+          <button onClick={onCancel} disabled={importing} style={{ ...btnStyle("default"), height: 34 }}>
+            Cancel
+          </button>
+          <button onClick={onConfirm} disabled={importing || selectedCount === 0} style={{ ...btnStyle("primary", importing || selectedCount === 0), height: 34 }}>
+            {importing ? "Importing..." : `Import ${selectedCount || ""} Dataset${selectedCount === 1 ? "" : "s"}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RaidActionsMenu({
   raid,
   isAdmin = false,
@@ -4580,6 +4719,7 @@ function RaidActionsMenu({
   onTag,
   onDeleteTag,
   onReimport,
+  onSelectiveReimport,
   onDelete,
 }) {
   const teamTag = normalizeTeamTag(raid?.teamTag);
@@ -4649,6 +4789,10 @@ function RaidActionsMenu({
           <button onClick={onReimport} style={itemStyle}>
             <span aria-hidden="true">↻</span>
             <span>Reimport Report</span>
+          </button>
+          <button onClick={onSelectiveReimport} style={itemStyle}>
+            <span aria-hidden="true">☷</span>
+            <span>Selective Reimport</span>
           </button>
           <button onClick={onDelete} style={{ ...itemStyle, color: intent.danger }}>
             <span aria-hidden="true">🗑</span>
@@ -4724,6 +4868,11 @@ export default function RpbPage() {
   const [tagModalState, setTagModalState] = useState({ open: false, raid: null, value: "" });
   const [importTagPrompt, setImportTagPrompt] = useState({ open: false, raid: null, value: "", resolve: null });
   const [importWebhookPrompt, setImportWebhookPrompt] = useState({ open: false, raidTitle: "", resolve: null });
+  const [selectiveImportModalState, setSelectiveImportModalState] = useState({
+    open: false,
+    raid: null,
+    selectedStepKeys: DEFAULT_RPB_IMPORT_STEP_KEYS,
+  });
   const [renameModalState, setRenameModalState] = useState({ open: false, raid: null, value: "" });
   const [deleteConfirmRaid, setDeleteConfirmRaid] = useState(null);
   const [raidAnalyticsFilter, setRaidAnalyticsFilter] = useState("");
@@ -4917,6 +5066,7 @@ export default function RpbPage() {
     return selectedRaid?.players?.find(player => String(player.id) === String(selectedPlayerId)) || null;
   }, [selectedRaid, selectedPlayerId]);
   const isPlayerDetailOpen = !!selectedPlayerId && !!selectedPlayer;
+  const isThreatGraphTab = sliceType === "threat-graph";
 
   function handlePlayerSelection(playerId) {
     if (isMobileViewport) {
@@ -5844,7 +5994,7 @@ export default function RpbPage() {
   }, [visibleDebuffSliceEntries]);
 
   useEffect(() => {
-    if (sliceType !== "debuffs") return;
+    if (sliceType !== "debuffs" && sliceType !== "threat-graph") return;
     setSelectedPlayerId("");
   }, [sliceType]);
 
@@ -5955,28 +6105,14 @@ export default function RpbPage() {
 
     setImporting(true);
     try {
-      const steps = [
-        { key: "fights", label: "Scanning report structure...", detail: "GET /report/fights", estimateMs: 1200 },
-        { key: "summary", label: "Pulling summary roster data...", detail: "GET /report/tables/summary", estimateMs: 1800 },
-        { key: "deaths", label: "Pulling death recap data...", detail: "GET /report/tables/deaths", estimateMs: 1800 },
-        { key: "tracked", label: "Collecting tracked raid cooldown casts...", detail: "GET /report/tables/casts (tracked filter)", estimateMs: 1800 },
-        { key: "hostile", label: "Collecting hostile-player damage...", detail: "GET /report/tables/damage-taken (hostility=1)", estimateMs: 1800 },
-        { key: "fullCasts", label: "Capturing combatant and gear snapshots...", detail: "GET /report/tables/casts (full report)", estimateMs: 2600 },
-        { key: "engineering", label: "Scanning engineering explosives...", detail: "GET /report/tables/damage-done (engineering filter)", estimateMs: 1400 },
-        { key: "oil", label: "Scanning oil of immolation ticks...", detail: "GET /report/tables/damage-taken (ability 11351)", estimateMs: 1200 },
-        { key: "buffs", label: "Extracting buff and consumable auras...", detail: "GET /report/tables/buffs", estimateMs: 2600 },
-        { key: "buffsByFight", label: "Saving consumable coverage per boss fight...", detail: "GET /report/tables/buffs per boss fight", estimateMs: 7000 },
-        { key: "drums", label: "Extracting drums usage...", detail: "GET /report/tables/casts (drums filter)", estimateMs: 1400 },
-        { key: "drumsByFight", label: "Saving drums effectiveness per boss fight...", detail: "GET /report/events/casts + /report/events/buffs per boss fight", estimateMs: 8000 },
-        { key: "potionsByFight", label: "Saving potion and recovery timelines...", detail: "GET /report/events/casts + /report/events/buffs + /report/events/healing per boss fight", estimateMs: 10000 },
-        { key: "reportRankings", label: "Fetching Warcraft Logs parse rankings...", detail: "POST /api/v2/client report.rankings", estimateMs: 2500 },
-        { key: "reportSpeed", label: "Fetching report and boss speed rankings...", detail: "POST /api/v2/client report.rankings speed rows", estimateMs: 2000 },
-        { key: "raiderData", label: "Capturing boss-pull player snapshots...", detail: "GET /report/tables/summary per boss fight", estimateMs: 8000 },
-        { key: "damageByFight", label: "Saving damage ability breakdowns...", detail: "GET /report/tables/damage-done per fight (options=2)", estimateMs: 20000 },
-        { key: "healingByFight", label: "Saving healing ability breakdowns...", detail: "GET /report/tables/healing per fight (options=2)", estimateMs: 15000 },
-        { key: "deathsByFight", label: "Saving death events per fight...", detail: "GET /report/tables/deaths per fight", estimateMs: 8000 },
-        { key: "debuffsByFight", label: "Saving tracked boss debuffs per fight...", detail: "GET /report/tables/debuffs + /report/events/debuffs per boss fight", estimateMs: 9000 },
-      ];
+      const requestedStepKeys = Array.isArray(options.stepKeys) && options.stepKeys.length > 0
+        ? options.stepKeys
+        : DEFAULT_RPB_IMPORT_STEP_KEYS;
+      const steps = RPB_IMPORT_STEP_DEFINITIONS.filter(step => requestedStepKeys.includes(step.key));
+      if (!steps.length) {
+        throw new Error("Select at least one dataset to import.");
+      }
+      const mergeIntoExistingRaid = Boolean(options.targetRaid?.id);
       const phaseEstimateMs = {
         prepare: 1500,
         assemble: 3500,
@@ -6027,7 +6163,7 @@ export default function RpbPage() {
       const datasets = {};
       const importSessionId = `rpb-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       const completedStepKeys = new Set();
-      updateImportProgressState(1, "Preparing import payload...", "Initializing staged Warcraft Logs requests", {
+      updateImportProgressState(1, mergeIntoExistingRaid ? "Preparing selective import..." : "Preparing import payload...", "Initializing staged Warcraft Logs requests", {
         subdetail: "Import will stage every Warcraft Logs call first, then save a single payload-backed raid bundle.",
         completedEstimatedMs: phaseEstimateMs.prepare * 0.35,
         steps: getProgressSteps("", completedStepKeys),
@@ -6071,16 +6207,19 @@ export default function RpbPage() {
         });
       }
 
-      updateImportProgressState((steps.length * 2) + 2, "Assembling raid payload...", "Normalizing fights, players, analytics, and saved breakdown rows", {
+      updateImportProgressState((steps.length * 2) + 2, mergeIntoExistingRaid ? "Reassembling merged raid payload..." : "Assembling raid payload...", "Normalizing fights, players, analytics, and saved breakdown rows", {
         subdetail: "Converting staged Warcraft Logs responses into persisted raid, fight, player, and breakdown data",
         completedEstimatedMs: phaseEstimateMs.prepare + stepsEstimatedTotalMs + (phaseEstimateMs.assemble * 0.45),
         steps: getProgressSteps("", completedStepKeys),
       });
 
+      const assembleRequestBody = mergeIntoExistingRaid
+        ? { action: "assembleMerge", raidId: options.targetRaid.id, reportUrl: normalizedReportInput, importSessionId }
+        : { action: "assemble", reportUrl: normalizedReportInput, importSessionId };
       const assembleResponse = await fetch(`/api/rpb-import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "assemble", reportUrl: normalizedReportInput, importSessionId }),
+        body: JSON.stringify(assembleRequestBody),
       });
 
       const assembledRaid = await readApiJson(assembleResponse);
@@ -6088,7 +6227,7 @@ export default function RpbPage() {
 
       if (options.presetTeamTag !== undefined) {
         assembledRaid.teamTag = normalizeTeamTag(options.presetTeamTag);
-      } else if (isAdmin) {
+      } else if (isAdmin && !mergeIntoExistingRaid) {
         updateImportProgressState((steps.length * 2) + 3, "Waiting for team tag selection...", "Admin confirmation required before persisting the raid", {
           subdetail: "Choose the team tag before the import is finalized",
           hideEta: true,
@@ -6108,28 +6247,33 @@ export default function RpbPage() {
         assembledRaid.teamTag = selectedTeamTag;
       }
 
-      assembledRaid.title = buildAutoReportTitle({
-        start: assembledRaid.start,
-        teamTag: assembledRaid.teamTag,
-      });
-
-      updateImportProgressState(totalUnits - 1, "Waiting for webhook selection...", "Choose whether this import should post to the Discord webhook", {
-        subdetail: "This only affects the webhook post. The raid will still be saved either way.",
-        hideEta: true,
-        completedEstimatedMs: phaseEstimateMs.prepare + stepsEstimatedTotalMs + phaseEstimateMs.assemble,
-        steps: getProgressSteps("", completedStepKeys),
-      });
-
-      const shouldPostWebhook = await new Promise(resolve => {
-        setImportWebhookPrompt({
-          open: true,
-          raidTitle: assembledRaid.title || assembledRaid.reportId,
-          resolve,
+      if (!mergeIntoExistingRaid) {
+        assembledRaid.title = buildAutoReportTitle({
+          start: assembledRaid.start,
+          teamTag: assembledRaid.teamTag,
         });
-      });
+      }
 
-      updateImportProgressState(totalUnits - 1, "Saving imported raid...", "Persisting raid bundle, fights, players, analytics, and ability rows", {
-        subdetail: "Writing the fully payload-backed raid bundle to Redis",
+      let shouldPostWebhook = false;
+      if (!mergeIntoExistingRaid) {
+        updateImportProgressState(totalUnits - 1, "Waiting for webhook selection...", "Choose whether this import should post to the Discord webhook", {
+          subdetail: "This only affects the webhook post. The raid will still be saved either way.",
+          hideEta: true,
+          completedEstimatedMs: phaseEstimateMs.prepare + stepsEstimatedTotalMs + phaseEstimateMs.assemble,
+          steps: getProgressSteps("", completedStepKeys),
+        });
+
+        shouldPostWebhook = await new Promise(resolve => {
+          setImportWebhookPrompt({
+            open: true,
+            raidTitle: assembledRaid.title || assembledRaid.reportId,
+            resolve,
+          });
+        });
+      }
+
+      updateImportProgressState(totalUnits - 1, mergeIntoExistingRaid ? "Saving selected dataset update..." : "Saving imported raid...", "Persisting raid bundle, fights, players, analytics, and ability rows", {
+        subdetail: mergeIntoExistingRaid ? "Writing merged selected datasets into the existing persisted raid bundle" : "Writing the fully payload-backed raid bundle to Redis",
         completedEstimatedMs: phaseEstimateMs.prepare + stepsEstimatedTotalMs + phaseEstimateMs.assemble + (phaseEstimateMs.save * 0.5),
         steps: getProgressSteps("", completedStepKeys),
       });
@@ -6138,11 +6282,12 @@ export default function RpbPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "assembleAndSave",
+          action: mergeIntoExistingRaid ? "assembleMergeAndSave" : "assembleAndSave",
+          raidId: options.targetRaid?.id || "",
           reportUrl: normalizedReportInput,
           importSessionId,
-          teamTag: assembledRaid.teamTag || "",
-          title: assembledRaid.title,
+          teamTag: assembledRaid.teamTag || options.targetRaid?.teamTag || "",
+          title: mergeIntoExistingRaid ? (options.targetRaid?.title || assembledRaid.title) : assembledRaid.title,
           notifyIfNew: shouldPostWebhook,
         }),
       });
@@ -6154,13 +6299,15 @@ export default function RpbPage() {
       const nextRaids = await fetchRpbRaidList();
       setRaids(nextRaids);
       setReportUrl("");
-      updateImportProgressState(totalUnits, "Import complete.", "RPB payload is ready for saved-raid browsing", {
+      updateImportProgressState(totalUnits, mergeIntoExistingRaid ? "Selective import complete." : "Import complete.", "RPB payload is ready for saved-raid browsing", {
         subdetail: "Saved raid views now resolve from persisted payload data only",
         completedEstimatedMs: importEstimatedTotalMs,
         steps: getProgressSteps("", new Set(steps.map(step => step.key))),
       });
       toast({
-        message: options.successMessage || `Imported ${assembledRaid.title}`,
+        message: options.successMessage || (mergeIntoExistingRaid
+          ? `Updated ${options.targetRaid?.title || options.targetRaid?.reportId || assembledRaid.title}`
+          : `Imported ${assembledRaid.title}`),
         type: "success",
         duration: 7000,
       });
@@ -6194,12 +6341,38 @@ export default function RpbPage() {
     await runImportFlow(reportUrl);
   }
 
+  function openSelectiveImportModal(targetRaid) {
+    if (!targetRaid?.reportId) return;
+    setOpenRaidMenuId("");
+    setOpenRaidMenuAnchor(null);
+    setSelectiveImportModalState({
+      open: true,
+      raid: targetRaid,
+      selectedStepKeys: DEFAULT_RPB_IMPORT_STEP_KEYS,
+    });
+  }
+
   async function handleReimportRaid(targetRaid) {
     if (!targetRaid?.reportId) return;
     setOpenRaidMenuId("");
+    setOpenRaidMenuAnchor(null);
     await runImportFlow(targetRaid.reportId, {
+      targetRaid,
       presetTeamTag: targetRaid.teamTag || "",
       successMessage: `Reimported ${targetRaid.title || targetRaid.reportId}`,
+    });
+  }
+
+  async function handleSelectiveReimportConfirm() {
+    const targetRaid = selectiveImportModalState.raid;
+    const selectedStepKeys = selectiveImportModalState.selectedStepKeys || [];
+    if (!targetRaid?.reportId) return;
+    setSelectiveImportModalState(prev => ({ ...prev, open: false }));
+    await runImportFlow(targetRaid.reportId, {
+      targetRaid,
+      stepKeys: selectedStepKeys,
+      presetTeamTag: targetRaid.teamTag || "",
+      successMessage: `Updated ${targetRaid.title || targetRaid.reportId}`,
     });
   }
 
@@ -6222,6 +6395,22 @@ export default function RpbPage() {
         open={importProgress.open}
         progress={importProgress}
         onClose={() => setImportProgress(prev => ({ ...prev, open: false }))}
+      />
+      <SelectiveImportModal
+        open={selectiveImportModalState.open}
+        raid={selectiveImportModalState.raid}
+        selectedStepKeys={selectiveImportModalState.selectedStepKeys}
+        importing={importing}
+        onToggleStep={stepKey => setSelectiveImportModalState(prev => ({
+          ...prev,
+          selectedStepKeys: prev.selectedStepKeys.includes(stepKey)
+            ? prev.selectedStepKeys.filter(key => key !== stepKey)
+            : [...prev.selectedStepKeys, stepKey],
+        }))}
+        onSelectAll={() => setSelectiveImportModalState(prev => ({ ...prev, selectedStepKeys: DEFAULT_RPB_IMPORT_STEP_KEYS }))}
+        onDeselectAll={() => setSelectiveImportModalState(prev => ({ ...prev, selectedStepKeys: [] }))}
+        onConfirm={handleSelectiveReimportConfirm}
+        onCancel={() => setSelectiveImportModalState({ open: false, raid: null, selectedStepKeys: DEFAULT_RPB_IMPORT_STEP_KEYS })}
       />
       {openRaidMenuRaid && openRaidMenuAnchor && (
         <RaidActionsMenu
@@ -6261,6 +6450,11 @@ export default function RpbPage() {
             setOpenRaidMenuId("");
             setOpenRaidMenuAnchor(null);
             handleReimportRaid(openRaidMenuRaid);
+          }}
+          onSelectiveReimport={() => {
+            setOpenRaidMenuId("");
+            setOpenRaidMenuAnchor(null);
+            openSelectiveImportModal(openRaidMenuRaid);
           }}
           onDelete={() => {
             setOpenRaidMenuId("");
@@ -6690,12 +6884,7 @@ export default function RpbPage() {
 
           {selectedRaid && (
             <>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: !isMobileViewport && isPlayerDetailOpen ? "minmax(0, 1.2fr) minmax(360px, 0.8fr)" : "minmax(0, 1fr)",
-                gap: space[4],
-                alignItems: "start",
-              }}>
+              {isThreatGraphTab ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0, width: "100%" }}>
                   <div style={{ ...panelStyle }}>
                     <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -6707,6 +6896,7 @@ export default function RpbPage() {
                           { id: "damage", label: "Damage" },
                           { id: "healing", label: "Healing" },
                           { id: "deaths", label: "Deaths" },
+                          { id: "threat-graph", label: "Threat Graph" },
                           { id: "drums", label: "Drums" },
                           { id: "potions", label: "Potions" },
                           { id: "consumables", label: "Consumables" },
@@ -6721,13 +6911,59 @@ export default function RpbPage() {
                           </button>
                         ))}
                       </div>
-                      {sliceType === "drums" && (
-                        <div style={UNDER_DEVELOPMENT_BADGE_STYLE}>
-                          Prepull drums casts not available in logs
+                    </div>
+                  </div>
+
+                  <RpbThreatGraphTab
+                    selectedRaid={selectedRaid}
+                    selectedFightId={selectedFightId}
+                    setSelectedFightId={setSelectedFightId}
+                    encounterSelectionOptions={encounterSelectionOptions}
+                    filteredFights={filteredFights}
+                    isMobileViewport={isMobileViewport}
+                    underDevelopmentBadgeStyle={UNDER_DEVELOPMENT_BADGE_STYLE}
+                  />
+                </div>
+              ) : (
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: !isMobileViewport && isPlayerDetailOpen ? "minmax(0, 1.2fr) minmax(360px, 0.8fr)" : "minmax(0, 1fr)",
+                  gap: space[4],
+                  alignItems: "start",
+                }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0, width: "100%" }}>
+                    <div style={{ ...panelStyle }}>
+                      <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        Breakdown
+                      </div>
+                      <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[3] }}>
+                        <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
+                          {[
+                            { id: "damage", label: "Damage" },
+                            { id: "healing", label: "Healing" },
+                            { id: "deaths", label: "Deaths" },
+                            { id: "threat-graph", label: "Threat Graph" },
+                            { id: "drums", label: "Drums" },
+                            { id: "potions", label: "Potions" },
+                            { id: "consumables", label: "Consumables" },
+                            { id: "debuffs", label: "Boss Debuffs" },
+                          ].map(option => (
+                            <button
+                              key={option.id}
+                              onClick={() => setSliceType(option.id)}
+                              style={{ ...btnStyle(sliceType === option.id ? "primary" : "default", sliceType === option.id), height: 30 }}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
                         </div>
-                      )}
-                      {renderTabScopedRaidAnalyticsControls()}
-                      <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+                        {sliceType === "drums" && (
+                          <div style={UNDER_DEVELOPMENT_BADGE_STYLE}>
+                            Prepull drums casts not available in logs
+                          </div>
+                        )}
+                        {renderTabScopedRaidAnalyticsControls()}
+                        <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                         {((sliceType === "consumables"
                           ? visibleConsumableSliceEntries
                           : (sliceType === "potions"
@@ -7160,36 +7396,37 @@ export default function RpbPage() {
                           );
                         })}
                       </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {!isMobileViewport && isPlayerDetailOpen && sliceType !== "debuffs" && (
-                  <PlayerDetailPanel
-                    isMobile={isMobileViewport}
-                    selectedPlayer={selectedPlayer}
-                    selectedPlayerId={selectedPlayerId}
-                    selectedPlayerMetricTags={selectedPlayerMetricTags}
-                    sliceType={sliceType}
-                    abilityBreakdownRef={abilityBreakdownRef}
-                    selectedPlayerDeathRows={selectedPlayerDeathRows}
-                    selectedPlayerAnalytics={selectedPlayerAnalytics}
-                    visiblePlayerHealingBreakdown={visiblePlayerHealingBreakdown}
-                    visiblePlayerDamageBreakdown={visiblePlayerDamageBreakdown}
-                    selectedPlayerIssueGroups={selectedPlayerIssueGroups}
-                    selectedFightId={selectedFightId}
-                    selectedFightSnapshot={selectedFightSnapshot}
-                  selectedFightGear={selectedFightGear}
-                  fightGearLoaded={fightGearLoaded}
-                  loadSelectedFightGear={() => setFightGearLoaded(true)}
-                  itemMetaById={itemMetaById}
-                  closeSelectedPlayer={closeSelectedPlayer}
-                  enableSwipeClose={false}
-                  onSwipeDismiss={null}
-                />
+                  {!isMobileViewport && isPlayerDetailOpen && sliceType !== "debuffs" && (
+                    <PlayerDetailPanel
+                      isMobile={isMobileViewport}
+                      selectedPlayer={selectedPlayer}
+                      selectedPlayerId={selectedPlayerId}
+                      selectedPlayerMetricTags={selectedPlayerMetricTags}
+                      sliceType={sliceType}
+                      abilityBreakdownRef={abilityBreakdownRef}
+                      selectedPlayerDeathRows={selectedPlayerDeathRows}
+                      selectedPlayerAnalytics={selectedPlayerAnalytics}
+                      visiblePlayerHealingBreakdown={visiblePlayerHealingBreakdown}
+                      visiblePlayerDamageBreakdown={visiblePlayerDamageBreakdown}
+                      selectedPlayerIssueGroups={selectedPlayerIssueGroups}
+                      selectedFightId={selectedFightId}
+                      selectedFightSnapshot={selectedFightSnapshot}
+                      selectedFightGear={selectedFightGear}
+                      fightGearLoaded={fightGearLoaded}
+                      loadSelectedFightGear={() => setFightGearLoaded(true)}
+                      itemMetaById={itemMetaById}
+                      closeSelectedPlayer={closeSelectedPlayer}
+                      enableSwipeClose={false}
+                      onSwipeDismiss={null}
+                    />
+                  )}
+                </div>
               )}
-            </div>
-            {isMobileViewport && isPlayerDetailOpen && sliceType !== "debuffs" && (
+            {isMobileViewport && isPlayerDetailOpen && sliceType !== "debuffs" && !isThreatGraphTab && (
               <div style={{
                 position: "fixed",
                 inset: 0,

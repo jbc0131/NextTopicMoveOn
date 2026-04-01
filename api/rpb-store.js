@@ -157,7 +157,8 @@ function buildEmbedDescription(raid, raidUrl, reportUrl) {
 async function sendNewRaidWebhook(raid, summary) {
   if (!DISCORD_RPB_WEBHOOK_URL) return false;
 
-  const raidUrl = `${RPB_PUBLIC_BASE_URL.replace(/\/$/, "")}/rpb/${encodeURIComponent(String(raid?.id || ""))}`;
+  const raidPathId = String(raid?.reportId || raid?.id || "");
+  const raidUrl = `${RPB_PUBLIC_BASE_URL.replace(/\/$/, "")}/rpb/${encodeURIComponent(raidPathId)}`;
   const reportUrl = raid?.reportId ? `https://classic.warcraftlogs.com/reports/${raid.reportId}` : "";
   const roleMention = TEAM_ROLE_MENTION_BY_TAG.get(normalizeTeamTag(raid?.teamTag)) || "";
   const embed = {
@@ -221,7 +222,7 @@ export async function saveRaidBundle(raid, options = {}) {
   return summary;
 }
 
-async function getRaidBundle(raidId) {
+export async function getRaidBundle(raidId) {
   assertRedisConfigured();
   let resolvedRaidId = String(raidId || "").trim();
   if (!resolvedRaidId) return null;
@@ -258,7 +259,7 @@ async function getRaidBundle(raidId) {
   };
 }
 
-async function updateRaidBundle(raidId, updates) {
+export async function updateRaidBundle(raidId, updates) {
   assertRedisConfigured();
   const existingRaid = await getRaidBundle(raidId);
   if (!existingRaid) return null;
