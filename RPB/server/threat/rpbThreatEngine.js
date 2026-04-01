@@ -79,19 +79,21 @@ function compactThreatSeries(points = [], bucketMs = 1000) {
   for (const point of points) {
     const timeMs = Math.max(0, Math.round(numeric(point.timeMs, 0)));
     const threat = Math.round(numeric(point.threat, 0));
+    const label = String(point?.label || "").trim();
     const bucket = Math.floor(timeMs / Math.max(1, bucketMs));
     if (bucket !== lastBucket) {
-      compacted.push({ timeMs, threat });
+      compacted.push({ timeMs, threat, ...(label ? { label } : {}) });
       lastBucket = bucket;
       continue;
     }
-    compacted[compacted.length - 1] = { timeMs, threat };
+    compacted[compacted.length - 1] = { timeMs, threat, ...(label ? { label } : {}) };
   }
 
   const lastPoint = points[points.length - 1];
   const normalizedLast = {
     timeMs: Math.max(0, Math.round(numeric(lastPoint?.timeMs, 0))),
     threat: Math.round(numeric(lastPoint?.threat, 0)),
+    ...(String(lastPoint?.label || "").trim() ? { label: String(lastPoint.label).trim() } : {}),
   };
 
   const tail = compacted[compacted.length - 1];

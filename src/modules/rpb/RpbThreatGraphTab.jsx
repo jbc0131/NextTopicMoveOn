@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  border, text, fontSize, fontWeight, radius, space, inputStyle, panelStyle,
+  surface, border, text, accent, fontSize, fontWeight, radius, space, btnStyle, inputStyle, panelStyle,
 } from "../../shared/theme";
 
 const FALLBACK_CLASS_COLORS = {
@@ -94,10 +94,67 @@ function buildThreatChartPath(points, width, height, maxTimeMs, maxThreat) {
   }).join(" ");
 }
 
-function ThreatChart({ players, fightDurationMs, enemyOptions, selectedEnemyKey, onSelectEnemy, underDevelopmentBadgeStyle }) {
+function getChartPoint(point, width, height, maxTimeMs, maxThreat) {
+  return {
+    x: Math.max(0, Math.min(width, (coerceNumber(point.timeMs, 0) / maxTimeMs) * width)),
+    y: Math.max(0, Math.min(height, height - (coerceNumber(point.threat, 0) / maxThreat) * height)),
+  };
+}
+
+function buildLeaderAnnotations(players = []) {
+  const leader = players[0] || null;
+  if (!leader || !Array.isArray(leader.series) || leader.series.length < 2) return [];
+
+  let maxPoint = leader.series[0];
+  let biggestGain = null;
+
+  for (let index = 1; index < leader.series.length; index += 1) {
+    const current = leader.series[index];
+    const previous = leader.series[index - 1];
+    if (coerceNumber(current.threat, 0) >= coerceNumber(maxPoint.threat, 0)) {
+      maxPoint = current;
+    }
+    const delta = coerceNumber(current.threat, 0) - coerceNumber(previous.threat, 0);
+    if (delta <= 0) continue;
+    if (!biggestGain || delta > biggestGain.delta) {
+      biggestGain = {
+        point: current,
+        delta,
+      };
+    }
+  }
+
+  const annotations = [];
+  if (biggestGain && biggestGain.delta >= 100) {
+    annotations.push({
+      key: "big-gain",
+      point: biggestGain.point,
+      title: `${leader.name} spike +${Math.round(biggestGain.delta).toLocaleString()} threat`,
+      badge: "Gain",
+    });
+  }
+  annotations.push({
+    key: "peak-threat",
+    point: maxPoint,
+    title: `${leader.name} peak ${Math.round(coerceNumber(maxPoint.threat, 0)).toLocaleString()} threat`,
+    badge: "Lead",
+  });
+
+  return annotations;
+}
+
+function ThreatChart({
+  players,
+  hiddenPlayerIds,
+  fightDurationMs,
+  enemyOptions,
+  selectedEnemyKey,
+  onSelectEnemy,
+  underDevelopmentBadgeStyle,
+}) {
   const width = 920;
   const height = 360;
-  const visiblePlayers = players;
+  const visiblePlayers = players.filter(player => !hiddenPlayerIds.has(String(player.playerId)));
   const maxTimeMs = Math.max(
     coerceNumber(fightDurationMs, 0),
     ...visiblePlayers.flatMap(player => player.series.map(point => point.timeMs)),
@@ -109,6 +166,7 @@ function ThreatChart({ players, fightDurationMs, enemyOptions, selectedEnemyKey,
   );
   const hasGraphData = maxThreat > 0 && visiblePlayers.some(player => player.series.length > 1);
   const yTicks = maxThreat > 0 ? [0.25, 0.5, 0.75, 1] : [];
+  const annotations = hasGraphData ? buildLeaderAnnotations(visiblePlayers) : [];
 
   return (
     <div style={{ ...panelStyle, overflow: "hidden" }}>
@@ -178,8 +236,45 @@ function ThreatChart({ players, fightDurationMs, enemyOptions, selectedEnemyKey,
                   strokeWidth="3"
                   strokeLinejoin="round"
                   strokeLinecap="round"
-                />
+                  style={{ cursor: "pointer" }}
+                >
+                  <title>{player.name}</title>
+                </path>
               ))}
+              {annotations.map(annotation => {
+                const position = getChartPoint(annotation.point, width, height, maxTimeMs, maxThreat);
+                return (
+                  <g key={annotation.key}>
+                    <circle
+                      cx={position.x}
+                      cy={position.y}
+                      r="6"
+                      fill="#facc15"
+                      stroke="rgba(15,23,42,0.95)"
+                      strokeWidth="2"
+                    />
+                    <title>{annotation.title}</title>
+                    <rect
+                      x={Math.max(8, Math.min(width - 92, position.x + 10))}
+                      y={Math.max(10, position.y - 28)}
+                      width="58"
+                      height="20"
+                      rx="10"
+                      fill="rgba(250,204,21,0.18)"
+                      stroke="rgba(250,204,21,0.7)"
+                    />
+                    <text
+                      x={Math.max(18, Math.min(width - 82, position.x + 20))}
+                      y={Math.max(24, position.y - 14)}
+                      fill="#fde68a"
+                      fontSize="12"
+                      fontWeight="700"
+                    >
+                      {annotation.badge}
+                    </text>
+                  </g>
+                );
+              })}
             </svg>
           ) : (
             <div style={{
@@ -207,12 +302,79 @@ function ThreatChart({ players, fightDurationMs, enemyOptions, selectedEnemyKey,
   );
 }
 
+function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds }) {
+  function togglePlayer(playerId) {
+    setHiddenPlayerIds(current => {
+      const next = new Set(current);
+      if (next.has(String(playerId))) next.delete(String(playerId));
+      else next.add(String(playerId));
+      return next;
+    });
+  }
+
+  return (
+    <div style={{ ...panelStyle, minWidth: 0, overflow: "hidden" }}>
+      <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, display: "flex", justifyContent: "space-between", gap: space[2], flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Raiders
+          </div>
+          <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
+            Show or hide individual threat lines.
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
+          <button onClick={() => setHiddenPlayerIds(new Set())} style={{ ...btnStyle("default"), height: 28 }}>
+            Show All
+          </button>
+          <button onClick={() => setHiddenPlayerIds(new Set(players.map(player => String(player.playerId))))} style={{ ...btnStyle("default"), height: 28 }}>
+            Hide All
+          </button>
+        </div>
+      </div>
+      <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[2], maxHeight: 520, overflowY: "auto" }}>
+        {players.map(player => {
+          const hidden = hiddenPlayerIds.has(String(player.playerId));
+          return (
+            <button
+              key={player.playerId}
+              onClick={() => togglePlayer(player.playerId)}
+              style={{
+                border: `1px solid ${hidden ? border.subtle : accent.blue}`,
+                borderRadius: radius.base,
+                background: hidden ? surface.base : `${accent.blue}10`,
+                color: text.primary,
+                padding: space[3],
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: space[3],
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 999, background: player.color, opacity: hidden ? 0.35 : 1, flexShrink: 0 }} />
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{player.name}</span>
+              </span>
+              <span style={{ fontSize: fontSize.xs, color: text.muted }}>
+                {hidden ? "Hidden" : "Visible"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function RpbThreatGraphTab({
   selectedRaid,
   selectedFightId,
   setSelectedFightId,
   encounterSelectionOptions,
   filteredFights,
+  isMobileViewport,
   underDevelopmentBadgeStyle,
 }) {
   const bossFightOptions = useMemo(() => (
@@ -269,16 +431,27 @@ export default function RpbThreatGraphTab({
   const players = useMemo(() => (
     normalizeThreatPlayers(selectedEnemy, selectedRaid?.players || [], selectedFight)
   ), [selectedEnemy, selectedFight, selectedRaid]);
+  const [hiddenPlayerIds, setHiddenPlayerIds] = useState(() => new Set());
+
+  useEffect(() => {
+    setHiddenPlayerIds(new Set());
+  }, [activeBossFightId, selectedEnemyKey]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: space[4], minWidth: 0 }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobileViewport ? "minmax(0, 1fr)" : "minmax(0, 1.2fr) minmax(280px, 0.52fr)", gap: space[4], minWidth: 0, alignItems: "start" }}>
       <ThreatChart
         players={players}
+        hiddenPlayerIds={hiddenPlayerIds}
         enemyOptions={enemyOptions}
         selectedEnemyKey={selectedEnemyKey}
         onSelectEnemy={setSelectedEnemyKey}
         fightDurationMs={selectedFight ? Math.max(0, coerceNumber(selectedFight.end_time ?? selectedFight.end, 0) - coerceNumber(selectedFight.start_time ?? selectedFight.start, 0)) : 0}
         underDevelopmentBadgeStyle={underDevelopmentBadgeStyle}
+      />
+      <ThreatPlayersPanel
+        players={players}
+        hiddenPlayerIds={hiddenPlayerIds}
+        setHiddenPlayerIds={setHiddenPlayerIds}
       />
     </div>
   );
