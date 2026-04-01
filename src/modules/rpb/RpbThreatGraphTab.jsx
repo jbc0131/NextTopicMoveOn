@@ -60,6 +60,12 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
         ? rawSeries.map((point, pointIndex) => normalizeTracePoint(point, pointIndex)).sort((left, right) => left.timeMs - right.timeMs)
         : [];
       const highestThreat = series.reduce((max, point) => Math.max(max, point.threat), 0);
+      const modifiers = Array.isArray(player.modifiers) ? player.modifiers : [];
+      const initialCoefficient = (() => {
+        const row = modifiers.find(entry => String(entry?.label || "").toLowerCase() === "initial coefficient");
+        const parsed = Number(row?.value);
+        return Number.isFinite(parsed) ? parsed : null;
+      })();
 
       return {
         playerId: String(player.playerId || player.id || raidPlayer?.id || player.name || index),
@@ -68,7 +74,8 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
         color: player.color || getClassColor(player.type || raidPlayer?.type, index),
         series,
         highestThreat,
-        modifiers: Array.isArray(player.modifiers) ? player.modifiers : [],
+        modifiers,
+        initialCoefficient,
       };
     }).sort((left, right) => right.highestThreat - left.highestThreat || left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
   }
@@ -83,8 +90,14 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
       series: [],
       highestThreat: 0,
       modifiers: [],
+      initialCoefficient: null,
     };
   }).sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
+}
+
+function formatThreatCoefficient(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric.toFixed(1) : "";
 }
 
 function buildThreatChartPath(points, width, height, maxTimeMs, maxThreat) {
@@ -208,7 +221,7 @@ function ThreatChart({
               {!raiderOptions.length ? <option value="">No raider data available</option> : null}
               {raiderOptions.map(option => (
                 <option key={option.playerId} value={option.playerId}>
-                  {option.name}
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -380,9 +393,9 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
                 textAlign: "left",
               }}
             >
-              <span
-                onClick={event => {
-                  event.stopPropagation();
+                <span
+                  onClick={event => {
+                    event.stopPropagation();
                   setSelectedRaiderId(String(player.playerId));
                 }}
                 role="button"
@@ -397,7 +410,9 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
                 style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, cursor: "pointer" }}
               >
                 <span style={{ width: 10, height: 10, borderRadius: 999, background: player.color, opacity: hidden ? 0.35 : 1, flexShrink: 0 }} />
-                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{player.name}</span>
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {player.name}{player.initialCoefficient != null ? ` ${formatThreatCoefficient(player.initialCoefficient)}` : ""}
+                </span>
               </span>
               <span style={{ fontSize: fontSize.xs, color: text.muted }}>
                 {hidden ? "Hidden" : "Visible"}
@@ -522,6 +537,7 @@ export default function RpbThreatGraphTab({
     players.map(player => ({
       playerId: String(player.playerId),
       name: player.name,
+      label: `${player.name}${player.initialCoefficient != null ? ` ${formatThreatCoefficient(player.initialCoefficient)}` : ""}`,
     }))
   ), [players]);
 
