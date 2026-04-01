@@ -66,6 +66,8 @@ const THREAT_BUFF_LABELS = {
   38447: "Improved Mangle (T6 2pc)",
 };
 
+const PLAYER_CLASS_NAMES = new Set(Object.keys(FALLBACK_CLASS_COLORS));
+
 function getClassColor(type, index = 0) {
   if (FALLBACK_CLASS_COLORS[type]) return FALLBACK_CLASS_COLORS[type];
   const fallbackPalette = ["#71d5ff", "#f7b955", "#82d992", "#ff8d8d", "#b9a6ff", "#7ee0c5"];
@@ -132,6 +134,21 @@ function resolveBuffLabel(row = {}) {
   return currentLabel;
 }
 
+function isRaidPlayerActor(player = {}) {
+  return PLAYER_CLASS_NAMES.has(String(player?.type || "").trim());
+}
+
+function compareThreatPlayers(left, right) {
+  const leftIsPlayer = isRaidPlayerActor(left) ? 1 : 0;
+  const rightIsPlayer = isRaidPlayerActor(right) ? 1 : 0;
+  return (
+    rightIsPlayer - leftIsPlayer
+    || coerceNumber(right.initialCoefficient, -1) - coerceNumber(left.initialCoefficient, -1)
+    || right.highestThreat - left.highestThreat
+    || left.name.localeCompare(right.name, "en", { sensitivity: "base" })
+  );
+}
+
 function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
   const snapshotPlayers = Array.isArray(snapshot?.players) ? snapshot.players : [];
   const playersFromFight = Array.isArray(selectedFight?.damageDoneEntries) ? selectedFight.damageDoneEntries : [];
@@ -171,10 +188,7 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
         modifiers,
         initialCoefficient,
       };
-    }).sort((left, right) =>
-      coerceNumber(right.initialCoefficient, -1) - coerceNumber(left.initialCoefficient, -1)
-      || right.highestThreat - left.highestThreat
-      || left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
+    }).sort(compareThreatPlayers);
   }
 
   return playersFromFight.map((entry, index) => {
@@ -192,9 +206,7 @@ function normalizeThreatPlayers(snapshot, raidPlayers, selectedFight) {
       modifiers: [],
       initialCoefficient: null,
     };
-  }).sort((left, right) =>
-    coerceNumber(right.initialCoefficient, -1) - coerceNumber(left.initialCoefficient, -1)
-    || left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
+  }).sort(compareThreatPlayers);
 }
 
 function formatThreatCoefficient(value) {
