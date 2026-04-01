@@ -955,23 +955,6 @@ class FightState {
       return;
     }
 
-    if (["applybuff", "refreshbuff"].includes(event?.type) && event?.sourceIsFriendly === event?.targetIsFriendly) {
-      threatFunctions.unitThreatenEnemiesSplit({
-        event,
-        unit: "source",
-        fight: this,
-        amount: 60,
-      });
-      return;
-    }
-
-    if (["applydebuff", "applydebuffstack", "refreshdebuff"].includes(event?.type) && event?.sourceIsFriendly !== event?.targetIsFriendly) {
-      threatFunctions.sourceThreatenTarget({
-        event,
-        fight: this,
-        amount: 120,
-      });
-    }
   }
 
   process(events) {
