@@ -143,10 +143,9 @@ function buildTargetSegments(targetHistory = [], fightDurationMs = 0) {
 }
 
 function getTooltipPosition(event) {
-  const bounds = event.currentTarget.getBoundingClientRect();
   return {
-    x: event.clientX - bounds.left + 12,
-    y: event.clientY - bounds.top - 12,
+    x: event.clientX + 12,
+    y: event.clientY - 12,
   };
 }
 
@@ -161,6 +160,7 @@ function ThreatChart({
   raiderOptions,
   selectedRaiderId,
   onSelectRaider,
+  selectedRaider,
   underDevelopmentBadgeStyle,
 }) {
   const width = 920;
@@ -191,11 +191,6 @@ function ThreatChart({
           <div>
             <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Threat Timeline
-            </div>
-            <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
-              {hasGraphData
-                ? `Showing ${visiblePlayers.length} visible raider line${visiblePlayers.length === 1 ? "" : "s"}`
-                : "Threat series data will render here once imported."}
             </div>
           </div>
           <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
@@ -230,9 +225,37 @@ function ThreatChart({
             </div>
           </div>
         </div>
-        <div style={{ fontSize: fontSize.xs, color: text.muted }}>
-          {fightDurationMs > 0 ? `Fight length ${formatSecondsFromMs(fightDurationMs)}` : "Awaiting a boss-fight snapshot"}
-        </div>
+        {selectedRaider ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
+            <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Assumed Threat Buffs
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: space[2] }}>
+              {(selectedRaider.modifiers || []).length ? selectedRaider.modifiers.map(row => (
+                <div
+                  key={`${selectedRaider.playerId}-${row.label}`}
+                  style={{
+                    border: `1px solid ${border.subtle}`,
+                    borderRadius: radius.base,
+                    background: surface.base,
+                    padding: `${space[1]}px ${space[2]}px`,
+                    display: "inline-flex",
+                    gap: 6,
+                    fontSize: fontSize.xs,
+                    color: text.muted,
+                  }}
+                >
+                  <span style={{ color: text.primary }}>{row.label}</span>
+                  <span>{row.value}</span>
+                </div>
+              )) : (
+                <div style={{ fontSize: fontSize.xs, color: text.muted }}>
+                  No assumed buff data available for the selected raider.
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div style={{ padding: space[4] }}>
@@ -380,7 +403,7 @@ Boss Target: ${bossTarget?.name || "Unknown"}`}</title>
       {hoveredTooltip ? (
         <div
           style={{
-            position: "absolute",
+            position: "fixed",
             left: hoveredTooltip.x,
             top: hoveredTooltip.y,
             pointerEvents: "none",
@@ -501,44 +524,7 @@ function ThreatPlayersPanel({ players, hiddenPlayerIds, setHiddenPlayerIds, sele
 }
 
 function ThreatModifiersPanel({ players, selectedRaiderId }) {
-  const selectedPlayer = players.find(player => String(player.playerId) === String(selectedRaiderId)) || players[0] || null;
-  const modifiers = Array.isArray(selectedPlayer?.modifiers) ? selectedPlayer.modifiers : [];
-
-  return (
-    <div style={{ borderTop: `1px solid ${border.subtle}`, padding: space[4], display: "flex", flexDirection: "column", gap: space[2] }}>
-      <div>
-        <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-          Assumed Buffs
-        </div>
-        <div style={{ fontSize: fontSize.xs, color: text.muted, marginTop: 4 }}>
-          {selectedPlayer ? `Threat assumptions for ${selectedPlayer.name}` : "Select a raider to inspect threat assumptions."}
-        </div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: space[2], maxHeight: 220, overflowY: "auto" }}>
-        {modifiers.length ? modifiers.map(row => (
-          <div
-            key={`${selectedPlayer?.playerId || "none"}-${row.label}`}
-            style={{
-              border: `1px solid ${border.subtle}`,
-              borderRadius: radius.base,
-              background: surface.base,
-              padding: `${space[2]}px ${space[3]}px`,
-              display: "flex",
-              justifyContent: "space-between",
-              gap: space[3],
-            }}
-          >
-            <span style={{ color: text.primary }}>{row.label}</span>
-            <span style={{ color: text.muted, whiteSpace: "nowrap" }}>{row.value}</span>
-          </div>
-        )) : (
-          <div style={{ color: text.muted, fontSize: fontSize.sm }}>
-            No assumed buff or modifier data is available for the selected raider yet.
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return null;
 }
 
 export default function RpbThreatGraphTab({
@@ -606,6 +592,9 @@ export default function RpbThreatGraphTab({
   ), [selectedEnemy, selectedFight, selectedRaid]);
   const [hiddenPlayerIds, setHiddenPlayerIds] = useState(() => new Set());
   const [selectedRaiderId, setSelectedRaiderId] = useState("");
+  const selectedRaider = useMemo(() => (
+    players.find(player => String(player.playerId) === String(selectedRaiderId)) || players[0] || null
+  ), [players, selectedRaiderId]);
 
   const raiderOptions = useMemo(() => (
     players.map(player => ({
@@ -640,6 +629,7 @@ export default function RpbThreatGraphTab({
         raiderOptions={raiderOptions}
         selectedRaiderId={selectedRaiderId}
         onSelectRaider={setSelectedRaiderId}
+        selectedRaider={selectedRaider}
         fightDurationMs={selectedFight ? Math.max(0, coerceNumber(selectedFight.end_time ?? selectedFight.end, 0) - coerceNumber(selectedFight.start_time ?? selectedFight.start, 0)) : 0}
         underDevelopmentBadgeStyle={underDevelopmentBadgeStyle}
       />
