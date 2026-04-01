@@ -187,12 +187,10 @@ function ThreatChart({
       onMouseLeave={() => setHoveredTooltip(null)}
     >
       <div style={{ padding: space[4], borderBottom: `1px solid ${border.subtle}`, display: "flex", flexDirection: "column", gap: space[3] }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: space[3], alignItems: "flex-start" }}>
-          <div>
-            <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Threat Timeline
-            </div>
-          </div>
+        <div style={{ fontSize: fontSize.sm, color: text.secondary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          Threat Timeline
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: space[3], alignItems: "flex-start", justifyContent: "flex-start" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
             <span style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Enemy
@@ -315,7 +313,7 @@ function ThreatChart({
                               lines: [
                                 `Ability: ${point.label || "Unknown"}`,
                                 `Threat: ${Math.round(coerceNumber(point.deltaThreat, point.threat)).toLocaleString()}`,
-                                `Boss Target: ${bossTarget?.name || "Unknown"}`,
+                                `Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`,
                               ],
                             });
                           }}
