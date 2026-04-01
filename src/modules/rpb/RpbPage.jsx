@@ -4847,6 +4847,8 @@ export default function RpbPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const fightParam = searchParams.get("fight") || "";
   const tabParam = normalizeRpbTab(searchParams.get("tab"));
+  const threatEnemyParam = searchParams.get("enemy") || "";
+  const threatRaiderParam = searchParams.get("raider") || "";
 
   const [reportUrl, setReportUrl] = useState("");
   const [profileApiKey, setProfileApiKey] = useState("");
@@ -4880,6 +4882,8 @@ export default function RpbPage() {
   const [fightOutcomeFilter, setFightOutcomeFilter] = useState("");
   const [selectedFightId, setSelectedFightId] = useState(() => fightParam);
   const [sliceType, setSliceType] = useState(() => tabParam);
+  const [selectedThreatEnemyKey, setSelectedThreatEnemyKey] = useState(() => threatEnemyParam);
+  const [selectedThreatRaiderId, setSelectedThreatRaiderId] = useState(() => threatRaiderParam);
   const [isMobileViewport, setIsMobileViewport] = useState(() => (
     typeof window !== "undefined" ? window.innerWidth <= MOBILE_BREAKPOINT : false
   ));
@@ -4911,7 +4915,14 @@ export default function RpbPage() {
     : (pendingRaidSummary?.teamTag === "Team Balls" ? "🍒" : "⏳");
 
   useEffect(() => {
-    if (fightParam === selectedFightId && tabParam === sliceType) return;
+    const nextEnemyParam = sliceType === "threat-graph" ? String(selectedThreatEnemyKey || "") : "";
+    const nextRaiderParam = sliceType === "threat-graph" ? String(selectedThreatRaiderId || "") : "";
+    if (
+      fightParam === selectedFightId
+      && tabParam === sliceType
+      && threatEnemyParam === nextEnemyParam
+      && threatRaiderParam === nextRaiderParam
+    ) return;
 
     const nextParams = new URLSearchParams();
     if (selectedFightId) {
@@ -4921,9 +4932,25 @@ export default function RpbPage() {
     if (sliceType && sliceType !== "damage") {
       nextParams.set("tab", sliceType);
     }
+    if (sliceType === "threat-graph" && nextEnemyParam) {
+      nextParams.set("enemy", nextEnemyParam);
+    }
+    if (sliceType === "threat-graph" && nextRaiderParam) {
+      nextParams.set("raider", nextRaiderParam);
+    }
 
     setSearchParams(nextParams, { replace: true });
-  }, [fightParam, selectedFightId, setSearchParams, sliceType, tabParam]);
+  }, [
+    fightParam,
+    selectedFightId,
+    setSearchParams,
+    sliceType,
+    tabParam,
+    selectedThreatEnemyKey,
+    selectedThreatRaiderId,
+    threatEnemyParam,
+    threatRaiderParam,
+  ]);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -6918,6 +6945,10 @@ export default function RpbPage() {
                     selectedRaid={selectedRaid}
                     selectedFightId={selectedFightId}
                     setSelectedFightId={setSelectedFightId}
+                    selectedEnemyKey={selectedThreatEnemyKey}
+                    setSelectedEnemyKey={setSelectedThreatEnemyKey}
+                    selectedRaiderId={selectedThreatRaiderId}
+                    setSelectedRaiderId={setSelectedThreatRaiderId}
                     encounterSelectionOptions={encounterSelectionOptions}
                     filteredFights={filteredFights}
                     isMobileViewport={isMobileViewport}

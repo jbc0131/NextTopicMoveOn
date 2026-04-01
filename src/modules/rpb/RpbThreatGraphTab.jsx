@@ -85,6 +85,13 @@ function formatSecondsFromMs(value) {
   return `${(coerceNumber(value, 0) / 1000).toFixed(1)}s`;
 }
 
+function formatClockFromMs(value) {
+  const totalSeconds = Math.max(0, Math.floor(coerceNumber(value, 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 function normalizeTracePoint(point = {}, fallbackIndex = 0) {
   const timeMs = coerceNumber(
     point.timeMs ?? point.timestampMs ?? point.timestamp ?? point.time ?? point.x,
@@ -367,6 +374,57 @@ function buildDeathMarkers(deathEntries = [], players = [], fightDurationMs = 0)
     .sort((left, right) => left.timeMs - right.timeMs || left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
 }
 
+function stackDeathMarkers(markers = []) {
+  const lanes = [];
+  return (markers || []).map(marker => {
+    const markerWidth = Math.min(132, Math.max(72, marker.label.length * 6.2));
+    let laneIndex = lanes.findIndex(lastEndX => marker.x >= lastEndX + 4);
+    if (laneIndex === -1) {
+      laneIndex = lanes.length;
+      lanes.push(marker.x + markerWidth);
+    } else {
+      lanes[laneIndex] = marker.x + markerWidth;
+    }
+    return {
+      ...marker,
+      laneIndex,
+      markerWidth,
+    };
+  });
+}
+
+function alignTargetSegmentsWithDeaths(targetSegments = [], deathMarkers = []) {
+  if (!targetSegments.length || !deathMarkers.length) return targetSegments;
+  const deathsByPlayerId = new Map();
+  for (const marker of deathMarkers) {
+    const key = String(marker.playerId || "");
+    const rows = deathsByPlayerId.get(key) || [];
+    rows.push(marker.timeMs);
+    deathsByPlayerId.set(key, rows);
+  }
+
+  const adjusted = targetSegments.map(segment => ({ ...segment }));
+  for (let index = 0; index < adjusted.length; index += 1) {
+    const segment = adjusted[index];
+    const candidateDeaths = (deathsByPlayerId.get(String(segment.playerId || "")) || [])
+      .filter(timeMs => timeMs >= coerceNumber(segment.timeMs, 0) && timeMs <= coerceNumber(segment.endTimeMs, 0))
+      .sort((left, right) => left - right);
+    const deathTimeMs = candidateDeaths[0];
+    if (!Number.isFinite(deathTimeMs)) continue;
+    segment.endTimeMs = deathTimeMs;
+    const nextSegment = adjusted[index + 1];
+    if (
+      nextSegment
+      && coerceNumber(nextSegment.timeMs, 0) > deathTimeMs
+      && coerceNumber(nextSegment.timeMs, 0) - deathTimeMs <= 2000
+    ) {
+      nextSegment.timeMs = deathTimeMs;
+    }
+  }
+
+  return adjusted.filter(segment => coerceNumber(segment.endTimeMs, 0) > coerceNumber(segment.timeMs, 0));
+}
+
 function getTooltipPosition(event) {
   return {
     x: event.clientX + 12,
@@ -470,10 +528,17 @@ function ThreatChart({
   );
   const hasGraphData = maxThreat > 0 && visiblePlayers.some(player => player.series.length > 1);
   const yTicks = maxThreat > 0 ? [0.25, 0.5, 0.75, 1] : [];
-  const targetSegments = buildTargetSegments(targetHistory, maxTimeMs);
+  const baseTargetSegments = useMemo(() => buildTargetSegments(targetHistory, maxTimeMs), [targetHistory, maxTimeMs]);
   const deathMarkers = useMemo(
-    () => buildDeathMarkers(deathEntries, adjustedPlayers, maxTimeMs),
+    () => stackDeathMarkers(buildDeathMarkers(deathEntries, adjustedPlayers, maxTimeMs).map(marker => ({
+      ...marker,
+      x: (coerceNumber(marker.timeMs, 0) / Math.max(1, maxTimeMs)) * width,
+    }))),
     [deathEntries, adjustedPlayers, maxTimeMs],
+  );
+  const targetSegments = useMemo(
+    () => alignTargetSegmentsWithDeaths(baseTargetSegments, deathMarkers),
+    [baseTargetSegments, deathMarkers],
   );
 
   const abilityRows = useMemo(
@@ -617,15 +682,15 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                               title: segment.name,
                               lines: [
                                 `Boss Target: ${segment.name}`,
-                                `Start Threat Time: ${formatSecondsFromMs(segment.timeMs)}`,
-                                `End Threat Time: ${formatSecondsFromMs(segment.endTimeMs)}`,
+                                `Start Threat Time: ${formatClockFromMs(segment.timeMs)}`,
+                                `End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`,
                               ],
                             });
                           }}
                         >
                           <title>{`Boss Target: ${segment.name}
-Start Threat Time: ${formatSecondsFromMs(segment.timeMs)}
-End Threat Time: ${formatSecondsFromMs(segment.endTimeMs)}`}</title>
+Start Threat Time: ${formatClockFromMs(segment.timeMs)}
+End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`}</title>
                         </rect>
                         {nextX - x > 64 ? (
                           <text x={x + 6} y={18} fill="rgba(226,232,240,0.9)" fontSize="12">
@@ -645,18 +710,26 @@ End Threat Time: ${formatSecondsFromMs(segment.endTimeMs)}`}</title>
                 <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Deaths
                 </div>
-                <svg viewBox={`0 0 ${width} ${deathBandHeight}`} style={{ width: "100%", height: "28px", display: "block" }} role="img" aria-label="Death timeline">
+                <svg
+                  viewBox={`0 0 ${width} ${Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight)}`}
+                  style={{
+                    width: "100%",
+                    height: `${Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight)}px`,
+                    display: "block",
+                  }}
+                  role="img"
+                  aria-label="Death timeline"
+                >
                   {deathMarkers.length ? deathMarkers.map(marker => {
-                    const x = (coerceNumber(marker.timeMs, 0) / maxTimeMs) * width;
-                    const labelWidth = Math.min(132, Math.max(72, marker.label.length * 6.2));
-                    const clampedX = Math.max(0, Math.min(width - labelWidth, x - 4));
-                    const textFits = clampedX + labelWidth <= width;
+                    const laneY = coerceNumber(marker.laneIndex, 0) * deathBandHeight;
+                    const clampedX = Math.max(0, Math.min(width - marker.markerWidth, marker.x - 4));
+                    const textFits = clampedX + marker.markerWidth <= width;
                     return (
                       <g key={marker.markerKey}>
                         <rect
                           x={clampedX}
-                          y="2"
-                          width={labelWidth}
+                          y={laneY + 2}
+                          width={marker.markerWidth}
                           height={deathBandHeight - 4}
                           fill={`${marker.color || "#ef4444"}22`}
                           stroke={marker.color || "#ef4444"}
@@ -668,24 +741,24 @@ End Threat Time: ${formatSecondsFromMs(segment.endTimeMs)}`}</title>
                               x: tooltip.x,
                               y: tooltip.y,
                               title: marker.label,
-                              lines: [`Time: ${formatSecondsFromMs(marker.timeMs)}`],
+                              lines: [`Time: ${formatClockFromMs(marker.timeMs)}`],
                             });
                           }}
                         >
                           <title>{`${marker.label}
-Time: ${formatSecondsFromMs(marker.timeMs)}`}</title>
+Time: ${formatClockFromMs(marker.timeMs)}`}</title>
                         </rect>
                         <line
-                          x1={x}
-                          x2={x}
-                          y1="2"
-                          y2={deathBandHeight - 2}
+                          x1={marker.x}
+                          x2={marker.x}
+                          y1={laneY + 2}
+                          y2={laneY + deathBandHeight - 2}
                           stroke={marker.color || "#ef4444"}
                           strokeWidth="1.5"
                           strokeDasharray="3 2"
                         />
                         {textFits ? (
-                          <text x={clampedX + 6} y={18} fill="rgba(226,232,240,0.9)" fontSize="12">
+                          <text x={clampedX + 6} y={laneY + 18} fill="rgba(226,232,240,0.9)" fontSize="12">
                             {marker.label}
                           </text>
                         ) : null}
@@ -992,6 +1065,10 @@ export default function RpbThreatGraphTab({
   selectedRaid,
   selectedFightId,
   setSelectedFightId,
+  selectedEnemyKey,
+  setSelectedEnemyKey,
+  selectedRaiderId,
+  setSelectedRaiderId,
   encounterSelectionOptions,
   filteredFights,
   isMobileViewport,
@@ -1032,7 +1109,6 @@ export default function RpbThreatGraphTab({
     }))
   ), [threatSnapshot]);
 
-  const [selectedEnemyKey, setSelectedEnemyKey] = useState("");
   useEffect(() => {
     if (!enemyOptions.length) {
       setSelectedEnemyKey("");
@@ -1052,7 +1128,6 @@ export default function RpbThreatGraphTab({
     normalizeThreatPlayers(selectedEnemy, selectedRaid?.players || [], selectedFight)
   ), [selectedEnemy, selectedFight, selectedRaid]);
   const [hiddenPlayerIds, setHiddenPlayerIds] = useState(() => new Set());
-  const [selectedRaiderId, setSelectedRaiderId] = useState("");
   const selectedRaider = useMemo(() => (
     players.find(player => String(player.playerId) === String(selectedRaiderId)) || players[0] || null
   ), [players, selectedRaiderId]);
