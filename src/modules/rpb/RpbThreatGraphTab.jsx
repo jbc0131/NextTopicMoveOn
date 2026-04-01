@@ -941,6 +941,17 @@ export default function RpbThreatGraphTab({
   const selectedRaider = useMemo(() => (
     players.find(player => String(player.playerId) === String(selectedRaiderId)) || players[0] || null
   ), [players, selectedRaiderId]);
+  const encounterDurationMs = useMemo(() => {
+    const snapshotDuration = Math.max(
+      0,
+      coerceNumber(threatSnapshot?.end, 0) - coerceNumber(threatSnapshot?.start, 0),
+    );
+    if (snapshotDuration > 0) return snapshotDuration;
+    return selectedFight ? Math.max(
+      0,
+      coerceNumber(selectedFight.end_time ?? selectedFight.end, 0) - coerceNumber(selectedFight.start_time ?? selectedFight.start, 0),
+    ) : 0;
+  }, [selectedFight, threatSnapshot]);
 
   const raiderOptions = useMemo(() => (
     players.map(player => ({
@@ -976,7 +987,7 @@ export default function RpbThreatGraphTab({
         selectedRaiderId={selectedRaiderId}
         onSelectRaider={setSelectedRaiderId}
         selectedRaider={selectedRaider}
-        fightDurationMs={selectedFight ? Math.max(0, coerceNumber(selectedFight.end_time ?? selectedFight.end, 0) - coerceNumber(selectedFight.start_time ?? selectedFight.start, 0)) : 0}
+        fightDurationMs={encounterDurationMs}
         underDevelopmentBadgeStyle={underDevelopmentBadgeStyle}
       />
       <ThreatPlayersPanel
