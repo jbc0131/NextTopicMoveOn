@@ -73,6 +73,81 @@ function getRaidKeys(raidId) {
     fights: buildCacheKey("rpb", ["raid", raidId, "fights"]),
     players: buildCacheKey("rpb", ["raid", raidId, "players"]),
     importPayload: buildCacheKey("rpb", ["raid", raidId, "import-payload"]),
+    threatByFightMeta: buildCacheKey("rpb", ["raid", raidId, "threat-by-fight", "meta"]),
+  };
+}
+
+function getThreatByFightSnapshotKey(raidId, fightId) {
+  return buildCacheKey("rpb", ["raid", raidId, "threat-by-fight", "snapshot", fightId]);
+}
+
+function splitImportPayload(importPayload = {}) {
+  const payload = importPayload && typeof importPayload === "object" ? importPayload : {};
+  const threatByFight = payload.threatByFight && typeof payload.threatByFight === "object"
+    ? payload.threatByFight
+    : {};
+
+  const snapshots = Array.isArray(threatByFight.snapshots) ? threatByFight.snapshots : [];
+  const threatMeta = {
+    ...threatByFight,
+    snapshots: undefined,
+    snapshotFightIds: snapshots.map(snapshot => String(snapshot?.fightId || "")).filter(Boolean),
+  };
+  delete threatMeta.snapshots;
+
+  return {
+    baseImportPayload: {
+      ...payload,
+      threatByFight: {
+        ...threatMeta,
+        snapshots: [],
+      },
+    },
+    threatMeta,
+    threatSnapshots: snapshots,
+  };
+}
+
+async function saveThreatByFight(raidId, threatMeta, threatSnapshots) {
+  const keys = getRaidKeys(raidId);
+  const previousMeta = await getJsonCache(keys.threatByFightMeta);
+  const previousFightIds = Array.isArray(previousMeta?.snapshotFightIds) ? previousMeta.snapshotFightIds : [];
+  const nextFightIds = threatSnapshots.map(snapshot => String(snapshot?.fightId || "")).filter(Boolean);
+
+  const operations = [];
+  operations.push(setJsonCache(keys.threatByFightMeta, {
+    ...(threatMeta || {}),
+    snapshotFightIds: nextFightIds,
+  }));
+
+  for (const snapshot of threatSnapshots) {
+    const fightId = String(snapshot?.fightId || "").trim();
+    if (!fightId) continue;
+    operations.push(setJsonCache(getThreatByFightSnapshotKey(raidId, fightId), snapshot));
+  }
+
+  for (const fightId of previousFightIds) {
+    if (nextFightIds.includes(String(fightId))) continue;
+    operations.push(deleteKey(getThreatByFightSnapshotKey(raidId, fightId)));
+  }
+
+  const results = await Promise.all(operations);
+  return results.every(Boolean);
+}
+
+async function loadThreatByFight(raidId) {
+  const keys = getRaidKeys(raidId);
+  const meta = await getJsonCache(keys.threatByFightMeta);
+  if (!meta) return null;
+
+  const fightIds = Array.isArray(meta?.snapshotFightIds) ? meta.snapshotFightIds : [];
+  const snapshots = await Promise.all(
+    fightIds.map(fightId => getJsonCache(getThreatByFightSnapshotKey(raidId, fightId)))
+  );
+
+  return {
+    ...meta,
+    snapshots: snapshots.filter(Boolean),
   };
 }
 
@@ -194,6 +269,7 @@ export async function saveRaidBundle(raid, options = {}) {
   const keys = getRaidKeys(raid.id);
   const summary = getRaidSummary(raid);
   const meta = getRaidMeta(raid);
+  const { baseImportPayload, threatMeta, threatSnapshots } = splitImportPayload(raid.importPayload || {});
   const currentIndex = (await getJsonCache(RPB_INDEX_KEY)) || [];
   const isNewRaid = !currentIndex.some(entry => entry?.id === raid.id);
   const nextIndex = [summary, ...currentIndex.filter(entry => entry?.id !== raid.id)]
@@ -204,7 +280,8 @@ export async function saveRaidBundle(raid, options = {}) {
     setJsonCache(keys.meta, meta),
     setJsonCache(keys.fights, raid.fights || []),
     setJsonCache(keys.players, raid.players || []),
-    setJsonCache(keys.importPayload, raid.importPayload || {}),
+    setJsonCache(keys.importPayload, baseImportPayload || {}),
+    saveThreatByFight(raid.id, threatMeta, threatSnapshots),
     setJsonCache(RPB_INDEX_KEY, nextIndex),
   ]);
 
@@ -253,10 +330,16 @@ export async function getRaidBundle(raidId) {
   }
 
   if (!meta) return null;
-  const importPayload = await getJsonCache(keys.importPayload);
+  const [importPayload, threatByFight] = await Promise.all([
+    getJsonCache(keys.importPayload),
+    loadThreatByFight(resolvedRaidId),
+  ]);
   return {
     ...meta,
-    importPayload: importPayload || meta.importPayload || {},
+    importPayload: {
+      ...((importPayload || meta.importPayload || {})),
+      threatByFight: threatByFight || importPayload?.threatByFight || meta.importPayload?.threatByFight || {},
+    },
     fights: fights || [],
     players: players || [],
   };
@@ -292,6 +375,16 @@ async function deleteRaidBundle(raidId) {
     deleteKey(keys.fights),
     deleteKey(keys.players),
     deleteKey(keys.importPayload),
+    (async () => {
+      const threatMeta = await getJsonCache(keys.threatByFightMeta);
+      const fightIds = Array.isArray(threatMeta?.snapshotFightIds) ? threatMeta.snapshotFightIds : [];
+      const deletes = [deleteKey(keys.threatByFightMeta)];
+      for (const fightId of fightIds) {
+        deletes.push(deleteKey(getThreatByFightSnapshotKey(raidId, fightId)));
+      }
+      const deleteResults = await Promise.all(deletes);
+      return deleteResults.every(Boolean);
+    })(),
     setJsonCache(RPB_INDEX_KEY, nextIndex),
   ]);
 
