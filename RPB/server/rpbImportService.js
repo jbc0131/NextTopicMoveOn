@@ -347,6 +347,26 @@ function normalizeReportSpeedRows(rawRanking, encounterFights = []) {
   };
 }
 
+function extractAverageSpeedPercent(rawRanking, encounterFights = []) {
+  const rows = Array.isArray(rawRanking?.data) ? rawRanking.data : [];
+  const allowedFightIds = new Set((encounterFights || []).map(fight => String(fight.id)));
+  const reportPercents = [];
+
+  for (const row of rows) {
+    const fightId = String(row?.fightID ?? row?.fightId ?? "");
+    if (!fightId || (allowedFightIds.size > 0 && !allowedFightIds.has(fightId))) continue;
+
+    const speedParsePercent = getSpeedRankingPercentile(row);
+    if (speedParsePercent != null) {
+      reportPercents.push(speedParsePercent);
+    }
+  }
+
+  return reportPercents.length
+    ? reportPercents.reduce((sum, value) => sum + value, 0) / reportPercents.length
+    : null;
+}
+
 async function fetchReportRankings(reportId, fightsData = {}, clientIdOverride = "", clientSecretOverride = "") {
   const token = await getWclV2AccessToken(clientIdOverride, clientSecretOverride);
   if (!token) {
@@ -431,7 +451,8 @@ async function fetchReportSpeed(reportId, fightsData = {}, clientIdOverride = ""
   const query = `{
     reportData {
       report(code: "${reportId}", allowUnlisted: true) {
-        overall_speed: rankings(compare: Rankings, playerMetric: playerspeed)
+        fight_speed_rankings: rankings(compare: Rankings, playerMetric: playerspeed)
+        report_speed_parses: rankings(compare: Parses, timeframe: Today, playerMetric: playerspeed)
       }
     }
   }`;
@@ -451,12 +472,15 @@ async function fetchReportSpeed(reportId, fightsData = {}, clientIdOverride = ""
 
   const data = await res.json();
   const report = data?.data?.reportData?.report || {};
-  const normalized = normalizeReportSpeedRows(report?.overall_speed, encounterFights);
+  const normalized = normalizeReportSpeedRows(report?.fight_speed_rankings, encounterFights);
+  const reportSpeedPercent = extractAverageSpeedPercent(report?.report_speed_parses, encounterFights)
+    ?? normalized.reportSpeedPercent;
 
   return {
     available: true,
+    compareMode: "Rankings",
     fights: normalized.fights,
-    reportSpeedPercent: normalized.reportSpeedPercent,
+    reportSpeedPercent,
   };
 }
 
