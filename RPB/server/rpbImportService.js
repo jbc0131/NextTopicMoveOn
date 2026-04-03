@@ -472,14 +472,15 @@ async function fetchReportSpeed(reportId, fightsData = {}, clientIdOverride = ""
 
   const data = await res.json();
   const report = data?.data?.reportData?.report || {};
+  const fightParses = normalizeReportSpeedRows(report?.report_speed_parses, encounterFights);
   const normalized = normalizeReportSpeedRows(report?.fight_speed_rankings, encounterFights);
-  const reportSpeedPercent = extractAverageSpeedPercent(report?.report_speed_parses, encounterFights)
+  const reportSpeedPercent = fightParses.reportSpeedPercent
     ?? normalized.reportSpeedPercent;
 
   return {
     available: true,
     compareMode: "Rankings",
-    fights: normalized.fights,
+    fights: Object.keys(fightParses.fights || {}).length ? fightParses.fights : normalized.fights,
     reportSpeedPercent,
   };
 }
