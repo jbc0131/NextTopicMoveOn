@@ -59,7 +59,6 @@ const UNDER_DEVELOPMENT_BADGE_STYLE = {
   textTransform: "uppercase",
 };
 const RAID_ANALYTICS_FILTERS_BY_SLICE = {
-  damage: ["missing-enchants", "engineering"],
   "gear-issues": ["missing-enchants"],
   potions: ["potion-issues"],
   consumables: ["consumables"],
@@ -5321,40 +5320,7 @@ export default function RpbPage() {
 
   function renderTabScopedRaidAnalyticsControls() {
     if (sliceType === "damage") {
-      return (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
-          <button
-            type="button"
-            onClick={() => setRaidAnalyticsFilter("")}
-            disabled={!hasTabScopedAnalyticsFilter}
-            style={{
-              ...btnStyle(hasTabScopedAnalyticsFilter ? "danger" : "default", false),
-              height: 32,
-              opacity: hasTabScopedAnalyticsFilter ? 1 : 0.65,
-              background: hasTabScopedAnalyticsFilter ? "rgba(205, 78, 78, 0.24)" : "transparent",
-              borderColor: hasTabScopedAnalyticsFilter ? "rgba(255, 134, 134, 0.98)" : border.subtle,
-              color: hasTabScopedAnalyticsFilter ? "#ffdede" : text.secondary,
-              boxShadow: hasTabScopedAnalyticsFilter ? "0 0 0 2px rgba(255, 134, 134, 0.22)" : "none",
-            }}
-          >
-            Clear Filter
-          </button>
-          <MetricTag
-            label="Gear Issues"
-            value={filteredRaidAnalytics.playersMissingEnchants.length}
-            tone="danger"
-            active={raidAnalyticsFilter === "missing-enchants"}
-            onClick={() => setRaidAnalyticsFilter(current => current === "missing-enchants" ? "" : "missing-enchants")}
-          />
-          <MetricTag
-            label="Engineering Damage"
-            value={filteredRaidAnalytics.engineeringDamageTaken.length}
-            tone="warning"
-            active={raidAnalyticsFilter === "engineering"}
-            onClick={() => setRaidAnalyticsFilter(current => current === "engineering" ? "" : "engineering")}
-          />
-        </div>
-      );
+      return null;
     }
 
     if (sliceType === "gear-issues") {
@@ -7562,7 +7528,7 @@ export default function RpbPage() {
                             </button>
                           );
                         })}
-                        {sliceType !== "consumables" && sliceType !== "drums" && sliceType !== "potions" && sliceType !== "debuffs" && visibleAggregatedSliceEntries.map(entry => {
+                        {sliceType !== "consumables" && sliceType !== "drums" && sliceType !== "potions" && sliceType !== "debuffs" && sliceType !== "gear-issues" && visibleAggregatedSliceEntries.map(entry => {
                           const maxValue = visibleAggregatedSliceEntries[0]?.total || 1;
                           const active = String(entry.id) === String(selectedPlayerId);
                           const perSecondValue = sliceType === "deaths"
