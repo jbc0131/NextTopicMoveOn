@@ -566,7 +566,6 @@ function aggregateLegacyAbilityRows(entries = [], castsByGuid = new Map()) {
     existing.activeTime += Number(entry.activeTime ?? entry.uptime ?? 0);
     existing.hits += Number(entry.hitCount ?? entry.hits ?? entry.totalHits ?? entry.landedHits ?? entry.count ?? 0);
     existing.hits += Number(entry.tickCount ?? 0);
-    existing.hits += Number(entry.missCount ?? 0);
     existing.crits += Number(entry.critHitCount ?? entry.criticalHits ?? entry.crits ?? entry.critCount ?? entry.critHits ?? 0);
     existing.crits += Number(entry.critTickCount ?? 0);
     existing.overheal += Number(entry.overheal ?? 0);
@@ -3108,10 +3107,9 @@ function normalizeAbilityEntry(ability) {
     ?? NaN
   );
   const tickHits = Number(ability.tickCount ?? 0);
-  const missHits = Number(ability.missCount ?? 0);
   const hits = Number.isFinite(directHits)
-    ? directHits + tickHits + missHits
-    : (tickHits + missHits);
+    ? directHits + tickHits
+    : tickHits;
   const casts = ability.casts
     ?? ability.totalUses
     ?? ability.uses

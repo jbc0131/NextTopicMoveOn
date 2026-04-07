@@ -60,6 +60,7 @@ const UNDER_DEVELOPMENT_BADGE_STYLE = {
 };
 const RAID_ANALYTICS_FILTERS_BY_SLICE = {
   damage: ["missing-enchants", "engineering"],
+  "gear-issues": ["missing-enchants"],
   potions: ["potion-issues"],
   consumables: ["consumables"],
   healing: ["hearthstone"],
@@ -71,6 +72,7 @@ const VALID_RPB_TABS = new Set([
   "drums",
   "potions",
   "consumables",
+  "gear-issues",
   "debuffs",
   "threat-graph",
 ]);
@@ -939,6 +941,7 @@ function PlayerDetailPanel({
     enchantId: issue.enchantId,
     enchantName: issue.enchantName,
   }));
+  const isGearIssuesSlice = sliceType === "gear-issues";
 
   const openItemPreview = (item, options = {}) => {
     const resolvedItem = item?.id ? item : { id: options.itemId ?? item?.id, name: options.title };
@@ -1145,13 +1148,15 @@ function PlayerDetailPanel({
           <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: getClassColor(selectedPlayer.type) }}>{selectedPlayer.name}</div>
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: space[2] }}>
-          {selectedPlayerMetricTags.map(tag => (
-            <MetricTag key={tag.label} label={tag.label} value={tag.value} tone={tag.tone} />
-          ))}
-        </div>
+        {!isGearIssuesSlice && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: space[2] }}>
+            {selectedPlayerMetricTags.map(tag => (
+              <MetricTag key={tag.label} label={tag.label} value={tag.value} tone={tag.tone} />
+            ))}
+          </div>
+        )}
 
-        {sliceType === "deaths" && (
+        {!isGearIssuesSlice && sliceType === "deaths" && (
           <div>
             <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>Death recap</div>
             <div ref={abilityBreakdownRef} style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
@@ -1261,7 +1266,7 @@ function PlayerDetailPanel({
           </div>
         )}
 
-        {sliceType === "drums" && (
+        {!isGearIssuesSlice && sliceType === "drums" && (
           <div>
             <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
               Drums usage by boss fight
@@ -1339,7 +1344,7 @@ function PlayerDetailPanel({
           </div>
         )}
 
-        {sliceType === "consumables" && (
+        {!isGearIssuesSlice && sliceType === "consumables" && (
           <div>
             <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
               Consumable coverage by boss fight
@@ -1555,7 +1560,7 @@ function PlayerDetailPanel({
           </div>
         )}
 
-        {(sliceType === "damage" || sliceType === "healing") && (
+        {!isGearIssuesSlice && (sliceType === "damage" || sliceType === "healing") && (
           <div>
             <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
               {sliceType === "healing" ? "Healing breakdown" : "Damage breakdown"}
@@ -1757,7 +1762,7 @@ function PlayerDetailPanel({
         </div>
         )}
 
-        {activeTemporaryEnchantRows.length > 0 && (
+        {isGearIssuesSlice && activeTemporaryEnchantRows.length > 0 && (
           <div>
             <div style={{ fontSize: fontSize.sm, color: text.secondary, marginBottom: space[2] }}>
               Temporary Weapon Enchants
@@ -3072,6 +3077,40 @@ function buildConsumableSliceEntries(players, analyticsByPlayerId, filterIds = n
   });
 }
 
+function buildGearIssueSliceEntries(players, analyticsByPlayerId, filterIds = null) {
+  const rows = [];
+
+  for (const player of players || []) {
+    const analytics = analyticsByPlayerId.get(String(player.id));
+    if (!analytics) continue;
+    if (filterIds && !filterIds.has(String(player.id))) continue;
+
+    const missingPermanent = Number(analytics.gearIssueSummary?.missingPermanentEnchantCount || 0);
+    const missingTemporary = Number(analytics.gearIssueSummary?.missingTemporaryEnchantCount || 0);
+    const suboptimalTemporary = Number(analytics.gearIssueSummary?.suboptimalTemporaryEnchantCount || 0);
+    const lowQualityGems = Number(analytics.gearIssueSummary?.lowQualityGemCount || 0);
+    const totalIssues = missingPermanent + missingTemporary + suboptimalTemporary + lowQualityGems;
+
+    rows.push({
+      id: String(player.id),
+      name: player.name || "Unknown Player",
+      type: player.type || "",
+      total: totalIssues,
+      missingPermanent,
+      missingTemporary,
+      suboptimalTemporary,
+      lowQualityGems,
+      hasGearData: Boolean(analytics.hasGearData),
+    });
+  }
+
+  return rows.sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total;
+    if (a.hasGearData !== b.hasGearData) return a.hasGearData ? -1 : 1;
+    return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+  });
+}
+
 function getPotionSectionLabel(section) {
   switch (section) {
     case "prepull":
@@ -3165,11 +3204,13 @@ function aggregateDamageEntries(fights) {
         type: entry.type || "",
         total: 0,
         activeTime: 0,
+        encounterTime: 0,
         fights: 0,
       };
 
       existing.total += entry.total || 0;
       existing.activeTime += entry.activeTime || 0;
+      existing.encounterTime += Number(fight?.durationMs || 0);
       existing.fights += 1;
       grouped.set(key, existing);
     }
@@ -3190,6 +3231,7 @@ function aggregateMetricEntries(fights, field, overallParseByPlayerId = null, us
         type: entry.type || "",
         total: 0,
         activeTime: 0,
+        encounterTime: 0,
         fights: 0,
         parsePercent: null,
         parseTotal: 0,
@@ -3201,6 +3243,7 @@ function aggregateMetricEntries(fights, field, overallParseByPlayerId = null, us
         : Number(entry.total || 0);
       existing.total += entryTotal;
       existing.activeTime += entry.activeTime || 0;
+      existing.encounterTime += Number(fight?.durationMs || 0);
       existing.fights += 1;
       if (Number.isFinite(Number(entry.parsePercent))) {
         existing.parseTotal += Number(entry.parsePercent);
@@ -4276,11 +4319,17 @@ function formatPercent(value) {
   return `${value.toFixed(2)}%`;
 }
 
-function formatPerSecond(total, activeTimeMs) {
+function formatParseDisplay(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return "0";
+  return String(Math.floor(numeric));
+}
+
+function formatPerSecond(total, timeMs) {
   const totalNumber = Number(total || 0);
-  const activeMs = Number(activeTimeMs || 0);
-  if (!Number.isFinite(totalNumber) || !Number.isFinite(activeMs) || activeMs <= 0) return "0";
-  return Math.round(totalNumber / (activeMs / 1000)).toLocaleString();
+  const normalizedTimeMs = Number(timeMs || 0);
+  if (!Number.isFinite(totalNumber) || !Number.isFinite(normalizedTimeMs) || normalizedTimeMs <= 0) return "0";
+  return Math.round(totalNumber / (normalizedTimeMs / 1000)).toLocaleString();
 }
 
 function getFightTypeLabel(fight) {
@@ -5308,6 +5357,36 @@ export default function RpbPage() {
       );
     }
 
+    if (sliceType === "gear-issues") {
+      return (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setRaidAnalyticsFilter("")}
+            disabled={!hasTabScopedAnalyticsFilter}
+            style={{
+              ...btnStyle(hasTabScopedAnalyticsFilter ? "danger" : "default", false),
+              height: 32,
+              opacity: hasTabScopedAnalyticsFilter ? 1 : 0.65,
+              background: hasTabScopedAnalyticsFilter ? "rgba(205, 78, 78, 0.24)" : "transparent",
+              borderColor: hasTabScopedAnalyticsFilter ? "rgba(255, 134, 134, 0.98)" : border.subtle,
+              color: hasTabScopedAnalyticsFilter ? "#ffdede" : text.secondary,
+              boxShadow: hasTabScopedAnalyticsFilter ? "0 0 0 2px rgba(255, 134, 134, 0.22)" : "none",
+            }}
+          >
+            Clear Filter
+          </button>
+          <MetricTag
+            label="Gear Issues"
+            value={filteredRaidAnalytics.playersMissingEnchants.length}
+            tone="danger"
+            active={raidAnalyticsFilter === "missing-enchants"}
+            onClick={() => setRaidAnalyticsFilter(current => current === "missing-enchants" ? "" : "missing-enchants")}
+          />
+        </div>
+      );
+    }
+
     if (sliceType === "consumables") {
       return (
         <div style={{ display: "flex", flexWrap: "wrap", gap: space[2], alignItems: "center" }}>
@@ -5477,7 +5556,7 @@ export default function RpbPage() {
                   <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <span style={{ color: "#e5cc80" }}>DPS Leader</span>
                     <span style={{ color: getScoreColor(topDps.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold, fontSize: fontSize.base }}>
-                      {Math.round(Number(topDps.awardParse || 0))}
+                      {formatParseDisplay(topDps.awardParse)}
                     </span>
                     <span style={{ color: getClassColor(topDps.type), fontWeight: fontWeight.bold, fontSize: fontSize.sm }}>
                       {topDps.name}
@@ -5488,7 +5567,7 @@ export default function RpbPage() {
                   <span style={{ fontSize: fontSize.sm, color: active ? "#dce9ff" : text.muted, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <span style={{ color: "#e5cc80" }}>Healer Leader</span>
                     <span style={{ color: getScoreColor(topHealer.awardParse) || (active ? "#f6f8ff" : text.primary), fontWeight: fontWeight.bold, fontSize: fontSize.base }}>
-                      {Math.round(Number(topHealer.awardParse || 0))}
+                      {formatParseDisplay(topHealer.awardParse)}
                     </span>
                     <span style={{ color: getClassColor(topHealer.type), fontWeight: fontWeight.bold, fontSize: fontSize.sm }}>
                       {topHealer.name}
@@ -5754,6 +5833,9 @@ export default function RpbPage() {
   const visibleConsumableSliceEntries = useMemo(() => {
     return buildConsumableSliceEntries(selectedRaid?.players || [], filteredPlayerAnalyticsById, raidAnalyticsFilterIds);
   }, [filteredPlayerAnalyticsById, raidAnalyticsFilterIds, selectedRaid]);
+  const visibleGearIssueSliceEntries = useMemo(() => {
+    return buildGearIssueSliceEntries(selectedRaid?.players || [], filteredPlayerAnalyticsById, raidAnalyticsFilterIds);
+  }, [filteredPlayerAnalyticsById, raidAnalyticsFilterIds, selectedRaid]);
   const visiblePotionSliceEntries = useMemo(() => {
     return buildPotionSliceEntries(selectedRaid?.players || [], filteredPlayerAnalyticsById, raidAnalyticsFilterIds);
   }, [filteredPlayerAnalyticsById, raidAnalyticsFilterIds, selectedRaid]);
@@ -5785,11 +5867,13 @@ export default function RpbPage() {
 
     const source = sliceType === "consumables"
       ? visibleConsumableSliceEntries
+      : (sliceType === "gear-issues"
+        ? visibleGearIssueSliceEntries
       : (sliceType === "potions"
         ? visiblePotionSliceEntries
-        : (sliceType === "drums" ? visibleDrumSliceEntries : visibleAggregatedSliceEntries));
+        : (sliceType === "drums" ? visibleDrumSliceEntries : visibleAggregatedSliceEntries)));
     return source?.[0]?.id ? String(source[0].id) : "";
-  }, [sliceType, visibleAggregatedSliceEntries, visibleConsumableSliceEntries, visibleDrumSliceEntries, visiblePotionSliceEntries]);
+  }, [sliceType, visibleAggregatedSliceEntries, visibleConsumableSliceEntries, visibleDrumSliceEntries, visibleGearIssueSliceEntries, visiblePotionSliceEntries]);
   const selectedPlayerSliceTotals = useMemo(() => {
     return getPlayerSliceTotals(filteredFights, selectedPlayerId, selectedPlayer?.role || "");
   }, [filteredFights, selectedPlayer?.role, selectedPlayerId]);
@@ -6900,7 +6984,7 @@ export default function RpbPage() {
                     >
                     {option.speedParsePercent != null && (
                       <span style={parseInlineStyle(option.speedParsePercent)}>
-                        {Math.round(option.speedParsePercent)}
+                        {formatParseDisplay(option.speedParsePercent)}
                       </span>
                     )}
                     <span>{option.label}</span>
@@ -6975,6 +7059,7 @@ export default function RpbPage() {
                           { id: "drums", label: "Drums" },
                           { id: "potions", label: "Potions" },
                           { id: "consumables", label: "Consumables" },
+                          { id: "gear-issues", label: "Gear Issues" },
                           { id: "debuffs", label: "Boss Debuffs" },
                           { id: "threat-graph", label: "Threat Graph" },
                         ].map(option => (
@@ -7019,15 +7104,16 @@ export default function RpbPage() {
                       <div style={{ padding: space[4], display: "flex", flexDirection: "column", gap: space[3] }}>
                         <div style={{ display: "flex", gap: space[2], flexWrap: "wrap" }}>
                           {[
-                            { id: "damage", label: "Damage" },
-                            { id: "healing", label: "Healing" },
-                            { id: "deaths", label: "Deaths" },
-                            { id: "drums", label: "Drums" },
-                            { id: "potions", label: "Potions" },
-                            { id: "consumables", label: "Consumables" },
-                            { id: "debuffs", label: "Boss Debuffs" },
-                            { id: "threat-graph", label: "Threat Graph" },
-                          ].map(option => (
+                          { id: "damage", label: "Damage" },
+                          { id: "healing", label: "Healing" },
+                          { id: "deaths", label: "Deaths" },
+                          { id: "drums", label: "Drums" },
+                          { id: "potions", label: "Potions" },
+                          { id: "consumables", label: "Consumables" },
+                          { id: "gear-issues", label: "Gear Issues" },
+                          { id: "debuffs", label: "Boss Debuffs" },
+                          { id: "threat-graph", label: "Threat Graph" },
+                        ].map(option => (
                             <button
                               key={option.id}
                               onClick={() => setSliceType(option.id)}
@@ -7046,17 +7132,21 @@ export default function RpbPage() {
                         <div style={{ display: "flex", flexDirection: "column", gap: space[2] }}>
                         {((sliceType === "consumables"
                           ? visibleConsumableSliceEntries
+                          : (sliceType === "gear-issues"
+                            ? visibleGearIssueSliceEntries
                           : (sliceType === "potions"
                             ? visiblePotionSliceEntries
                             : (sliceType === "drums"
                               ? visibleDrumSliceEntries
-                              : (sliceType === "debuffs" ? visibleDebuffSliceEntries : visibleAggregatedSliceEntries)))).length === 0) && (
+                              : (sliceType === "debuffs" ? visibleDebuffSliceEntries : visibleAggregatedSliceEntries))))).length === 0) && (
                           <div style={{ fontSize: fontSize.sm, color: text.muted }}>
                             {sliceType === "debuffs"
                               ? "No tracked boss debuffs were found in the current filtered fights. Reimport the report if this raid predates debuff snapshots."
+                              : (sliceType === "gear-issues"
+                                ? "No gear issue rows were found for the current filtered players."
                               : (raidAnalyticsFilter
                                 ? "No players match the active raid analytics filter in this slice."
-                                : "Select encounters and re-import a raid with boss data to populate encounter slices.")}
+                                : "Select encounters and re-import a raid with boss data to populate encounter slices."))}
                           </div>
                         )}
                         {sliceType === "debuffs" && visibleDebuffSliceEntries.map(entry => {
@@ -7367,6 +7457,48 @@ export default function RpbPage() {
                             </button>
                           );
                         })}
+                        {sliceType === "gear-issues" && visibleGearIssueSliceEntries.map(entry => {
+                          const active = String(entry.id) === String(selectedPlayerId);
+                          const maxValue = Math.max(visibleGearIssueSliceEntries[0]?.total || 0, 1);
+                          return (
+                            <button
+                              key={`gear-issues-${entry.id}`}
+                              onClick={() => handlePlayerSelection(entry.id)}
+                              style={{
+                                background: active ? `${accent.blue}10` : "transparent",
+                                border: `${active ? 2 : 1}px solid ${active ? accent.blue : border.subtle}`,
+                                boxShadow: active ? `0 0 0 2px ${accent.blue}33` : "none",
+                                borderRadius: radius.base,
+                                padding: space[3],
+                                textAlign: "left",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 10 }}>
+                                <span style={{ color: getClassColor(entry.type), fontWeight: fontWeight.semibold }}>{entry.name}</span>
+                                <span style={{ color: entry.total > 0 ? "#ffd5d5" : "#d7ffdf", fontWeight: fontWeight.semibold }}>
+                                  {entry.total} issue{entry.total === 1 ? "" : "s"}
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: space[3], marginBottom: 8 }}>
+                                <span style={{ fontSize: fontSize.xs, color: text.muted }}>
+                                  {`Perm ${entry.missingPermanent} · Temp ${entry.missingTemporary} · Suboptimal ${entry.suboptimalTemporary} · Gems ${entry.lowQualityGems}`}
+                                </span>
+                                <span style={{ fontSize: fontSize.xs, color: entry.hasGearData ? text.muted : "#ffb3b3" }}>
+                                  {entry.hasGearData ? "Gear snapshot found" : "No gear snapshot"}
+                                </span>
+                              </div>
+                              <div style={{ height: 10, borderRadius: 999, background: surface.base, overflow: "hidden", border: `1px solid ${border.subtle}` }}>
+                                <div style={{
+                                  width: `${Math.max(3, Math.round((entry.total / maxValue) * 100))}%`,
+                                  height: "100%",
+                                  background: entry.total > 0 ? intent.warning : intent.success,
+                                  opacity: 0.9,
+                                }} />
+                              </div>
+                            </button>
+                          );
+                        })}
                         {sliceType === "potions" && visiblePotionSliceEntries.map(entry => {
                           const active = String(entry.id) === String(selectedPlayerId);
                           const prepotCount = Number(entry.prepotCount || 0);
@@ -7435,7 +7567,7 @@ export default function RpbPage() {
                           const active = String(entry.id) === String(selectedPlayerId);
                           const perSecondValue = sliceType === "deaths"
                             ? ""
-                            : formatPerSecond(entry.total, entry.activeTime);
+                            : formatPerSecond(entry.total, entry.encounterTime || entry.activeTime);
                           return (
                             <button
                               key={`damage-${entry.id}`}
@@ -7454,7 +7586,7 @@ export default function RpbPage() {
                               <span style={{ display: "inline-flex", alignItems: "center", gap: space[2], minWidth: 0 }}>
                                 {Number(entry.parsePercent) > 0 && sliceType !== "deaths" && (
                                   <span style={{ color: getScoreColor(entry.parsePercent) || text.muted, fontWeight: fontWeight.bold, fontSize: fontSize.xs }}>
-                                    {Math.round(entry.parsePercent)}
+                                    {formatParseDisplay(entry.parsePercent)}
                                   </span>
                                 )}
                                 <span style={{ color: getClassColor(entry.type), fontWeight: fontWeight.semibold }}>{entry.name}</span>
