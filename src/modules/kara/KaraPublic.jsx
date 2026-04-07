@@ -79,30 +79,31 @@ function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searc
           ))}
         </div>
       )}
-      <div style={{ display: "flex" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
         {[team.g1, team.g2].map((group, gi) => {
           const filled = group.filter(r => viewAssignments[r.key]).length;
           return (
-            <div key={gi} style={{ flex: 1, borderRight: gi === 0 ? `1px solid ${color}18` : "none" }}>
-              <div style={{ padding: `3px ${space[2]}px`, borderBottom: `1px solid ${color}11`, display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 9, color: `${color}88`, fontFamily: font.sans, letterSpacing: "0.1em" }}>GROUP {gi + 1}</span>
-                <span style={{ fontSize: 9, color: text.muted, fontFamily: font.sans }}>{filled}/5</span>
-              </div>
-              {group.map(row => {
-                const ids = viewAssignments[row.key];
-                if (!ids) return (
-                  <div key={row.key} style={{ minHeight: layout.rowHeight, borderBottom: `1px solid ${border.subtle}`, padding: `${space[1]}px ${space[2]}px` }}>
-                    <span style={{ fontSize: fontSize.xs, color: text.disabled, fontFamily: font.sans }}>—</span>
-                  </div>
-                );
-                return (
-                  <div key={row.key} style={{ padding: `${space[1]}px ${space[2]}px`, borderBottom: `1px solid ${border.subtle}`, minHeight: layout.rowHeight, display: "flex", alignItems: "center" }}>
-                    <PlayerSlot ids={ids} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
-                  </div>
-                );
-              })}
+            <div key={gi} style={{ padding: `3px ${space[2]}px`, borderBottom: `1px solid ${color}11`, borderRight: gi === 0 ? `1px solid ${color}18` : "none", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 9, color: `${color}88`, fontFamily: font.sans, letterSpacing: "0.1em" }}>GROUP {gi + 1}</span>
+              <span style={{ fontSize: 9, color: text.muted, fontFamily: font.sans }}>{filled}/5</span>
             </div>
           );
+        })}
+        {team.g1.map((row, i) => {
+          const g2Row = team.g2[i];
+          return [row, g2Row].map((r, gi) => {
+            const ids = viewAssignments[r.key];
+            if (!ids) return (
+              <div key={r.key} style={{ minHeight: layout.rowHeight, borderBottom: `1px solid ${border.subtle}`, borderRight: gi === 0 ? `1px solid ${color}18` : "none", padding: `${space[1]}px ${space[2]}px` }}>
+                <span style={{ fontSize: fontSize.xs, color: text.disabled, fontFamily: font.sans }}>—</span>
+              </div>
+            );
+            return (
+              <div key={r.key} style={{ padding: `${space[1]}px ${space[2]}px`, borderBottom: `1px solid ${border.subtle}`, borderRight: gi === 0 ? `1px solid ${color}18` : "none", minHeight: layout.rowHeight, display: "flex", alignItems: "center" }}>
+                <PlayerSlot ids={ids} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
+              </div>
+            );
+          });
         })}
       </div>
     </div>

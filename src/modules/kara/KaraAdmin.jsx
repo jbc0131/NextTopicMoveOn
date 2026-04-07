@@ -165,34 +165,37 @@ function NightSection({ night, teams, color, assignments, allRosters, isLocked, 
               )}
 
               {/* Groups */}
-              <div style={{ display: "flex" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
                 {[team.g1, team.g2].map((group, gi) => {
                   const filled = group.filter(r => assignments[r.key]).length;
                   return (
-                    <div key={gi} style={{ flex: 1, borderRight: gi === 0 ? `1px solid ${color}18` : "none" }}>
-                      <div style={{
-                        padding: `3px ${space[2]}px`,
-                        borderBottom: `1px solid ${color}11`,
-                        display: "flex", justifyContent: "space-between",
-                      }}>
-                        <span style={{ fontSize: 9, color: `${color}88`, fontFamily: font.sans, letterSpacing: "0.1em" }}>GROUP {gi + 1}</span>
-                        <span style={{ fontSize: 9, color: text.muted, fontFamily: font.sans }}>{filled}/5</span>
-                      </div>
-                      {group.map(row => (
-                        <KaraDropRow
-                          key={row.key}
-                          rowCfg={row}
-                          assignedIds={assignments[row.key]}
-                          allRosters={allRosters}
-                          onDrop={isLocked ? () => {} : onDrop}
-                          onClear={isLocked ? () => {} : onClear}
-                          onDragStart={isLocked ? null : onDragStart}
-                          onSpecCycle={onSpecCycle}
-                          assignments={assignments}
-                        />
-                      ))}
+                    <div key={`header-${gi}`} style={{
+                      padding: `3px ${space[2]}px`,
+                      borderBottom: `1px solid ${color}11`,
+                      borderRight: gi === 0 ? `1px solid ${color}18` : "none",
+                      display: "flex", justifyContent: "space-between",
+                    }}>
+                      <span style={{ fontSize: 9, color: `${color}88`, fontFamily: font.sans, letterSpacing: "0.1em" }}>GROUP {gi + 1}</span>
+                      <span style={{ fontSize: 9, color: text.muted, fontFamily: font.sans }}>{filled}/5</span>
                     </div>
                   );
+                })}
+                {team.g1.map((row, idx) => {
+                  const g2Row = team.g2[idx];
+                  return [row, g2Row].map((r, gi) => (
+                    <div key={r.key} style={{ borderRight: gi === 0 ? `1px solid ${color}18` : "none" }}>
+                      <KaraDropRow
+                        rowCfg={r}
+                        assignedIds={assignments[r.key]}
+                        allRosters={allRosters}
+                        onDrop={isLocked ? () => {} : onDrop}
+                        onClear={isLocked ? () => {} : onClear}
+                        onDragStart={isLocked ? null : onDragStart}
+                        onSpecCycle={onSpecCycle}
+                        assignments={assignments}
+                      />
+                    </div>
+                  ));
                 })}
               </div>
             </div>
