@@ -40,7 +40,7 @@ const SPEC_DISPLAY_MAP = { Protection1: "Protection", Holy1: "Holy", Restoration
 const specLabel = s => SPEC_DISPLAY_MAP[s] || s;
 
 // ── Assignment drop row ───────────────────────────────────────────────────────
-function KaraDropRow({ rowCfg, assignedIds, allRosters, onDrop, onClear, onSpecCycle, onDragStart, assignments }) {
+function KaraDropRow({ rowCfg, assignedIds, allRosters, onDrop, onClear, onSpecCycle, onDragStart, assignments, extraStyle }) {
   const [over, setOver] = useState(false);
   const dropRef = useRef(null);
   const ids   = assignedIds ? (Array.isArray(assignedIds) ? assignedIds : [assignedIds]) : [];
@@ -60,6 +60,7 @@ function KaraDropRow({ rowCfg, assignedIds, allRosters, onDrop, onClear, onSpecC
         borderLeft: `2px solid ${over ? accent.blue : border.subtle}`,
         borderBottom: `1px solid ${border.subtle}`,
         transition: "all 0.1s",
+        ...extraStyle,
       }}
     >
       <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: space[1], alignItems: "center" }}>
@@ -118,7 +119,7 @@ function NightSection({ night, teams, color, assignments, allRosters, isLocked, 
       </div>
 
       {/* Teams */}
-      <div style={{ display: "flex", gap: space[3] }}>
+      <div style={{ display: "flex", gap: space[3], alignItems: "flex-start" }}>
         {teams.map((team, i) => {
           const allRows     = [...team.g1, ...team.g2];
           const teamPlayers = allRows
@@ -183,18 +184,18 @@ function NightSection({ night, teams, color, assignments, allRosters, isLocked, 
                 {team.g1.map((row, idx) => {
                   const g2Row = team.g2[idx];
                   return [row, g2Row].map((r, gi) => (
-                    <div key={r.key} style={{ borderRight: gi === 0 ? `1px solid ${color}18` : "none" }}>
-                      <KaraDropRow
-                        rowCfg={r}
-                        assignedIds={assignments[r.key]}
-                        allRosters={allRosters}
-                        onDrop={isLocked ? () => {} : onDrop}
-                        onClear={isLocked ? () => {} : onClear}
-                        onDragStart={isLocked ? null : onDragStart}
-                        onSpecCycle={onSpecCycle}
-                        assignments={assignments}
-                      />
-                    </div>
+                    <KaraDropRow
+                      key={r.key}
+                      rowCfg={r}
+                      assignedIds={assignments[r.key]}
+                      allRosters={allRosters}
+                      onDrop={isLocked ? () => {} : onDrop}
+                      onClear={isLocked ? () => {} : onClear}
+                      onDragStart={isLocked ? null : onDragStart}
+                      onSpecCycle={onSpecCycle}
+                      assignments={assignments}
+                      extraStyle={gi === 0 ? { borderRight: `1px solid ${color}18` } : undefined}
+                    />
                   ));
                 })}
               </div>
