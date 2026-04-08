@@ -381,6 +381,10 @@ function getChartPoint(point, width, height, maxTimeMs, maxThreat) {
   };
 }
 
+function getTimelineX(timeMs, timelineStartX, timelineWidth, maxTimeMs) {
+  return timelineStartX + ((coerceNumber(timeMs, 0) / Math.max(1, maxTimeMs)) * timelineWidth);
+}
+
 function buildTargetSegments(targetHistory = [], fightDurationMs = 0) {
   if (!Array.isArray(targetHistory) || !targetHistory.length) return [];
   return targetHistory.map((entry, index) => ({
@@ -554,6 +558,9 @@ function ThreatChart({
   const height = 344;
   const chartBottomPadding = 24;
   const plotHeight = height - chartBottomPadding;
+  const timelineStartX = 44;
+  const timelineEndX = width - 6;
+  const timelineWidth = timelineEndX - timelineStartX;
   const targetBandHeight = 28;
   const deathBandHeight = 28;
   const [hoveredTooltip, setHoveredTooltip] = useState(null);
@@ -637,9 +644,9 @@ function ThreatChart({
   const deathMarkers = useMemo(
     () => stackDeathMarkers(buildDeathMarkers(deathEntries, adjustedPlayers, maxTimeMs, fight).map(marker => ({
       ...marker,
-      x: (coerceNumber(marker.timeMs, 0) / Math.max(1, maxTimeMs)) * width,
+      x: getTimelineX(marker.timeMs, timelineStartX, timelineWidth, maxTimeMs),
     }))),
-    [deathEntries, adjustedPlayers, maxTimeMs, fight],
+    [deathEntries, adjustedPlayers, maxTimeMs, fight, timelineStartX, timelineWidth],
   );
   const targetSegments = useMemo(
     () => alignTargetSegmentsWithDeaths(baseTargetSegments, deathMarkers),
@@ -703,7 +710,7 @@ function ThreatChart({
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Threat timeline">
                 {timelineTicks.map(tick => {
-                  const x = (coerceNumber(tick.timeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                  const x = getTimelineX(tick.timeMs, timelineStartX, timelineWidth, maxTimeMs);
                   return (
                     <g key={`timeline-${tick.timeMs}`}>
                       <line x1={x} x2={x} y1="0" y2={plotHeight} stroke="rgba(255,255,255,0.10)" strokeWidth="1" strokeDasharray="3 4" />
@@ -724,7 +731,7 @@ function ThreatChart({
                   const labelValue = Math.round(maxThreat * tick).toLocaleString();
                   return (
                     <g key={`y-${tick}`}>
-                      <line x1="0" x2={width} y1={y} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+                      <line x1={timelineStartX} x2={timelineEndX} y1={y} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
                       <text x="8" y={Math.max(14, y - 6)} fill="rgba(204,214,224,0.76)" fontSize="14">
                         {labelValue}
                       </text>
@@ -732,8 +739,8 @@ function ThreatChart({
                   );
                 })}
                 {normalizedMisdirectionWindows.map(window => {
-                  const startX = (coerceNumber(window.startTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
-                  const endX = (coerceNumber(window.endTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                  const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
+                  const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
                   const bandWidth = Math.max(2, endX - startX);
                   return (
                     <g key={`misdirection-main-${window.markerKey}`}>
@@ -743,8 +750,6 @@ function ThreatChart({
                         width={bandWidth}
                         height={plotHeight}
                         fill={`${window.sourceColor}22`}
-                        stroke={window.sourceColor}
-                        strokeWidth="1"
                         onMouseMove={event => {
                           const tooltip = getTooltipPosition(event);
                           setHoveredTooltip({
@@ -773,9 +778,9 @@ Damage During Window: ${Math.round(window.damageDone).toLocaleString()}`}</title
                 })}
                 {visiblePlayers.map(player => {
                   return (
-                    <g key={player.playerId}>
+                    <g key={player.playerId} transform={`translate(${timelineStartX} 0)`}>
                       <path
-                        d={buildThreatChartPath(player.series, width, plotHeight, maxTimeMs, maxThreat)}
+                        d={buildThreatChartPath(player.series, timelineWidth, plotHeight, maxTimeMs, maxThreat)}
                         fill="none"
                         stroke={player.color}
                         strokeWidth="1.6"
@@ -786,7 +791,7 @@ Damage During Window: ${Math.round(window.damageDone).toLocaleString()}`}</title
                         <title>{player.name}</title>
                       </path>
                       {player.series.map((point, index) => {
-                        const position = getChartPoint(point, width, plotHeight, maxTimeMs, maxThreat);
+                        const position = getChartPoint(point, timelineWidth, plotHeight, maxTimeMs, maxThreat);
                         return (
                           <circle
                             key={`${player.playerId}-${index}-${point.timeMs}`}
@@ -827,12 +832,12 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                 </div>
                 <svg viewBox={`0 0 ${width} ${targetBandHeight}`} style={{ width: "100%", height: "28px", display: "block" }} role="img" aria-label="Boss target timeline">
                   {timelineTicks.map(tick => {
-                    const x = (coerceNumber(tick.timeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                    const x = getTimelineX(tick.timeMs, timelineStartX, timelineWidth, maxTimeMs);
                     return <line key={`target-tick-${tick.timeMs}`} x1={x} x2={x} y1="0" y2={targetBandHeight} stroke="rgba(255,255,255,0.10)" strokeWidth="1" strokeDasharray="3 4" />;
                   })}
                   {normalizedMisdirectionWindows.map(window => {
-                    const startX = (coerceNumber(window.startTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
-                    const endX = (coerceNumber(window.endTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                    const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
+                    const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
                     return (
                       <rect
                         key={`misdirection-target-${window.markerKey}`}
@@ -841,14 +846,12 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                         width={Math.max(2, endX - startX)}
                         height={targetBandHeight}
                         fill={`${window.sourceColor}22`}
-                        stroke={`${window.sourceColor}99`}
-                        strokeWidth="1"
                       />
                     );
                   })}
                   {targetSegments.length ? targetSegments.map((segment, index) => {
-                    const x = (coerceNumber(segment.timeMs, 0) / maxTimeMs) * width;
-                    const nextX = (coerceNumber(segment.endTimeMs, 0) / maxTimeMs) * width;
+                    const x = getTimelineX(segment.timeMs, timelineStartX, timelineWidth, maxTimeMs);
+                    const nextX = getTimelineX(segment.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
                     const player = adjustedPlayers.find(entry => String(entry.playerId) === String(segment.playerId));
                     return (
                       <g key={`${segment.playerId}-${index}-${segment.timeMs}`}>
@@ -908,7 +911,7 @@ End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`}</title>
                   aria-label="Death timeline"
                 >
                   {timelineTicks.map(tick => {
-                    const x = (coerceNumber(tick.timeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                    const x = getTimelineX(tick.timeMs, timelineStartX, timelineWidth, maxTimeMs);
                     return (
                       <line
                         key={`death-tick-${tick.timeMs}`}
@@ -923,8 +926,8 @@ End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`}</title>
                     );
                   })}
                   {normalizedMisdirectionWindows.map(window => {
-                    const startX = (coerceNumber(window.startTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
-                    const endX = (coerceNumber(window.endTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                    const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
+                    const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
                     const bandHeight = Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight);
                     return (
                       <rect
@@ -934,15 +937,13 @@ End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`}</title>
                         width={Math.max(2, endX - startX)}
                         height={bandHeight}
                         fill={`${window.sourceColor}22`}
-                        stroke={`${window.sourceColor}99`}
-                        strokeWidth="1"
                       />
                     );
                   })}
                   {deathMarkers.length ? deathMarkers.map(marker => {
                     const laneY = coerceNumber(marker.laneIndex, 0) * deathBandHeight;
-                    const clampedX = Math.max(0, Math.min(width - marker.markerWidth, marker.x - 4));
-                    const textFits = clampedX + marker.markerWidth <= width;
+                    const clampedX = Math.max(timelineStartX, Math.min(timelineEndX - marker.markerWidth, marker.x - 4));
+                    const textFits = clampedX + marker.markerWidth <= timelineEndX;
                     return (
                       <g key={marker.markerKey}>
                         <rect

@@ -95,6 +95,11 @@ function isMisdirectionEvent(event = {}) {
   return MISDIRECTION_SPELL_IDS.has(abilityId) || abilityName === "misdirection";
 }
 
+function isLikelyTankType(unit = {}) {
+  const type = String(unit?.type || "");
+  return type === "Warrior" || type === "Paladin" || type === "Druid";
+}
+
 function isPrimaryTargetAction(event = {}) {
   const abilityGuid = Number(event?.ability?.guid || 0);
   const abilityName = String(event?.ability?.name || "").trim().toLowerCase();
@@ -945,6 +950,40 @@ class FightState {
     }
   }
 
+  inferInitialMisdirections() {
+    const hunters = Object.values(this.friendlies)
+      .filter(unit => unit?.type === "Hunter" && unit?.buffs?.["34477"]);
+    const targets = Object.values(this.friendlies)
+      .filter(unit => unit?.type !== "Hunter" && unit?.buffs?.["34477"])
+      .sort((left, right) => {
+        const leftTank = isLikelyTankType(left) ? 1 : 0;
+        const rightTank = isLikelyTankType(right) ? 1 : 0;
+        return rightTank - leftTank || String(left?.name || "").localeCompare(String(right?.name || ""), "en", { sensitivity: "base" });
+      });
+
+    if (!hunters.length || !targets.length) return;
+
+    const pairedTargets = new Set();
+    for (const hunter of hunters.sort((left, right) => String(left?.name || "").localeCompare(String(right?.name || ""), "en", { sensitivity: "base" }))) {
+      const availableTarget = targets.find(target => !pairedTargets.has(String(target.key || ""))) || targets[0];
+      if (!availableTarget) continue;
+      pairedTargets.add(String(availableTarget.key || ""));
+      this.activeMisdirections.set(String(hunter.key || ""), {
+        sourceKey: String(hunter.key || ""),
+        sourcePlayerId: String(hunter.global?.id || hunter.key || ""),
+        sourceName: hunter.name || "Unknown Hunter",
+        sourceType: hunter.type || "",
+        targetKey: String(availableTarget.key || ""),
+        targetPlayerId: String(availableTarget.global?.id || availableTarget.key || ""),
+        targetName: availableTarget.name || "Unknown Target",
+        targetType: availableTarget.type || "",
+        startTimestamp: this.start,
+        endTimestamp: null,
+        damageDone: 0,
+      });
+    }
+  }
+
   eventToUnit(event, prefix, createIfMissing = true) {
     const key = eventKey(event, prefix);
     if (!key) return null;
@@ -1052,6 +1091,8 @@ class FightState {
       this.eventToUnit(event, "source", event?.type === "combatantinfo" || event?.sourceID != null);
       this.eventToUnit(event, "target", event?.targetID != null);
     }
+
+    this.inferInitialMisdirections();
 
     for (const event of this.events) {
       this.processEvent(event);
