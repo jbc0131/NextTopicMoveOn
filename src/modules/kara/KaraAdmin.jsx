@@ -777,23 +777,40 @@ export default function KaraAdmin() {
     });
   }, []);
 
-  // ── Discord copy ──────────────────────────────────────────────────────────
-  const copyNightDiscord = useCallback((night, teams, setCopied) => {
+  // ── Discord post ──────────────────────────────────────────────────────────
+  const copyNightDiscord = useCallback(async (night, teams, setCopied) => {
     const allRosters = [...rosterTue, ...rosterThu];
-    const nightLabel = night === "tue" ? "📅 TUESDAY" : "📅 THURSDAY";
-    const lines = [`**${nightLabel}**`, ""];
+    const nightLabel = night === "tue" ? "TUESDAY" : "THURSDAY";
+    const formatGroup = (ids) => ids
+      .map(id => allRosters.find(s => s.id === id)).filter(Boolean)
+      .map(p => `<@${p._discordId || p.id}> (${getSpecDisplay(p)})`)
+      .join(" ");
+    const lines = [`🏰 **${nightLabel}**`, ""];
     teams.forEach((team, i) => {
       const g1Ids = team.g1.flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
       const g2Ids = team.g2.flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
       if (!g1Ids.length && !g2Ids.length) return;
-      lines.push(`🏰 **Team ${i + 1}**`);
-      if (g1Ids.length) { lines.push(`> **Group 1**`); g1Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • <@${p._discordId || p.id}>`); }); }
-      if (g2Ids.length) { lines.push(`> **Group 2**`); g2Ids.forEach(id => { const p = allRosters.find(s => s.id === id); if (p) lines.push(`> • <@${p._discordId || p.id}>`); }); }
+      const teamPlayers = [...g1Ids, ...g2Ids].map(id => allRosters.find(s => s.id === id)).filter(Boolean);
+      const firstTank = teamPlayers.find(p => getRole(p) === "Tank");
+      const teamName = firstTank ? `Team ${firstTank.name}` : `Team ${i + 1}`;
+      if (g1Ids.length) lines.push(`${teamName} · G1: ${formatGroup(g1Ids)}`);
+      if (g2Ids.length) lines.push(`${teamName} · G2: ${formatGroup(g2Ids)}`);
       lines.push("");
     });
-    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+    const content = lines.join("\n").trimEnd();
+    try {
+      const res = await fetch("/api/post-kara-discord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, night }),
+      });
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
       setCopied(true); setTimeout(() => setCopied(false), 2000);
-    });
+    } catch (e) {
+      console.error("Discord webhook failed, falling back to clipboard:", e);
+      await navigator.clipboard.writeText(content);
+      setCopied(true); setTimeout(() => setCopied(false), 2000);
+    }
   }, [rosterTue, rosterThu, assignments]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
