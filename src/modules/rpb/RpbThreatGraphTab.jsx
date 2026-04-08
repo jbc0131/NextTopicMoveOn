@@ -805,29 +805,29 @@ function ThreatChart({
                         stroke={window.sourceColor}
                         strokeWidth="1"
                         rx="4"
-                        onMouseMove={event => {
-                          const tooltip = getTooltipPosition(event);
-                          setHoveredTooltip({
-                            x: tooltip.x,
-                            y: tooltip.y,
-                            title: `${window.sourceName} -> ${window.targetName}`,
-                            lines: [
-                              { label: `${window.sourceName} -> ${window.targetName}`, color: window.sourceColor },
-                            ],
-                          });
-                        }}
                       >
                         <title>{`${window.sourceName} -> ${window.targetName}`}</title>
                       </rect>
-                      {bandWidth > 56 ? (
-                        <text
-                          x={window.startX + 6}
-                          y={laneY + 18}
-                          fill="rgba(226,232,240,0.92)"
-                          fontSize="12"
-                        >
-                          {window.sourceName}
-                        </text>
+                      {bandWidth > 112 ? (
+                        <g transform={`translate(${window.startX + 6} ${laneY + 18})`}>
+                          <text fill={window.sourceColor} fontSize="12">
+                            {window.sourceName}
+                          </text>
+                          <text
+                            x={(String(window.sourceName || "").length * 7.2) + 4}
+                            fill="rgba(226,232,240,0.92)"
+                            fontSize="12"
+                          >
+                            {`->`}
+                          </text>
+                          <text
+                            x={(String(window.sourceName || "").length * 7.2) + 20}
+                            fill={window.targetColor}
+                            fontSize="12"
+                          >
+                            {window.targetName}
+                          </text>
+                        </g>
                       ) : null}
                     </g>
                   );
