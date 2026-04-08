@@ -94,6 +94,15 @@ function formatClockFromMs(value) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+function formatPreciseDurationFromMs(value) {
+  const durationMs = Math.max(0, Math.round(coerceNumber(value, 0)));
+  const totalSeconds = Math.floor(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const milliseconds = durationMs % 1000;
+  return `${minutes}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
+}
+
 function normalizeEncounterEventTimestamp(timestamp, fight) {
   const value = coerceNumber(timestamp, NaN);
   if (!Number.isFinite(value)) return 0;
@@ -467,12 +476,70 @@ function getTooltipPosition(event) {
   };
 }
 
+function buildTimelineTicks(maxTimeMs) {
+  const safeMaxTimeMs = Math.max(1, coerceNumber(maxTimeMs, 0));
+  const targetTickCount = 8;
+  const candidateSeconds = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120];
+  const rawIntervalSeconds = safeMaxTimeMs / 1000 / targetTickCount;
+  const intervalSeconds = candidateSeconds.find(value => rawIntervalSeconds <= value) || candidateSeconds[candidateSeconds.length - 1];
+  const tickMs = intervalSeconds * 1000;
+  const ticks = [];
+
+  for (let timeMs = 0; timeMs <= safeMaxTimeMs + 1; timeMs += tickMs) {
+    ticks.push({
+      timeMs: Math.min(timeMs, safeMaxTimeMs),
+      label: formatClockFromMs(timeMs),
+    });
+  }
+
+  const lastTick = ticks[ticks.length - 1];
+  if (!lastTick || lastTick.timeMs < safeMaxTimeMs) {
+    ticks.push({
+      timeMs: safeMaxTimeMs,
+      label: formatClockFromMs(safeMaxTimeMs),
+    });
+  }
+
+  return ticks;
+}
+
+function normalizeMisdirectionWindows(windows = [], players = []) {
+  const playersById = new Map((players || []).map(player => [String(player.playerId || player.id || ""), player]));
+  return (windows || [])
+    .map((window, index) => {
+      const sourceId = String(window?.sourcePlayerId || "");
+      const targetId = String(window?.targetPlayerId || "");
+      const sourcePlayer = playersById.get(sourceId);
+      const targetPlayer = playersById.get(targetId);
+      const startTimeMs = Math.max(0, coerceNumber(window?.startTimeMs, 0));
+      const endTimeMs = Math.max(startTimeMs, coerceNumber(window?.endTimeMs, startTimeMs));
+      return {
+        markerKey: `${sourceId || window?.sourceName || "hunter"}-${targetId || window?.targetName || "target"}-${startTimeMs}-${index}`,
+        sourcePlayerId: sourceId,
+        sourceName: window?.sourceName || sourcePlayer?.name || "Unknown Hunter",
+        sourceType: window?.sourceType || sourcePlayer?.type || "",
+        sourceColor: sourcePlayer?.color || getClassColor(window?.sourceType || sourcePlayer?.type || "Hunter"),
+        targetPlayerId: targetId,
+        targetName: window?.targetName || targetPlayer?.name || "Unknown Target",
+        targetType: window?.targetType || targetPlayer?.type || "",
+        targetColor: targetPlayer?.color || getClassColor(window?.targetType || targetPlayer?.type || ""),
+        startTimeMs,
+        endTimeMs,
+        durationMs: Math.max(0, coerceNumber(window?.durationMs, endTimeMs - startTimeMs)),
+        damageDone: Math.max(0, coerceNumber(window?.damageDone, 0)),
+      };
+    })
+    .filter(window => window.durationMs > 0)
+    .sort((left, right) => left.startTimeMs - right.startTimeMs || left.sourceName.localeCompare(right.sourceName, "en", { sensitivity: "base" }));
+}
+
 function ThreatChart({
   players,
   hiddenPlayerIds,
   fightDurationMs,
   targetHistory,
   deathEntries,
+  misdirectionWindows,
   fight,
   enemyOptions,
   selectedEnemyKey,
@@ -484,7 +551,9 @@ function ThreatChart({
   underDevelopmentBadgeStyle,
 }) {
   const width = 920;
-  const height = 320;
+  const height = 344;
+  const chartBottomPadding = 24;
+  const plotHeight = height - chartBottomPadding;
   const targetBandHeight = 28;
   const deathBandHeight = 28;
   const [hoveredTooltip, setHoveredTooltip] = useState(null);
@@ -576,6 +645,11 @@ function ThreatChart({
     () => alignTargetSegmentsWithDeaths(baseTargetSegments, deathMarkers),
     [baseTargetSegments, deathMarkers],
   );
+  const timelineTicks = useMemo(() => buildTimelineTicks(maxTimeMs), [maxTimeMs]);
+  const normalizedMisdirectionWindows = useMemo(
+    () => normalizeMisdirectionWindows(misdirectionWindows, adjustedPlayers),
+    [misdirectionWindows, adjustedPlayers],
+  );
 
   const abilityRows = useMemo(
     () => buildAbilityTotals(displaySelectedRaider?.abilities || [], fightDurationMs),
@@ -628,73 +702,150 @@ function ThreatChart({
           {hasGraphData ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Threat timeline">
-              {yTicks.map(tick => {
-                const y = height - (height * tick);
-                const labelValue = Math.round(maxThreat * tick).toLocaleString();
-                return (
-                  <g key={`y-${tick}`}>
-                    <line x1="0" x2={width} y1={y} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-                    <text x="8" y={Math.max(14, y - 6)} fill="rgba(204,214,224,0.76)" fontSize="14">
-                      {labelValue}
-                    </text>
-                  </g>
-                );
-              })}
-              {visiblePlayers.map(player => {
-                return (
-                  <g key={player.playerId}>
-                    <path
-                      d={buildThreatChartPath(player.series, width, height, maxTimeMs, maxThreat)}
-                      fill="none"
-                      stroke={player.color}
-                      strokeWidth="1.6"
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                      style={{ cursor: "pointer" }}
-                    >
-                      <title>{player.name}</title>
-                    </path>
-                    {player.series.map((point, index) => {
-                      const position = getChartPoint(point, width, height, maxTimeMs, maxThreat);
-                      return (
-                        <circle
-                          key={`${player.playerId}-${index}-${point.timeMs}`}
-                          cx={position.x}
-                          cy={position.y}
-                          r="2.5"
-                          fill={player.color}
-                          stroke="rgba(6,12,19,0.95)"
-                          strokeWidth="0.75"
-                          onMouseMove={event => {
-                            const tooltip = getTooltipPosition(event);
-                            setHoveredTooltip({
-                              x: tooltip.x,
-                              y: tooltip.y,
-                              title: player.name,
-                              lines: [
-                                `Ability: ${point.label || "Unknown"}`,
-                                `Threat: ${Math.round(coerceNumber(point.deltaThreat, point.threat)).toLocaleString()}`,
-                                `Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`,
-                              ],
-                            });
-                          }}
-                        >
-                          <title>{`${player.name}
+                {timelineTicks.map(tick => {
+                  const x = (coerceNumber(tick.timeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                  return (
+                    <g key={`timeline-${tick.timeMs}`}>
+                      <line x1={x} x2={x} y1="0" y2={plotHeight} stroke="rgba(255,255,255,0.10)" strokeWidth="1" strokeDasharray="3 4" />
+                      <text
+                        x={Math.min(width - 2, Math.max(2, x))}
+                        y={height - 6}
+                        fill="rgba(148,163,184,0.92)"
+                        fontSize="12"
+                        textAnchor={x > width - 40 ? "end" : (x < 40 ? "start" : "middle")}
+                      >
+                        {tick.label}
+                      </text>
+                    </g>
+                  );
+                })}
+                {yTicks.map(tick => {
+                  const y = plotHeight - (plotHeight * tick);
+                  const labelValue = Math.round(maxThreat * tick).toLocaleString();
+                  return (
+                    <g key={`y-${tick}`}>
+                      <line x1="0" x2={width} y1={y} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+                      <text x="8" y={Math.max(14, y - 6)} fill="rgba(204,214,224,0.76)" fontSize="14">
+                        {labelValue}
+                      </text>
+                    </g>
+                  );
+                })}
+                {normalizedMisdirectionWindows.map(window => {
+                  const startX = (coerceNumber(window.startTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                  const endX = (coerceNumber(window.endTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                  const bandWidth = Math.max(2, endX - startX);
+                  return (
+                    <g key={`misdirection-main-${window.markerKey}`}>
+                      <rect
+                        x={startX}
+                        y="0"
+                        width={bandWidth}
+                        height={plotHeight}
+                        fill={`${window.sourceColor}22`}
+                        stroke={window.sourceColor}
+                        strokeWidth="1"
+                        onMouseMove={event => {
+                          const tooltip = getTooltipPosition(event);
+                          setHoveredTooltip({
+                            x: tooltip.x,
+                            y: tooltip.y,
+                            title: "Misdirection",
+                            lines: [
+                              { label: `Hunter: ${window.sourceName}`, color: window.sourceColor },
+                              { label: `Tank Target: ${window.targetName}`, color: window.targetColor },
+                              `Window: ${formatClockFromMs(window.startTimeMs)} to ${formatClockFromMs(window.endTimeMs)}`,
+                              `Duration: ${formatPreciseDurationFromMs(window.durationMs)}`,
+                              `Damage During Window: ${Math.round(window.damageDone).toLocaleString()}`,
+                            ],
+                          });
+                        }}
+                      >
+                        <title>{`Misdirection
+Hunter: ${window.sourceName}
+Tank Target: ${window.targetName}
+Window: ${formatClockFromMs(window.startTimeMs)} to ${formatClockFromMs(window.endTimeMs)}
+Duration: ${formatPreciseDurationFromMs(window.durationMs)}
+Damage During Window: ${Math.round(window.damageDone).toLocaleString()}`}</title>
+                      </rect>
+                    </g>
+                  );
+                })}
+                {visiblePlayers.map(player => {
+                  return (
+                    <g key={player.playerId}>
+                      <path
+                        d={buildThreatChartPath(player.series, width, plotHeight, maxTimeMs, maxThreat)}
+                        fill="none"
+                        stroke={player.color}
+                        strokeWidth="1.6"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                        style={{ cursor: "pointer" }}
+                      >
+                        <title>{player.name}</title>
+                      </path>
+                      {player.series.map((point, index) => {
+                        const position = getChartPoint(point, width, plotHeight, maxTimeMs, maxThreat);
+                        return (
+                          <circle
+                            key={`${player.playerId}-${index}-${point.timeMs}`}
+                            cx={position.x}
+                            cy={position.y}
+                            r="2.5"
+                            fill={player.color}
+                            stroke="rgba(6,12,19,0.95)"
+                            strokeWidth="0.75"
+                            onMouseMove={event => {
+                              const tooltip = getTooltipPosition(event);
+                              setHoveredTooltip({
+                                x: tooltip.x,
+                                y: tooltip.y,
+                                title: player.name,
+                                lines: [
+                                  `Ability: ${point.label || "Unknown"}`,
+                                  `Threat: ${Math.round(coerceNumber(point.deltaThreat, point.threat)).toLocaleString()}`,
+                                  `Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`,
+                                ],
+                              });
+                            }}
+                          >
+                            <title>{`${player.name}
 Ability: ${point.label || "Unknown"}
 Threat: ${Math.round(coerceNumber(point.deltaThreat, point.threat)).toLocaleString()}
 Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}</title>
-                        </circle>
-                      );
-                    })}
-                  </g>
-                );
-              })}
+                          </circle>
+                        );
+                      })}
+                    </g>
+                  );
+                })}
               </svg>
               <div style={{ display: "grid", gridTemplateColumns: "110px minmax(0, 1fr)", gap: 10, alignItems: "center" }}>
                 <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Boss Target
                 </div>
                 <svg viewBox={`0 0 ${width} ${targetBandHeight}`} style={{ width: "100%", height: "28px", display: "block" }} role="img" aria-label="Boss target timeline">
+                  {timelineTicks.map(tick => {
+                    const x = (coerceNumber(tick.timeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                    return <line key={`target-tick-${tick.timeMs}`} x1={x} x2={x} y1="0" y2={targetBandHeight} stroke="rgba(255,255,255,0.10)" strokeWidth="1" strokeDasharray="3 4" />;
+                  })}
+                  {normalizedMisdirectionWindows.map(window => {
+                    const startX = (coerceNumber(window.startTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                    const endX = (coerceNumber(window.endTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                    return (
+                      <rect
+                        key={`misdirection-target-${window.markerKey}`}
+                        x={startX}
+                        y="0"
+                        width={Math.max(2, endX - startX)}
+                        height={targetBandHeight}
+                        fill={`${window.sourceColor}22`}
+                        stroke={`${window.sourceColor}99`}
+                        strokeWidth="1"
+                      />
+                    );
+                  })}
                   {targetSegments.length ? targetSegments.map((segment, index) => {
                     const x = (coerceNumber(segment.timeMs, 0) / maxTimeMs) * width;
                     const nextX = (coerceNumber(segment.endTimeMs, 0) / maxTimeMs) * width;
@@ -756,6 +907,38 @@ End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`}</title>
                   role="img"
                   aria-label="Death timeline"
                 >
+                  {timelineTicks.map(tick => {
+                    const x = (coerceNumber(tick.timeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                    return (
+                      <line
+                        key={`death-tick-${tick.timeMs}`}
+                        x1={x}
+                        x2={x}
+                        y1="0"
+                        y2={Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight)}
+                        stroke="rgba(255,255,255,0.10)"
+                        strokeWidth="1"
+                        strokeDasharray="3 4"
+                      />
+                    );
+                  })}
+                  {normalizedMisdirectionWindows.map(window => {
+                    const startX = (coerceNumber(window.startTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                    const endX = (coerceNumber(window.endTimeMs, 0) / Math.max(1, maxTimeMs)) * width;
+                    const bandHeight = Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight);
+                    return (
+                      <rect
+                        key={`misdirection-death-${window.markerKey}`}
+                        x={startX}
+                        y="0"
+                        width={Math.max(2, endX - startX)}
+                        height={bandHeight}
+                        fill={`${window.sourceColor}22`}
+                        stroke={`${window.sourceColor}99`}
+                        strokeWidth="1"
+                      />
+                    );
+                  })}
                   {deathMarkers.length ? deathMarkers.map(marker => {
                     const laneY = coerceNumber(marker.laneIndex, 0) * deathBandHeight;
                     const clampedX = Math.max(0, Math.min(width - marker.markerWidth, marker.x - 4));
@@ -992,11 +1175,15 @@ Time: ${formatClockFromMs(marker.timeMs)}`}</title>
           <div style={{ color: text.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
             {hoveredTooltip.title}
           </div>
-          {hoveredTooltip.lines.map(line => (
-            <div key={line} style={{ color: text.muted, fontSize: fontSize.xs, marginTop: 2, whiteSpace: "nowrap" }}>
-              {line}
-            </div>
-          ))}
+          {hoveredTooltip.lines.map((line, index) => {
+            const label = typeof line === "string" ? line : line?.label || "";
+            const color = typeof line === "string" ? text.muted : (line?.color || text.muted);
+            return (
+              <div key={`${label}-${index}`} style={{ color, fontSize: fontSize.xs, marginTop: 2, whiteSpace: "nowrap" }}>
+                {label}
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </div>
@@ -1207,6 +1394,7 @@ export default function RpbThreatGraphTab({
         hiddenPlayerIds={hiddenPlayerIds}
         targetHistory={selectedEnemy?.targetHistory || []}
         deathEntries={selectedFight?.deathEntries || []}
+        misdirectionWindows={threatSnapshot?.misdirectionWindows || []}
         fight={selectedFight}
         enemyOptions={enemyOptions}
         selectedEnemyKey={selectedEnemyKey}

@@ -10,6 +10,7 @@ const SCHOOL = {
 
 const BASE_COEFFICIENT = { value: 1, debug: [] };
 const GLOBAL_SPELL_HANDLER_ID = -2000;
+const MISDIRECTION_SPELL_IDS = new Set(["34477", "35079", "35080", "35081"]);
 
 const PLAYER_CLASS_COLORS = {
   Druid: "#FF7D0A",
@@ -86,6 +87,12 @@ function sortName(left, right) {
 
 function clampThreat(value) {
   return Math.max(0, numeric(value, 0));
+}
+
+function isMisdirectionEvent(event = {}) {
+  const abilityId = String(event?.ability?.guid || "");
+  const abilityName = String(event?.ability?.name || "").trim().toLowerCase();
+  return MISDIRECTION_SPELL_IDS.has(abilityId) || abilityName === "misdirection";
 }
 
 function isPrimaryTargetAction(event = {}) {
@@ -869,6 +876,73 @@ class FightState {
     this.friendlies = {};
     this.enemies = {};
     this.events = [];
+    this.activeMisdirections = new Map();
+    this.misdirectionWindows = [];
+  }
+
+  openMisdirectionWindow(event) {
+    if (!isMisdirectionEvent(event)) return;
+    const source = this.eventToUnit(event, "source", false);
+    const target = this.eventToUnit(event, "target", false);
+    if (!source || source.isEnemy || source.type !== "Hunter") return;
+    if (!target || target.isEnemy) return;
+
+    const sourceKey = String(source.key || "");
+    if (!sourceKey) return;
+
+    this.closeMisdirectionWindow(sourceKey, event?.timestamp ?? this.end);
+    this.activeMisdirections.set(sourceKey, {
+      sourceKey,
+      sourcePlayerId: String(source.global?.id || source.key || ""),
+      sourceName: source.name || "Unknown Hunter",
+      sourceType: source.type || "",
+      targetKey: String(target.key || ""),
+      targetPlayerId: String(target.global?.id || target.key || ""),
+      targetName: target.name || "Unknown Target",
+      targetType: target.type || "",
+      startTimestamp: numeric(event?.timestamp, this.start),
+      endTimestamp: null,
+      damageDone: 0,
+    });
+  }
+
+  closeMisdirectionWindow(sourceKey, timestamp) {
+    const active = this.activeMisdirections.get(String(sourceKey || ""));
+    if (!active) return;
+
+    const startTimestamp = numeric(active.startTimestamp, this.start);
+    const endTimestamp = Math.max(startTimestamp, numeric(timestamp, this.end));
+    this.misdirectionWindows.push({
+      sourcePlayerId: active.sourcePlayerId,
+      sourceName: active.sourceName,
+      sourceType: active.sourceType,
+      targetPlayerId: active.targetPlayerId,
+      targetName: active.targetName,
+      targetType: active.targetType,
+      startTimeMs: Math.max(0, startTimestamp - this.start),
+      endTimeMs: Math.max(0, endTimestamp - this.start),
+      durationMs: Math.max(0, endTimestamp - startTimestamp),
+      damageDone: numeric(active.damageDone, 0),
+    });
+    this.activeMisdirections.delete(String(sourceKey || ""));
+  }
+
+  trackMisdirectionDamage(event) {
+    if (event?.type !== "damage") return;
+    const source = this.eventToUnit(event, "source", false);
+    const target = this.eventToUnit(event, "target", false);
+    if (!source || source.isEnemy || source.type !== "Hunter") return;
+    if (!target || !target.isEnemy) return;
+
+    const active = this.activeMisdirections.get(String(source.key || ""));
+    if (!active) return;
+    active.damageDone += Math.max(0, numeric(event?.amount, 0) + numeric(event?.absorbed, 0));
+  }
+
+  flushOpenMisdirections() {
+    for (const sourceKey of [...this.activeMisdirections.keys()]) {
+      this.closeMisdirectionWindow(sourceKey, this.end);
+    }
   }
 
   eventToUnit(event, prefix, createIfMissing = true) {
@@ -898,6 +972,15 @@ class FightState {
   }
 
   processEvent(event) {
+    if (["applybuff", "refreshbuff"].includes(event?.type) && isMisdirectionEvent(event)) {
+      this.openMisdirectionWindow(event);
+    }
+
+    if (event?.type === "removebuff" && isMisdirectionEvent(event)) {
+      const source = this.eventToUnit(event, "source", false);
+      if (source) this.closeMisdirectionWindow(source.key, event?.timestamp ?? this.end);
+    }
+
     if (event?.type === "death") {
       const target = this.eventToUnit(event, "target");
       if (target) target.alive = false;
@@ -939,6 +1022,7 @@ class FightState {
     }
 
     if (event?.type === "damage") {
+      this.trackMisdirectionDamage(event);
       handlerDamage(event, this);
       return;
     }
@@ -972,6 +1056,8 @@ class FightState {
     for (const event of this.events) {
       this.processEvent(event);
     }
+
+    this.flushOpenMisdirections();
   }
 }
 
@@ -1039,6 +1125,7 @@ export function computeThreatSnapshots({ fightsData = {}, fights = [], fightEven
         start: numeric(fight?.start_time ?? fight?.start, 0),
         end: numeric(fight?.end_time ?? fight?.end, 0),
         enemies: [],
+        misdirectionWindows: [],
       });
       continue;
     }
@@ -1057,6 +1144,9 @@ export function computeThreatSnapshots({ fightsData = {}, fights = [], fightEven
       start: numeric(fight?.start_time ?? fight?.start, 0),
       end: numeric(fight?.end_time ?? fight?.end, 0),
       enemies,
+      misdirectionWindows: fightState.misdirectionWindows
+        .filter(window => numeric(window.durationMs, 0) > 0)
+        .sort((left, right) => numeric(left.startTimeMs, 0) - numeric(right.startTimeMs, 0) || sortName(left.sourceName, right.sourceName)),
     });
   }
 
