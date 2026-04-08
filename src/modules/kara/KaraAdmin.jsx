@@ -403,7 +403,7 @@ function ManualAddPlayer({ onAdd, rosterTue, rosterThu }) {
 }
 
 // ── Roster sidebar ────────────────────────────────────────────────────────────
-function KaraRosterPanel({ karaNight, setKaraNight, rosterTue, rosterThu, assignments, roleFilter, setRoleFilter, onDragStart, onSpecCycle, wclScores, wclLoading, wclError, wclLastFetch, onWclRefetch, onWclNameChange, onAddManual }) {
+function KaraRosterPanel({ karaNight, setKaraNight, rosterTue, rosterThu, assignments, roleFilter, setRoleFilter, onDragStart, onSpecCycle, wclScores, wclLoading, wclError, wclLastFetch, onWclRefetch, onWclNameChange, onAddManual, onRemovePlayer }) {
   const karaKeys       = new Set(KARA_ALL_ROWS.map(r => r.key));
   const activeRoster   = karaNight === "tue" ? rosterTue : rosterThu;
   const karaAssignedIds = new Set(
@@ -474,14 +474,24 @@ function KaraRosterPanel({ karaNight, setKaraNight, rosterTue, rosterThu, assign
             // Insert divider between unplaced and placed
           }
           return (
-            <div key={s.id} style={{ position: "relative", opacity: isPlaced ? 0.35 : 1, transition: "opacity 0.15s" }}>
-              <KaraPlayerBadge
-                slot={s}
-                onSpecCycle={isPlaced ? null : onSpecCycle}
-                onDragStart={isPlaced ? null : (e, slot) => onDragStart(e, slot, null)}
-              />
-              {isPlaced && (
-                <span style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)", fontSize: 9, color: accent.blue, fontFamily: font.sans, pointerEvents: "none" }}>✓</span>
+            <div key={s.id} style={{ position: "relative", opacity: isPlaced ? 0.35 : 1, transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 2 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <KaraPlayerBadge
+                  slot={s}
+                  onSpecCycle={isPlaced ? null : onSpecCycle}
+                  onDragStart={isPlaced ? null : (e, slot) => onDragStart(e, slot, null)}
+                />
+              </div>
+              {isPlaced ? (
+                <span style={{ fontSize: 9, color: accent.blue, fontFamily: font.sans, pointerEvents: "none", flexShrink: 0 }}>✓</span>
+              ) : (
+                <button
+                  onClick={() => onRemovePlayer(s.id)}
+                  title={`Remove ${s.name}`}
+                  style={{ background: "none", border: "none", color: text.disabled, cursor: "pointer", fontSize: 12, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}
+                  onMouseEnter={e => e.currentTarget.style.color = intent.danger}
+                  onMouseLeave={e => e.currentTarget.style.color = text.disabled}
+                >×</button>
               )}
             </div>
           );
@@ -719,18 +729,27 @@ export default function KaraAdmin() {
       if (existing.includes(playerId) && dragSourceKey === key) return prev;
       const allRosters = [...rosterTue, ...rosterThu];
       const dragName   = dragSlot.name.toLowerCase();
-      const alreadyPlaced = Object.entries(prev)
-        .filter(([k]) => karaKeys.has(k) && k !== dragSourceKey)
-        .flatMap(([, ids]) => Array.isArray(ids) ? ids : [ids])
-        .some(id => { const p = allRosters.find(s => s.id === id); return p && p.name.toLowerCase() === dragName; });
-      if (alreadyPlaced) { toast({ message: `${dragSlot.name} is already assigned to a Karazhan team`, type: "danger" }); return prev; }
+      // Skip duplicate check when swapping between two assigned slots
+      const isSwap = dragSourceKey && dragSourceKey !== key && existing.length > 0;
+      if (!isSwap) {
+        const alreadyPlaced = Object.entries(prev)
+          .filter(([k]) => karaKeys.has(k) && k !== dragSourceKey)
+          .flatMap(([, ids]) => Array.isArray(ids) ? ids : [ids])
+          .some(id => { const p = allRosters.find(s => s.id === id); return p && p.name.toLowerCase() === dragName; });
+        if (alreadyPlaced) { toast({ message: `${dragSlot.name} is already assigned to a Karazhan team`, type: "danger" }); return prev; }
+      }
       let next = { ...prev };
       if (dragSourceKey && dragSourceKey !== key) {
-        const srcExisting = next[dragSourceKey] ? (Array.isArray(next[dragSourceKey]) ? next[dragSourceKey] : [next[dragSourceKey]]) : [];
-        const srcUpdated  = srcExisting.filter(id => id !== playerId);
-        if (srcUpdated.length === 0) delete next[dragSourceKey]; else next[dragSourceKey] = srcUpdated;
+        // Swap: move target slot's players into the source slot
+        if (isSwap) {
+          next[dragSourceKey] = existing;
+        } else {
+          const srcExisting = next[dragSourceKey] ? (Array.isArray(next[dragSourceKey]) ? next[dragSourceKey] : [next[dragSourceKey]]) : [];
+          const srcUpdated  = srcExisting.filter(id => id !== playerId);
+          if (srcUpdated.length === 0) delete next[dragSourceKey]; else next[dragSourceKey] = srcUpdated;
+        }
       }
-      if (!existing.includes(playerId)) next[key] = [...existing, playerId];
+      next[key] = [playerId];
       return next;
     });
     setDragSlot(null); setDragSourceKey(null);
@@ -743,6 +762,22 @@ export default function KaraAdmin() {
       const n = { ...prev };
       if (updated.length === 0) delete n[key]; else n[key] = updated;
       return n;
+    });
+  }, []);
+
+  // ── Remove player from roster ─────────────────────────────────────────────
+  const handleRemovePlayer = useCallback((playerId) => {
+    setRosterTue(prev => prev.filter(s => s.id !== playerId));
+    setRosterThu(prev => prev.filter(s => s.id !== playerId));
+    setRoster(prev => prev.filter(s => s.id !== playerId));
+    setAssignments(prev => {
+      const next = {};
+      for (const [key, ids] of Object.entries(prev)) {
+        const arr = Array.isArray(ids) ? ids : [ids];
+        const kept = arr.filter(id => id !== playerId);
+        if (kept.length) next[key] = kept.length === 1 ? kept[0] : kept;
+      }
+      return next;
     });
   }, []);
 
@@ -867,6 +902,7 @@ export default function KaraAdmin() {
             else setRosterThu(prev => [...prev, nightSlot]);
             setRoster(prev => [...prev, nightSlot]);
           }}
+          onRemovePlayer={handleRemovePlayer}
         />
 
         {/* Assignment area */}
