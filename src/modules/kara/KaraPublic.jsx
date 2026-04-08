@@ -59,13 +59,15 @@ function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searc
     .map(id => allRosters.find(p => p.id === id)).filter(Boolean);
   const tankCount   = teamPlayers.filter(p => getRole(p) === "Tank").length;
   const healerCount = teamPlayers.filter(p => getRole(p) === "Healer").length;
+  const firstTank   = teamPlayers.find(p => getRole(p) === "Tank");
+  const teamLabel   = firstTank ? `Team ${firstTank.name}` : `Team ${teamNum}`;
   const has = {};
   Object.keys(UTILITY).forEach(k => { has[k] = teamPlayers.some(p => UTILITY[k].specs.has(p.specName)); });
 
   return (
     <div style={{ flex: 1, minWidth: 300, background: surface.panel, border: `1px solid ${color}33`, borderRadius: radius.lg, overflow: "hidden" }}>
       <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: space[2], background: `${color}08` }}>
-        <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>TEAM {teamNum}</span>
+        <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>{teamLabel.toUpperCase()}</span>
         <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>🛡 {tankCount}</span>
         <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>💚 {healerCount}</span>
         <span style={{ fontSize: fontSize.xs, color: text.muted, marginLeft: "auto", fontFamily: font.sans }}>{filledCount}/10</span>
@@ -113,10 +115,8 @@ function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searc
 function NightSection({ label, teams, color, viewAssignments, allRosters, searchName, wclScores }) {
   return (
     <div style={{ marginBottom: space[6] }}>
-      <div style={{ display: "flex", alignItems: "center", gap: space[3], marginBottom: space[3], padding: `${space[2]}px ${space[3]}px`, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base }}>
-        <div style={{ width: 3, height: 18, borderRadius: 1, background: color, flexShrink: 0 }} />
-        <span style={{ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color, fontFamily: font.sans }}>{label}</span>
-        <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>3 TEAMS · 2 GROUPS OF 5</span>
+      <div style={{ marginBottom: space[3], padding: `${space[2]}px ${space[3]}px`, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, textAlign: "center" }}>
+        <span style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color, fontFamily: font.sans, letterSpacing: "0.08em" }}>{label}</span>
       </div>
       <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
         {teams.map((team, i) => (

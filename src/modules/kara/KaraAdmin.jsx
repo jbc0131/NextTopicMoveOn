@@ -93,18 +93,17 @@ function NightSection({ night, teams, color, assignments, allRosters, onDrop, on
     <div style={{ marginBottom: space[6] }}>
       {/* Night header */}
       <div style={{
-        display: "flex", alignItems: "center", gap: space[3], marginBottom: space[3],
+        display: "flex", alignItems: "center", justifyContent: "center", marginBottom: space[3],
         padding: `${space[2]}px ${space[3]}px`,
         background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base,
+        position: "relative",
       }}>
-        <div style={{ width: 3, height: 18, borderRadius: 1, background: color, flexShrink: 0 }} />
-        <span style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color, fontFamily: font.sans }}>
+        <span style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color, fontFamily: font.sans, letterSpacing: "0.08em" }}>
           {night === "tue" ? "TUESDAY" : "THURSDAY"}
         </span>
-        <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>3 TEAMS · 2 GROUPS OF 5</span>
         <button
           onClick={onCopyDiscord}
-          style={{ ...btnStyle("default"), marginLeft: "auto", fontSize: fontSize.xs }}
+          style={{ ...btnStyle("default"), position: "absolute", right: space[3], fontSize: fontSize.xs }}
         >
           {discordCopied ? "✓ Copied!" : "💬 Copy Discord"}
         </button>
@@ -119,6 +118,8 @@ function NightSection({ night, teams, color, assignments, allRosters, onDrop, on
             .map(id => allRosters.find(p => p.id === id)).filter(Boolean);
           const tankCount   = teamPlayers.filter(p => getRole(p) === "Tank").length;
           const healerCount = teamPlayers.filter(p => getRole(p) === "Healer").length;
+          const firstTank   = teamPlayers.find(p => getRole(p) === "Tank");
+          const teamLabel   = firstTank ? `Team ${firstTank.name}` : `Team ${i + 1}`;
           const filledCount = teamPlayers.length;
           const has = {};
           Object.keys(UTILITY).forEach(k => { has[k] = teamPlayers.some(p => UTILITY[k].specs.has(p.specName)); });
@@ -135,7 +136,7 @@ function NightSection({ night, teams, color, assignments, allRosters, onDrop, on
                 display: "flex", alignItems: "center", gap: space[2],
                 background: `${color}08`,
               }}>
-                <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>TEAM {i + 1}</span>
+                <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>{teamLabel.toUpperCase()}</span>
                 <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>🛡 {tankCount}</span>
                 <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>💚 {healerCount}</span>
                 <span style={{ fontSize: fontSize.xs, color: text.muted, marginLeft: "auto", fontFamily: font.sans }}>{filledCount}/10</span>
