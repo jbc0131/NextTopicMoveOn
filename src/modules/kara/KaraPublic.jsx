@@ -16,10 +16,10 @@ import { useWarcraftLogs, getScoreForPlayer, getScoreColor } from "../../shared/
 const FIREBASE_OK = isFirebaseConfigured();
 
 const UTILITY = {
-  removeCurse: { label: "Remove Curse", icon: "🧹", specs: new Set(["Balance","Restoration","Feral","Guardian","Arcane","Fire","Frost"]) },
-  dispelMagic: { label: "Dispel Magic", icon: "✨", specs: new Set(["Holy","Holy1","Discipline","Shadow"]) },
-  curePoison:  { label: "Cure Poison",  icon: "🧪", specs: new Set(["Balance","Restoration","Feral","Guardian","Restoration1"]) },
-  cureDisease: { label: "Cure Disease", icon: "💊", specs: new Set(["Holy","Holy1","Discipline","Shadow","Protection1","Retribution"]) },
+  removeCurse: { label: "Remove Curse", icon: "🧹", specs: new Set(["Balance","Restoration","Feral","Guardian","Arcane","Fire","Frost","Elemental","Enhancement","Restoration1"]) },
+  dispelMagic: { label: "Dispel Magic", icon: "✨", specs: new Set(["Holy","Holy1","Discipline","Shadow","Protection1","Retribution"]) },
+  curePoison:  { label: "Cure Poison",  icon: "🧪", specs: new Set(["Balance","Restoration","Feral","Guardian","Elemental","Enhancement","Restoration1","Holy","Protection1","Retribution"]) },
+  cureDisease: { label: "Cure Disease", icon: "💊", specs: new Set(["Holy","Holy1","Discipline","Shadow","Protection1","Retribution","Elemental","Enhancement","Restoration1"]) },
   interrupt:   { label: "Interrupt",    icon: "⚡", specs: new Set(["Arms","Fury","Protection","Assassination","Combat","Subtlety","Enhancement","Retribution","Protection1","Feral","Guardian"]) },
   bloodlust:   { label: "Bloodlust",    icon: "🥁", specs: new Set(["Elemental","Enhancement","Restoration1"]) },
 };
@@ -66,8 +66,8 @@ function KaraTeamCard({ team, teamNum, color, viewAssignments, allRosters, searc
     <div style={{ flex: 1, minWidth: 300, background: surface.panel, border: `1px solid ${color}33`, borderRadius: radius.lg, overflow: "hidden" }}>
       <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${color}22`, display: "flex", alignItems: "center", gap: space[2], background: `${color}08` }}>
         <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>TEAM {teamNum}</span>
-        <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>T {tankCount}</span>
-        <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>H {healerCount}</span>
+        <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>🛡 {tankCount}</span>
+        <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>💚 {healerCount}</span>
         <span style={{ fontSize: fontSize.xs, color: text.muted, marginLeft: "auto", fontFamily: font.sans }}>{filledCount}/10</span>
       </div>
       {filledCount > 0 && (

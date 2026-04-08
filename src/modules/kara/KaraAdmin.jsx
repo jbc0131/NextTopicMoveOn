@@ -81,10 +81,10 @@ function KaraDropRow({ rowCfg, assignedIds, allRosters, onDrop, onClear, onSpecC
 // ── Night section (3 teams) ───────────────────────────────────────────────────
 function NightSection({ night, teams, color, assignments, allRosters, onDrop, onClear, onDragStart, onSpecCycle, onCopyDiscord, discordCopied }) {
   const UTILITY = {
-    removeCurse: { label: "Remove Curse", icon: "🧹", specs: new Set(["Balance","Restoration","Feral","Guardian","Arcane","Fire","Frost"]) },
-    dispelMagic: { label: "Dispel Magic", icon: "✨", specs: new Set(["Holy","Holy1","Discipline","Shadow"]) },
-    curePoison:  { label: "Cure Poison",  icon: "🧪", specs: new Set(["Balance","Restoration","Feral","Guardian","Restoration1"]) },
-    cureDisease: { label: "Cure Disease", icon: "💊", specs: new Set(["Holy","Holy1","Discipline","Shadow","Protection1","Retribution"]) },
+    removeCurse: { label: "Remove Curse", icon: "🧹", specs: new Set(["Balance","Restoration","Feral","Guardian","Arcane","Fire","Frost","Elemental","Enhancement","Restoration1"]) },
+    dispelMagic: { label: "Dispel Magic", icon: "✨", specs: new Set(["Holy","Holy1","Discipline","Shadow","Protection1","Retribution"]) },
+    curePoison:  { label: "Cure Poison",  icon: "🧪", specs: new Set(["Balance","Restoration","Feral","Guardian","Elemental","Enhancement","Restoration1","Holy","Protection1","Retribution"]) },
+    cureDisease: { label: "Cure Disease", icon: "💊", specs: new Set(["Holy","Holy1","Discipline","Shadow","Protection1","Retribution","Elemental","Enhancement","Restoration1"]) },
     interrupt:   { label: "Interrupt",    icon: "⚡", specs: new Set(["Arms","Fury","Protection","Assassination","Combat","Subtlety","Enhancement","Retribution","Protection1","Feral","Guardian"]) },
     bloodlust:   { label: "Bloodlust",    icon: "🥁", specs: new Set(["Elemental","Enhancement","Restoration1"]) },
   };
@@ -136,8 +136,8 @@ function NightSection({ night, teams, color, assignments, allRosters, onDrop, on
                 background: `${color}08`,
               }}>
                 <span style={{ fontSize: fontSize.sm, color, fontFamily: font.sans, fontWeight: fontWeight.bold }}>TEAM {i + 1}</span>
-                <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>T {tankCount}</span>
-                <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>H {healerCount}</span>
+                <span style={{ fontSize: fontSize.xs, color: "#4C90F0", fontFamily: font.sans }}>🛡 {tankCount}</span>
+                <span style={{ fontSize: fontSize.xs, color: "#32A467", fontFamily: font.sans }}>💚 {healerCount}</span>
                 <span style={{ fontSize: fontSize.xs, color: text.muted, marginLeft: "auto", fontFamily: font.sans }}>{filledCount}/10</span>
               </div>
 
