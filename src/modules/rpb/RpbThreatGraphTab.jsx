@@ -441,6 +441,27 @@ function stackDeathMarkers(markers = []) {
   });
 }
 
+function stackTimelineWindows(windows = [], timelineStartX = 0, timelineEndX = 0, minimumGapPx = 4) {
+  const lanes = [];
+  return (windows || []).map(window => {
+    const startX = Math.max(timelineStartX, coerceNumber(window.startX, timelineStartX));
+    const endX = Math.min(timelineEndX, Math.max(startX, coerceNumber(window.endX, startX)));
+    let laneIndex = lanes.findIndex(lastEndX => startX >= lastEndX + minimumGapPx);
+    if (laneIndex === -1) {
+      laneIndex = lanes.length;
+      lanes.push(endX);
+    } else {
+      lanes[laneIndex] = endX;
+    }
+    return {
+      ...window,
+      startX,
+      endX,
+      laneIndex,
+    };
+  });
+}
+
 function alignTargetSegmentsWithDeaths(targetSegments = [], deathMarkers = []) {
   if (!targetSegments.length || !deathMarkers.length) return targetSegments;
   const deathsByPlayerId = new Map();
@@ -558,6 +579,7 @@ function ThreatChart({
   const plotHeight = 320;
   const rowGap = 12;
   const chartBottomPadding = 24;
+  const misdirectionBandHeight = 28;
   const targetBandHeight = 28;
   const deathBandHeight = 28;
   const timelineStartX = 110;
@@ -652,16 +674,33 @@ function ThreatChart({
     () => alignTargetSegmentsWithDeaths(baseTargetSegments, deathMarkers),
     [baseTargetSegments, deathMarkers],
   );
-  const deathChartHeight = Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight);
-  const targetRowTop = plotHeight + rowGap;
-  const deathRowTop = targetRowTop + targetBandHeight + rowGap;
-  const timelineBottomY = deathRowTop + deathChartHeight;
-  const height = timelineBottomY + chartBottomPadding;
-  const timelineTicks = useMemo(() => buildTimelineTicks(maxTimeMs), [maxTimeMs]);
   const normalizedMisdirectionWindows = useMemo(
     () => normalizeMisdirectionWindows(misdirectionWindows, adjustedPlayers),
     [misdirectionWindows, adjustedPlayers],
   );
+  const stackedMisdirectionWindows = useMemo(
+    () => stackTimelineWindows(
+      normalizedMisdirectionWindows.map(window => ({
+        ...window,
+        startX: getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs),
+        endX: getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs),
+      })),
+      timelineStartX,
+      timelineEndX,
+    ),
+    [normalizedMisdirectionWindows, timelineStartX, timelineEndX, timelineWidth, maxTimeMs],
+  );
+  const misdirectionChartHeight = Math.max(
+    misdirectionBandHeight,
+    (Math.max(0, ...stackedMisdirectionWindows.map(window => window.laneIndex || 0)) + 1) * misdirectionBandHeight,
+  );
+  const deathChartHeight = Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight);
+  const misdirectionRowTop = plotHeight + rowGap;
+  const targetRowTop = misdirectionRowTop + misdirectionChartHeight + rowGap;
+  const deathRowTop = targetRowTop + targetBandHeight + rowGap;
+  const timelineBottomY = deathRowTop + deathChartHeight;
+  const height = timelineBottomY + chartBottomPadding;
+  const timelineTicks = useMemo(() => buildTimelineTicks(maxTimeMs), [maxTimeMs]);
 
   const abilityRows = useMemo(
     () => buildAbilityTotals(displaySelectedRaider?.abilities || [], fightDurationMs),
@@ -743,8 +782,8 @@ function ThreatChart({
                     </g>
                   );
                 })}
-                <text x="8" y="18" fill="rgba(204,214,224,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Threat
+                <text x="8" y={misdirectionRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Misdirection
                 </text>
                 <text x="8" y={targetRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Boss Target
@@ -752,18 +791,20 @@ function ThreatChart({
                 <text x="8" y={deathRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Tank Deaths
                 </text>
-                {normalizedMisdirectionWindows.map(window => {
-                  const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                  const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                  const bandWidth = Math.max(2, endX - startX);
+                {stackedMisdirectionWindows.map(window => {
+                  const bandWidth = Math.max(2, window.endX - window.startX);
+                  const laneY = misdirectionRowTop + (coerceNumber(window.laneIndex, 0) * misdirectionBandHeight);
                   return (
                     <g key={`misdirection-main-${window.markerKey}`}>
                       <rect
-                        x={startX}
-                        y="0"
+                        x={window.startX}
+                        y={laneY}
                         width={bandWidth}
-                        height={plotHeight}
+                        height={misdirectionBandHeight - 2}
                         fill={`${window.sourceColor}22`}
+                        stroke={window.sourceColor}
+                        strokeWidth="1"
+                        rx="4"
                         onMouseMove={event => {
                           const tooltip = getTooltipPosition(event);
                           setHoveredTooltip({
@@ -839,20 +880,6 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                     </g>
                   );
                 })}
-                {normalizedMisdirectionWindows.map(window => {
-                  const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                  const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                  return (
-                    <rect
-                      key={`misdirection-target-${window.markerKey}`}
-                      x={startX}
-                      y={targetRowTop}
-                      width={Math.max(2, endX - startX)}
-                      height={targetBandHeight}
-                      fill={`${window.sourceColor}22`}
-                    />
-                  );
-                })}
                 {targetSegments.length ? targetSegments.map((segment, index) => {
                   const x = getTimelineX(segment.timeMs, timelineStartX, timelineWidth, maxTimeMs);
                   const nextX = getTimelineX(segment.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
@@ -898,20 +925,6 @@ End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`}</title>
                     No boss target timeline available
                   </text>
                 )}
-                {normalizedMisdirectionWindows.map(window => {
-                  const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                  const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                  return (
-                    <rect
-                      key={`misdirection-death-${window.markerKey}`}
-                      x={startX}
-                      y={deathRowTop}
-                      width={Math.max(2, endX - startX)}
-                      height={deathChartHeight}
-                      fill={`${window.sourceColor}22`}
-                    />
-                  );
-                })}
                 {deathMarkers.length ? deathMarkers.map(marker => {
                   const laneY = deathRowTop + (coerceNumber(marker.laneIndex, 0) * deathBandHeight);
                   const clampedX = Math.max(timelineStartX, Math.min(timelineEndX - marker.markerWidth, marker.x - 4));
@@ -956,11 +969,7 @@ Time: ${formatClockFromMs(marker.timeMs)}`}</title>
                       ) : null}
                     </g>
                   );
-                }) : (
-                  <text x="8" y={deathRowTop + 18} fill="rgba(148,163,184,0.9)" fontSize="12">
-                    No tank death timeline available
-                  </text>
-                )}
+                }) : null}
               </svg>
             </div>
           ) : (
