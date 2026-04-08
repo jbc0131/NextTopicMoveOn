@@ -11,12 +11,10 @@ import {
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, PlayerBadge, MarkerIcon,
   EmptyState, ConfirmDialog, toast, SaveStatus,
-  ParseScoresPanel,
 } from "../../shared/components";
 import {
   saveTwentyFiveState, fetchTwentyFiveState, isFirebaseConfigured,
 } from "../../shared/firebase";
-import { useWarcraftLogs, getScoreForPlayer, getScoreColor } from "../../shared/useWarcraftLogs";
 import { saveState, loadState } from "../../shared/constants";
 
 const FIREBASE_OK = isFirebaseConfigured();
@@ -327,7 +325,7 @@ function ManualAddPlayer({ onAdd, roster }) {
 }
 
 // ── Roster sidebar ────────────────────────────────────────────────────────────
-function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter, onDragStart, wclScores, wclLoading, wclError, wclLastFetch, onWclRefetch, onWclNameChange, activeTab, onAddManual }) {
+function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter, onDragStart, onAddManual }) {
   const nightRoster = roster;
   const filtered    = nightRoster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
 
@@ -346,9 +344,7 @@ function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter,
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: space[2], display: "flex", flexDirection: "column", gap: 3 }}>
         {filtered.map(s => (
-          <PlayerBadge key={s.id} slot={s} onDragStart={onDragStart} draggable
-            parseScore={getScoreForPlayer(wclScores, s, activeTab)}
-            parseColor={getScoreColor(getScoreForPlayer(wclScores, s, activeTab))} />
+          <PlayerBadge key={s.id} slot={s} onDragStart={onDragStart} draggable />
         ))}
         <ManualAddPlayer onAdd={onAddManual} roster={roster} />
       </div>
@@ -429,13 +425,6 @@ export default function TwentyFiveAdmin({ teamId }) {
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const autoSaveTimer = useRef(null);
   const fileRef       = useRef();
-
-  const { scores: wclScores, loading: wclLoading, refetch: wclRefetch } =
-    useWarcraftLogs(roster, { teamId, module: "25man" });
-
-  const handleWclNameChange = useCallback((playerId, newName) => {
-    setRoster(prev => prev.map(s => s.id !== playerId ? s : { ...s, wclName: newName }));
-  }, []);
 
   // ── Load ──────────────────────────────────────────────────────────────────
   const loadNight = useCallback(async (n) => {
@@ -567,10 +556,7 @@ export default function TwentyFiveAdmin({ teamId }) {
   const nightLabel = night === "tue" ? "Tuesday" : "Thursday";
 
   return (
-    <AppShell teamId={teamId} adminMode parsePanelContent={
-      <ParseScoresPanel scores={wclScores} roster={roster} module="25man"
-        loading={wclLoading} lastFetch={null} onRefetch={wclRefetch} onWclNameChange={handleWclNameChange} showRefresh />
-    }>
+    <AppShell teamId={teamId} adminMode>
       <ConfirmDialog open={confirmClearOpen} title="Clear All Assignments" message="This will remove all 25-man assignments for this night. Cannot be undone." confirmLabel="Clear All" dangerous onConfirm={() => { setAssignments({}); setTextInputs({}); setConfirmClearOpen(false); }} onCancel={() => setConfirmClearOpen(false)} />
 
       <ModuleHeader
@@ -628,12 +614,6 @@ export default function TwentyFiveAdmin({ teamId }) {
             roleFilter={roleFilter}
             setRoleFilter={setRoleFilter}
             onDragStart={handleDragStart}
-            wclScores={wclScores}
-            wclLoading={wclLoading}
-            wclLastFetch={null}
-            onWclRefetch={wclRefetch}
-            onWclNameChange={handleWclNameChange}
-            activeTab={activeTab}
             onAddManual={slot => setRoster(prev => [...prev, slot])}
           />
 
