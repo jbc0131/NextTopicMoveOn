@@ -64,17 +64,12 @@ function KaraDropRow({ rowCfg, assignedIds, allRosters, onDrop, onClear, onSpecC
     >
       <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: space[1], alignItems: "center" }}>
         {slots.map(slot => (
-          <div key={slot.id} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+          <div key={slot.id} onDoubleClick={() => onClear(rowCfg.key, slot.id)} style={{ cursor: "pointer" }}>
             <KaraPlayerBadge
               slot={slot}
               onSpecCycle={onSpecCycle}
               onDragStart={onDragStart ? (e, s) => onDragStart(e, s, rowCfg.key) : undefined}
             />
-            <button
-              onClick={() => onClear(rowCfg.key, slot.id)}
-              style={{ background: "none", border: "none", color: text.muted, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px" }}
-              title="Remove"
-            >×</button>
           </div>
         ))}
         {over && <span style={{ fontSize: fontSize.xs, color: accent.blue, fontStyle: "italic" }}>drop here</span>}

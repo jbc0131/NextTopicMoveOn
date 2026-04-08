@@ -94,10 +94,11 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
             {slots.map(slot => {
               const color = getColor(slot);
               return (
-                <div key={slot.id} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+                <div key={slot.id}>
                   <span
                     draggable={!!onDragStart}
                     onDragStart={onDragStart ? e => { e.stopPropagation(); onDragStart(e, slot, rowCfg.key); } : undefined}
+                    onDoubleClick={() => onClear && onClear(rowCfg.key, slot.id)}
                     style={{
                       background: `${color}18`, border: `1px solid ${color}44`, borderRadius: radius.sm,
                       padding: "2px 8px", color, fontFamily: font.sans, fontSize: fontSize.sm,
@@ -109,7 +110,6 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
                     {slot.name}
                     <span style={{ color: `${color}77`, fontSize: fontSize.xs }}>{getSpecDisplay(slot)}</span>
                   </span>
-                  <button onClick={() => onClear && onClear(rowCfg.key, slot.id)} style={{ background: "none", border: "none", color: text.muted, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="Remove">×</button>
                 </div>
               );
             })}
@@ -120,10 +120,11 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
           {slots.map(slot => {
             const color = getColor(slot);
             return (
-              <div key={slot.id} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+              <div key={slot.id}>
                 <span
                   draggable={!!onDragStart}
                   onDragStart={onDragStart ? e => { e.stopPropagation(); onDragStart(e, slot, rowCfg.key); } : undefined}
+                  onDoubleClick={() => onClear && onClear(rowCfg.key, slot.id)}
                   style={{
                     background: `${color}18`, border: `1px solid ${color}44`, borderRadius: radius.sm,
                     padding: "2px 8px", color, fontFamily: font.sans, fontSize: fontSize.sm,
@@ -135,7 +136,6 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
                   {slot.name}
                   <span style={{ color: `${color}77`, fontSize: fontSize.xs }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
                 </span>
-                <button onClick={() => onClear && onClear(rowCfg.key, slot.id)} style={{ background: "none", border: "none", color: text.muted, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="Remove">×</button>
               </div>
             );
           })}
