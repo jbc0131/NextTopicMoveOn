@@ -783,8 +783,8 @@ export default function KaraAdmin() {
     const allRosters = [...rosterTue, ...rosterThu];
     const nightLabel = night === "tue" ? "Tuesday" : "Thursday";
     const formatPlayer = (p) => {
-      if (p._discordId && !p._discordId.startsWith("manual_")) return `<@${p._discordId}>`;
-      return p.name;
+      const discordId = p._discordId || p.id;
+      return (discordId && !discordId.startsWith("manual_")) ? `<@${discordId}>` : p.name;
     };
     const formatGroup = (ids) => ids
       .map(id => allRosters.find(s => s.id === id)).filter(Boolean)
