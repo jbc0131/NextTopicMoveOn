@@ -5,11 +5,11 @@ import {
 } from "../../shared/theme";
 import { getRole, getColor, getSpecDisplay, KARA_TUE_TEAMS, KARA_THU_TEAMS } from "../../shared/constants";
 import {
-  AppShell, ModuleHeader, StatusChip, SyncBadge, SearchBox,
+  AppShell, ModuleHeader, SyncBadge, SearchBox,
   EmptyState, LoadingSpinner, KaraPlayerBadge, ParseScoresPanel,
 } from "../../shared/components";
 import {
-  fetchKaraState, subscribeToKaraState, fetchKaraSnapshots, isFirebaseConfigured,
+  fetchKaraState, subscribeToKaraState, isFirebaseConfigured,
 } from "../../shared/firebase";
 import { useWarcraftLogs, getScoreForPlayer, getScoreColor } from "../../shared/useWarcraftLogs";
 
@@ -134,8 +134,6 @@ export default function KaraPublic() {
   const [loading,     setLoading]     = useState(true);
   const [liveSync,    setLiveSync]    = useState(false);
   const [lastUpdate,  setLastUpdate]  = useState(null);
-  const [snapshots,   setSnapshots]   = useState([]);
-  const [viewingSnap, setViewingSnap] = useState(null);
   const [searchName,  setSearchName]  = useState("");
 
   const roster = useMemo(
@@ -152,15 +150,12 @@ export default function KaraPublic() {
       setData(snap); setLoading(false); setLiveSync(true); setLastUpdate(new Date());
     });
     fetchKaraState().then(d => { if (d) { setData(d); setLoading(false); } }).catch(() => {});
-    fetchKaraSnapshots().then(setSnapshots).catch(console.warn);
     return () => unsub();
   }, []);
 
-  const viewSnap        = viewingSnap ? snapshots.find(s => s.id === viewingSnap) : null;
-  const isLocked        = viewSnap?.locked ?? false;
-  const viewAssignments = viewSnap ? (viewSnap.assignments ?? {}) : (data?.assignments ?? {});
-  const viewRosterTue   = viewSnap ? (viewSnap.rosterTue ?? []) : (data?.rosterTue ?? []);
-  const viewRosterThu   = viewSnap ? (viewSnap.rosterThu ?? []) : (data?.rosterThu ?? []);
+  const viewAssignments = data?.assignments ?? {};
+  const viewRosterTue   = data?.rosterTue ?? [];
+  const viewRosterThu   = data?.rosterThu ?? [];
   const allRosters      = [...viewRosterTue, ...viewRosterThu];
   const hasData         = allRosters.length > 0;
 
@@ -181,15 +176,6 @@ export default function KaraPublic() {
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}
           <SearchBox value={searchName} onChange={setSearchName} placeholder="Search your name…" />
-          {FIREBASE_OK && snapshots.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: space[1] }}>
-              <button onClick={() => { const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null); }} disabled={viewingSnap === snapshots[snapshots.length - 1]?.id} style={{ ...btnStyle("default"), padding: "0 8px", opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}>‹</button>
-              <span style={{ fontSize: fontSize.xs, color: viewSnap ? (viewSnap.locked ? "#9980D4" : text.secondary) : intent.success, fontFamily: font.sans, minWidth: 140, textAlign: "center" }}>
-                {viewSnap ? `${viewSnap.locked ? "🔒" : "📸"} ${viewSnap.raidDateTue || viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}` : "Current Week"}
-              </span>
-              <button onClick={() => { const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null); }} disabled={!viewingSnap} style={{ ...btnStyle("default"), padding: "0 8px", opacity: !viewingSnap ? 0.3 : 1 }}>›</button>
-            </div>
-          )}
         </>}
       />
       {loading ? (
@@ -198,14 +184,6 @@ export default function KaraPublic() {
         <EmptyState icon="🏰" title="No assignments published yet" message="The raid leader hasn't published Karazhan assignments yet — check back soon." />
       ) : (
         <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
-          {isLocked && viewSnap && (
-            <div style={{ marginBottom: space[3], padding: `${space[2]}px ${space[3]}px`, background: surface.panel, border: `1px solid ${"#9980D4"}33`, borderRadius: radius.base, display: "flex", alignItems: "center", gap: space[3] }}>
-              <StatusChip type="locked">🔒 Locked</StatusChip>
-              {viewSnap.wclReportUrl && <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: accent.blue,   fontFamily: font.sans, textDecoration: "none" }}>📊 WarcraftLogs →</a>}
-              {viewSnap.sheetUrl     && <a href={viewSnap.sheetUrl}     target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.success, fontFamily: font.sans, textDecoration: "none" }}>📊 RPB Sheet →</a>}
-              {viewSnap.combatLogUrl && <a href={viewSnap.combatLogUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, textDecoration: "none" }}>⚔ Combat Log →</a>}
-            </div>
-          )}
           <NightSection label="TUESDAY"  teams={KARA_TUE_TEAMS} color={intent.success} viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
           <NightSection label="THURSDAY" teams={KARA_THU_TEAMS} color={accent.blue}    viewAssignments={viewAssignments} allRosters={allRosters} searchName={searchName} wclScores={wclScores} />
         </div>

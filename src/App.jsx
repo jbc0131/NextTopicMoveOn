@@ -5,8 +5,6 @@ import KaraPublic       from "./modules/kara/KaraPublic";
 import KaraAdmin        from "./modules/kara/KaraAdmin";
 import TwentyFivePublic from "./modules/25man/TwentyFivePublic";
 import TwentyFiveAdmin  from "./modules/25man/TwentyFiveAdmin";
-import HistoryView      from "./modules/history/HistoryView";
-import HistoryAdmin     from "./modules/history/HistoryAdmin";
 import RpbPage          from "./modules/rpb/RpbPage";
 import ProfilePage      from "./pages/ProfilePage";
 
@@ -20,10 +18,6 @@ export default function App() {
         {/* Kara — shared, no team */}
         <Route path="/kara"       element={<KaraPublic />} />
         <Route path="/kara/admin" element={<KaraAdmin />} />
-
-        {/* History — shared, no team */}
-        <Route path="/history"       element={<HistoryView />} />
-        <Route path="/history/admin" element={<HistoryAdmin />} />
 
         {/* RPB — shared, no team */}
         <Route path="/rpb" element={<RpbPage />} />
@@ -47,11 +41,6 @@ export default function App() {
         <Route path="/team-balls/kara/admin"   element={<Navigate to="/kara/admin"    replace />} />
         <Route path="/team-dick/admin"         element={<Navigate to="/kara/admin"    replace />} />
         <Route path="/team-balls/admin"        element={<Navigate to="/kara/admin"    replace />} />
-        <Route path="/team-dick/history"       element={<Navigate to="/history"       replace />} />
-        <Route path="/team-dick/history/admin" element={<Navigate to="/history/admin" replace />} />
-        <Route path="/team-balls/history"      element={<Navigate to="/history"       replace />} />
-        <Route path="/team-balls/history/admin" element={<Navigate to="/history/admin" replace />} />
-
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

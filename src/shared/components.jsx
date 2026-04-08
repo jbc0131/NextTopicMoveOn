@@ -623,13 +623,11 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
               {adminMode ? (
                 <button onClick={() => {
                   if (isKara) navigate("/kara");
-                  else if (location.pathname.includes("/history")) navigate("/history");
                   else navigate(`/${teamId || "team-dick"}`);
                 }} style={btnStyle("default")}>← Public View</button>
               ) : isAdmin && (
                 <button onClick={() => {
                   if (isKara) navigate("/kara/admin");
-                  else if (location.pathname.includes("/history")) navigate("/history/admin");
                   else navigate(`/${teamId || "team-dick"}/25man/admin`);
                 }} style={btnStyle("default")}>Admin →</button>
               )}
@@ -649,7 +647,6 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
   const navLinks = [
     { path: `/kara`,                                     label: "Karazhan",     external: false },
     { path: `/${teamId || "team-dick"}/25man`,           label: "25-Man Raids", external: false },
-    { path: `/history`,                                  label: "Raid History", external: false },
     { path: `/rpb`,                                      label: "Combat Log Analytics",      external: false },
     { path: `/profile`,                                  label: "Profile",      external: false },
     { path: "https://professions.nexttopicmoveon.com/", label: "Professions",  external: true  },
@@ -759,12 +756,10 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
   const location  = useLocation();
   const navigate  = useNavigate();
   const isKara    = location.pathname.startsWith("/kara");
-  const isHistory = location.pathname.includes("/history");
 
   const navLinks = [
     { path: `/kara${adminMode ? "/admin" : ""}`,                           label: "Karazhan",     icon: "KR" },
     { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "25" },
-    { path: `/history${adminMode ? "/admin" : ""}`,                        label: "Raid History", icon: "HX" },
     { path: `/rpb`,                                                        label: "Combat Log Analytics",      icon: "RC" },
     { path: "https://professions.nexttopicmoveon.com/",                    label: "Professions",  icon: "PF", external: true },
   ];
@@ -805,7 +800,6 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
           const active =
             (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))   ||
             (link.path.includes("/25man")   && location.pathname.includes("/25man"))    ||
-            (link.path.includes("/history") && location.pathname.includes("/history"))  ||
             (link.path.includes("/rpb")     && location.pathname.startsWith("/rpb"));
 
           const handleClick = () => {
@@ -844,8 +838,8 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
         </div>
       )}
 
-      {/* Team switcher — hidden on kara/history routes, hidden when collapsed */}
-      {!isKara && !isHistory && !collapsed && (
+      {/* Team switcher — hidden on kara routes, hidden when collapsed */}
+      {!isKara && !collapsed && (
         <div style={{ padding: space[3], borderTop: `1px solid ${border.subtle}` }}>
           <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[2] }}>
             Team
@@ -856,9 +850,7 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
               <button
                 key={team.id}
                 onClick={() => {
-                  const currentModule = location.pathname.includes("/25man") ? "/25man"
-                    : location.pathname.includes("/history") ? "/history"
-                    : "";
+                  const currentModule = location.pathname.includes("/25man") ? "/25man" : "";
                   const adminSuffix = adminMode ? "/admin" : "";
                   navigate(`/${team.id}${currentModule}${adminSuffix}`);
                 }}

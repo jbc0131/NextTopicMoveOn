@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   surface, border, text, accent, intent, font, fontSize,
-  fontWeight, radius, space, btnStyle, layout,
+  fontWeight, radius, space, layout,
 } from "../../shared/theme";
 import {
   getColor, getSpecDisplay, getClass, ROLE_COLORS,
@@ -10,11 +10,11 @@ import {
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, MarkerIcon,
-  StatusChip, SyncBadge, SearchBox, EmptyState, LoadingSpinner, ParseScoresPanel,
+  SyncBadge, SearchBox, EmptyState, LoadingSpinner, ParseScoresPanel,
   useIsMobile,
 } from "../../shared/components";
 import {
-  fetchTwentyFiveState, subscribeToTwentyFiveState, fetchTwentyFiveSnapshots,
+  fetchTwentyFiveState, subscribeToTwentyFiveState,
   isFirebaseConfigured,
 } from "../../shared/firebase";
 import { useWarcraftLogs, getScoreForPlayer, getScoreColor } from "../../shared/useWarcraftLogs";
@@ -152,8 +152,6 @@ export default function TwentyFivePublic({ teamId }) {
   const [loading,     setLoading]     = useState(true);
   const [liveSync,    setLiveSync]    = useState(false);
   const [lastUpdate,  setLastUpdate]  = useState(null);
-  const [snapshots,   setSnapshots]   = useState([]);
-  const [viewingSnap, setViewingSnap] = useState(null);
   const [activeTab,   setActiveTab]   = useState("mags");
   const [searchName,  setSearchName]  = useState("");
 
@@ -169,18 +167,14 @@ export default function TwentyFivePublic({ teamId }) {
       setData(snap); setLoading(false); setLiveSync(true); setLastUpdate(new Date());
     });
     fetchTwentyFiveState(teamId, night).then(d => { if (d) { setData(d); setLoading(false); } }).catch(() => {});
-    fetchTwentyFiveSnapshots(teamId).then(setSnapshots).catch(console.warn);
     return () => unsub();
   }, [teamId, night]);
 
-  const nightSnaps      = snapshots.filter(s => s.night === night);
-  const viewSnap        = viewingSnap ? nightSnaps.find(s => s.id === viewingSnap) : null;
-  const isLocked        = viewSnap?.locked ?? false;
-  const viewAssignments = viewSnap ? (viewSnap.assignments ?? {}) : (data?.assignments ?? {});
-  const viewRoster      = viewSnap ? (viewSnap.roster ?? []) : (data?.roster ?? []);
-  const viewTextInputs  = viewSnap ? (viewSnap.textInputs ?? {}) : (data?.textInputs ?? {});
-  const viewRaidDate    = viewSnap ? viewSnap.raidDate : data?.raidDate;
-  const viewRaidLeader  = viewSnap ? viewSnap.raidLeader : data?.raidLeader;
+  const viewAssignments = data?.assignments ?? {};
+  const viewRoster      = data?.roster ?? [];
+  const viewTextInputs  = data?.textInputs ?? {};
+  const viewRaidDate    = data?.raidDate;
+  const viewRaidLeader  = data?.raidLeader;
   const hasData         = viewRoster.length > 0;
   const nightColor      = night === "tue" ? intent.success : accent.blue;
   const nightLabel      = night === "tue" ? "Tuesday" : "Thursday";
@@ -202,15 +196,6 @@ export default function TwentyFivePublic({ teamId }) {
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}
           <SearchBox value={searchName} onChange={setSearchName} placeholder="Search your name…" />
-          {FIREBASE_OK && nightSnaps.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: space[1] }}>
-              <button onClick={() => { const idx = viewingSnap ? nightSnaps.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx + 1 < nightSnaps.length ? nightSnaps[idx + 1].id : null); }} disabled={viewingSnap === nightSnaps[nightSnaps.length - 1]?.id} style={{ ...btnStyle("default"), padding: "0 8px", opacity: viewingSnap === nightSnaps[nightSnaps.length - 1]?.id ? 0.3 : 1 }}>‹</button>
-              <span style={{ fontSize: fontSize.xs, color: viewSnap ? (viewSnap.locked ? "#9980D4" : text.secondary) : intent.success, fontFamily: font.sans, minWidth: 130, textAlign: "center" }}>
-                {viewSnap ? `${viewSnap.locked ? "🔒" : "📸"} ${viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}` : "Current Week"}
-              </span>
-              <button onClick={() => { const idx = viewingSnap ? nightSnaps.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx > 0 ? nightSnaps[idx - 1].id : null); }} disabled={!viewingSnap} style={{ ...btnStyle("default"), padding: "0 8px", opacity: !viewingSnap ? 0.3 : 1 }}>›</button>
-            </div>
-          )}
         </>}
       />
 
@@ -221,20 +206,8 @@ export default function TwentyFivePublic({ teamId }) {
       ) : (
         <div style={{ flex: 1, overflowY: "auto", padding: space[3] }}>
 
-          {/* Locked snapshot banner */}
-          {isLocked && viewSnap && (
-            <div style={{ marginBottom: space[3], padding: `${space[2]}px ${space[3]}px`, background: surface.panel, border: `1px solid ${"#9980D4"}33`, borderRadius: radius.base, display: "flex", alignItems: "center", gap: space[3] }}>
-              <StatusChip type="locked">🔒 Locked</StatusChip>
-              {viewRaidDate   && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>📅 {viewRaidDate}</span>}
-              {viewRaidLeader && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>👤 {viewRaidLeader}</span>}
-              {viewSnap.wclReportUrl && <a href={viewSnap.wclReportUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: accent.blue,   fontFamily: font.sans, textDecoration: "none" }}>📊 WarcraftLogs →</a>}
-              {viewSnap.sheetUrl     && <a href={viewSnap.sheetUrl}     target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.success, fontFamily: font.sans, textDecoration: "none" }}>📊 RPB Sheet →</a>}
-              {viewSnap.combatLogUrl && <a href={viewSnap.combatLogUrl} target="_blank" rel="noreferrer" style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, textDecoration: "none" }}>⚔ Combat Log →</a>}
-            </div>
-          )}
-
           {/* Date / leader bar */}
-          {(viewRaidDate || viewRaidLeader) && !isLocked && (
+          {(viewRaidDate || viewRaidLeader) && (
             <div style={{ marginBottom: space[3], fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, display: "flex", gap: space[3] }}>
               {viewRaidDate   && <span>📅 {viewRaidDate}</span>}
               {viewRaidLeader && <span>👤 {viewRaidLeader}</span>}

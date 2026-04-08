@@ -10,13 +10,12 @@ import {
   KARA_TUE_TEAMS, KARA_THU_TEAMS, KARA_ALL_ROWS,
 } from "../../shared/constants";
 import {
-  AppShell, ModuleHeader, BossPanel, RoleHeader, KaraPlayerBadge,
-  PlayerBadge, StatusChip, EmptyState, ConfirmDialog, toast, SaveStatus,
+  AppShell, ModuleHeader, KaraPlayerBadge,
+  EmptyState, ConfirmDialog, toast, SaveStatus,
   LoadingSpinner, ParseScoresPanel,
 } from "../../shared/components";
 import {
-  saveKaraState, fetchKaraState, saveKaraSnapshot, fetchKaraSnapshots,
-  updateKaraSnapshot, deleteKaraSnapshot, submitKaraWclLog,
+  saveKaraState, fetchKaraState,
   isFirebaseConfigured,
 } from "../../shared/firebase";
 import { useWarcraftLogs, getScoreForPlayer, getScoreColor } from "../../shared/useWarcraftLogs";
@@ -85,7 +84,7 @@ function KaraDropRow({ rowCfg, assignedIds, allRosters, onDrop, onClear, onSpecC
 }
 
 // ── Night section (3 teams) ───────────────────────────────────────────────────
-function NightSection({ night, teams, color, assignments, allRosters, isLocked, onDrop, onClear, onDragStart, onSpecCycle, onCopyDiscord, discordCopied }) {
+function NightSection({ night, teams, color, assignments, allRosters, onDrop, onClear, onDragStart, onSpecCycle, onCopyDiscord, discordCopied }) {
   const UTILITY = {
     removeCurse: { label: "Remove Curse", icon: "🧹", specs: new Set(["Balance","Restoration","Feral","Guardian","Arcane","Fire","Frost"]) },
     dispelMagic: { label: "Dispel Magic", icon: "✨", specs: new Set(["Holy","Holy1","Discipline","Shadow"]) },
@@ -108,14 +107,12 @@ function NightSection({ night, teams, color, assignments, allRosters, isLocked, 
           {night === "tue" ? "TUESDAY" : "THURSDAY"}
         </span>
         <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>3 TEAMS · 2 GROUPS OF 5</span>
-        {!isLocked && (
-          <button
-            onClick={onCopyDiscord}
-            style={{ ...btnStyle("default"), marginLeft: "auto", fontSize: fontSize.xs }}
-          >
-            {discordCopied ? "✓ Copied!" : "💬 Copy Discord"}
-          </button>
-        )}
+        <button
+          onClick={onCopyDiscord}
+          style={{ ...btnStyle("default"), marginLeft: "auto", fontSize: fontSize.xs }}
+        >
+          {discordCopied ? "✓ Copied!" : "💬 Copy Discord"}
+        </button>
       </div>
 
       {/* Teams */}
@@ -189,9 +186,9 @@ function NightSection({ night, teams, color, assignments, allRosters, isLocked, 
                       rowCfg={r}
                       assignedIds={assignments[r.key]}
                       allRosters={allRosters}
-                      onDrop={isLocked ? () => {} : onDrop}
-                      onClear={isLocked ? () => {} : onClear}
-                      onDragStart={isLocked ? null : onDragStart}
+                      onDrop={onDrop}
+                      onClear={onClear}
+                      onDragStart={onDragStart}
                       onSpecCycle={onSpecCycle}
                       assignments={assignments}
                       extraStyle={gi === 0 ? { borderRight: `1px solid ${color}18` } : undefined}
@@ -513,12 +510,6 @@ export default function KaraAdmin() {
   const [jsonErrorThu,  setJsonErrorThu]  = useState("");
   const [saveStatus,    setSaveStatus]    = useState(FIREBASE_OK ? "idle" : "offline");
   const [hasUnsaved,    setHasUnsaved]    = useState(false);
-  const [snapshots,     setSnapshots]     = useState([]);
-  const [viewingSnap,   setViewingSnap]   = useState(null);
-  const [snapshotStatus, setSnapshotStatus] = useState("idle");
-  const [wclSubmitUrl,   setWclSubmitUrl]   = useState("");
-  const [sheetSubmitUrl, setSheetSubmitUrl] = useState("");
-  const [wclSubmitStatus, setWclSubmitStatus] = useState("idle");
   const [discordCopiedTue, setDiscordCopiedTue] = useState(false);
   const [discordCopiedThu, setDiscordCopiedThu] = useState(false);
   const [parsesOpen,    setParsesOpen]    = useState(false);
@@ -562,7 +553,6 @@ export default function KaraAdmin() {
       }
     }
     load();
-    if (FIREBASE_OK) fetchKaraSnapshots().then(setSnapshots).catch(console.warn);
     document.title = "NTMO · Karazhan Admin";
   }, []);
 
@@ -598,48 +588,6 @@ export default function KaraAdmin() {
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (e) { setSaveStatus("error"); setTimeout(() => setSaveStatus("idle"), 4000); }
   }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu]);
-
-  // ── Snapshot ──────────────────────────────────────────────────────────────
-  const handleSaveSnapshot = useCallback(async () => {
-    if (!FIREBASE_OK) { toast({ message: "Firebase required for snapshots", type: "danger" }); return; }
-    setSnapshotStatus("saving");
-    try {
-      const state = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu };
-      await saveKaraSnapshot(state);
-      setSnapshotStatus("saved");
-      const snaps = await fetchKaraSnapshots();
-      setSnapshots(snaps);
-      setTimeout(() => setSnapshotStatus("idle"), 3000);
-    } catch (e) { setSnapshotStatus("error"); setTimeout(() => setSnapshotStatus("idle"), 4000); }
-  }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu]);
-
-  // ── WCL submit ────────────────────────────────────────────────────────────
-  const handleWclSubmit = useCallback(async () => {
-    const url = wclSubmitUrl.trim();
-    if (!url) return;
-    const match = url.match(/reports\/([A-Za-z0-9]+)/);
-    const reportCode = match ? match[1] : null;
-    const finalUrl   = reportCode ? `https://fresh.warcraftlogs.com/reports/${reportCode}` : url;
-    const rawSheet   = sheetSubmitUrl.trim();
-    const sheetUrl   = rawSheet ? rawSheet.replace(/\/(edit|view|htmlview|pub)(\?.*)?$/, "/htmlview") : null;
-    setWclSubmitStatus("saving");
-    try {
-      const state = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu };
-      const extra = { wclReportUrl: finalUrl, locked: true, ...(sheetUrl ? { sheetUrl } : {}) };
-      if (viewingSnap) {
-        await submitKaraWclLog(viewingSnap, finalUrl);
-        if (sheetUrl) await updateKaraSnapshot(viewingSnap, { sheetUrl });
-        setSnapshots(prev => prev.map(s => s.id === viewingSnap ? { ...s, ...extra } : s));
-      } else {
-        await saveKaraSnapshot(state, extra);
-        const snaps = await fetchKaraSnapshots();
-        setSnapshots(snaps);
-      }
-      setWclSubmitStatus("saved");
-      setWclSubmitUrl(""); setSheetSubmitUrl("");
-      setTimeout(() => setWclSubmitStatus("idle"), 3000);
-    } catch (e) { setWclSubmitStatus("error"); setTimeout(() => setWclSubmitStatus("idle"), 4000); }
-  }, [wclSubmitUrl, sheetSubmitUrl, viewingSnap, rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu]);
 
   // ── Spec cycle ────────────────────────────────────────────────────────────
   const handleSpecCycle = useCallback((playerId) => {
@@ -818,9 +766,6 @@ export default function KaraAdmin() {
   }, [rosterTue, rosterThu, assignments]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const viewSnap        = viewingSnap ? snapshots.find(s => s.id === viewingSnap) : null;
-  const isLocked        = viewSnap?.locked ?? false;
-  const viewAssignments = viewSnap ? (viewSnap.assignments ?? {}) : assignments;
   const allRosters      = [...rosterTue, ...rosterThu];
 
   if (roster.length === 0 && !showImport) {
@@ -871,11 +816,6 @@ export default function KaraAdmin() {
           <button onClick={handleSave} style={btnStyle(hasUnsaved ? "warning" : "success")}>
             {FIREBASE_OK ? `${hasUnsaved ? "● " : ""}☁ Save` : "💾 Save"}
           </button>
-          {FIREBASE_OK && (
-            <button onClick={handleSaveSnapshot} style={btnStyle("default")}>
-              {snapshotStatus === "saved" ? "✓ Snapshotted" : "📸 Snapshot"}
-            </button>
-          )}
         </>}
       />
 
@@ -901,36 +841,6 @@ export default function KaraAdmin() {
         </div>
       )}
 
-      {/* Week slider */}
-      {FIREBASE_OK && snapshots.length > 0 && (
-        <div style={{ padding: `${space[1]}px ${space[3]}px`, background: surface.panel, borderBottom: `1px solid ${border.subtle}`, display: "flex", alignItems: "center", gap: space[2] }}>
-          <button onClick={() => { const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx + 1 < snapshots.length ? snapshots[idx + 1].id : null); }} disabled={viewingSnap === snapshots[snapshots.length - 1]?.id} style={{ ...btnStyle("default"), padding: "0 8px", opacity: viewingSnap === snapshots[snapshots.length - 1]?.id ? 0.3 : 1 }}>‹</button>
-          <div style={{ flex: 1, textAlign: "center", fontSize: fontSize.xs, fontFamily: font.sans }}>
-            {viewSnap ? (
-              <span style={{ color: viewSnap.locked ? "#9980D4" : text.secondary }}>
-                {viewSnap.locked ? "🔒" : "📸"} {viewSnap.raidDateTue || viewSnap.raidDate || new Date(viewSnap.savedAt).toLocaleDateString()}
-                {viewSnap.locked && <StatusChip type="locked" style={{ marginLeft: space[2] }}>LOCKED</StatusChip>}
-              </span>
-            ) : <span style={{ color: intent.success }}>⚡ Current Week (Live)</span>}
-          </div>
-          <button onClick={() => { const idx = viewingSnap ? snapshots.findIndex(s => s.id === viewingSnap) : -1; setViewingSnap(idx > 0 ? snapshots[idx - 1].id : null); }} disabled={!viewingSnap} style={{ ...btnStyle("default"), padding: "0 8px", opacity: !viewingSnap ? 0.3 : 1 }}>›</button>
-          {viewingSnap && (
-            <button onClick={async () => { if (!window.confirm("Delete snapshot?")) return; await deleteKaraSnapshot(viewingSnap); setSnapshots(prev => prev.filter(s => s.id !== viewingSnap)); setViewingSnap(null); }} style={{ ...btnStyle("danger"), padding: "0 8px" }}>🗑</button>
-          )}
-        </div>
-      )}
-
-      {/* WCL submit */}
-      {FIREBASE_OK && !isLocked && (
-        <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.panel, borderBottom: `1px solid ${border.subtle}`, display: "flex", gap: space[2], alignItems: "center" }}>
-          <input value={wclSubmitUrl} onChange={e => setWclSubmitUrl(e.target.value)} placeholder="🔗 WarcraftLogs report URL…" style={{ ...inputStyle, flex: 1 }} />
-          <input value={sheetSubmitUrl} onChange={e => setSheetSubmitUrl(e.target.value)} placeholder="📊 Google Sheet URL (optional)…" style={{ ...inputStyle, flex: 1 }} />
-          <button onClick={handleWclSubmit} disabled={!wclSubmitUrl.trim()} style={btnStyle(wclSubmitStatus === "saved" ? "success" : "default")}>
-            {wclSubmitStatus === "saving" ? "Locking…" : wclSubmitStatus === "saved" ? "✓ Locked!" : "🔒 Lock"}
-          </button>
-        </div>
-      )}
-
       {/* Main content */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* Roster sidebar */}
@@ -939,7 +849,7 @@ export default function KaraAdmin() {
           setKaraNight={setKaraNight}
           rosterTue={rosterTue}
           rosterThu={rosterThu}
-          assignments={viewAssignments}
+          assignments={assignments}
           roleFilter={roleFilter}
           setRoleFilter={setRoleFilter}
           onDragStart={handleDragStart}
@@ -963,14 +873,14 @@ export default function KaraAdmin() {
         <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
           <NightSection
             night="tue" teams={KARA_TUE_TEAMS} color={intent.success}
-            assignments={viewAssignments} allRosters={allRosters} isLocked={isLocked}
+            assignments={assignments} allRosters={allRosters}
             onDrop={handleDrop} onClear={handleClear} onDragStart={handleDragStart} onSpecCycle={handleSpecCycle}
             onCopyDiscord={() => copyNightDiscord("tue", KARA_TUE_TEAMS, setDiscordCopiedTue)}
             discordCopied={discordCopiedTue}
           />
           <NightSection
             night="thu" teams={KARA_THU_TEAMS} color={accent.blue}
-            assignments={viewAssignments} allRosters={allRosters} isLocked={isLocked}
+            assignments={assignments} allRosters={allRosters}
             onDrop={handleDrop} onClear={handleClear} onDragStart={handleDragStart} onSpecCycle={handleSpecCycle}
             onCopyDiscord={() => copyNightDiscord("thu", KARA_THU_TEAMS, setDiscordCopiedThu)}
             discordCopied={discordCopiedThu}

@@ -10,7 +10,7 @@ import {
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, PlayerBadge, MarkerIcon,
-  StatusChip, EmptyState, ConfirmDialog, toast, SaveStatus,
+  EmptyState, ConfirmDialog, toast, SaveStatus,
   ParseScoresPanel,
 } from "../../shared/components";
 import {
@@ -454,7 +454,6 @@ export default function TwentyFiveAdmin({ teamId }) {
     } else {
       setRoster([]); setAssignments({}); setTextInputs({}); setDividers([]); setRaidDate(""); setRaidLeader("");
     }
-    setViewingSnap(null);
   }, [teamId]);
 
   useEffect(() => {
@@ -564,12 +563,6 @@ export default function TwentyFiveAdmin({ teamId }) {
     });
   }, []);
 
-  // ── Derived ───────────────────────────────────────────────────────────────
-  const viewAssignments = assignments;
-  const viewRoster      = roster;
-  const viewTextInputs  = textInputs;
-  const isLocked        = false;
-
   const nightColor = night === "tue" ? intent.success : accent.blue;
   const nightLabel = night === "tue" ? "Tuesday" : "Thursday";
 
@@ -631,7 +624,7 @@ export default function TwentyFiveAdmin({ teamId }) {
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
           <TwentyFiveRosterPanel
             roster={roster}
-            assignments={viewAssignments}
+            assignments={assignments}
             roleFilter={roleFilter}
             setRoleFilter={setRoleFilter}
             onDragStart={handleDragStart}
@@ -665,17 +658,17 @@ export default function TwentyFiveAdmin({ teamId }) {
             </div>
 
             {activeTab === "mags" && <>
-              <CubeTeamsGrid assignments={viewAssignments} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onDragStart={isLocked ? null : handleDragStart} />
+              <CubeTeamsGrid assignments={assignments} roster={roster} onDrop={handleDrop} onClear={handleClear} onDragStart={handleDragStart} />
               <div style={{ display: "flex", gap: space[3] }}>
-                <AssignmentPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
-                <AssignmentPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
+                <AssignmentPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={handleDragStart} />
+                <AssignmentPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={handleDragStart} />
               </div>
             </>}
 
             {activeTab === "gruul" && <>
               <div style={{ display: "flex", gap: space[3] }}>
-                <AssignmentPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar} rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
-                <AssignmentPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul} rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={isLocked ? null : handleDragStart} />
+                <AssignmentPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar} rows={GRUUL_MAULGAR} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={handleDragStart} />
+                <AssignmentPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul} rows={GRUUL_BOSS} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={handleDragStart} />
               </div>
             </>}
 
@@ -683,11 +676,11 @@ export default function TwentyFiveAdmin({ teamId }) {
             <div style={{ marginTop: space[3], display: "flex", gap: 0, background: surface.panel, border: `1px solid ${border.subtle}`, borderRadius: radius.base, overflow: "hidden" }}>
               <div style={{ flex: 1, borderRight: `1px solid ${border.subtle}` }}>
                 <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}><span style={{ fontSize: fontSize.xs, color: "#8788EE", fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>Warlock Curses</span></div>
-                {GENERAL_CURSES.map(row => <AssignmentRow key={row.key} rowCfg={row} assignedIds={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onDragStart={isLocked ? null : handleDragStart} assignments={viewAssignments} compact />)}
+                {GENERAL_CURSES.map(row => <AssignmentRow key={row.key} rowCfg={row} assignedIds={assignments[row.key]} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onDragStart={handleDragStart} assignments={assignments} compact />)}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ padding: `${space[1]}px ${space[3]}px`, borderBottom: `1px solid ${border.subtle}` }}><span style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans, fontWeight: fontWeight.bold, letterSpacing: "0.06em", textTransform: "uppercase" }}>Trash Interrupts</span></div>
-                {GENERAL_INTERRUPTS.map(row => <AssignmentRow key={row.key} rowCfg={row} assignedIds={viewAssignments[row.key]} textValues={viewTextInputs} roster={viewRoster} onDrop={isLocked ? null : handleDrop} onClear={isLocked ? null : handleClear} onDragStart={isLocked ? null : handleDragStart} assignments={viewAssignments} compact />)}
+                {GENERAL_INTERRUPTS.map(row => <AssignmentRow key={row.key} rowCfg={row} assignedIds={assignments[row.key]} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onDragStart={handleDragStart} assignments={assignments} compact />)}
               </div>
             </div>
           </div>
