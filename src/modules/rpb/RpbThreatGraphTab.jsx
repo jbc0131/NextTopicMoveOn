@@ -805,29 +805,38 @@ function ThreatChart({
                         stroke={window.sourceColor}
                         strokeWidth="1"
                         rx="4"
+                        onMouseMove={event => {
+                          const tooltip = getTooltipPosition(event);
+                          setHoveredTooltip({
+                            x: tooltip.x,
+                            y: tooltip.y,
+                            title: "Misdirection",
+                            lines: [
+                              {
+                                segments: [
+                                  { label: window.sourceName, color: window.sourceColor },
+                                  { label: " -> ", color: "rgba(226,232,240,0.92)" },
+                                  { label: window.targetName, color: window.targetColor },
+                                ],
+                              },
+                              `Start: ${formatClockFromMs(window.startTimeMs)}`,
+                              `End: ${formatClockFromMs(window.endTimeMs)}`,
+                              `Damage: ${Math.round(window.damageDone).toLocaleString()}`,
+                            ],
+                          });
+                        }}
                       >
                         <title>{`${window.sourceName} -> ${window.targetName}`}</title>
                       </rect>
-                      {bandWidth > 112 ? (
-                        <g transform={`translate(${window.startX + 6} ${laneY + 18})`}>
-                          <text fill={window.sourceColor} fontSize="12">
-                            {window.sourceName}
-                          </text>
-                          <text
-                            x={(String(window.sourceName || "").length * 7.2) + 4}
-                            fill="rgba(226,232,240,0.92)"
-                            fontSize="12"
-                          >
-                            {`->`}
-                          </text>
-                          <text
-                            x={(String(window.sourceName || "").length * 7.2) + 20}
-                            fill={window.targetColor}
-                            fontSize="12"
-                          >
-                            {window.targetName}
-                          </text>
-                        </g>
+                      {bandWidth > 52 ? (
+                        <text
+                          x={window.startX + 6}
+                          y={laneY + 18}
+                          fill={window.sourceColor}
+                          fontSize="12"
+                        >
+                          {window.sourceName}
+                        </text>
                       ) : null}
                     </g>
                   );
@@ -1158,6 +1167,18 @@ Time: ${formatClockFromMs(marker.timeMs)}`}</title>
             {hoveredTooltip.title}
           </div>
           {hoveredTooltip.lines.map((line, index) => {
+            if (typeof line === "object" && Array.isArray(line?.segments)) {
+              return (
+                <div key={`segments-${index}`} style={{ fontSize: fontSize.xs, marginTop: 2, whiteSpace: "nowrap" }}>
+                  {line.segments.map((segment, segmentIndex) => (
+                    <span key={`${segment.label}-${segmentIndex}`} style={{ color: segment.color || text.muted }}>
+                      {segment.label}
+                    </span>
+                  ))}
+                </div>
+              );
+            }
+
             const label = typeof line === "string" ? line : line?.label || "";
             const color = typeof line === "string" ? text.muted : (line?.color || text.muted);
             return (
