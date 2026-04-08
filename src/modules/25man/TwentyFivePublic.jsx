@@ -4,7 +4,7 @@ import {
   fontWeight, radius, space, layout,
 } from "../../shared/theme";
 import {
-  getColor, getSpecDisplay, getClass, ROLE_COLORS,
+  getColor, getSpecDisplay, ROLE_COLORS,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, CUBE_TEAMS,
   GENERAL_CURSES, GENERAL_INTERRUPTS,
 } from "../../shared/constants";

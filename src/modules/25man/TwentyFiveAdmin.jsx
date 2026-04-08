@@ -132,7 +132,7 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
                 >
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
                   {slot.name}
-                  <span style={{ color: `${color}77`, fontSize: fontSize.xs }}>{getSpecDisplay(slot)} {getClass(slot)}</span>
+                  <span style={{ color: `${color}77`, fontSize: fontSize.xs }}>{getSpecDisplay(slot)}</span>
                 </span>
               </div>
             );
