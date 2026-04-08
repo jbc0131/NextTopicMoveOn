@@ -795,7 +795,29 @@ function ThreatChart({
                   const bandWidth = Math.max(2, window.endX - window.startX);
                   const laneY = misdirectionRowTop + (coerceNumber(window.laneIndex, 0) * misdirectionBandHeight);
                   return (
-                    <g key={`misdirection-main-${window.markerKey}`}>
+                    <g
+                      key={`misdirection-main-${window.markerKey}`}
+                      onMouseMove={event => {
+                        const tooltip = getTooltipPosition(event);
+                        setHoveredTooltip({
+                          x: tooltip.x,
+                          y: tooltip.y,
+                          title: "Misdirection",
+                          lines: [
+                            {
+                              segments: [
+                                { label: window.sourceName, color: window.sourceColor },
+                                { label: " -> ", color: "rgba(226,232,240,0.92)" },
+                                { label: window.targetName, color: window.targetColor },
+                              ],
+                            },
+                            `Start: ${formatClockFromMs(window.startTimeMs)}`,
+                            `End: ${formatClockFromMs(window.endTimeMs)}`,
+                            `Damage: ${Math.round(window.damageDone).toLocaleString()}`,
+                          ],
+                        });
+                      }}
+                    >
                       <rect
                         x={window.startX}
                         y={laneY}
@@ -805,26 +827,6 @@ function ThreatChart({
                         stroke={window.sourceColor}
                         strokeWidth="1"
                         rx="4"
-                        onMouseMove={event => {
-                          const tooltip = getTooltipPosition(event);
-                          setHoveredTooltip({
-                            x: tooltip.x,
-                            y: tooltip.y,
-                            title: "Misdirection",
-                            lines: [
-                              {
-                                segments: [
-                                  { label: window.sourceName, color: window.sourceColor },
-                                  { label: " -> ", color: "rgba(226,232,240,0.92)" },
-                                  { label: window.targetName, color: window.targetColor },
-                                ],
-                              },
-                              `Start: ${formatClockFromMs(window.startTimeMs)}`,
-                              `End: ${formatClockFromMs(window.endTimeMs)}`,
-                              `Damage: ${Math.round(window.damageDone).toLocaleString()}`,
-                            ],
-                          });
-                        }}
                       >
                         <title>{`${window.sourceName} -> ${window.targetName}`}</title>
                       </rect>
@@ -834,6 +836,7 @@ function ThreatChart({
                           y={laneY + 18}
                           fill={window.sourceColor}
                           fontSize="12"
+                          pointerEvents="none"
                         >
                           {window.sourceName}
                         </text>
