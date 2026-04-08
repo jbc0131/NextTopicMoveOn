@@ -695,10 +695,10 @@ function ThreatChart({
     (Math.max(0, ...stackedMisdirectionWindows.map(window => window.laneIndex || 0)) + 1) * misdirectionBandHeight,
   );
   const deathChartHeight = Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight);
-  const misdirectionRowTop = plotHeight + rowGap;
-  const targetRowTop = misdirectionRowTop + misdirectionChartHeight + rowGap;
-  const deathRowTop = targetRowTop + targetBandHeight + rowGap;
-  const timelineBottomY = deathRowTop + deathChartHeight;
+  const targetRowTop = plotHeight + rowGap;
+  const misdirectionRowTop = targetRowTop + targetBandHeight + rowGap;
+  const adjustedDeathRowTop = misdirectionRowTop + misdirectionChartHeight + rowGap;
+  const timelineBottomY = adjustedDeathRowTop + deathChartHeight;
   const height = timelineBottomY + chartBottomPadding;
   const timelineTicks = useMemo(() => buildTimelineTicks(maxTimeMs), [maxTimeMs]);
 
@@ -782,13 +782,13 @@ function ThreatChart({
                     </g>
                   );
                 })}
-                <text x="8" y={misdirectionRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Misdirection
-                </text>
                 <text x="8" y={targetRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Boss Target
                 </text>
-                <text x="8" y={deathRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                <text x="8" y={misdirectionRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Misdirection
+                </text>
+                <text x="8" y={adjustedDeathRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Tank Deaths
                 </text>
                 {stackedMisdirectionWindows.map(window => {
@@ -926,7 +926,7 @@ End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`}</title>
                   </text>
                 )}
                 {deathMarkers.length ? deathMarkers.map(marker => {
-                  const laneY = deathRowTop + (coerceNumber(marker.laneIndex, 0) * deathBandHeight);
+                  const laneY = adjustedDeathRowTop + (coerceNumber(marker.laneIndex, 0) * deathBandHeight);
                   const clampedX = Math.max(timelineStartX, Math.min(timelineEndX - marker.markerWidth, marker.x - 4));
                   const textFits = clampedX + marker.markerWidth <= timelineEndX;
                   return (
@@ -1286,14 +1286,8 @@ export default function RpbThreatGraphTab({
     if (bossFightOptions.some(option => String(option.id) === String(selectedFightId))) {
       return String(selectedFightId);
     }
-    return String(bossFightOptions[0]?.id || "");
+    return "";
   }, [bossFightOptions, selectedFightId]);
-
-  useEffect(() => {
-    if (!activeBossFightId) return;
-    if (String(selectedFightId) === String(activeBossFightId)) return;
-    setSelectedFightId(activeBossFightId);
-  }, [activeBossFightId, selectedFightId, setSelectedFightId]);
 
   const selectedFight = useMemo(() => (
     (filteredFights || []).find(fight => String(fight.id) === String(activeBossFightId))
@@ -1367,6 +1361,14 @@ export default function RpbThreatGraphTab({
     if (raiderOptions.some(option => option.playerId === selectedRaiderId)) return;
     setSelectedRaiderId(raiderOptions[0].playerId);
   }, [raiderOptions, selectedRaiderId]);
+
+  if (!activeBossFightId || !selectedFight) {
+    return (
+      <div style={{ ...panelStyle, padding: space[6], color: text.muted, minWidth: 0 }}>
+        Select a fight to see the threat graph.
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobileViewport ? "minmax(0, 1fr)" : "minmax(0, 1.2fr) minmax(280px, 0.52fr)", gap: space[4], minWidth: 0, alignItems: "start" }}>
