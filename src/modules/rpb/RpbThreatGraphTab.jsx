@@ -696,9 +696,9 @@ function ThreatChart({
   );
   const deathChartHeight = Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight);
   const targetRowTop = plotHeight + rowGap;
-  const misdirectionRowTop = targetRowTop + targetBandHeight + rowGap;
-  const adjustedDeathRowTop = misdirectionRowTop + misdirectionChartHeight + rowGap;
-  const timelineBottomY = adjustedDeathRowTop + deathChartHeight;
+  const deathRowTop = targetRowTop + targetBandHeight + rowGap;
+  const misdirectionRowTop = deathRowTop + deathChartHeight + rowGap;
+  const timelineBottomY = misdirectionRowTop + misdirectionChartHeight;
   const height = timelineBottomY + chartBottomPadding;
   const timelineTicks = useMemo(() => buildTimelineTicks(maxTimeMs), [maxTimeMs]);
 
@@ -788,7 +788,7 @@ function ThreatChart({
                 <text x="8" y={misdirectionRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Misdirection
                 </text>
-                <text x="8" y={adjustedDeathRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                <text x="8" y={deathRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Tank Deaths
                 </text>
                 {stackedMisdirectionWindows.map(window => {
@@ -810,24 +810,25 @@ function ThreatChart({
                           setHoveredTooltip({
                             x: tooltip.x,
                             y: tooltip.y,
-                            title: "Misdirection",
+                            title: `${window.sourceName} -> ${window.targetName}`,
                             lines: [
-                              { label: `Hunter: ${window.sourceName}`, color: window.sourceColor },
-                              { label: `Tank Target: ${window.targetName}`, color: window.targetColor },
-                              `Window: ${formatClockFromMs(window.startTimeMs)} to ${formatClockFromMs(window.endTimeMs)}`,
-                              `Duration: ${formatPreciseDurationFromMs(window.durationMs)}`,
-                              `Damage During Window: ${Math.round(window.damageDone).toLocaleString()}`,
+                              { label: `${window.sourceName} -> ${window.targetName}`, color: window.sourceColor },
                             ],
                           });
                         }}
                       >
-                        <title>{`Misdirection
-Hunter: ${window.sourceName}
-Tank Target: ${window.targetName}
-Window: ${formatClockFromMs(window.startTimeMs)} to ${formatClockFromMs(window.endTimeMs)}
-Duration: ${formatPreciseDurationFromMs(window.durationMs)}
-Damage During Window: ${Math.round(window.damageDone).toLocaleString()}`}</title>
+                        <title>{`${window.sourceName} -> ${window.targetName}`}</title>
                       </rect>
+                      {bandWidth > 56 ? (
+                        <text
+                          x={window.startX + 6}
+                          y={laneY + 18}
+                          fill="rgba(226,232,240,0.92)"
+                          fontSize="12"
+                        >
+                          {window.sourceName}
+                        </text>
+                      ) : null}
                     </g>
                   );
                 })}
@@ -926,7 +927,7 @@ End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`}</title>
                   </text>
                 )}
                 {deathMarkers.length ? deathMarkers.map(marker => {
-                  const laneY = adjustedDeathRowTop + (coerceNumber(marker.laneIndex, 0) * deathBandHeight);
+                  const laneY = deathRowTop + (coerceNumber(marker.laneIndex, 0) * deathBandHeight);
                   const clampedX = Math.max(timelineStartX, Math.min(timelineEndX - marker.markerWidth, marker.x - 4));
                   const textFits = clampedX + marker.markerWidth <= timelineEndX;
                   return (
