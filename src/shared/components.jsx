@@ -53,7 +53,7 @@ export function PlayerBadge({ slot, compact = false, draggable: isDraggable = fa
       <span style={{ fontWeight: fontWeight.semibold }}>{slot.name}</span>
       {!compact && (
         <span style={{ color: `${color}80`, fontSize: fontSize.xs }}>
-          {getSpecDisplay(slot)} {cls}
+          {getSpecDisplay(slot)}
         </span>
       )}
       {parseScore != null && (
