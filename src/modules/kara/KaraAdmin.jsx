@@ -105,7 +105,7 @@ function NightSection({ night, teams, color, assignments, allRosters, onDrop, on
           onClick={onCopyDiscord}
           style={{ ...btnStyle("default"), position: "absolute", right: space[3], fontSize: fontSize.xs }}
         >
-          {discordCopied ? "✓ Copied!" : "💬 Copy Discord"}
+          {discordCopied ? "✓ Posted!" : "💬 Post to Discord"}
         </button>
       </div>
 
@@ -523,6 +523,7 @@ export default function KaraAdmin() {
   const [pendingResolved,    setPendingResolved]    = useState({});
   const [pendingImportQueue, setPendingImportQueue] = useState(null);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [confirmDiscordNight, setConfirmDiscordNight] = useState(null);
   const autoSaveTimer  = useRef(null);
   const fileRefTue     = useRef();
   const fileRefThu     = useRef();
@@ -780,12 +781,16 @@ export default function KaraAdmin() {
   // ── Discord post ──────────────────────────────────────────────────────────
   const copyNightDiscord = useCallback(async (night, teams, setCopied) => {
     const allRosters = [...rosterTue, ...rosterThu];
-    const nightLabel = night === "tue" ? "TUESDAY" : "THURSDAY";
+    const nightLabel = night === "tue" ? "Tuesday" : "Thursday";
+    const formatPlayer = (p) => {
+      if (p._discordId && !p._discordId.startsWith("manual_")) return `<@${p._discordId}>`;
+      return p.name;
+    };
     const formatGroup = (ids) => ids
       .map(id => allRosters.find(s => s.id === id)).filter(Boolean)
-      .map(p => `<@${p._discordId || p.id}> (${getSpecDisplay(p)})`)
+      .map(formatPlayer)
       .join(" ");
-    const lines = [`🏰 **${nightLabel}**`, ""];
+    const lines = [`🏰 ${nightLabel} Karazhan Roster`, ""];
     teams.forEach((team, i) => {
       const g1Ids = team.g1.flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
       const g2Ids = team.g2.flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
@@ -793,8 +798,9 @@ export default function KaraAdmin() {
       const teamPlayers = [...g1Ids, ...g2Ids].map(id => allRosters.find(s => s.id === id)).filter(Boolean);
       const firstTank = teamPlayers.find(p => getRole(p) === "Tank");
       const teamName = firstTank ? `Team ${firstTank.name}` : `Team ${i + 1}`;
-      if (g1Ids.length) lines.push(`${teamName} · G1: ${formatGroup(g1Ids)}`);
-      if (g2Ids.length) lines.push(`${teamName} · G2: ${formatGroup(g2Ids)}`);
+      lines.push(`> **${teamName}**`);
+      if (g1Ids.length) lines.push(`> G1: ${formatGroup(g1Ids)}`);
+      if (g2Ids.length) lines.push(`> G2: ${formatGroup(g2Ids)}`);
       lines.push("");
     });
     const content = lines.join("\n").trimEnd();
@@ -848,6 +854,21 @@ export default function KaraAdmin() {
         dangerous
         onConfirm={() => { setAssignments({}); setConfirmClearOpen(false); }}
         onCancel={() => setConfirmClearOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={!!confirmDiscordNight}
+        title="Post to Discord"
+        message="This will tag everyone in this roster in Discord. Are you sure you want to publish these rosters?"
+        confirmLabel="Post"
+        onConfirm={() => {
+          const night = confirmDiscordNight;
+          setConfirmDiscordNight(null);
+          const teams = night === "tue" ? KARA_TUE_TEAMS : KARA_THU_TEAMS;
+          const setCopied = night === "tue" ? setDiscordCopiedTue : setDiscordCopiedThu;
+          copyNightDiscord(night, teams, setCopied);
+        }}
+        onCancel={() => setConfirmDiscordNight(null)}
       />
 
       {/* Module header */}
@@ -924,14 +945,14 @@ export default function KaraAdmin() {
             night="tue" teams={KARA_TUE_TEAMS} color={intent.success}
             assignments={assignments} allRosters={allRosters}
             onDrop={handleDrop} onClear={handleClear} onDragStart={handleDragStart} onSpecCycle={handleSpecCycle}
-            onCopyDiscord={() => copyNightDiscord("tue", KARA_TUE_TEAMS, setDiscordCopiedTue)}
+            onCopyDiscord={() => setConfirmDiscordNight("tue")}
             discordCopied={discordCopiedTue}
           />
           <NightSection
             night="thu" teams={KARA_THU_TEAMS} color={accent.blue}
             assignments={assignments} allRosters={allRosters}
             onDrop={handleDrop} onClear={handleClear} onDragStart={handleDragStart} onSpecCycle={handleSpecCycle}
-            onCopyDiscord={() => copyNightDiscord("thu", KARA_THU_TEAMS, setDiscordCopiedThu)}
+            onCopyDiscord={() => setConfirmDiscordNight("thu")}
             discordCopied={discordCopiedThu}
           />
         </div>
