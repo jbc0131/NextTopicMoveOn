@@ -555,14 +555,14 @@ function ThreatChart({
   underDevelopmentBadgeStyle,
 }) {
   const width = 920;
-  const height = 344;
+  const plotHeight = 320;
+  const rowGap = 12;
   const chartBottomPadding = 24;
-  const plotHeight = height - chartBottomPadding;
-  const timelineStartX = 44;
-  const timelineEndX = width - 6;
-  const timelineWidth = timelineEndX - timelineStartX;
   const targetBandHeight = 28;
   const deathBandHeight = 28;
+  const timelineStartX = 110;
+  const timelineEndX = width - 6;
+  const timelineWidth = timelineEndX - timelineStartX;
   const [hoveredTooltip, setHoveredTooltip] = useState(null);
   const [buffStates, setBuffStates] = useState({});
   const [talentRanks, setTalentRanks] = useState({});
@@ -652,6 +652,11 @@ function ThreatChart({
     () => alignTargetSegmentsWithDeaths(baseTargetSegments, deathMarkers),
     [baseTargetSegments, deathMarkers],
   );
+  const deathChartHeight = Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight);
+  const targetRowTop = plotHeight + rowGap;
+  const deathRowTop = targetRowTop + targetBandHeight + rowGap;
+  const timelineBottomY = deathRowTop + deathChartHeight;
+  const height = timelineBottomY + chartBottomPadding;
   const timelineTicks = useMemo(() => buildTimelineTicks(maxTimeMs), [maxTimeMs]);
   const normalizedMisdirectionWindows = useMemo(
     () => normalizeMisdirectionWindows(misdirectionWindows, adjustedPlayers),
@@ -707,13 +712,13 @@ function ThreatChart({
           onMouseLeave={() => setHoveredTooltip(null)}
         >
           {hasGraphData ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div>
               <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Threat timeline">
                 {timelineTicks.map(tick => {
                   const x = getTimelineX(tick.timeMs, timelineStartX, timelineWidth, maxTimeMs);
                   return (
                     <g key={`timeline-${tick.timeMs}`}>
-                      <line x1={x} x2={x} y1="0" y2={plotHeight} stroke="rgba(255,255,255,0.10)" strokeWidth="1" strokeDasharray="3 4" />
+                      <line x1={x} x2={x} y1="0" y2={timelineBottomY} stroke="rgba(255,255,255,0.10)" strokeWidth="1" strokeDasharray="3 4" />
                       <text
                         x={Math.min(width - 2, Math.max(2, x))}
                         y={height - 6}
@@ -738,6 +743,15 @@ function ThreatChart({
                     </g>
                   );
                 })}
+                <text x="8" y="18" fill="rgba(204,214,224,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Threat
+                </text>
+                <text x="8" y={targetRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Boss Target
+                </text>
+                <text x="8" y={deathRowTop + 18} fill="rgba(148,163,184,0.92)" fontSize="12" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Tank Deaths
+                </text>
                 {normalizedMisdirectionWindows.map(window => {
                   const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
                   const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
@@ -825,172 +839,129 @@ Current Threat: ${Math.round(coerceNumber(point.threat, 0)).toLocaleString()}`}<
                     </g>
                   );
                 })}
-              </svg>
-              <div style={{ display: "grid", gridTemplateColumns: "110px minmax(0, 1fr)", gap: 10, alignItems: "center" }}>
-                <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Boss Target
-                </div>
-                <svg viewBox={`0 0 ${width} ${targetBandHeight}`} style={{ width: "100%", height: "28px", display: "block" }} role="img" aria-label="Boss target timeline">
-                  {timelineTicks.map(tick => {
-                    const x = getTimelineX(tick.timeMs, timelineStartX, timelineWidth, maxTimeMs);
-                    return <line key={`target-tick-${tick.timeMs}`} x1={x} x2={x} y1="0" y2={targetBandHeight} stroke="rgba(255,255,255,0.10)" strokeWidth="1" strokeDasharray="3 4" />;
-                  })}
-                  {normalizedMisdirectionWindows.map(window => {
-                    const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                    const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                    return (
+                {normalizedMisdirectionWindows.map(window => {
+                  const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
+                  const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
+                  return (
+                    <rect
+                      key={`misdirection-target-${window.markerKey}`}
+                      x={startX}
+                      y={targetRowTop}
+                      width={Math.max(2, endX - startX)}
+                      height={targetBandHeight}
+                      fill={`${window.sourceColor}22`}
+                    />
+                  );
+                })}
+                {targetSegments.length ? targetSegments.map((segment, index) => {
+                  const x = getTimelineX(segment.timeMs, timelineStartX, timelineWidth, maxTimeMs);
+                  const nextX = getTimelineX(segment.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
+                  const player = adjustedPlayers.find(entry => String(entry.playerId) === String(segment.playerId));
+                  return (
+                    <g key={`${segment.playerId}-${index}-${segment.timeMs}`}>
                       <rect
-                        key={`misdirection-target-${window.markerKey}`}
-                        x={startX}
-                        y="0"
-                        width={Math.max(2, endX - startX)}
-                        height={targetBandHeight}
-                        fill={`${window.sourceColor}22`}
-                      />
-                    );
-                  })}
-                  {targetSegments.length ? targetSegments.map((segment, index) => {
-                    const x = getTimelineX(segment.timeMs, timelineStartX, timelineWidth, maxTimeMs);
-                    const nextX = getTimelineX(segment.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                    const player = adjustedPlayers.find(entry => String(entry.playerId) === String(segment.playerId));
-                    return (
-                      <g key={`${segment.playerId}-${index}-${segment.timeMs}`}>
-                        <rect
-                          x={x}
-                          y="2"
-                          width={Math.max(2, nextX - x)}
-                          height={targetBandHeight - 4}
-                          fill={`${player?.color || "#64748b"}55`}
-                          stroke={player?.color || "#64748b"}
-                          strokeWidth="1"
-                          rx="4"
-                          onMouseMove={event => {
-                            const tooltip = getTooltipPosition(event);
-                            setHoveredTooltip({
-                              x: tooltip.x,
-                              y: tooltip.y,
-                              title: segment.name,
-                              lines: [
-                                `Boss Target: ${segment.name}`,
-                                `Start Threat Time: ${formatClockFromMs(segment.timeMs)}`,
-                                `End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`,
-                              ],
-                            });
-                          }}
-                        >
-                          <title>{`Boss Target: ${segment.name}
+                        x={x}
+                        y={targetRowTop + 2}
+                        width={Math.max(2, nextX - x)}
+                        height={targetBandHeight - 4}
+                        fill={`${player?.color || "#64748b"}55`}
+                        stroke={player?.color || "#64748b"}
+                        strokeWidth="1"
+                        rx="4"
+                        onMouseMove={event => {
+                          const tooltip = getTooltipPosition(event);
+                          setHoveredTooltip({
+                            x: tooltip.x,
+                            y: tooltip.y,
+                            title: segment.name,
+                            lines: [
+                              `Boss Target: ${segment.name}`,
+                              `Start Threat Time: ${formatClockFromMs(segment.timeMs)}`,
+                              `End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`,
+                            ],
+                          });
+                        }}
+                      >
+                        <title>{`Boss Target: ${segment.name}
 Start Threat Time: ${formatClockFromMs(segment.timeMs)}
 End Threat Time: ${formatClockFromMs(segment.endTimeMs)}`}</title>
-                        </rect>
-                        {nextX - x > 64 ? (
-                          <text x={x + 6} y={18} fill="rgba(226,232,240,0.9)" fontSize="12">
-                            {segment.name}
-                          </text>
-                        ) : null}
-                      </g>
-                    );
-                  }) : (
-                    <text x="6" y="18" fill="rgba(148,163,184,0.9)" fontSize="12">
-                      No boss target timeline available
-                    </text>
-                  )}
-                </svg>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "110px minmax(0, 1fr)", gap: 10, alignItems: "center" }}>
-                <div style={{ fontSize: fontSize.xs, color: text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Deaths
-                </div>
-                <svg
-                  viewBox={`0 0 ${width} ${Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight)}`}
-                  style={{
-                    width: "100%",
-                    height: `${Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight)}px`,
-                    display: "block",
-                  }}
-                  role="img"
-                  aria-label="Death timeline"
-                >
-                  {timelineTicks.map(tick => {
-                    const x = getTimelineX(tick.timeMs, timelineStartX, timelineWidth, maxTimeMs);
-                    return (
-                      <line
-                        key={`death-tick-${tick.timeMs}`}
-                        x1={x}
-                        x2={x}
-                        y1="0"
-                        y2={Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight)}
-                        stroke="rgba(255,255,255,0.10)"
-                        strokeWidth="1"
-                        strokeDasharray="3 4"
-                      />
-                    );
-                  })}
-                  {normalizedMisdirectionWindows.map(window => {
-                    const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                    const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
-                    const bandHeight = Math.max(deathBandHeight, (Math.max(0, ...deathMarkers.map(marker => marker.laneIndex || 0)) + 1) * deathBandHeight);
-                    return (
+                      </rect>
+                      {nextX - x > 64 ? (
+                        <text x={x + 6} y={targetRowTop + 18} fill="rgba(226,232,240,0.9)" fontSize="12">
+                          {segment.name}
+                        </text>
+                      ) : null}
+                    </g>
+                  );
+                }) : (
+                  <text x="8" y={targetRowTop + 18} fill="rgba(148,163,184,0.9)" fontSize="12">
+                    No boss target timeline available
+                  </text>
+                )}
+                {normalizedMisdirectionWindows.map(window => {
+                  const startX = getTimelineX(window.startTimeMs, timelineStartX, timelineWidth, maxTimeMs);
+                  const endX = getTimelineX(window.endTimeMs, timelineStartX, timelineWidth, maxTimeMs);
+                  return (
+                    <rect
+                      key={`misdirection-death-${window.markerKey}`}
+                      x={startX}
+                      y={deathRowTop}
+                      width={Math.max(2, endX - startX)}
+                      height={deathChartHeight}
+                      fill={`${window.sourceColor}22`}
+                    />
+                  );
+                })}
+                {deathMarkers.length ? deathMarkers.map(marker => {
+                  const laneY = deathRowTop + (coerceNumber(marker.laneIndex, 0) * deathBandHeight);
+                  const clampedX = Math.max(timelineStartX, Math.min(timelineEndX - marker.markerWidth, marker.x - 4));
+                  const textFits = clampedX + marker.markerWidth <= timelineEndX;
+                  return (
+                    <g key={marker.markerKey}>
                       <rect
-                        key={`misdirection-death-${window.markerKey}`}
-                        x={startX}
-                        y="0"
-                        width={Math.max(2, endX - startX)}
-                        height={bandHeight}
-                        fill={`${window.sourceColor}22`}
-                      />
-                    );
-                  })}
-                  {deathMarkers.length ? deathMarkers.map(marker => {
-                    const laneY = coerceNumber(marker.laneIndex, 0) * deathBandHeight;
-                    const clampedX = Math.max(timelineStartX, Math.min(timelineEndX - marker.markerWidth, marker.x - 4));
-                    const textFits = clampedX + marker.markerWidth <= timelineEndX;
-                    return (
-                      <g key={marker.markerKey}>
-                        <rect
-                          x={clampedX}
-                          y={laneY + 2}
-                          width={marker.markerWidth}
-                          height={deathBandHeight - 4}
-                          fill={`${marker.color || "#ef4444"}22`}
-                          stroke={marker.color || "#ef4444"}
-                          strokeWidth="1"
-                          rx="4"
-                          onMouseMove={event => {
-                            const tooltip = getTooltipPosition(event);
-                            setHoveredTooltip({
-                              x: tooltip.x,
-                              y: tooltip.y,
-                              title: marker.label,
-                              lines: [`Time: ${formatClockFromMs(marker.timeMs)}`],
-                            });
-                          }}
-                        >
-                          <title>{`${marker.label}
+                        x={clampedX}
+                        y={laneY + 2}
+                        width={marker.markerWidth}
+                        height={deathBandHeight - 4}
+                        fill={`${marker.color || "#ef4444"}22`}
+                        stroke={marker.color || "#ef4444"}
+                        strokeWidth="1"
+                        rx="4"
+                        onMouseMove={event => {
+                          const tooltip = getTooltipPosition(event);
+                          setHoveredTooltip({
+                            x: tooltip.x,
+                            y: tooltip.y,
+                            title: marker.label,
+                            lines: [`Time: ${formatClockFromMs(marker.timeMs)}`],
+                          });
+                        }}
+                      >
+                        <title>{`${marker.label}
 Time: ${formatClockFromMs(marker.timeMs)}`}</title>
-                        </rect>
-                        <line
-                          x1={marker.x}
-                          x2={marker.x}
-                          y1={laneY + 2}
-                          y2={laneY + deathBandHeight - 2}
-                          stroke={marker.color || "#ef4444"}
-                          strokeWidth="1.5"
-                          strokeDasharray="3 2"
-                        />
-                        {textFits ? (
-                          <text x={clampedX + 6} y={laneY + 18} fill="rgba(226,232,240,0.9)" fontSize="12">
-                            {marker.label}
-                          </text>
-                        ) : null}
-                      </g>
-                    );
-                  }) : (
-                    <text x="6" y="18" fill="rgba(148,163,184,0.9)" fontSize="12">
-                      No tank death timeline available
-                    </text>
-                  )}
-                </svg>
-              </div>
+                      </rect>
+                      <line
+                        x1={marker.x}
+                        x2={marker.x}
+                        y1={laneY + 2}
+                        y2={laneY + deathBandHeight - 2}
+                        stroke={marker.color || "#ef4444"}
+                        strokeWidth="1.5"
+                        strokeDasharray="3 2"
+                      />
+                      {textFits ? (
+                        <text x={clampedX + 6} y={laneY + 18} fill="rgba(226,232,240,0.9)" fontSize="12">
+                          {marker.label}
+                        </text>
+                      ) : null}
+                    </g>
+                  );
+                }) : (
+                  <text x="8" y={deathRowTop + 18} fill="rgba(148,163,184,0.9)" fontSize="12">
+                    No tank death timeline available
+                  </text>
+                )}
+              </svg>
             </div>
           ) : (
             <div style={{

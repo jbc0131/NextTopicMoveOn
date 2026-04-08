@@ -2864,6 +2864,65 @@ async function fetchFightDrumSnapshots(reportId, apiKeyOverride = "") {
   return { snapshots };
 }
 
+const MISDIRECTION_TARGET_ABILITY_IDS = new Set(["35079", "35080", "35081"]);
+
+function summarizeFightMisdirectionWindows(fight, events = [], buffTable = {}, fightsData = {}) {
+  const playersById = new Map(
+    (fightsData.friendlies || [])
+      .filter(player => player?.id != null)
+      .map(player => [String(player.id), player])
+  );
+  const removeEvents = (events || [])
+    .filter(event =>
+      event?.type === "removebuff"
+      && MISDIRECTION_TARGET_ABILITY_IDS.has(String(event?.ability?.guid || ""))
+      && event?.targetIsFriendly
+    )
+    .sort((left, right) => Number(left?.timestamp || 0) - Number(right?.timestamp || 0));
+
+  return (buffTable?.auras || [])
+    .flatMap(aura => {
+      const targetId = String(aura?.id || "");
+      const targetPlayer = playersById.get(targetId);
+      return (aura?.bands || []).map((band, index) => {
+        const startTimestamp = Math.max(Number(fight?.start_time || 0), Number(band?.startTime || fight?.start_time || 0));
+        const endTimestamp = Math.max(startTimestamp, Number(band?.endTime || startTimestamp));
+        const matchingRemoveEvent = removeEvents.find(event =>
+          String(event?.targetID || "") === targetId
+          && Math.abs(Number(event?.timestamp || 0) - endTimestamp) <= 500
+        ) || null;
+        const sourceId = String(matchingRemoveEvent?.sourceID || "");
+        const sourcePlayer = playersById.get(sourceId);
+        const damageDone = sourceId
+          ? (events || []).reduce((sum, event) => {
+            const timestamp = Number(event?.timestamp || 0);
+            if (event?.type !== "damage") return sum;
+            if (String(event?.sourceID || "") !== sourceId) return sum;
+            if (event?.targetIsFriendly) return sum;
+            if (timestamp < startTimestamp || timestamp > endTimestamp) return sum;
+            return sum + Math.max(0, Number(event?.amount || 0) + Number(event?.absorbed || 0));
+          }, 0)
+          : 0;
+
+        return {
+          markerKey: `misdirection:${String(fight?.id || "")}:${targetId}:${startTimestamp}:${index}`,
+          sourcePlayerId: sourceId,
+          sourceName: sourcePlayer?.name || matchingRemoveEvent?.source?.name || "",
+          sourceType: sourcePlayer?.type || "",
+          targetPlayerId: targetId,
+          targetName: aura?.name || targetPlayer?.name || "Unknown Target",
+          targetType: aura?.type || targetPlayer?.type || "",
+          startTimeMs: Math.max(0, startTimestamp - Number(fight?.start_time || 0)),
+          endTimeMs: Math.max(0, endTimestamp - Number(fight?.start_time || 0)),
+          durationMs: Math.max(0, endTimestamp - startTimestamp),
+          damageDone,
+        };
+      });
+    })
+    .filter(window => window.durationMs > 0)
+    .sort((left, right) => Number(left.startTimeMs || 0) - Number(right.startTimeMs || 0));
+}
+
 async function fetchFightThreatSnapshots(reportId, apiKeyOverride = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
   const snapshotFights = (fightsData.fights || []).filter(fight =>
@@ -2871,20 +2930,46 @@ async function fetchFightThreatSnapshots(reportId, apiKeyOverride = "") {
   );
 
   const fightEventsById = {};
+  const misdirectionWindowsByFightId = {};
   for (const fight of snapshotFights) {
     const fightId = String(fight.id || "");
-    fightEventsById[fightId] = await fetchAllEventPages(`/report/events/${reportId}`, {
-      start: fight.start_time ?? 0,
-      end: fight.end_time ?? 0,
-    }, apiKeyOverride);
+    const mdWindowStart = Math.max(0, Number(fight.start_time ?? 0) - 15000);
+    const [events, targetBuffTable] = await Promise.all([
+      fetchAllEventPages(`/report/events/${reportId}`, {
+        start: fight.start_time ?? 0,
+        end: fight.end_time ?? 0,
+      }, apiKeyOverride),
+      wclFetch(`/report/tables/buffs/${reportId}`, {
+        start: mdWindowStart,
+        end: fight.end_time ?? 0,
+        abilityid: 35079,
+      }, apiKeyOverride).catch(() => ({ auras: [] })),
+    ]);
+
+    fightEventsById[fightId] = events;
+    misdirectionWindowsByFightId[fightId] = summarizeFightMisdirectionWindows(
+      fight,
+      events,
+      targetBuffTable,
+      fightsData,
+    );
   }
+
+  const threatSnapshots = computeThreatSnapshots({
+    fightsData,
+    fights: snapshotFights,
+    fightEventsById,
+  });
 
   return {
     gameVersion: fightsData?.gameVersion ?? null,
-    ...computeThreatSnapshots({
-      fightsData,
-      fights: snapshotFights,
-      fightEventsById,
+    ...threatSnapshots,
+    snapshots: (threatSnapshots?.snapshots || []).map(snapshot => {
+      const apiWindows = misdirectionWindowsByFightId[String(snapshot?.fightId || "")] || [];
+      return {
+        ...snapshot,
+        misdirectionWindows: apiWindows.length ? apiWindows : (snapshot?.misdirectionWindows || []),
+      };
     }),
   };
 }
