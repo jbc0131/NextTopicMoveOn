@@ -77,6 +77,10 @@ function getRaidKeys(raidId) {
   };
 }
 
+function getImportPayloadDatasetKey(raidId, datasetKey) {
+  return buildCacheKey("rpb", ["raid", raidId, "import-payload", datasetKey]);
+}
+
 function getThreatByFightSnapshotKey(raidId, fightId) {
   return buildCacheKey("rpb", ["raid", raidId, "threat-by-fight", "snapshot", fightId]);
 }
@@ -151,6 +155,59 @@ async function loadThreatByFight(raidId) {
   };
 }
 
+async function saveImportPayload(raidId, importPayload = {}) {
+  const keys = getRaidKeys(raidId);
+  const previousPayload = await getJsonCache(keys.importPayload);
+  const previousDatasetKeys = Array.isArray(previousPayload?.datasetKeys)
+    ? previousPayload.datasetKeys.map(key => String(key)).filter(Boolean)
+    : [];
+
+  const payload = importPayload && typeof importPayload === "object" ? importPayload : {};
+  const datasetKeys = Object.keys(payload).filter(key => key !== "threatByFight").sort();
+  const operations = datasetKeys.map(datasetKey =>
+    setJsonCache(getImportPayloadDatasetKey(raidId, datasetKey), payload[datasetKey] || {})
+  );
+
+  for (const datasetKey of previousDatasetKeys) {
+    if (datasetKeys.includes(datasetKey)) continue;
+    operations.push(deleteKey(getImportPayloadDatasetKey(raidId, datasetKey)));
+  }
+
+  operations.push(setJsonCache(keys.importPayload, {
+    storage: "split-v1",
+    datasetKeys,
+    threatByFight: payload.threatByFight || {},
+    updatedAt: new Date().toISOString(),
+  }));
+
+  const results = await Promise.all(operations);
+  return results.every(Boolean);
+}
+
+async function loadImportPayload(raidId, fallbackPayload = {}) {
+  const keys = getRaidKeys(raidId);
+  const storedPayload = await getJsonCache(keys.importPayload);
+  if (!storedPayload) return fallbackPayload || {};
+
+  if (storedPayload.storage !== "split-v1") {
+    return storedPayload;
+  }
+
+  const datasetKeys = Array.isArray(storedPayload.datasetKeys)
+    ? storedPayload.datasetKeys.map(key => String(key)).filter(Boolean)
+    : [];
+  const datasets = await Promise.all(
+    datasetKeys.map(datasetKey => getJsonCache(getImportPayloadDatasetKey(raidId, datasetKey)))
+  );
+
+  return datasetKeys.reduce((payload, datasetKey, index) => {
+    payload[datasetKey] = datasets[index] || {};
+    return payload;
+  }, {
+    threatByFight: storedPayload.threatByFight || {},
+  });
+}
+
 function getFightDurationMs(fight) {
   const durationMs = Number(fight?.durationMs || 0);
   if (durationMs > 0) return durationMs;
@@ -183,8 +240,8 @@ function getParseSquare(value) {
   if (score >= 99) return "🟥";
   if (score >= 95) return "🟧";
   if (score >= 75) return "🟪";
-  if (score >= 50) return "🟩";
-  return "🟦";
+  if (score >= 50) return "🟦";
+  return "🟩";
 }
 
 function formatKillLines(fights) {
@@ -280,7 +337,7 @@ export async function saveRaidBundle(raid, options = {}) {
     setJsonCache(keys.meta, meta),
     setJsonCache(keys.fights, raid.fights || []),
     setJsonCache(keys.players, raid.players || []),
-    setJsonCache(keys.importPayload, baseImportPayload || {}),
+    saveImportPayload(raid.id, baseImportPayload || {}),
     saveThreatByFight(raid.id, threatMeta, threatSnapshots),
     setJsonCache(RPB_INDEX_KEY, nextIndex),
   ]);
@@ -331,13 +388,13 @@ export async function getRaidBundle(raidId) {
 
   if (!meta) return null;
   const [importPayload, threatByFight] = await Promise.all([
-    getJsonCache(keys.importPayload),
+    loadImportPayload(resolvedRaidId, meta.importPayload || {}),
     loadThreatByFight(resolvedRaidId),
   ]);
   return {
     ...meta,
     importPayload: {
-      ...((importPayload || meta.importPayload || {})),
+      ...((importPayload || {})),
       threatByFight: threatByFight || importPayload?.threatByFight || meta.importPayload?.threatByFight || {},
     },
     fights: fights || [],
@@ -374,7 +431,16 @@ async function deleteRaidBundle(raidId) {
     deleteKey(keys.meta),
     deleteKey(keys.fights),
     deleteKey(keys.players),
-    deleteKey(keys.importPayload),
+    (async () => {
+      const importPayload = await getJsonCache(keys.importPayload);
+      const datasetKeys = Array.isArray(importPayload?.datasetKeys) ? importPayload.datasetKeys : [];
+      const deletes = [deleteKey(keys.importPayload)];
+      for (const datasetKey of datasetKeys) {
+        deletes.push(deleteKey(getImportPayloadDatasetKey(raidId, datasetKey)));
+      }
+      const deleteResults = await Promise.all(deletes);
+      return deleteResults.every(Boolean);
+    })(),
     (async () => {
       const threatMeta = await getJsonCache(keys.threatByFightMeta);
       const fightIds = Array.isArray(threatMeta?.snapshotFightIds) ? threatMeta.snapshotFightIds : [];
