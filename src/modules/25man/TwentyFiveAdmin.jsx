@@ -325,7 +325,7 @@ function ManualAddPlayer({ onAdd, roster }) {
 }
 
 // ── Roster sidebar ────────────────────────────────────────────────────────────
-function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter, onDragStart, onAddManual }) {
+function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter, onDragStart, onAddManual, onRemove }) {
   const nightRoster = roster;
   const filtered    = nightRoster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
 
@@ -344,7 +344,22 @@ function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter,
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: space[2], display: "flex", flexDirection: "column", gap: 3 }}>
         {filtered.map(s => (
-          <PlayerBadge key={s.id} slot={s} onDragStart={onDragStart} draggable />
+          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <PlayerBadge slot={s} onDragStart={onDragStart} draggable />
+            </div>
+            <button
+              onClick={() => onRemove(s.id)}
+              title={`Remove ${s.name}`}
+              style={{
+                background: "none", border: "none", color: text.muted,
+                cursor: "pointer", fontSize: 13, lineHeight: 1, padding: "0 2px",
+                flexShrink: 0, opacity: 0.5, transition: "opacity 0.1s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = 1}
+              onMouseLeave={e => e.currentTarget.style.opacity = 0.5}
+            >×</button>
+          </div>
         ))}
         <ManualAddPlayer onAdd={onAddManual} roster={roster} />
       </div>
@@ -552,6 +567,19 @@ export default function TwentyFiveAdmin({ teamId }) {
     });
   }, []);
 
+  const handleRemoveFromRoster = useCallback((playerId) => {
+    setRoster(prev => prev.filter(p => p.id !== playerId));
+    setAssignments(prev => {
+      const next = {};
+      for (const [key, ids] of Object.entries(prev)) {
+        const arr = Array.isArray(ids) ? ids : [ids];
+        const kept = arr.filter(id => id !== playerId);
+        if (kept.length) next[key] = kept.length === 1 ? kept[0] : kept;
+      }
+      return next;
+    });
+  }, []);
+
   const nightColor = night === "tue" ? intent.success : accent.blue;
   const nightLabel = night === "tue" ? "Tuesday" : "Thursday";
 
@@ -615,6 +643,7 @@ export default function TwentyFiveAdmin({ teamId }) {
             setRoleFilter={setRoleFilter}
             onDragStart={handleDragStart}
             onAddManual={slot => setRoster(prev => [...prev, slot])}
+            onRemove={handleRemoveFromRoster}
           />
 
           <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
