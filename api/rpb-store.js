@@ -2,6 +2,7 @@ import { assertRedisConfigured, buildCacheKey, deleteKey, getJsonCache, setJsonC
 import { getRaidCardLeaders } from "../src/modules/rpb/leaderboard.js";
 
 const RPB_INDEX_KEY = buildCacheKey("rpb", ["index"]);
+const REDIS_JSON_CHUNK_CHAR_LIMIT = 350000;
 const DISCORD_RPB_WEBHOOK_URL = process.env.DISCORD_RPB_WEBHOOK_URL || "";
 const RPB_PUBLIC_BASE_URL = process.env.AUTH_DOMAIN || "https://nexttopicmoveon.com";
 const TEAM_EMOJI_BY_TAG = new Map([
@@ -81,8 +82,86 @@ function getImportPayloadDatasetKey(raidId, datasetKey) {
   return buildCacheKey("rpb", ["raid", raidId, "import-payload", datasetKey]);
 }
 
+function getJsonChunkKey(key, index) {
+  return buildCacheKey("json-chunk", [key, index]);
+}
+
 function getThreatByFightSnapshotKey(raidId, fightId) {
   return buildCacheKey("rpb", ["raid", raidId, "threat-by-fight", "snapshot", fightId]);
+}
+
+function splitStringIntoChunks(value, chunkSize) {
+  const chunks = [];
+  for (let index = 0; index < value.length; index += chunkSize) {
+    chunks.push(value.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
+async function deleteJsonChunks(key, chunkCount = 0, startIndex = 0) {
+  const count = Math.max(0, Number(chunkCount || 0));
+  const start = Math.max(0, Number(startIndex || 0));
+  if (count <= start) return true;
+
+  const results = await Promise.all(
+    Array.from({ length: count - start }, (_, index) => deleteKey(getJsonChunkKey(key, start + index)))
+  );
+  return results.every(Boolean);
+}
+
+async function setLargeJsonCache(key, value, ttlSeconds) {
+  const previousValue = await getJsonCache(key);
+  const previousChunkCount = previousValue?.storage === "json-chunks-v1"
+    ? Number(previousValue.chunkCount || 0)
+    : 0;
+  const serialized = JSON.stringify(value);
+
+  if (serialized.length <= REDIS_JSON_CHUNK_CHAR_LIMIT) {
+    const saved = await setJsonCache(key, value, ttlSeconds);
+    if (!saved) return false;
+    return deleteJsonChunks(key, previousChunkCount);
+  }
+
+  const chunks = splitStringIntoChunks(serialized, REDIS_JSON_CHUNK_CHAR_LIMIT);
+  const chunkResults = await Promise.all(
+    chunks.map((chunk, index) => setJsonCache(getJsonChunkKey(key, index), chunk, ttlSeconds))
+  );
+  if (chunkResults.some(result => !result)) return false;
+
+  if (previousChunkCount > chunks.length) {
+    const removedStaleChunks = await deleteJsonChunks(key, previousChunkCount, chunks.length);
+    if (!removedStaleChunks) return false;
+  }
+
+  return setJsonCache(key, {
+    storage: "json-chunks-v1",
+    chunkCount: chunks.length,
+    size: serialized.length,
+    updatedAt: new Date().toISOString(),
+  }, ttlSeconds);
+}
+
+async function getLargeJsonCache(key) {
+  const value = await getJsonCache(key);
+  if (value?.storage !== "json-chunks-v1") return value;
+
+  const chunkCount = Math.max(0, Number(value.chunkCount || 0));
+  const chunks = await Promise.all(
+    Array.from({ length: chunkCount }, (_, index) => getJsonCache(getJsonChunkKey(key, index)))
+  );
+
+  if (chunks.some(chunk => typeof chunk !== "string")) return null;
+  return JSON.parse(chunks.join(""));
+}
+
+async function deleteLargeJsonCache(key) {
+  const value = await getJsonCache(key);
+  const chunkCount = value?.storage === "json-chunks-v1" ? Number(value.chunkCount || 0) : 0;
+  const results = await Promise.all([
+    deleteKey(key),
+    deleteJsonChunks(key, chunkCount),
+  ]);
+  return results.every(Boolean);
 }
 
 function splitImportPayload(importPayload = {}) {
@@ -114,12 +193,12 @@ function splitImportPayload(importPayload = {}) {
 
 async function saveThreatByFight(raidId, threatMeta, threatSnapshots) {
   const keys = getRaidKeys(raidId);
-  const previousMeta = await getJsonCache(keys.threatByFightMeta);
+  const previousMeta = await getLargeJsonCache(keys.threatByFightMeta);
   const previousFightIds = Array.isArray(previousMeta?.snapshotFightIds) ? previousMeta.snapshotFightIds : [];
   const nextFightIds = threatSnapshots.map(snapshot => String(snapshot?.fightId || "")).filter(Boolean);
 
   const operations = [];
-  operations.push(setJsonCache(keys.threatByFightMeta, {
+  operations.push(setLargeJsonCache(keys.threatByFightMeta, {
     ...(threatMeta || {}),
     snapshotFightIds: nextFightIds,
   }));
@@ -127,12 +206,12 @@ async function saveThreatByFight(raidId, threatMeta, threatSnapshots) {
   for (const snapshot of threatSnapshots) {
     const fightId = String(snapshot?.fightId || "").trim();
     if (!fightId) continue;
-    operations.push(setJsonCache(getThreatByFightSnapshotKey(raidId, fightId), snapshot));
+    operations.push(setLargeJsonCache(getThreatByFightSnapshotKey(raidId, fightId), snapshot));
   }
 
   for (const fightId of previousFightIds) {
     if (nextFightIds.includes(String(fightId))) continue;
-    operations.push(deleteKey(getThreatByFightSnapshotKey(raidId, fightId)));
+    operations.push(deleteLargeJsonCache(getThreatByFightSnapshotKey(raidId, fightId)));
   }
 
   const results = await Promise.all(operations);
@@ -141,12 +220,12 @@ async function saveThreatByFight(raidId, threatMeta, threatSnapshots) {
 
 async function loadThreatByFight(raidId) {
   const keys = getRaidKeys(raidId);
-  const meta = await getJsonCache(keys.threatByFightMeta);
+  const meta = await getLargeJsonCache(keys.threatByFightMeta);
   if (!meta) return null;
 
   const fightIds = Array.isArray(meta?.snapshotFightIds) ? meta.snapshotFightIds : [];
   const snapshots = await Promise.all(
-    fightIds.map(fightId => getJsonCache(getThreatByFightSnapshotKey(raidId, fightId)))
+    fightIds.map(fightId => getLargeJsonCache(getThreatByFightSnapshotKey(raidId, fightId)))
   );
 
   return {
@@ -157,7 +236,7 @@ async function loadThreatByFight(raidId) {
 
 async function saveImportPayload(raidId, importPayload = {}) {
   const keys = getRaidKeys(raidId);
-  const previousPayload = await getJsonCache(keys.importPayload);
+  const previousPayload = await getLargeJsonCache(keys.importPayload);
   const previousDatasetKeys = Array.isArray(previousPayload?.datasetKeys)
     ? previousPayload.datasetKeys.map(key => String(key)).filter(Boolean)
     : [];
@@ -165,15 +244,15 @@ async function saveImportPayload(raidId, importPayload = {}) {
   const payload = importPayload && typeof importPayload === "object" ? importPayload : {};
   const datasetKeys = Object.keys(payload).filter(key => key !== "threatByFight").sort();
   const operations = datasetKeys.map(datasetKey =>
-    setJsonCache(getImportPayloadDatasetKey(raidId, datasetKey), payload[datasetKey] || {})
+    setLargeJsonCache(getImportPayloadDatasetKey(raidId, datasetKey), payload[datasetKey] || {})
   );
 
   for (const datasetKey of previousDatasetKeys) {
     if (datasetKeys.includes(datasetKey)) continue;
-    operations.push(deleteKey(getImportPayloadDatasetKey(raidId, datasetKey)));
+    operations.push(deleteLargeJsonCache(getImportPayloadDatasetKey(raidId, datasetKey)));
   }
 
-  operations.push(setJsonCache(keys.importPayload, {
+  operations.push(setLargeJsonCache(keys.importPayload, {
     storage: "split-v1",
     datasetKeys,
     threatByFight: payload.threatByFight || {},
@@ -186,7 +265,7 @@ async function saveImportPayload(raidId, importPayload = {}) {
 
 async function loadImportPayload(raidId, fallbackPayload = {}) {
   const keys = getRaidKeys(raidId);
-  const storedPayload = await getJsonCache(keys.importPayload);
+  const storedPayload = await getLargeJsonCache(keys.importPayload);
   if (!storedPayload) return fallbackPayload || {};
 
   if (storedPayload.storage !== "split-v1") {
@@ -197,7 +276,7 @@ async function loadImportPayload(raidId, fallbackPayload = {}) {
     ? storedPayload.datasetKeys.map(key => String(key)).filter(Boolean)
     : [];
   const datasets = await Promise.all(
-    datasetKeys.map(datasetKey => getJsonCache(getImportPayloadDatasetKey(raidId, datasetKey)))
+    datasetKeys.map(datasetKey => getLargeJsonCache(getImportPayloadDatasetKey(raidId, datasetKey)))
   );
 
   return datasetKeys.reduce((payload, datasetKey, index) => {
@@ -327,23 +406,27 @@ export async function saveRaidBundle(raid, options = {}) {
   const summary = getRaidSummary(raid);
   const meta = getRaidMeta(raid);
   const { baseImportPayload, threatMeta, threatSnapshots } = splitImportPayload(raid.importPayload || {});
-  const currentIndex = (await getJsonCache(RPB_INDEX_KEY)) || [];
+  const currentIndex = (await getLargeJsonCache(RPB_INDEX_KEY)) || [];
   const isNewRaid = !currentIndex.some(entry => entry?.id === raid.id);
   const nextIndex = [summary, ...currentIndex.filter(entry => entry?.id !== raid.id)]
     .sort((a, b) => new Date(b.importedAt || 0) - new Date(a.importedAt || 0))
     .slice(0, 100);
 
-  const results = await Promise.all([
-    setJsonCache(keys.meta, meta),
-    setJsonCache(keys.fights, raid.fights || []),
-    setJsonCache(keys.players, raid.players || []),
-    saveImportPayload(raid.id, baseImportPayload || {}),
-    saveThreatByFight(raid.id, threatMeta, threatSnapshots),
-    setJsonCache(RPB_INDEX_KEY, nextIndex),
-  ]);
+  const writeOperations = [
+    ["meta", setLargeJsonCache(keys.meta, meta)],
+    ["fights", setLargeJsonCache(keys.fights, raid.fights || [])],
+    ["players", setLargeJsonCache(keys.players, raid.players || [])],
+    ["importPayload", saveImportPayload(raid.id, baseImportPayload || {})],
+    ["threatByFight", saveThreatByFight(raid.id, threatMeta, threatSnapshots)],
+    ["index", setLargeJsonCache(RPB_INDEX_KEY, nextIndex)],
+  ];
+  const results = await Promise.all(writeOperations.map(([, operation]) => operation));
+  const failedWrites = writeOperations
+    .filter(([,], index) => !results[index])
+    .map(([label]) => label);
 
-  if (results.some(result => !result)) {
-    throw new Error("Failed to write RPB data to Redis.");
+  if (failedWrites.length) {
+    throw new Error(`Failed to write RPB data to Redis: ${failedWrites.join(", ")}.`);
   }
 
   if (options?.notifyIfNew && isNewRaid) {
@@ -364,13 +447,13 @@ export async function getRaidBundle(raidId) {
 
   let keys = getRaidKeys(resolvedRaidId);
   let [meta, fights, players] = await Promise.all([
-    getJsonCache(keys.meta),
-    getJsonCache(keys.fights),
-    getJsonCache(keys.players),
+    getLargeJsonCache(keys.meta),
+    getLargeJsonCache(keys.fights),
+    getLargeJsonCache(keys.players),
   ]);
 
   if (!meta) {
-    const currentIndex = (await getJsonCache(RPB_INDEX_KEY)) || [];
+    const currentIndex = (await getLargeJsonCache(RPB_INDEX_KEY)) || [];
     const matchedEntry = currentIndex.find(entry =>
       String(entry?.reportId || "").trim() === resolvedRaidId
       || String(entry?.id || "").trim() === resolvedRaidId
@@ -380,9 +463,9 @@ export async function getRaidBundle(raidId) {
     resolvedRaidId = String(matchedEntry.id);
     keys = getRaidKeys(resolvedRaidId);
     [meta, fights, players] = await Promise.all([
-      getJsonCache(keys.meta),
-      getJsonCache(keys.fights),
-      getJsonCache(keys.players),
+      getLargeJsonCache(keys.meta),
+      getLargeJsonCache(keys.fights),
+      getLargeJsonCache(keys.players),
     ]);
   }
 
@@ -424,34 +507,34 @@ export async function updateRaidBundle(raidId, updates) {
 async function deleteRaidBundle(raidId) {
   assertRedisConfigured();
   const keys = getRaidKeys(raidId);
-  const currentIndex = (await getJsonCache(RPB_INDEX_KEY)) || [];
+  const currentIndex = (await getLargeJsonCache(RPB_INDEX_KEY)) || [];
   const nextIndex = currentIndex.filter(entry => entry?.id !== raidId);
 
   const results = await Promise.all([
-    deleteKey(keys.meta),
-    deleteKey(keys.fights),
-    deleteKey(keys.players),
+    deleteLargeJsonCache(keys.meta),
+    deleteLargeJsonCache(keys.fights),
+    deleteLargeJsonCache(keys.players),
     (async () => {
-      const importPayload = await getJsonCache(keys.importPayload);
+      const importPayload = await getLargeJsonCache(keys.importPayload);
       const datasetKeys = Array.isArray(importPayload?.datasetKeys) ? importPayload.datasetKeys : [];
-      const deletes = [deleteKey(keys.importPayload)];
+      const deletes = [deleteLargeJsonCache(keys.importPayload)];
       for (const datasetKey of datasetKeys) {
-        deletes.push(deleteKey(getImportPayloadDatasetKey(raidId, datasetKey)));
+        deletes.push(deleteLargeJsonCache(getImportPayloadDatasetKey(raidId, datasetKey)));
       }
       const deleteResults = await Promise.all(deletes);
       return deleteResults.every(Boolean);
     })(),
     (async () => {
-      const threatMeta = await getJsonCache(keys.threatByFightMeta);
+      const threatMeta = await getLargeJsonCache(keys.threatByFightMeta);
       const fightIds = Array.isArray(threatMeta?.snapshotFightIds) ? threatMeta.snapshotFightIds : [];
-      const deletes = [deleteKey(keys.threatByFightMeta)];
+      const deletes = [deleteLargeJsonCache(keys.threatByFightMeta)];
       for (const fightId of fightIds) {
-        deletes.push(deleteKey(getThreatByFightSnapshotKey(raidId, fightId)));
+        deletes.push(deleteLargeJsonCache(getThreatByFightSnapshotKey(raidId, fightId)));
       }
       const deleteResults = await Promise.all(deletes);
       return deleteResults.every(Boolean);
     })(),
-    setJsonCache(RPB_INDEX_KEY, nextIndex),
+    setLargeJsonCache(RPB_INDEX_KEY, nextIndex),
   ]);
 
   if (results.some(result => !result)) {
@@ -481,7 +564,7 @@ export default async function handler(req, res) {
         return res.status(200).json(raid);
       }
 
-      const index = (await getJsonCache(RPB_INDEX_KEY)) || [];
+      const index = (await getLargeJsonCache(RPB_INDEX_KEY)) || [];
       return res.status(200).json({ raids: index.slice(0, maxCount) });
     }
 
