@@ -619,11 +619,13 @@ export default function KaraAdmin() {
     try {
       const data = JSON.parse(text);
       if (!data.slots) throw new Error("No 'slots' array found");
+      const missing = data.slots.find(s => !s.id);
+      if (missing) throw new Error(`Slot '${missing.name || "(unnamed)"}' is missing an id field`);
       const otherNight = night === "tue" ? "thu" : "tue";
       const otherSlots = roster.filter(p => p.karaNight === otherNight);
 
       if (otherSlots.length > 0) {
-        const normalizedOther = otherSlots.map(p => ({ ...p, id: p._discordId || p.id.replace(/_tue$|_thu$/, "") }));
+        const normalizedOther = otherSlots.map(p => ({ ...p, id: p._discordId || p.id?.replace(/_tue$|_thu$/, "") }));
         const tueSlots = night === "tue" ? data.slots : normalizedOther;
         const thuSlots = night === "thu" ? data.slots : normalizedOther;
         setPendingImportQueue({ tueSlots, thuSlots });
