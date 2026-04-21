@@ -180,16 +180,6 @@ export const GRUUL_BOSS = [
 ];
 
 export const MAGS_P1 = [
-  { key: "m_ch1",   label: "Channeler Tank", markerKey: "skull",    role: "Tank",   hint: "" },
-  { key: "m_ch2",   label: "Channeler Tank", markerKey: "cross",    role: "Tank",   hint: "" },
-  { key: "m_ch3",   label: "Channeler Tank", markerKey: "square",   role: "Tank",   hint: "" },
-  { key: "m_ch4",   label: "Channeler Tank", markerKey: "moon",     role: "Tank",   hint: "" },
-  { key: "m_ch5",   label: "Channeler Tank", markerKey: "triangle", role: "Tank",   hint: "" },
-  { key: "m_ph1h1", label: "Channeler Tank", markerKey: "skull",    role: "Healer", hint: "" },
-  { key: "m_ph1h2", label: "Channeler Tank", markerKey: "cross",    role: "Healer", hint: "" },
-  { key: "m_ph1h3", label: "Channeler Tank", markerKey: "square",   role: "Healer", hint: "" },
-  { key: "m_ph1h4", label: "Channeler Tank", markerKey: "moon",     role: "Healer", hint: "" },
-  { key: "m_ph1h5", label: "Channeler Tank", markerKey: "triangle", role: "Healer", hint: "" },
   { key: "m_int1",  label: "Interrupt",      markerKey: "skull",    role: "DPS", roleLabel: "Interrupt Assignments", hint: "" },
   { key: "m_int2",  label: "Interrupt",      markerKey: "cross",    role: "DPS", roleLabel: "Interrupt Assignments", hint: "" },
   { key: "m_int3",  label: "Interrupt",      markerKey: "square",   role: "DPS", roleLabel: "Interrupt Assignments", hint: "" },
@@ -200,6 +190,16 @@ export const MAGS_P1 = [
   { key: "m_md3",   label: "Misdirect",      markerKey: "square",   role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
   { key: "m_md4",   label: "Misdirect",      markerKey: "moon",     role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
   { key: "m_md5",   label: "Misdirect",      markerKey: "triangle", role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "m_ch1",   label: "Channeler Tank", markerKey: "skull",    role: "Tank",   hint: "" },
+  { key: "m_ch2",   label: "Channeler Tank", markerKey: "cross",    role: "Tank",   hint: "" },
+  { key: "m_ch3",   label: "Channeler Tank", markerKey: "square",   role: "Tank",   hint: "" },
+  { key: "m_ch4",   label: "Channeler Tank", markerKey: "moon",     role: "Tank",   hint: "" },
+  { key: "m_ch5",   label: "Channeler Tank", markerKey: "triangle", role: "Tank",   hint: "" },
+  { key: "m_ph1h1", label: "Channeler Tank", markerKey: "skull",    role: "Healer", hint: "" },
+  { key: "m_ph1h2", label: "Channeler Tank", markerKey: "cross",    role: "Healer", hint: "" },
+  { key: "m_ph1h3", label: "Channeler Tank", markerKey: "square",   role: "Healer", hint: "" },
+  { key: "m_ph1h4", label: "Channeler Tank", markerKey: "moon",     role: "Healer", hint: "" },
+  { key: "m_ph1h5", label: "Channeler Tank", markerKey: "triangle", role: "Healer", hint: "" },
 ];
 
 export const CUBE1_KEYS  = ["m_p2c1a","m_p2c1b","m_p2c1c","m_p2c1d","m_p2c1e"];
@@ -272,7 +272,7 @@ export const GENERAL_CURSES = [
   { key: "gen_cow", label: "Curse of Weakness",     role: "DPS", roleLabel: "Warlock Curses", hint: "" },
 ];
 
-export const GENERAL_INTERRUPTS = MARKERS.map(m => ({
+export const GENERAL_INTERRUPTS = MARKERS.slice(0, 3).map(m => ({
   key: `gen_int_${m.key}`, label: "", markerKey: m.key,
   role: "DPS", roleLabel: "Trash Interrupts", hint: "",
 }));
