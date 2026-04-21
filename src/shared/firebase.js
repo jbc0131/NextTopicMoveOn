@@ -130,13 +130,15 @@ function chunkItems(items, size = 450) {
 // ── Kara — live state ─────────────────────────────────────────────────────────
 export async function saveKaraState(state) {
   await setDoc(KARA_LIVE_DOC, sanitize({
-    rosterTue:     state.rosterTue     ?? [],
-    rosterThu:     state.rosterThu     ?? [],
-    assignments:   state.assignments   ?? {},
-    specOverrides: state.specOverrides ?? {},
-    raidDateTue:   state.raidDateTue   ?? "",
-    raidDateThu:   state.raidDateThu   ?? "",
-    updatedAt:     new Date().toISOString(),
+    rosterTue:           state.rosterTue           ?? [],
+    rosterThu:           state.rosterThu           ?? [],
+    assignments:         state.assignments         ?? {},
+    specOverrides:       state.specOverrides       ?? {},
+    raidDateTue:         state.raidDateTue         ?? "",
+    raidDateThu:         state.raidDateThu         ?? "",
+    discordMessageIdTue: state.discordMessageIdTue ?? "",
+    discordMessageIdThu: state.discordMessageIdThu ?? "",
+    updatedAt:           new Date().toISOString(),
   }));
 }
 

@@ -79,7 +79,7 @@ function KaraDropRow({ rowCfg, assignedIds, allRosters, onDrop, onClear, onSpecC
 }
 
 // ── Night section (3 teams) ───────────────────────────────────────────────────
-function NightSection({ night, teams, color, assignments, allRosters, onDrop, onClear, onDragStart, onSpecCycle, onCopyDiscord, discordCopied }) {
+function NightSection({ night, teams, color, assignments, allRosters, onDrop, onClear, onDragStart, onSpecCycle, onCopyDiscord, discordCopied, discordIsUpdate, onResetDiscord }) {
   const UTILITY = {
     removeCurse: { label: "Remove Curse", icon: "🧹", specs: new Set(["Balance","Restoration","Feral","Guardian","Arcane","Fire","Frost","Elemental","Enhancement","Restoration1"]) },
     dispelMagic: { label: "Dispel Magic", icon: "✨", specs: new Set(["Holy","Holy1","Discipline","Shadow","Protection1","Retribution"]) },
@@ -101,12 +101,25 @@ function NightSection({ night, teams, color, assignments, allRosters, onDrop, on
         <span style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color, fontFamily: font.sans, letterSpacing: "0.08em" }}>
           {night === "tue" ? "TUESDAY" : "THURSDAY"}
         </span>
-        <button
-          onClick={onCopyDiscord}
-          style={{ ...btnStyle("default"), position: "absolute", right: space[3], fontSize: fontSize.xs }}
-        >
-          {discordCopied ? "✓ Posted!" : "💬 Post to Discord"}
-        </button>
+        <div style={{ position: "absolute", right: space[3], display: "flex", gap: 4, alignItems: "center" }}>
+          <button
+            onClick={onCopyDiscord}
+            style={{ ...btnStyle("default"), fontSize: fontSize.xs }}
+          >
+            {discordCopied
+              ? (discordIsUpdate ? "✓ Updated!" : "✓ Posted!")
+              : (discordIsUpdate ? "✏ Update Discord" : "💬 Post to Discord")}
+          </button>
+          {discordIsUpdate && (
+            <button
+              onClick={onResetDiscord}
+              title="Forget tracked message — next post creates a new one"
+              style={{ ...btnStyle("default"), fontSize: fontSize.xs, padding: `0 ${space[2]}px` }}
+            >
+              ↻
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Teams */}
@@ -518,6 +531,9 @@ export default function KaraAdmin() {
   const [hasUnsaved,    setHasUnsaved]    = useState(false);
   const [discordCopiedTue, setDiscordCopiedTue] = useState(false);
   const [discordCopiedThu, setDiscordCopiedThu] = useState(false);
+  const [discordMessageIdTue, setDiscordMessageIdTue] = useState("");
+  const [discordMessageIdThu, setDiscordMessageIdThu] = useState("");
+  const [confirmResetDiscordNight, setConfirmResetDiscordNight] = useState(null);
   const [parsesOpen,    setParsesOpen]    = useState(false);
   const [pendingConflicts,   setPendingConflicts]   = useState([]);
   const [pendingResolved,    setPendingResolved]    = useState({});
@@ -554,6 +570,8 @@ export default function KaraAdmin() {
         if (s.specOverrides) setSpecOverrides(s.specOverrides);
         if (s.raidDateTue)   setRaidDateTue(s.raidDateTue);
         if (s.raidDateThu)   setRaidDateThu(s.raidDateThu);
+        if (s.discordMessageIdTue) setDiscordMessageIdTue(s.discordMessageIdTue);
+        if (s.discordMessageIdThu) setDiscordMessageIdThu(s.discordMessageIdThu);
         // Rebuild combined roster
         const combined = [...(s.rosterTue || []), ...(s.rosterThu || [])];
         setRoster(combined);
@@ -571,7 +589,7 @@ export default function KaraAdmin() {
     if (!FIREBASE_OK) return;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
-      const state = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu };
+      const state = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu, discordMessageIdTue, discordMessageIdThu };
       saveState(state, "shared", "kara");
       try {
         setSaveStatus("saving");
@@ -581,11 +599,11 @@ export default function KaraAdmin() {
         setTimeout(() => setSaveStatus("idle"), 2000);
       } catch (e) { setSaveStatus("error"); setTimeout(() => setSaveStatus("idle"), 3000); }
     }, 4000);
-  }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu]);
+  }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu, discordMessageIdTue, discordMessageIdThu]);
 
   // ── Manual save ───────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    const state = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu };
+    const state = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu, discordMessageIdTue, discordMessageIdThu };
     saveState(state, "shared", "kara");
     if (!FIREBASE_OK) { setSaveStatus("offline"); return; }
     setSaveStatus("saving");
@@ -594,7 +612,7 @@ export default function KaraAdmin() {
       setSaveStatus("saved"); setHasUnsaved(false);
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (e) { setSaveStatus("error"); setTimeout(() => setSaveStatus("idle"), 4000); }
-  }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu]);
+  }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu, discordMessageIdTue, discordMessageIdThu]);
 
   // ── Spec cycle ────────────────────────────────────────────────────────────
   const handleSpecCycle = useCallback((playerId) => {
@@ -784,6 +802,9 @@ export default function KaraAdmin() {
   const copyNightDiscord = useCallback(async (night, teams, setCopied) => {
     const allRosters = [...rosterTue, ...rosterThu];
     const nightLabel = night === "tue" ? "Tuesday" : "Thursday";
+    const existingMessageId = night === "tue" ? discordMessageIdTue : discordMessageIdThu;
+    const isUpdate = !!existingMessageId;
+
     const formatPlayer = (p) => {
       const discordId = p._discordId || p.id;
       return (discordId && !discordId.startsWith("manual_")) ? `<@${discordId}>` : p.name;
@@ -792,7 +813,9 @@ export default function KaraAdmin() {
       .map(id => allRosters.find(s => s.id === id)).filter(Boolean)
       .map(formatPlayer)
       .join(" ");
-    const lines = [`🏰 ${nightLabel} Karazhan Roster`, ""];
+
+    const fields = [];
+    const mentionList = [];
     teams.forEach((team, i) => {
       const g1Ids = team.g1.flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
       const g2Ids = team.g2.flatMap(r => assignments[r.key] ? (Array.isArray(assignments[r.key]) ? assignments[r.key] : [assignments[r.key]]) : []);
@@ -800,26 +823,53 @@ export default function KaraAdmin() {
       const teamPlayers = [...g1Ids, ...g2Ids].map(id => allRosters.find(s => s.id === id)).filter(Boolean);
       const firstTank = teamPlayers.find(p => getRole(p) === "Tank");
       const teamName = firstTank ? `Team ${firstTank.name}` : `Team ${i + 1}`;
-      lines.push(`> **${teamName}**`);
-      if (g1Ids.length) lines.push(`> G1: ${formatGroup(g1Ids)}`);
-      if (g2Ids.length) lines.push(`> G2: ${formatGroup(g2Ids)}`);
-      lines.push("");
+      const value = [
+        g1Ids.length ? `**G1:** ${formatGroup(g1Ids)}` : null,
+        g2Ids.length ? `**G2:** ${formatGroup(g2Ids)}` : null,
+      ].filter(Boolean).join("\n");
+      fields.push({ name: teamName, value, inline: false });
+      mentionList.push(...[...g1Ids, ...g2Ids].map(id => allRosters.find(s => s.id === id)).filter(Boolean).map(formatPlayer));
     });
-    const content = lines.join("\n").trimEnd();
+
+    const embed = {
+      title:       `🏰 ${nightLabel} Karazhan Roster`,
+      color:       night === "tue" ? 0x3FB950 : 0x4C90F0,
+      fields,
+      timestamp:   new Date().toISOString(),
+      footer:      { text: isUpdate ? "Updated" : "Posted" },
+    };
+
+    // Only ping on first post — edits don't re-trigger mentions anyway
+    const content = isUpdate ? "" : mentionList.join(" ");
+
     try {
       const res = await fetch("/api/post-kara-discord", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, night }),
+        body: JSON.stringify({ night, messageId: existingMessageId || null, content, embeds: [embed] }),
       });
       if (!res.ok) throw new Error(`API returned ${res.status}`);
+      const data = await res.json();
+      if (data.messageId) {
+        const nextState = { rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu, discordMessageIdTue, discordMessageIdThu };
+        if (night === "tue") { setDiscordMessageIdTue(data.messageId); nextState.discordMessageIdTue = data.messageId; }
+        else                 { setDiscordMessageIdThu(data.messageId); nextState.discordMessageIdThu = data.messageId; }
+        // Persist immediately so a refresh can't orphan the message
+        if (FIREBASE_OK) { try { await saveKaraState(nextState); } catch (_) {} }
+      }
       setCopied(true); setTimeout(() => setCopied(false), 2000);
     } catch (e) {
       console.error("Discord webhook failed, falling back to clipboard:", e);
-      await navigator.clipboard.writeText(content);
+      const lines = [`🏰 ${nightLabel} Karazhan Roster`, ""];
+      fields.forEach(f => {
+        lines.push(`> **${f.name}**`);
+        f.value.split("\n").forEach(l => lines.push(`> ${l.replace(/\*\*/g, "")}`));
+        lines.push("");
+      });
+      await navigator.clipboard.writeText(lines.join("\n").trimEnd());
       setCopied(true); setTimeout(() => setCopied(false), 2000);
     }
-  }, [rosterTue, rosterThu, assignments]);
+  }, [rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu, discordMessageIdTue, discordMessageIdThu]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const allRosters      = [...rosterTue, ...rosterThu];
@@ -860,9 +910,11 @@ export default function KaraAdmin() {
 
       <ConfirmDialog
         open={!!confirmDiscordNight}
-        title="Post to Discord"
-        message="This will tag everyone in this roster in Discord. Are you sure you want to publish these rosters?"
-        confirmLabel="Post"
+        title={(confirmDiscordNight === "tue" ? discordMessageIdTue : confirmDiscordNight === "thu" ? discordMessageIdThu : "") ? "Update Discord Message" : "Post to Discord"}
+        message={(confirmDiscordNight === "tue" ? discordMessageIdTue : confirmDiscordNight === "thu" ? discordMessageIdThu : "")
+          ? "This will edit the existing Discord message with the current roster. No one will be re-pinged."
+          : "This will tag everyone in this roster in Discord. Are you sure you want to publish these rosters?"}
+        confirmLabel={(confirmDiscordNight === "tue" ? discordMessageIdTue : confirmDiscordNight === "thu" ? discordMessageIdThu : "") ? "Update" : "Post"}
         onConfirm={() => {
           const night = confirmDiscordNight;
           setConfirmDiscordNight(null);
@@ -871,6 +923,21 @@ export default function KaraAdmin() {
           copyNightDiscord(night, teams, setCopied);
         }}
         onCancel={() => setConfirmDiscordNight(null)}
+      />
+
+      <ConfirmDialog
+        open={!!confirmResetDiscordNight}
+        title="Forget Tracked Message"
+        message="The current Discord message will no longer be edited. Your next post will create a new message and re-ping everyone. Continue?"
+        confirmLabel="Forget"
+        dangerous
+        onConfirm={() => {
+          const night = confirmResetDiscordNight;
+          setConfirmResetDiscordNight(null);
+          if (night === "tue") setDiscordMessageIdTue("");
+          else if (night === "thu") setDiscordMessageIdThu("");
+        }}
+        onCancel={() => setConfirmResetDiscordNight(null)}
       />
 
       {/* Module header */}
@@ -949,6 +1016,8 @@ export default function KaraAdmin() {
             onDrop={handleDrop} onClear={handleClear} onDragStart={handleDragStart} onSpecCycle={handleSpecCycle}
             onCopyDiscord={() => setConfirmDiscordNight("tue")}
             discordCopied={discordCopiedTue}
+            discordIsUpdate={!!discordMessageIdTue}
+            onResetDiscord={() => setConfirmResetDiscordNight("tue")}
           />
           <NightSection
             night="thu" teams={KARA_THU_TEAMS} color={accent.blue}
@@ -956,6 +1025,8 @@ export default function KaraAdmin() {
             onDrop={handleDrop} onClear={handleClear} onDragStart={handleDragStart} onSpecCycle={handleSpecCycle}
             onCopyDiscord={() => setConfirmDiscordNight("thu")}
             discordCopied={discordCopiedThu}
+            discordIsUpdate={!!discordMessageIdThu}
+            onResetDiscord={() => setConfirmResetDiscordNight("thu")}
           />
         </div>
       </div>
