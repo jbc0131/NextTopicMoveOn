@@ -29,6 +29,37 @@ Session 2 added Discord OAuth authentication. Everything from Session 1 remains 
 
 ## Immediate Next Steps (Priority Order)
 
+### 0. SSC Module — Remaining Follow-Ups
+
+SSC admin + public shipped 2026-04-22 (`/:teamId/ssc` + `/:teamId/ssc/admin`), but these pieces are deliberately unfinished so the module could ship before TK work started.
+
+**a. WCL parse scores for SSC** — `ParseScoresPanel` is hardcoded to `"kara" | "25man"` and `useWarcraftLogs` returns `{ kara, gruulMags, found }` only. SSC public intentionally omits the parse panel. To wire SSC parses:
+- Extend `api/warcraftlogs.js` GraphQL query to request SSC encounter scores
+- Expand the cached return shape to include `ssc` (bump `CACHE_VERSION` from v6 → v7 to invalidate stale caches)
+- Update `getScoreForPlayer` / `getScoreColor` (`src/shared/useWarcraftLogs.js:184-202`) to recognize the SSC tab
+- Update `ParseScoresPanel` `module` prop to accept `"ssc"` and show the SSC parse column
+- Render the panel in `SscPublic.jsx` via `AppShell`'s `parsePanelContent`
+
+SSC encounter IDs for WCL: Hydross 623 · Lurker 624 · Leotheras 625 · Karathress 626 · Morogrim 627 · Vashj 628.
+
+**b. SSC snapshots + history** — no snapshot collection exists yet. Plan:
+- Add `raid/{teamId}/ssc-snapshots/{id}` collection + `saveSscSnapshot` / `fetchSscSnapshots` / `updateSscSnapshot` / `deleteSscSnapshot` helpers mirroring the 25-man ones in `firebase.js`
+- Extend `fetchAllSnapshots` to include SSC snapshots in the merged feed
+- Extend `HistoryView` / `HistoryAdmin` to filter by SSC and accept per-raid URL edits for SSC rows
+- Snapshot-create UI: either an "Add Raid Week" button in `SscAdmin`, or handle exclusively via `HistoryAdmin → Add Raid Week` (same pattern as 25-man)
+
+**c. TeamDashboard SSC card** — `fetchSscSummary(teamId)` is already exported from `firebase.js` (returns `{ raidDate, raidLeader, rosterCount, assignmentCount }`). Just needs a card in `src/pages/TeamDashboard.jsx` (copy the 25-Man card, point at `/:teamId/ssc`).
+
+**d. Data validation against Dreamscythe** — two slots were added based on common TBC configurations but not verified against actual kill logs:
+- Lurker submerge — currently 1 Ambusher + 2 Guardian tanks. If a Coilfang Scalebinder (caster/healer) also spawns on this server, add a tank + interrupt slot for it
+- Leotheras P2 — tank split into Elf body vs Shadow demon assumes both exist as distinct targetable entities; confirm on a real pull
+
+**e. Text-area affordance (low priority)** — several SSC slots use `textInput: true` for multi-line notes (Inner Demon Kill Priority, Burn Phase Plan, Core Chain Backup, Whirlwind Drop-Aggro Plan). They render as single-line `<input>`. If users find them cramped in practice, add a `textArea: true` variant to `AssignmentRow` and swap the element.
+
+**f. Pattern re-use for TK** — SSC's three files (`src/shared/constants.js` SSC_* exports + `SSC_BOSSES` wrapper, `SscAdmin.jsx`, `SscPublic.jsx`, plus Firestore helpers) are the template to copy for Tempest Keep. If the duplication between `TwentyFiveAdmin.jsx` / `SscAdmin.jsx` / future `TkAdmin.jsx` becomes painful, factor `AssignmentRow` / `AssignmentPanel` / `ManualAddPlayer` / `RosterPanel` into `shared/components.jsx`. Not worth doing until TK is in flight — YAGNI for now.
+
+---
+
 ### 1. Clean Up Root-Level Dead Folders
 The repo has root-level `modules/`, `shared/`, `pages/`, and `scripts/` folders that are dead weight from early zip extraction errors. Safe to delete:
 - `modules/` (root level)
