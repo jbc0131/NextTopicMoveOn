@@ -623,11 +623,13 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
               {adminMode ? (
                 <button onClick={() => {
                   if (isKara) navigate("/kara");
+                  else if (location.pathname.includes("/ssc")) navigate(`/${teamId || "team-dick"}/ssc`);
                   else navigate(`/${teamId || "team-dick"}`);
                 }} style={btnStyle("default")}>← Public View</button>
               ) : isAdmin && (
                 <button onClick={() => {
                   if (isKara) navigate("/kara/admin");
+                  else if (location.pathname.includes("/ssc")) navigate(`/${teamId || "team-dick"}/ssc/admin`);
                   else navigate(`/${teamId || "team-dick"}/25man/admin`);
                 }} style={btnStyle("default")}>Admin →</button>
               )}
