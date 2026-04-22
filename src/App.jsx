@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import TeamSelector     from "./pages/TeamSelector";
-import TeamDashboard    from "./pages/TeamDashboard";
 import KaraPublic       from "./modules/kara/KaraPublic";
 import KaraAdmin        from "./modules/kara/KaraAdmin";
 import GruulmagPublic   from "./modules/gruulmag/GruulmagPublic";
@@ -29,7 +28,6 @@ export default function App() {
         <Route path="/profile" element={<ProfilePage />} />
 
         {/* Team Dick */}
-        <Route path="/team-dick"                element={<TeamDashboard  teamId="team-dick"  />} />
         <Route path="/team-dick/gruulmag"       element={<GruulmagPublic teamId="team-dick"  />} />
         <Route path="/team-dick/gruulmag/admin" element={<GruulmagAdmin  teamId="team-dick"  />} />
         <Route path="/team-dick/ssc"            element={<SscPublic      teamId="team-dick"  />} />
@@ -38,7 +36,6 @@ export default function App() {
         <Route path="/team-dick/tk/admin"       element={<TkAdmin        teamId="team-dick"  />} />
 
         {/* Team Balls */}
-        <Route path="/team-balls"                element={<TeamDashboard  teamId="team-balls" />} />
         <Route path="/team-balls/gruulmag"       element={<GruulmagPublic teamId="team-balls" />} />
         <Route path="/team-balls/gruulmag/admin" element={<GruulmagAdmin  teamId="team-balls" />} />
         <Route path="/team-balls/ssc"            element={<SscPublic      teamId="team-balls" />} />
@@ -47,6 +44,8 @@ export default function App() {
         <Route path="/team-balls/tk/admin"       element={<TkAdmin        teamId="team-balls" />} />
 
         {/* Legacy redirects */}
+        <Route path="/team-dick"                element={<Navigate to="/"                         replace />} />
+        <Route path="/team-balls"               element={<Navigate to="/"                         replace />} />
         <Route path="/team-dick/kara"           element={<Navigate to="/kara"                     replace />} />
         <Route path="/team-dick/kara/admin"     element={<Navigate to="/kara/admin"               replace />} />
         <Route path="/team-balls/kara"          element={<Navigate to="/kara"                     replace />} />

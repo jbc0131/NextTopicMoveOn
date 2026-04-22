@@ -48,7 +48,7 @@ SSC encounter IDs for WCL: Hydross 623 · Lurker 624 · Leotheras 625 · Karathr
 - Extend `HistoryView` / `HistoryAdmin` to filter by SSC and accept per-raid URL edits for SSC rows
 - Snapshot-create UI: either an "Add Raid Week" button in `SscAdmin`, or handle exclusively via `HistoryAdmin → Add Raid Week` (same pattern as 25-man)
 
-**c. TeamDashboard SSC card** — `fetchSscSummary(teamId)` is already exported from `firebase.js` (returns `{ raidDate, raidLeader, rosterCount, assignmentCount }`). Just needs a card in `src/pages/TeamDashboard.jsx` (copy the 25-Man card, point at `/:teamId/ssc`).
+**c. ~~TeamDashboard SSC card~~** — Obsolete. The per-team dashboard page (`TeamDashboard.jsx`) was removed in favor of the home page's nested team cards, and the `fetchKaraSummary` / `fetchTwentyFiveSummary` / `fetchSscSummary` / `fetchTkSummary` helpers were pruned with it. If per-raid summaries become useful on the home-page sub-cards, the summary helpers can be re-added then.
 
 **d. Data validation against Dreamscythe** — two slots were added based on common TBC configurations but not verified against actual kill logs:
 - Lurker submerge — currently 1 Ambusher + 2 Guardian tanks. If a Coilfang Scalebinder (caster/healer) also spawns on this server, add a tank + interrupt slot for it
@@ -59,7 +59,7 @@ SSC encounter IDs for WCL: Hydross 623 · Lurker 624 · Leotheras 625 · Karathr
 **f. Pattern re-use for TK** — SSC's three files (`src/shared/constants.js` SSC_* exports + `SSC_BOSSES` wrapper, `SscAdmin.jsx`, `SscPublic.jsx`, plus Firestore helpers) are the template to copy for Tempest Keep. If the duplication between `TwentyFiveAdmin.jsx` / `SscAdmin.jsx` / future `TkAdmin.jsx` becomes painful, factor `AssignmentRow` / `AssignmentPanel` / `ManualAddPlayer` / `RosterPanel` into `shared/components.jsx`. Not worth doing until TK is in flight — YAGNI for now.
 [Update 2026-04-22: TK is in flight. `TkAdmin.jsx` / `TkPublic.jsx` are now duplicates of the SSC files. Three near-identical admin components is enough weight to justify extracting the shared `AssignmentRow` / `AssignmentPanel` / `ManualAddPlayer` / roster panel. 25-man's cube-group conflict logic is the one thing that makes a full unification awkward; the simplest path is a generic `<BossRaidAdmin bosses={BOSSES} moduleKey saveState fetchState />` wrapper that SSC and TK use, with 25-man staying on its own for now.]
 
-**g. TK — same follow-ups as SSC.** Parse scores (WCL encounter IDs for TK: Al'ar 730 · Void Reaver 731 · Solarian 732 · Kael'thas 733), snapshots (`raid/{teamId}/tk-snapshots/{id}`), TeamDashboard card (`fetchTkSummary` ready), and data validation on Dreamscythe (especially Solarian P1 add composition and Kael P4 Nether Vapor vs Gravity Lapse interactions) all apply symmetrically to TK.
+**g. TK — same follow-ups as SSC.** Parse scores (WCL encounter IDs for TK: Al'ar 730 · Void Reaver 731 · Solarian 732 · Kael'thas 733), snapshots (`raid/{teamId}/tk-snapshots/{id}`), and data validation on Dreamscythe (especially Solarian P1 add composition and Kael P4 Nether Vapor vs Gravity Lapse interactions) all apply symmetrically to TK.
 
 ---
 
@@ -132,7 +132,7 @@ The raid date and raid leader fields still exist in the 25-Man admin. Now that W
 - [ ] RPB: add a "Damage Taken by Ability" section
 - [ ] RPB: fix death counts so the summary shows actual total deaths
 - [ ] RPB: expand player death details into separate death sequences (Death 1, Death 2, etc.) with killing damage and heals received between damage events
-- [ ] TeamDashboard (`/:teamId`) — currently exists but may be sparse; add useful content
+- [x] TeamDashboard (`/:teamId`) — removed. Home page now shows nested Raid/Utility cards with Team Dick / Team Balls sub-cards per raid module.
 - [ ] Dark mode / light mode toggle (currently dark only)
 - [ ] Export assignments as image (for posting in Discord)
 - [ ] Raid composition analyzer — check coverage of key utilities across all teams

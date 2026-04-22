@@ -72,7 +72,6 @@ src/
     components.jsx                 — ALL shared UI components (AppShell, NavSidebar, etc.)
   pages/
     TeamSelector.jsx               — Landing page / (Discord auth gated)
-    TeamDashboard.jsx              — /:teamId dashboard
   modules/
     kara/
       KaraAdmin.jsx                — /kara/admin
@@ -107,7 +106,7 @@ api/
 /kara/admin                → KaraAdmin (teamless, admin role required)
 /history                   → HistoryView (teamless, both teams, member role required)
 /history/admin             → HistoryAdmin (admin role required)
-/:teamId                   → TeamDashboard (member role required)
+/:teamId                   → Legacy redirect to / (the per-team dashboard page was removed in favor of the home page's nested team cards)
 /:teamId/gruulmag          → GruulmagPublic (member role required)
 /:teamId/gruulmag/admin    → GruulmagAdmin (admin role required)
 /:teamId/ssc               → SscPublic

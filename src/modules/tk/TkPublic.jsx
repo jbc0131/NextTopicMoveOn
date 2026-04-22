@@ -129,9 +129,9 @@ export default function TkPublic({ teamId }) {
   return (
     <AppShell teamId={teamId}>
       <ModuleHeader
-        icon="⚡"
-        title="Tempest Keep — The Eye"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / TK`}
+        icon={teamId === "team-dick" ? "🍆" : "🍒"}
+        title="Tempest Keep"
+        breadcrumb={teamId === "team-dick" ? "Team Dick" : "Team Balls"}
         mobileActions={<>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}

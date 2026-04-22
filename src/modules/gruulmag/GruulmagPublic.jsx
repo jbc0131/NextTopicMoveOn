@@ -185,9 +185,9 @@ export default function GruulmagPublic({ teamId }) {
         loading={wclLoading} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={null} />
     }>
       <ModuleHeader
-        icon="⚔"
-        title="T4 — Gruul's Lair + Magtheridon"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / T4`}
+        icon={teamId === "team-dick" ? "🍆" : "🍒"}
+        title="Gruul's / Mags"
+        breadcrumb={teamId === "team-dick" ? "Team Dick" : "Team Balls"}
         mobileActions={<>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}

@@ -465,31 +465,6 @@ export async function saveUserProfile(discordId, profile) {
   }
 }
 
-// ── Dashboard — lightweight summary reads ─────────────────────────────────────
-export async function fetchKaraSummary() {
-  const state = await fetchKaraState();
-  if (!state) return null;
-  return {
-    raidDateTue:    state.raidDateTue || "",
-    raidDateThu:    state.raidDateThu || "",
-    filledSlots:    Object.keys(state.assignments || {}).length,
-    totalSlots:     60,
-    rosterTueCount: (state.rosterTue || []).length,
-    rosterThuCount: (state.rosterThu || []).length,
-  };
-}
-
-export async function fetchTwentyFiveSummary(teamId, night) {
-  const state = await fetchTwentyFiveState(teamId, night);
-  if (!state) return null;
-  return {
-    raidDate:        state.raidDate   || "",
-    raidLeader:      state.raidLeader || "",
-    rosterCount:     (state.roster || []).length,
-    assignmentCount: Object.keys(state.assignments || {}).length,
-  };
-}
-
 // ── SSC — live state ──────────────────────────────────────────────────────────
 export async function saveSscState(state, teamId) {
   await setDoc(sscLiveDoc(teamId), sanitize({
@@ -512,17 +487,6 @@ export function subscribeToSscState(teamId, callback) {
   return onSnapshot(sscLiveDoc(teamId), snap => {
     if (snap.exists()) callback(snap.data());
   });
-}
-
-export async function fetchSscSummary(teamId) {
-  const state = await fetchSscState(teamId);
-  if (!state) return null;
-  return {
-    raidDate:        state.raidDate   || "",
-    raidLeader:      state.raidLeader || "",
-    rosterCount:     (state.roster || []).length,
-    assignmentCount: Object.keys(state.assignments || {}).length,
-  };
 }
 
 // ── TK — live state ───────────────────────────────────────────────────────────
@@ -549,13 +513,3 @@ export function subscribeToTkState(teamId, callback) {
   });
 }
 
-export async function fetchTkSummary(teamId) {
-  const state = await fetchTkState(teamId);
-  if (!state) return null;
-  return {
-    raidDate:        state.raidDate   || "",
-    raidLeader:      state.raidLeader || "",
-    rosterCount:     (state.roster || []).length,
-    assignmentCount: Object.keys(state.assignments || {}).length,
-  };
-}

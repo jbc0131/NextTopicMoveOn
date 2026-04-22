@@ -470,9 +470,9 @@ export default function SscAdmin({ teamId }) {
       />
 
       <ModuleHeader
-        icon="🌊"
-        title="Serpentshrine Cavern Admin"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / SSC`}
+        icon={teamId === "team-dick" ? "🍆" : "🍒"}
+        title="Serpentshrine Cavern"
+        breadcrumb={teamId === "team-dick" ? "Team Dick" : "Team Balls"}
         actions={<>
           <SaveStatus status={saveStatus} />
           <button onClick={() => setShowImport(v => !v)} style={btnStyle("default")}>📂 {roster.length ? `Roster (${roster.length})` : "Import JSON"}</button>

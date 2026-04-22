@@ -470,9 +470,9 @@ export default function TkAdmin({ teamId }) {
       />
 
       <ModuleHeader
-        icon="⚡"
-        title="Tempest Keep Admin"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / TK`}
+        icon={teamId === "team-dick" ? "🍆" : "🍒"}
+        title="Tempest Keep"
+        breadcrumb={teamId === "team-dick" ? "Team Dick" : "Team Balls"}
         actions={<>
           <SaveStatus status={saveStatus} />
           <button onClick={() => setShowImport(v => !v)} style={btnStyle("default")}>📂 {roster.length ? `Roster (${roster.length})` : "Import JSON"}</button>

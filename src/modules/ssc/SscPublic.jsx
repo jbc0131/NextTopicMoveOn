@@ -129,9 +129,9 @@ export default function SscPublic({ teamId }) {
   return (
     <AppShell teamId={teamId}>
       <ModuleHeader
-        icon="🌊"
+        icon={teamId === "team-dick" ? "🍆" : "🍒"}
         title="Serpentshrine Cavern"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / SSC`}
+        breadcrumb={teamId === "team-dick" ? "Team Dick" : "Team Balls"}
         mobileActions={<>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}

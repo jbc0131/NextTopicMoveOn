@@ -625,7 +625,8 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
                   if (isKara) navigate("/kara");
                   else if (location.pathname.includes("/ssc")) navigate(`/${teamId || "team-dick"}/ssc`);
                   else if (/\/tk(\/|$)/.test(location.pathname)) navigate(`/${teamId || "team-dick"}/tk`);
-                  else navigate(`/${teamId || "team-dick"}`);
+                  else if (location.pathname.includes("/gruulmag")) navigate(`/${teamId || "team-dick"}/gruulmag`);
+                  else navigate("/");
                 }} style={btnStyle("default")}>← Public View</button>
               ) : isAdmin && (
                 <button onClick={() => {

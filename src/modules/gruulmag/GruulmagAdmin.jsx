@@ -588,9 +588,9 @@ export default function GruulmagAdmin({ teamId }) {
       <ConfirmDialog open={confirmClearOpen} title="Clear All Assignments" message="This will remove all T4 (Gruul/Mag) assignments for this night. Cannot be undone." confirmLabel="Clear All" dangerous onConfirm={() => { setAssignments({}); setTextInputs({}); setConfirmClearOpen(false); }} onCancel={() => setConfirmClearOpen(false)} />
 
       <ModuleHeader
-        icon="⚔"
-        title="T4 — Gruul's Lair + Magtheridon Admin"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / T4`}
+        icon={teamId === "team-dick" ? "🍆" : "🍒"}
+        title="Gruul's / Mags"
+        breadcrumb={teamId === "team-dick" ? "Team Dick" : "Team Balls"}
         actions={<>
           <SaveStatus status={saveStatus} />
           <button onClick={() => setShowImport(v => !v)} style={btnStyle("default")}>📂 {roster.length ? `Roster (${roster.length})` : "Import JSON"}</button>
