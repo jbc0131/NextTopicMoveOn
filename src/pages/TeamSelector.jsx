@@ -86,12 +86,9 @@ export default function TeamSelector() {
         </div>
       </div>
 
-      <div style={{ width: "100%", maxWidth: 1100, display: "flex", flexDirection: "column", gap: space[4] }}>
-        {/* Raids */}
-        <SectionHeader label="Raids" />
-        <div style={{ display: "flex", gap: space[4], flexWrap: "wrap", alignItems: "stretch" }}>
+      <div style={{ width: "100%", maxWidth: 1100, display: "flex", flexDirection: "column", gap: space[6] }}>
+        <div style={{ display: "flex", gap: space[4], flexWrap: "wrap", alignItems: "flex-start" }}>
           <SimpleCard
-            emoji="🏰"
             title="Karazhan"
             subtitle="10-man · Teamless"
             onClick={() => navigate("/kara")}
@@ -105,19 +102,13 @@ export default function TeamSelector() {
           ))}
         </div>
 
-        {/* Utility */}
-        <div style={{ marginTop: space[2] }}>
-          <SectionHeader label="Utility" />
-        </div>
-        <div style={{ display: "flex", gap: space[4], flexWrap: "wrap", alignItems: "stretch" }}>
+        <div style={{ display: "flex", gap: space[4], flexWrap: "wrap", alignItems: "flex-start" }}>
           <SimpleCard
-            emoji="📊"
             title="Combat Log Analytics"
             subtitle="WCL reports, fight breakdowns"
             onClick={() => navigate("/rpb")}
           />
           <SimpleCard
-            emoji="⚒"
             title="Professions"
             subtitle="Guild crafter directory"
             external
@@ -133,15 +124,7 @@ export default function TeamSelector() {
   );
 }
 
-function SectionHeader({ label }) {
-  return (
-    <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-      {label}
-    </div>
-  );
-}
-
-function SimpleCard({ emoji, title, subtitle, onClick, external }) {
+function SimpleCard({ title, subtitle, onClick, external }) {
   return (
     <button
       onClick={onClick}
@@ -163,12 +146,9 @@ function SimpleCard({ emoji, title, subtitle, onClick, external }) {
         e.currentTarget.style.background = surface.panel;
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
-        <span style={{ fontSize: 22 }}>{emoji}</span>
-        <span style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: text.primary }}>
-          {title}
-          {external && <span style={{ fontSize: fontSize.xs, color: text.disabled, marginLeft: 6 }}>↗</span>}
-        </span>
+      <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: text.primary }}>
+        {title}
+        {external && <span style={{ fontSize: fontSize.xs, color: text.disabled, marginLeft: 6 }}>↗</span>}
       </div>
       {subtitle && <div style={{ fontSize: fontSize.sm, color: text.muted }}>{subtitle}</div>}
     </button>
