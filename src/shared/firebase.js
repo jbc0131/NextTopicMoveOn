@@ -8,6 +8,7 @@
  *   raid/{teamId}/25man-thu/live         — Thursday 25-man live state
  *   raid/{teamId}/25man-snapshots/{id}   — 25-man snapshots
  *   raid/{teamId}/ssc/live               — Serpentshrine Cavern live state
+ *   raid/{teamId}/tk/live                — Tempest Keep (The Eye) live state
  */
 
 import { initializeApp, getApps } from "firebase/app";
@@ -56,6 +57,9 @@ function tfSnapshotsCol(teamId) {
 }
 function sscLiveDoc(teamId) {
   return doc(db, "raid", teamId, "ssc", "live");
+}
+function tkLiveDoc(teamId) {
+  return doc(db, "raid", teamId, "tk", "live");
 }
 
 const RPB_LOCAL_STORAGE_KEY = "rpb_raids_v1";
@@ -512,6 +516,41 @@ export function subscribeToSscState(teamId, callback) {
 
 export async function fetchSscSummary(teamId) {
   const state = await fetchSscState(teamId);
+  if (!state) return null;
+  return {
+    raidDate:        state.raidDate   || "",
+    raidLeader:      state.raidLeader || "",
+    rosterCount:     (state.roster || []).length,
+    assignmentCount: Object.keys(state.assignments || {}).length,
+  };
+}
+
+// ── TK — live state ───────────────────────────────────────────────────────────
+export async function saveTkState(state, teamId) {
+  await setDoc(tkLiveDoc(teamId), sanitize({
+    roster:      state.roster      ?? [],
+    assignments: state.assignments ?? {},
+    textInputs:  state.textInputs  ?? {},
+    dividers:    state.dividers    ?? [],
+    raidDate:    state.raidDate    ?? "",
+    raidLeader:  state.raidLeader  ?? "",
+    updatedAt:   new Date().toISOString(),
+  }));
+}
+
+export async function fetchTkState(teamId) {
+  const snap = await getDoc(tkLiveDoc(teamId));
+  return snap.exists() ? snap.data() : null;
+}
+
+export function subscribeToTkState(teamId, callback) {
+  return onSnapshot(tkLiveDoc(teamId), snap => {
+    if (snap.exists()) callback(snap.data());
+  });
+}
+
+export async function fetchTkSummary(teamId) {
+  const state = await fetchTkState(teamId);
   if (!state) return null;
   return {
     raidDate:        state.raidDate   || "",

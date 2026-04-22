@@ -476,6 +476,212 @@ export const SSC_BOSSES = [
   ]},
 ];
 
+// ══════════════════════════════════════════════════════════════════════════════
+// TEMPEST KEEP — THE EYE (TK)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Al'ar ────────────────────────────────────────────────────────────────────
+// P1: Al'ar flies between 4 perches. Tanks rotate as Flame Buffet stacks.
+// P2: Boss lands. Flame Patches + Flame Quills (raid-wide). Phoenix/Ember cycle.
+export const TK_ALAR_P1 = [
+  // Tank Assignments — platform rotation
+  { key: "tk_a1_t_p1",         label: "Al'ar Platform 1 Tank (NE)",              role: "Tank",   hint: "Flame Buffet stacks — rotate before 10 stacks" },
+  { key: "tk_a1_t_p2",         label: "Al'ar Platform 2 Tank (NW)",              role: "Tank",   hint: "" },
+  { key: "tk_a1_t_p3",         label: "Al'ar Platform 3 Tank (SW)",              role: "Tank",   hint: "" },
+  { key: "tk_a1_t_p4",         label: "Al'ar Platform 4 Tank (SE)",              role: "Tank",   hint: "" },
+  // Healer Assignments
+  { key: "tk_a1_h_tanks",      label: "Platform Tank Heals (rotation)",          role: "Healer", hint: "Flame Buffet on active tank" },
+  { key: "tk_a1_h_raid",       label: "Raid Heal (phase transition splash)",     role: "Healer", hint: "" },
+  // Misc
+  { key: "tk_a1_rotation",     label: "Tank Rotation Order (notes)",             role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+];
+
+export const TK_ALAR_P2 = [
+  // Tank Assignments
+  { key: "tk_a2_mt",           label: "Al'ar Main Tank (P2)",                    role: "Tank",   hint: "Ground phase — melee cleave" },
+  { key: "tk_a2_ember",        label: "Ember of Al'ar Tank",                     role: "Tank",   hint: "Embers travel toward Al'ar — intercept & kill" },
+  // Healer Assignments
+  { key: "tk_a2_mth",          label: "Main Tank Heal",                          role: "Healer", hint: "" },
+  { key: "tk_a2_emberh",       label: "Ember Tank Heal",                         role: "Healer", hint: "" },
+  { key: "tk_a2_rheal",        label: "Raid Heal (Flame Quills)",                role: "Healer", hint: "Raid-wide dive — heavy damage" },
+  // Misc Assignments
+  { key: "tk_a2_ember_kill",   label: "Ember Kill Priority (burst)",             role: "DPS", roleLabel: "Misc Assignments", hint: "Kill before it reaches Al'ar" },
+  { key: "tk_a2_flame_patch",  label: "Flame Patch Positioning (notes)",         role: "DPS", roleLabel: "Misc Assignments", hint: "MT kites Al'ar away from lingering AoE", textInput: true },
+  { key: "tk_a2_quill_group",  label: "Flame Quills Positioning (notes)",        role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+  // Misdirects
+  { key: "tk_a2_md_alar",      label: "Misdirect — Al'ar (P2 transition)",       role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "tk_a2_md_ember",     label: "Misdirect — Embers",                      role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+];
+
+// ── Void Reaver ──────────────────────────────────────────────────────────────
+// Single phase loot pinata. Arcane Orbs target random ranged, Pounding every 12s
+// raid-wide. Knock Away drops MT threat — OT keeps as backup.
+export const TK_VOIDREAVER = [
+  // Tanks
+  { key: "tk_vr_mt",           label: "Void Reaver Main Tank",                   role: "Tank",   hint: "Knock Away drops threat" },
+  { key: "tk_vr_ot",           label: "Off-Tank (threat backup)",                role: "Tank",   hint: "" },
+  // Healers
+  { key: "tk_vr_mth1",         label: "Main Tank Heal 1",                        role: "Healer", hint: "" },
+  { key: "tk_vr_mth2",         label: "Main Tank Heal 2",                        role: "Healer", hint: "" },
+  { key: "tk_vr_rheal",        label: "Raid Heal (Pounding)",                    role: "Healer", hint: "Every 12s raid-wide" },
+  // Misc
+  { key: "tk_vr_md",           label: "Misdirect — Void Reaver (opener)",        role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "tk_vr_orb_callout",  label: "Arcane Orb Callouts",                     role: "DPS", roleLabel: "Misc Assignments", hint: "Ranged spread 15yd" },
+];
+
+// ── High Astromancer Solarian ────────────────────────────────────────────────
+// P1: Solarian + 2 Solarium Priests (heal/MC) + 2 Solarium Agents (shadow casters).
+// P2: Solarian vanishes; 3 Agent copies spawn, one is the real Solarian.
+// P3 (sub-20%): Solarian returns in Voidform — heavy Voidbolt + tank damage.
+export const TK_SOLARIAN_P1 = [
+  // Tanks
+  { key: "tk_so1_mt",          label: "Solarian Main Tank (P1)",                 role: "Tank",   hint: "" },
+  { key: "tk_so1_priest1",     label: "Solarium Priest Tank 1",                  role: "Tank",   hint: "Greater Heal + MC — interrupt required" },
+  { key: "tk_so1_priest2",     label: "Solarium Priest Tank 2",                  role: "Tank",   hint: "Greater Heal + MC — interrupt required" },
+  { key: "tk_so1_agent1",      label: "Solarium Agent Tank 1",                   role: "Tank",   hint: "Shadow caster" },
+  { key: "tk_so1_agent2",      label: "Solarium Agent Tank 2",                   role: "Tank",   hint: "Shadow caster" },
+  // Healers
+  { key: "tk_so1_h_mt",        label: "Solarian Tank Heal",                      role: "Healer", hint: "" },
+  { key: "tk_so1_h_adds",      label: "Add Tank Heals",                          role: "Healer", hint: "" },
+  { key: "tk_so1_h_raid",      label: "Raid Heal (Wrath splash)",                role: "Healer", hint: "" },
+  // Interrupts
+  { key: "tk_so1_int_priest1", label: "Priest Interrupt 1 (Greater Heal)",       role: "DPS", roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "tk_so1_int_priest2", label: "Priest Interrupt 2 (Greater Heal)",       role: "DPS", roleLabel: "Interrupt Assignments", hint: "" },
+  // Misc
+  { key: "tk_so1_disp_mc",     label: "MC Dispel (off Priests)",                 role: "DPS", roleLabel: "Misc Assignments", hint: "Priests / Mages" },
+  { key: "tk_so1_wrath",       label: "Wrath of the Astromancer Spread",         role: "DPS", roleLabel: "Misc Assignments", hint: "Debuffed player moves 30yd from raid before it explodes" },
+  { key: "tk_so1_kill_order",  label: "Add Kill Order (Priests → Agents)",       role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+];
+
+export const TK_SOLARIAN_P2 = [
+  // 3 Agent copies — one is the real Solarian
+  { key: "tk_so2_agent1",      label: "Solarium Agent Tank (Skull)",             role: "Tank",   hint: "1 of 3 is real Solarian" },
+  { key: "tk_so2_agent2",      label: "Solarium Agent Tank (Cross)",             role: "Tank",   hint: "" },
+  { key: "tk_so2_agent3",      label: "Solarium Agent Tank (Square)",            role: "Tank",   hint: "" },
+  // Healers
+  { key: "tk_so2_h_agents",    label: "Agent Tank Heals",                        role: "Healer", hint: "" },
+  { key: "tk_so2_h_raid",      label: "Raid Heal",                               role: "Healer", hint: "" },
+  // Misc
+  { key: "tk_so2_burst",       label: "Agent Burst Group (notes)",               role: "DPS", roleLabel: "Misc Assignments", hint: "Focus fire — real Solarian has more HP", textInput: true },
+];
+
+export const TK_SOLARIAN_P3 = [
+  // Voidform sub-20%
+  { key: "tk_so3_mt",          label: "Solarian Main Tank (Voidform)",           role: "Tank",   hint: "Massive damage — cooldowns required" },
+  { key: "tk_so3_mth1",        label: "Main Tank Heal 1",                        role: "Healer", hint: "" },
+  { key: "tk_so3_mth2",        label: "Main Tank Heal 2",                        role: "Healer", hint: "" },
+  { key: "tk_so3_rheal",       label: "Raid Heal (Voidbolt splash)",             role: "Healer", hint: "" },
+  { key: "tk_so3_wrath",       label: "Wrath of the Astromancer Spread (P3)",    role: "DPS", roleLabel: "Misc Assignments", hint: "Still applies in Voidform" },
+  { key: "tk_so3_cds",         label: "Tank Cooldown Rotation (notes)",          role: "DPS", roleLabel: "Misc Assignments", hint: "PS / Shield Wall / Pain Supp", textInput: true },
+];
+
+// ── Kael'thas Sunstrider ─────────────────────────────────────────────────────
+// P1: 4 Advisors killed sequentially (Thaladred → Sanguinar → Capernian → Telonicus).
+// P2: 7 Legendary Weapons summoned. Any class can be assigned — shield to tank,
+//     mace to healer, bow to hunter, etc.
+// P3: Advisors resurrected together (~50% HP each).
+// P4: Kael'thas engages. Pyroblast interrupt rotation, Phoenix + Egg duty, MC,
+//     Nether Vapor, Gravity Lapse (raid flies, dodge Nether Beams from ceiling).
+//     Sub-50% execute-phase mechanics continue in P4 — not a separate phase.
+export const TK_KAELTHAS_P1 = [
+  // Advisor tanks (killed in order)
+  { key: "tk_k1_thaladred",    label: "Thaladred the Darkener (Advisor 1)",      role: "Tank",   hint: "Gaze target — kite" },
+  { key: "tk_k1_sanguinar",    label: "Lord Sanguinar (Advisor 2)",              role: "Tank",   hint: "Bellowing Roar fears" },
+  { key: "tk_k1_capernian",    label: "Grand Astromancer Capernian (Advisor 3)", role: "Tank",   hint: "Caster — 30yd range" },
+  { key: "tk_k1_telonicus",    label: "Master Engineer Telonicus (Advisor 4)",   role: "Tank",   hint: "Bomb + ranged shot" },
+  // Healers
+  { key: "tk_k1_h_thal",       label: "Thaladred Gaze Target Heal",              role: "Healer", hint: "Gaze player takes burst damage" },
+  { key: "tk_k1_h_tanks",      label: "Advisor Tank Heals",                      role: "Healer", hint: "" },
+  { key: "tk_k1_h_raid",       label: "Raid Heal",                               role: "Healer", hint: "" },
+  // Interrupts
+  { key: "tk_k1_int_cap",      label: "Capernian Interrupts (Fireball / Conflag)", role: "DPS", roleLabel: "Interrupt Assignments", hint: "Rotation required" },
+  // Misc
+  { key: "tk_k1_gaze_kite",    label: "Thaladred Gaze Kite Path (notes)",        role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+  { key: "tk_k1_fear_ward",    label: "Fear Ward / Tremor Totem (Sanguinar)",    role: "DPS", roleLabel: "Misc Assignments", hint: "Priests / Shamans" },
+  { key: "tk_k1_bomb_spread",  label: "Bomb Target Spread (Telonicus)",          role: "DPS", roleLabel: "Misc Assignments", hint: "Move 10yd from raid — DO NOT dispel (detonates on dispel)" },
+];
+
+export const TK_KAELTHAS_P2 = [
+  // 7 Legendary Weapons — any class can be assigned. Role is "DPS" with a shared
+  // roleLabel so they group together rather than piling into the Tank section.
+  { key: "tk_k2_weap_skull",    label: "Staff of Disintegration (Skull)",        role: "DPS", roleLabel: "Legendary Weapons", hint: "Caster staff" },
+  { key: "tk_k2_weap_cross",    label: "Warp Slicer (Cross)",                    role: "DPS", roleLabel: "Legendary Weapons", hint: "One-hand sword — melee" },
+  { key: "tk_k2_weap_square",   label: "Devastation (Square)",                   role: "DPS", roleLabel: "Legendary Weapons", hint: "Two-hand axe" },
+  { key: "tk_k2_weap_moon",     label: "Cosmic Infuser (Moon)",                  role: "DPS", roleLabel: "Legendary Weapons", hint: "Healing mace — assign to healer" },
+  { key: "tk_k2_weap_triangle", label: "Infinity Blade (Triangle)",              role: "DPS", roleLabel: "Legendary Weapons", hint: "1H sword — paladin / warrior" },
+  { key: "tk_k2_weap_diamond",  label: "Phaseshift Bulwark (Diamond)",           role: "DPS", roleLabel: "Legendary Weapons", hint: "Shield — assign to tank" },
+  { key: "tk_k2_weap_circle",   label: "Netherstrand Longbow (Circle)",          role: "DPS", roleLabel: "Legendary Weapons", hint: "Bow — assign to hunter" },
+  // Healers
+  { key: "tk_k2_h_weap_group",  label: "Weapons Phase Raid Heal",                role: "Healer", hint: "Multiple players taking damage simultaneously" },
+  { key: "tk_k2_h_tank_pool",   label: "Weapon Target Healer Pool",              role: "Healer", hint: "Rotate heals across 7 targets" },
+  // Misc
+  { key: "tk_k2_weap_order",    label: "Weapon Kill Order (notes)",              role: "DPS", roleLabel: "Misc Assignments", hint: "Typical: Staff → Bow → Mace → Slicer", textInput: true },
+  { key: "tk_k2_wielder_pickup",label: "Weapon Pickup Assignments (post-death)", role: "DPS", roleLabel: "Misc Assignments", hint: "Loot & equip — 2 min buff", textInput: true },
+];
+
+export const TK_KAELTHAS_P3 = [
+  // All 4 advisors resurrected simultaneously at ~50% HP.
+  { key: "tk_k3_thaladred",    label: "Thaladred the Darkener (P3)",             role: "Tank",   hint: "" },
+  { key: "tk_k3_sanguinar",    label: "Lord Sanguinar (P3)",                     role: "Tank",   hint: "" },
+  { key: "tk_k3_capernian",    label: "Capernian (P3)",                          role: "Tank",   hint: "" },
+  { key: "tk_k3_telonicus",    label: "Telonicus (P3)",                          role: "Tank",   hint: "" },
+  { key: "tk_k3_h_adv",        label: "Advisor Tank Heals (P3)",                 role: "Healer", hint: "All 4 alive at once" },
+  { key: "tk_k3_h_raid",       label: "Raid Heal (P3)",                          role: "Healer", hint: "" },
+  { key: "tk_k3_int_cap",      label: "Capernian Interrupts (P3)",               role: "DPS", roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "tk_k3_cc_plan",      label: "CC / Focus Order (notes)",                role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+];
+
+export const TK_KAELTHAS_P4 = [
+  // Kael'thas himself. Sub-50% execute-phase mechanics continue in this phase —
+  // captured as an execute-cooldowns notes row rather than a separate P5.
+  // Tanks
+  { key: "tk_k4_mt",           label: "Kael'thas Main Tank",                     role: "Tank",   hint: "Pyroblast cleave" },
+  { key: "tk_k4_phoenix",      label: "Phoenix Kiter / Tank",                    role: "Tank",   hint: "Leaves egg on death — must burn egg" },
+  // Healers
+  { key: "tk_k4_h_mt1",        label: "Kael Main Tank Heal 1",                   role: "Healer", hint: "" },
+  { key: "tk_k4_h_mt2",        label: "Kael Main Tank Heal 2",                   role: "Healer", hint: "" },
+  { key: "tk_k4_h_phoenix",    label: "Phoenix Kiter Heal",                      role: "Healer", hint: "" },
+  { key: "tk_k4_h_mc",         label: "Mind Control Heal-to-Break",              role: "Healer", hint: "Heal MC'd players to break the MC" },
+  { key: "tk_k4_h_raid",       label: "Raid Heal",                               role: "Healer", hint: "Gravity Lapse + Pyroblast splash" },
+  // Pyroblast Interrupt Rotation — 2.5s cast, interruptible, raid-killing
+  { key: "tk_k4_pyro_skull",   label: "Pyroblast Interrupt (Skull / 1st)",       role: "DPS", roleLabel: "Pyroblast Interrupt Rotation", hint: "" },
+  { key: "tk_k4_pyro_cross",   label: "Pyroblast Interrupt (Cross / 2nd)",       role: "DPS", roleLabel: "Pyroblast Interrupt Rotation", hint: "" },
+  { key: "tk_k4_pyro_square",  label: "Pyroblast Interrupt (Square / 3rd)",      role: "DPS", roleLabel: "Pyroblast Interrupt Rotation", hint: "" },
+  { key: "tk_k4_pyro_moon",    label: "Pyroblast Interrupt (Moon / 4th)",        role: "DPS", roleLabel: "Pyroblast Interrupt Rotation", hint: "" },
+  { key: "tk_k4_pyro_backup",  label: "Pyroblast Interrupt Backup",              role: "DPS", roleLabel: "Pyroblast Interrupt Rotation", hint: "" },
+  // Phoenix / Egg Duty
+  { key: "tk_k4_egg1",         label: "Phoenix Egg Burner 1",                    role: "DPS", roleLabel: "Phoenix Duty", hint: "Eggs must die in 15s or Phoenix revives" },
+  { key: "tk_k4_egg2",         label: "Phoenix Egg Burner 2",                    role: "DPS", roleLabel: "Phoenix Duty", hint: "" },
+  // Misc
+  { key: "tk_k4_disp_mc",      label: "MC Dispels (Priests)",                    role: "DPS", roleLabel: "Misc Assignments", hint: "Dispel Magic off MC'd players" },
+  { key: "tk_k4_nether_vap",   label: "Nether Vapor Positioning (notes)",        role: "DPS", roleLabel: "Misc Assignments", hint: "MT kites Kael out of poison clouds", textInput: true },
+  { key: "tk_k4_grav_lapse",   label: "Gravity Lapse Plan (fly + dodge beams)",  role: "DPS", roleLabel: "Misc Assignments", hint: "Ranged burn beams mid-air, dodge ceiling Nether Beams", textInput: true },
+  { key: "tk_k4_bloodlust",    label: "Bloodlust / Heroism Timing",              role: "DPS", roleLabel: "Misc Assignments", hint: "Typical: start of P4 or sub-50% execute" },
+  { key: "tk_k4_execute_cds",  label: "Execute Phase Cooldowns (sub-50% notes)", role: "DPS", roleLabel: "Misc Assignments", hint: "Mechanics intensify below 50%", textInput: true },
+];
+
+// TK_BOSSES — same structured wrapper as SSC_BOSSES.
+export const TK_BOSSES = [
+  { id: "alar",     name: "Al'ar",                     phases: [
+    { id: "p1", label: "P1 (platforms)",           slots: TK_ALAR_P1 },
+    { id: "p2", label: "P2 (ground)",              slots: TK_ALAR_P2 },
+  ]},
+  { id: "vr",       name: "Void Reaver",               phases: [
+    { id: "main", label: "", slots: TK_VOIDREAVER },
+  ]},
+  { id: "solarian", name: "High Astromancer Solarian", phases: [
+    { id: "p1", label: "P1 (adds)",                slots: TK_SOLARIAN_P1 },
+    { id: "p2", label: "P2 (agent copies)",        slots: TK_SOLARIAN_P2 },
+    { id: "p3", label: "P3 (Voidform sub-20%)",    slots: TK_SOLARIAN_P3 },
+  ]},
+  { id: "kaelthas", name: "Kael'thas Sunstrider",      phases: [
+    { id: "p1", label: "P1 (advisors)",            slots: TK_KAELTHAS_P1 },
+    { id: "p2", label: "P2 (legendary weapons)",   slots: TK_KAELTHAS_P2 },
+    { id: "p3", label: "P3 (advisors revived)",    slots: TK_KAELTHAS_P3 },
+    { id: "p4", label: "P4 (Kael + sub-50%)",      slots: TK_KAELTHAS_P4 },
+  ]},
+];
+
 // ── General assignments ───────────────────────────────────────────────────────
 const MARKERS = [
   { key: "skull",    label: "Skull"    },

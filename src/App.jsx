@@ -7,6 +7,8 @@ import TwentyFivePublic from "./modules/25man/TwentyFivePublic";
 import TwentyFiveAdmin  from "./modules/25man/TwentyFiveAdmin";
 import SscPublic        from "./modules/ssc/SscPublic";
 import SscAdmin         from "./modules/ssc/SscAdmin";
+import TkPublic         from "./modules/tk/TkPublic";
+import TkAdmin          from "./modules/tk/TkAdmin";
 import RpbPage          from "./modules/rpb/RpbPage";
 import ProfilePage      from "./pages/ProfilePage";
 
@@ -32,6 +34,8 @@ export default function App() {
         <Route path="/team-dick/25man/admin" element={<TwentyFiveAdmin  teamId="team-dick"  />} />
         <Route path="/team-dick/ssc"         element={<SscPublic        teamId="team-dick"  />} />
         <Route path="/team-dick/ssc/admin"   element={<SscAdmin         teamId="team-dick"  />} />
+        <Route path="/team-dick/tk"          element={<TkPublic         teamId="team-dick"  />} />
+        <Route path="/team-dick/tk/admin"    element={<TkAdmin          teamId="team-dick"  />} />
 
         {/* Team Balls */}
         <Route path="/team-balls"             element={<TeamDashboard    teamId="team-balls" />} />
@@ -39,6 +43,8 @@ export default function App() {
         <Route path="/team-balls/25man/admin" element={<TwentyFiveAdmin  teamId="team-balls" />} />
         <Route path="/team-balls/ssc"         element={<SscPublic        teamId="team-balls" />} />
         <Route path="/team-balls/ssc/admin"   element={<SscAdmin         teamId="team-balls" />} />
+        <Route path="/team-balls/tk"          element={<TkPublic         teamId="team-balls" />} />
+        <Route path="/team-balls/tk/admin"    element={<TkAdmin          teamId="team-balls" />} />
 
         {/* Legacy redirects */}
         <Route path="/team-dick/kara"          element={<Navigate to="/kara"          replace />} />
