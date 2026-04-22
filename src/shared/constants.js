@@ -253,6 +253,229 @@ export const MAGS_P2 = [
   { key: "m_p2h6",   label: "Cube Healer",  markerKey: "triangle", role: "Healer", hint: "" },
 ];
 
+// ══════════════════════════════════════════════════════════════════════════════
+// SERPENTSHRINE CAVERN (SSC)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Hydross the Unstable ─────────────────────────────────────────────────────
+// Alternates Frost/Nature stances every ~45s. Adds on each transition:
+// 2 Frost Pure Spawns (entering frost) / 4 Nature Tainted Spawns (entering nature).
+// Water Tombs spawn on nature side and hatch Tainted Spawns if not broken.
+export const SSC_HYDROSS = [
+  // Tank Assignments
+  { key: "ssc_hy_mt_frost",     label: "Hydross Main Tank (Frost stance)",       role: "Tank",   hint: "Nature resist gear" },
+  { key: "ssc_hy_mt_nature",    label: "Hydross Main Tank (Nature stance)",      role: "Tank",   hint: "Frost resist gear — same player if solo, different if trading" },
+  { key: "ssc_hy_adds_frost",   label: "Frost Add Tank (Pure Spawns)",           role: "Tank",   hint: "2 adds on nature→frost transition" },
+  { key: "ssc_hy_adds_nature",  label: "Nature Add Tank (Tainted Spawns)",       role: "Tank",   hint: "4 adds on frost→nature transition" },
+  // Healer Assignments
+  { key: "ssc_hy_mth1",         label: "Main Tank Heal (Frost group)",           role: "Healer", hint: "" },
+  { key: "ssc_hy_mth2",         label: "Main Tank Heal (Nature group)",          role: "Healer", hint: "" },
+  { key: "ssc_hy_addheal1",     label: "Frost Add Tank Heal",                    role: "Healer", hint: "" },
+  { key: "ssc_hy_addheal2",     label: "Nature Add Tank Heal",                   role: "Healer", hint: "" },
+  { key: "ssc_hy_rheal",        label: "Raid Heal",                              role: "Healer", hint: "" },
+  // Misc Assignments
+  { key: "ssc_hy_decurse",      label: "Decurse (Mages / Druids)",               role: "DPS", roleLabel: "Misc Assignments", hint: "Curse of the Shaman from Tainted Spawns" },
+  { key: "ssc_hy_cleanse",      label: "Poison Cleanse (Paladins / Druids)",     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_hy_water_tomb",   label: "Water Tomb Break (nature stance)",       role: "DPS", roleLabel: "Misc Assignments", hint: "Kill bubbles fast — hatch into Tainted Spawns" },
+  { key: "ssc_hy_md_frost",     label: "Misdirect — Frost Adds",                 role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_hy_md_nature",    label: "Misdirect — Nature Adds",                role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_hy_frost_group",  label: "Frost Resist Group (roster)",            role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+  { key: "ssc_hy_nature_group", label: "Nature Resist Group (roster)",           role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+];
+
+// ── The Lurker Below ─────────────────────────────────────────────────────────
+// Alternates boss up (tank & spank + Spout) vs boss submerged (adds phase).
+// 2 waves of adds during submerge.
+export const SSC_LURKER = [
+  // Tank Assignments
+  { key: "ssc_lu_mt",         label: "Lurker Main Tank",                         role: "Tank",   hint: "" },
+  { key: "ssc_lu_add1",       label: "Coilfang Ambusher Tank (ranged add)",      role: "Tank",   hint: "Stays on platform — ranged caster" },
+  { key: "ssc_lu_add2",       label: "Coilfang Guardian Tank 1 (melee add)",     role: "Tank",   hint: "" },
+  { key: "ssc_lu_add3",       label: "Coilfang Guardian Tank 2 (melee add)",     role: "Tank",   hint: "" },
+  // Healer Assignments
+  { key: "ssc_lu_mth",        label: "Main Tank Heal",                           role: "Healer", hint: "" },
+  { key: "ssc_lu_addh1",      label: "Ambusher Tank Heal",                       role: "Healer", hint: "" },
+  { key: "ssc_lu_addh2",      label: "Guardian Tank Heal 1",                     role: "Healer", hint: "" },
+  { key: "ssc_lu_addh3",      label: "Guardian Tank Heal 2",                     role: "Healer", hint: "" },
+  { key: "ssc_lu_rheal",      label: "Raid Heal (Spout damage)",                 role: "Healer", hint: "" },
+  // Misc Assignments
+  { key: "ssc_lu_fisher",     label: "Fishing Pull (opener)",                    role: "DPS", roleLabel: "Misc Assignments", hint: "Requires Weather-Beaten Journal" },
+  { key: "ssc_lu_int_ambush", label: "Ambusher Interrupt (Spout Cast / Knockback)", role: "DPS", roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "ssc_lu_md_lurker",  label: "Misdirect — Lurker",                       role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_lu_md_ambush",  label: "Misdirect — Ambusher",                     role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_lu_kill_order", label: "Add Kill Order (notes)",                   role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+];
+
+// ── Leotheras the Blind ──────────────────────────────────────────────────────
+// P1 (100%–15%): Alternates Elf form (Whirlwind + charges, tank drops aggro) with
+//   Demon form (Chaos Blast frontal + Insidious Whisper → Inner Demons on 5 players).
+// P2 (sub-15%): Leotheras splits into stationary Elf body (melee only) and a
+//   Shadow demon (mobile, Chaos Blast). Inner Demons continue to spawn on all players.
+export const SSC_LEOTHERAS_P1 = [
+  // Tank Assignments
+  { key: "ssc_le1_mt_elf",   label: "Leotheras Main Tank (Elf form)",             role: "Tank",   hint: "Whirlwind — drop aggro, melee kite" },
+  { key: "ssc_le1_mt_demon", label: "Leotheras Main Tank (Demon form)",           role: "Tank",   hint: "Positioning — Chaos Blast frontal cone" },
+  // Healer Assignments
+  { key: "ssc_le1_mth_elf",  label: "Main Tank Heal (Elf form)",                  role: "Healer", hint: "" },
+  { key: "ssc_le1_mth_dem",  label: "Main Tank Heal (Demon form)",                role: "Healer", hint: "" },
+  { key: "ssc_le1_rheal",    label: "Raid Heal",                                  role: "Healer", hint: "Chaos Blast splash + Whirlwind" },
+  // Inner Demons (Insidious Whisper spawns a Shadow of the player — raid must kill it)
+  { key: "ssc_le1_demon1",   label: "Inner Demon — Skull",                        role: "DPS", roleLabel: "Inner Demons (Whisper Targets)", hint: "" },
+  { key: "ssc_le1_demon2",   label: "Inner Demon — Cross",                        role: "DPS", roleLabel: "Inner Demons (Whisper Targets)", hint: "" },
+  { key: "ssc_le1_demon3",   label: "Inner Demon — Square",                       role: "DPS", roleLabel: "Inner Demons (Whisper Targets)", hint: "" },
+  { key: "ssc_le1_demon4",   label: "Inner Demon — Moon",                         role: "DPS", roleLabel: "Inner Demons (Whisper Targets)", hint: "" },
+  { key: "ssc_le1_demon5",   label: "Inner Demon — Triangle",                     role: "DPS", roleLabel: "Inner Demons (Whisper Targets)", hint: "" },
+  // Misc
+  { key: "ssc_le1_ww_plan",  label: "Whirlwind Drop-Aggro Plan (notes)",          role: "DPS", roleLabel: "Misc Assignments", hint: "MT drops aggro, melee kite path", textInput: true },
+];
+
+export const SSC_LEOTHERAS_P2 = [
+  // Tank Assignments — sub-15% split
+  { key: "ssc_le2_mt_body",    label: "Elf Body Tank (stationary)",               role: "Tank",   hint: "Melee-only — body roots in place" },
+  { key: "ssc_le2_mt_shadow",  label: "Shadow Demon Tank (Chaos Blast)",          role: "Tank",   hint: "Kite shadow — Chaos Blast frontal" },
+  // Healer Assignments
+  { key: "ssc_le2_mth_body",   label: "Elf Body Tank Heal",                       role: "Healer", hint: "" },
+  { key: "ssc_le2_mth_shadow", label: "Shadow Demon Tank Heal",                   role: "Healer", hint: "" },
+  { key: "ssc_le2_rheal",      label: "Raid Heal (Inner Demons phase)",           role: "Healer", hint: "Cannot heal demon-afflicted players" },
+  // Misc — Inner Demons now spawn on every player
+  { key: "ssc_le2_demon_order",label: "Inner Demon Kill Priority (notes)",        role: "DPS", roleLabel: "Misc Assignments", hint: "Prioritize healers' demons first", textInput: true },
+];
+
+// ── Fathom-Lord Karathress ───────────────────────────────────────────────────
+// 4 bosses pulled together. Common kill order: Sharkkis → Caribdis → Tidalvess → Karathress.
+// Karathress gains the abilities of each advisor he outlives.
+export const SSC_KARATHRESS = [
+  // Tank Assignments
+  { key: "ssc_ka_mt_kara",     label: "Fathom-Lord Karathress Tank",              role: "Tank",   hint: "Cataclysmic Bolt" },
+  { key: "ssc_ka_mt_shark",    label: "Fathom-Guard Sharkkis Tank",               role: "Tank",   hint: "Hunter — kill first (pet + Beast Within)" },
+  { key: "ssc_ka_mt_carib",    label: "Fathom-Guard Caribdis Tank",               role: "Tank",   hint: "Priest — heals, kill second" },
+  { key: "ssc_ka_mt_tidal",    label: "Fathom-Guard Tidalvess Tank",              role: "Tank",   hint: "Shaman — totems, kill third" },
+  { key: "ssc_ka_pet_tank",    label: "Sharkkis Pet Tank (Fathomlurker hyena)",   role: "Tank",   hint: "Pet despawns when Sharkkis dies" },
+  // Healer Assignments
+  { key: "ssc_ka_heal_kara",   label: "Karathress Tank Heal",                     role: "Healer", hint: "" },
+  { key: "ssc_ka_heal_shark",  label: "Sharkkis Tank Heal",                       role: "Healer", hint: "" },
+  { key: "ssc_ka_heal_carib",  label: "Caribdis Tank Heal",                       role: "Healer", hint: "" },
+  { key: "ssc_ka_heal_tidal",  label: "Tidalvess Tank Heal",                      role: "Healer", hint: "" },
+  { key: "ssc_ka_heal_raid",   label: "Raid Heal",                                role: "Healer", hint: "" },
+  // Interrupts
+  { key: "ssc_ka_int_carib",   label: "Caribdis Interrupt (Healing Wave / Tidal Surge)", role: "DPS", roleLabel: "Interrupt Assignments", hint: "Priority #1" },
+  { key: "ssc_ka_int_tidal",   label: "Tidalvess Interrupt (Frost Shock)",        role: "DPS", roleLabel: "Interrupt Assignments", hint: "" },
+  { key: "ssc_ka_int_kara",    label: "Karathress Interrupt (backup)",            role: "DPS", roleLabel: "Interrupt Assignments", hint: "" },
+  // Misc
+  { key: "ssc_ka_totem_stomp", label: "Totem Stomping (Tidalvess)",               role: "DPS", roleLabel: "Misc Assignments", hint: "Windfury / Poison Cleansing / Earthbind" },
+  { key: "ssc_ka_dispel_carib",label: "Dispel Caribdis buffs",                    role: "DPS", roleLabel: "Misc Assignments", hint: "Mages / Priests / Shamans" },
+  { key: "ssc_ka_kill_order",  label: "Kill Order (confirm)",                     role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+  // Misdirects
+  { key: "ssc_ka_md_shark",    label: "Misdirect — Sharkkis",                     role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_ka_md_carib",    label: "Misdirect — Caribdis",                     role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_ka_md_tidal",    label: "Misdirect — Tidalvess",                    role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_ka_md_kara",     label: "Misdirect — Karathress",                   role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+];
+
+// ── Morogrim Tidewalker ──────────────────────────────────────────────────────
+// Add waves at 75%, 50%, 25% (Murlocs in 2 streams). Watery Grave teleports
+// players under grates mid-fight. Water Globules target random players at sub-25%.
+export const SSC_MOROGRIM = [
+  // Tank Assignments
+  { key: "ssc_mo_mt",          label: "Morogrim Main Tank",                       role: "Tank",   hint: "" },
+  { key: "ssc_mo_adds1",       label: "Murloc Add Tank (West stream)",            role: "Tank",   hint: "AoE tank — Prot Paladin ideal" },
+  { key: "ssc_mo_adds2",       label: "Murloc Add Tank (East stream)",            role: "Tank",   hint: "AoE tank — Prot Paladin ideal" },
+  // Healer Assignments
+  { key: "ssc_mo_mth",         label: "Main Tank Heal",                           role: "Healer", hint: "" },
+  { key: "ssc_mo_addh1",       label: "West Add Tank Heal",                       role: "Healer", hint: "" },
+  { key: "ssc_mo_addh2",       label: "East Add Tank Heal",                       role: "Healer", hint: "" },
+  { key: "ssc_mo_rheal",       label: "Raid Heal (Tidal Wave + Globules)",        role: "Healer", hint: "" },
+  // Misc
+  { key: "ssc_mo_aoe_group",   label: "AoE Group (Murloc waves)",                 role: "DPS", roleLabel: "Misc Assignments", hint: "Mages / Locks / Boomkin", textInput: true },
+  { key: "ssc_mo_grate",       label: "Watery Grave Grate-Break",                 role: "DPS", roleLabel: "Misc Assignments", hint: "Free trapped players from grates ASAP" },
+  { key: "ssc_mo_globule",     label: "Water Globule Priority (burst)",           role: "DPS", roleLabel: "Misc Assignments", hint: "Kill ASAP — knockup + damage on carrier" },
+  // Misdirects
+  { key: "ssc_mo_md_boss",     label: "Misdirect — Morogrim",                     role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_mo_md_west",     label: "Misdirect — West Adds",                    role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_mo_md_east",     label: "Misdirect — East Adds",                    role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+];
+
+// ── Lady Vashj ───────────────────────────────────────────────────────────────
+// P1 (100%–70%): Tank & spank with Shock Blast + Static Charge.
+// P2 (70%–30%): Shield up — must drop with 4 Tainted Cores. Striders kited,
+//   Tainted Elementals drop cores, Enchanted Elementals feed Vashj mana if unchecked.
+// P3 (30%–0%): Shield down, P1 mechanics resume + Toxic Sporebats + residual P2 adds.
+export const SSC_VASHJ_P1 = [
+  // Tank Assignments
+  { key: "ssc_vs1_mt",          label: "Vashj Main Tank (P1: 100%–70%)",          role: "Tank",   hint: "Shock Blast knockback" },
+  // Healer Assignments
+  { key: "ssc_vs1_mth",         label: "Main Tank Heal",                          role: "Healer", hint: "" },
+  { key: "ssc_vs1_rheal",       label: "Raid Heal (Static Charge)",               role: "Healer", hint: "" },
+  // Misc
+  { key: "ssc_vs1_disp_static", label: "Static Charge Dispel (Priests)",          role: "DPS", roleLabel: "Misc Assignments", hint: "Dispel off chain target" },
+  { key: "ssc_vs1_md",          label: "Misdirect — Vashj (opener)",              role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+];
+
+export const SSC_VASHJ_P2 = [
+  // Tank Assignments
+  { key: "ssc_vs2_strider1",   label: "Coilfang Strider Kiter (Skull)",            role: "Tank",   hint: "Hunter or OT — uninterruptible, kite only" },
+  { key: "ssc_vs2_strider2",   label: "Coilfang Strider Kiter (Cross)",            role: "Tank",   hint: "" },
+  { key: "ssc_vs2_strider3",   label: "Coilfang Strider Kiter (Square)",           role: "Tank",   hint: "" },
+  { key: "ssc_vs2_elem_tank",  label: "Tainted Elemental Tank",                    role: "Tank",   hint: "Drops Tainted Core on death" },
+  { key: "ssc_vs2_naga_tank",  label: "Enchanted Elemental / Naga Off-Tank",       role: "Tank",   hint: "AoE add control" },
+  // Healer Assignments
+  { key: "ssc_vs2_heal_str",   label: "Strider Kiter Heals",                       role: "Healer", hint: "Kiters take heavy damage" },
+  { key: "ssc_vs2_heal_elem",  label: "Elemental / Add Tank Heals",                role: "Healer", hint: "" },
+  { key: "ssc_vs2_heal_core",  label: "Core Runner Heals",                         role: "Healer", hint: "" },
+  { key: "ssc_vs2_heal_raid",  label: "Raid Heal",                                 role: "Healer", hint: "" },
+  // Tainted Core Pass Chain — the defining P2 mechanic
+  { key: "ssc_vs2_core1",      label: "Tainted Core Runner 1 (pickup)",            role: "DPS", roleLabel: "Tainted Core Chain", hint: "Grab from Elemental corpse" },
+  { key: "ssc_vs2_core2",      label: "Tainted Core Runner 2",                     role: "DPS", roleLabel: "Tainted Core Chain", hint: "" },
+  { key: "ssc_vs2_core3",      label: "Tainted Core Runner 3",                     role: "DPS", roleLabel: "Tainted Core Chain", hint: "" },
+  { key: "ssc_vs2_core4",      label: "Tainted Core Runner 4 (throws at Vashj)",   role: "DPS", roleLabel: "Tainted Core Chain", hint: "Drops Vashj shield" },
+  { key: "ssc_vs2_core_backup",label: "Core Chain Backup (if runner dies)",        role: "DPS", roleLabel: "Tainted Core Chain", hint: "", textInput: true },
+  // Misc
+  { key: "ssc_vs2_naga_burst", label: "Enchanted Elemental Burst (Mages/Locks)",   role: "DPS", roleLabel: "Misc Assignments", hint: "Feeds Vashj mana if they reach her" },
+  { key: "ssc_vs2_decurse",    label: "Entangle Decurse (Mages / Druids)",         role: "DPS", roleLabel: "Misc Assignments", hint: "Vashj's root on random players" },
+  // Misdirects
+  { key: "ssc_vs2_md_elem",    label: "Misdirect — Tainted Elementals",            role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_vs2_md_naga",    label: "Misdirect — Naga",                          role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+];
+
+export const SSC_VASHJ_P3 = [
+  // Tank Assignments
+  { key: "ssc_vs3_mt",         label: "Vashj Main Tank (P3: sub-30%)",             role: "Tank",   hint: "Shock Blast resumes" },
+  { key: "ssc_vs3_strider",    label: "Residual Strider Kiters",                   role: "Tank",   hint: "Striders continue spawning in P3" },
+  // Healer Assignments
+  { key: "ssc_vs3_mth",        label: "Main Tank Heal",                            role: "Healer", hint: "" },
+  { key: "ssc_vs3_rheal",      label: "Raid Heal (Sporebat burst)",                role: "Healer", hint: "" },
+  // Misc
+  { key: "ssc_vs3_spore_duty", label: "Toxic Sporebat Kills",                      role: "DPS", roleLabel: "Misc Assignments", hint: "Kill ASAP — raidwide poison" },
+  { key: "ssc_vs3_burn_group", label: "Burn Phase Plan (notes)",                   role: "DPS", roleLabel: "Misc Assignments", hint: "Bloodlust + cooldowns", textInput: true },
+];
+
+// SSC_BOSSES — structured wrapper for tab-per-boss admin rendering.
+// Each boss has one or more phases; each phase holds a slot array with the same
+// shape as GRUUL_MAULGAR / MAGS_P1 / MAGS_P2.
+export const SSC_BOSSES = [
+  { id: "hydross",    name: "Hydross the Unstable",  phases: [
+    { id: "main", label: "", slots: SSC_HYDROSS },
+  ]},
+  { id: "lurker",     name: "The Lurker Below",      phases: [
+    { id: "main", label: "", slots: SSC_LURKER },
+  ]},
+  { id: "leotheras",  name: "Leotheras the Blind",   phases: [
+    { id: "p1", label: "P1 (100%–15%)",  slots: SSC_LEOTHERAS_P1 },
+    { id: "p2", label: "P2 (sub-15% split)", slots: SSC_LEOTHERAS_P2 },
+  ]},
+  { id: "karathress", name: "Fathom-Lord Karathress", phases: [
+    { id: "main", label: "", slots: SSC_KARATHRESS },
+  ]},
+  { id: "morogrim",   name: "Morogrim Tidewalker",   phases: [
+    { id: "main", label: "", slots: SSC_MOROGRIM },
+  ]},
+  { id: "vashj",      name: "Lady Vashj",            phases: [
+    { id: "p1", label: "P1 (100%–70%)", slots: SSC_VASHJ_P1 },
+    { id: "p2", label: "P2 (70%–30%)",  slots: SSC_VASHJ_P2 },
+    { id: "p3", label: "P3 (sub-30%)",  slots: SSC_VASHJ_P3 },
+  ]},
+];
+
 // ── General assignments ───────────────────────────────────────────────────────
 const MARKERS = [
   { key: "skull",    label: "Skull"    },

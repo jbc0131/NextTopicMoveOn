@@ -5,6 +5,8 @@ import KaraPublic       from "./modules/kara/KaraPublic";
 import KaraAdmin        from "./modules/kara/KaraAdmin";
 import TwentyFivePublic from "./modules/25man/TwentyFivePublic";
 import TwentyFiveAdmin  from "./modules/25man/TwentyFiveAdmin";
+import SscPublic        from "./modules/ssc/SscPublic";
+import SscAdmin         from "./modules/ssc/SscAdmin";
 import RpbPage          from "./modules/rpb/RpbPage";
 import ProfilePage      from "./pages/ProfilePage";
 
@@ -28,11 +30,15 @@ export default function App() {
         <Route path="/team-dick"             element={<TeamDashboard    teamId="team-dick"  />} />
         <Route path="/team-dick/25man"       element={<TwentyFivePublic teamId="team-dick"  />} />
         <Route path="/team-dick/25man/admin" element={<TwentyFiveAdmin  teamId="team-dick"  />} />
+        <Route path="/team-dick/ssc"         element={<SscPublic        teamId="team-dick"  />} />
+        <Route path="/team-dick/ssc/admin"   element={<SscAdmin         teamId="team-dick"  />} />
 
         {/* Team Balls */}
         <Route path="/team-balls"             element={<TeamDashboard    teamId="team-balls" />} />
         <Route path="/team-balls/25man"       element={<TwentyFivePublic teamId="team-balls" />} />
         <Route path="/team-balls/25man/admin" element={<TwentyFiveAdmin  teamId="team-balls" />} />
+        <Route path="/team-balls/ssc"         element={<SscPublic        teamId="team-balls" />} />
+        <Route path="/team-balls/ssc/admin"   element={<SscAdmin         teamId="team-balls" />} />
 
         {/* Legacy redirects */}
         <Route path="/team-dick/kara"          element={<Navigate to="/kara"          replace />} />

@@ -647,6 +647,7 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
   const navLinks = [
     { path: `/kara`,                                     label: "Karazhan",     external: false },
     { path: `/${teamId || "team-dick"}/25man`,           label: "25-Man Raids", external: false },
+    { path: `/${teamId || "team-dick"}/ssc`,             label: "SSC",          external: false },
     { path: `/rpb`,                                      label: "Combat Log Analytics",      external: false },
     { path: `/profile`,                                  label: "Profile",      external: false },
     { path: "https://professions.nexttopicmoveon.com/", label: "Professions",  external: true  },
@@ -690,6 +691,7 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
           const active =
             (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))  ||
             (link.path.includes("/25man")   && location.pathname.includes("/25man"))   ||
+            (link.path.includes("/ssc")     && location.pathname.includes("/ssc"))     ||
             (link.path.includes("/history") && location.pathname.includes("/history")) ||
             (link.path.includes("/rpb")     && location.pathname.startsWith("/rpb"))   ||
             (link.path.includes("/profile") && location.pathname.startsWith("/profile"));
@@ -722,6 +724,7 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
             {RAID_TEAMS.map(team => {
               const active = team.id === teamId;
               const currentModule = location.pathname.includes("/25man") ? "/25man"
+                : location.pathname.includes("/ssc")     ? "/ssc/admin"
                 : location.pathname.includes("/history") ? "/history"
                 : "";
               return (
@@ -760,6 +763,7 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
   const navLinks = [
     { path: `/kara${adminMode ? "/admin" : ""}`,                           label: "Karazhan",     icon: "KR" },
     { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "25" },
+    { path: `/${teamId || "team-dick"}/ssc${adminMode ? "/admin" : ""}`,   label: "SSC",          icon: "SS" },
     { path: `/rpb`,                                                        label: "Combat Log Analytics",      icon: "RC" },
     { path: "https://professions.nexttopicmoveon.com/",                    label: "Professions",  icon: "PF", external: true },
   ];
@@ -800,6 +804,7 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
           const active =
             (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))   ||
             (link.path.includes("/25man")   && location.pathname.includes("/25man"))    ||
+            (link.path.includes("/ssc")     && location.pathname.includes("/ssc"))      ||
             (link.path.includes("/rpb")     && location.pathname.startsWith("/rpb"));
 
           const handleClick = () => {
@@ -850,7 +855,9 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
               <button
                 key={team.id}
                 onClick={() => {
-                  const currentModule = location.pathname.includes("/25man") ? "/25man" : "";
+                  const currentModule = location.pathname.includes("/ssc")   ? "/ssc"
+                    : location.pathname.includes("/25man") ? "/25man"
+                    : "";
                   const adminSuffix = adminMode ? "/admin" : "";
                   navigate(`/${team.id}${currentModule}${adminSuffix}`);
                 }}

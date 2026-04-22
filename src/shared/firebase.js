@@ -7,6 +7,7 @@
  *   raid/{teamId}/25man-tue/live         — Tuesday 25-man live state
  *   raid/{teamId}/25man-thu/live         — Thursday 25-man live state
  *   raid/{teamId}/25man-snapshots/{id}   — 25-man snapshots
+ *   raid/{teamId}/ssc/live               — Serpentshrine Cavern live state
  */
 
 import { initializeApp, getApps } from "firebase/app";
@@ -52,6 +53,9 @@ function tfLiveDoc(teamId, night) {
 }
 function tfSnapshotsCol(teamId) {
   return collection(db, "raid", teamId, "25man-snapshots");
+}
+function sscLiveDoc(teamId) {
+  return doc(db, "raid", teamId, "ssc", "live");
 }
 
 const RPB_LOCAL_STORAGE_KEY = "rpb_raids_v1";
@@ -473,6 +477,41 @@ export async function fetchKaraSummary() {
 
 export async function fetchTwentyFiveSummary(teamId, night) {
   const state = await fetchTwentyFiveState(teamId, night);
+  if (!state) return null;
+  return {
+    raidDate:        state.raidDate   || "",
+    raidLeader:      state.raidLeader || "",
+    rosterCount:     (state.roster || []).length,
+    assignmentCount: Object.keys(state.assignments || {}).length,
+  };
+}
+
+// ── SSC — live state ──────────────────────────────────────────────────────────
+export async function saveSscState(state, teamId) {
+  await setDoc(sscLiveDoc(teamId), sanitize({
+    roster:      state.roster      ?? [],
+    assignments: state.assignments ?? {},
+    textInputs:  state.textInputs  ?? {},
+    dividers:    state.dividers    ?? [],
+    raidDate:    state.raidDate    ?? "",
+    raidLeader:  state.raidLeader  ?? "",
+    updatedAt:   new Date().toISOString(),
+  }));
+}
+
+export async function fetchSscState(teamId) {
+  const snap = await getDoc(sscLiveDoc(teamId));
+  return snap.exists() ? snap.data() : null;
+}
+
+export function subscribeToSscState(teamId, callback) {
+  return onSnapshot(sscLiveDoc(teamId), snap => {
+    if (snap.exists()) callback(snap.data());
+  });
+}
+
+export async function fetchSscSummary(teamId) {
+  const state = await fetchSscState(teamId);
   if (!state) return null;
   return {
     raidDate:        state.raidDate   || "",
