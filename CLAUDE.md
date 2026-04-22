@@ -36,7 +36,9 @@ Karazhan and Raid History are **teamless** — shared across both teams at `/kar
 - User avatar, display name, and "Sign out" shown in header for all logged-in users
 - "Admin" button only visible to users with admin roles
 - Karazhan admin (`/kara/admin`) — import Tue/Thu JSON rosters, drag-and-drop team assignments, spec cycling, conflict detection, copy Discord output, WCL parse scores, snapshot/history
-- 25-Man Raids admin (`/:teamId/25man/admin`) — drag-and-drop Gruul/Mag assignments, manual player add, import JSON, save/auto-save to Firebase
+- T4 (Gruul / Mag) admin (`/:teamId/gruulmag/admin`, aliased as "T4 - Gruuls / Mags" in sidebar) — drag-and-drop Gruul/Mag assignments, manual player add, import JSON, save/auto-save to Firebase. Module is called `gruulmag` in code; Firestore paths remain `25man-*` to preserve live data
+- T5 SSC admin (`/:teamId/ssc/admin`, sidebar: "T5 - Serpentshrine Cavern") — 6-boss SSC module, same admin pattern
+- T5 TK admin (`/:teamId/tk/admin`, sidebar: "T5 - Tempest Keep") — 4-boss TK module, same admin pattern
 - Raid History (`/history`) — consolidated view of both teams, All/Tuesday/Thursday filter, RPB iFrame, CLA iFrame, collapsible assignments
 - Raid History Admin (`/history/admin`) — add raid week, edit WCL/RPB/CLA URLs, delete snapshots, tag night, night auto-fetched from WCL URL
 - Public views for all modules — read-only, search by name, mobile responsive
@@ -75,9 +77,15 @@ src/
     kara/
       KaraAdmin.jsx                — /kara/admin
       KaraPublic.jsx               — /kara
-    25man/
-      TwentyFiveAdmin.jsx          — /:teamId/25man/admin
-      TwentyFivePublic.jsx         — /:teamId/25man
+    gruulmag/
+      GruulmagAdmin.jsx            — /:teamId/gruulmag/admin ("T4 - Gruuls / Mags" in sidebar)
+      GruulmagPublic.jsx           — /:teamId/gruulmag
+    ssc/
+      SscAdmin.jsx                 — /:teamId/ssc/admin ("T5 - Serpentshrine Cavern")
+      SscPublic.jsx                — /:teamId/ssc
+    tk/
+      TkAdmin.jsx                  — /:teamId/tk/admin ("T5 - Tempest Keep")
+      TkPublic.jsx                 — /:teamId/tk
     history/
       HistoryView.jsx              — /history (public, both teams)
       HistoryAdmin.jsx             — /history/admin
@@ -100,8 +108,13 @@ api/
 /history                   → HistoryView (teamless, both teams, member role required)
 /history/admin             → HistoryAdmin (admin role required)
 /:teamId                   → TeamDashboard (member role required)
-/:teamId/25man             → TwentyFivePublic (member role required)
-/:teamId/25man/admin       → TwentyFiveAdmin (admin role required)
+/:teamId/gruulmag          → GruulmagPublic (member role required)
+/:teamId/gruulmag/admin    → GruulmagAdmin (admin role required)
+/:teamId/ssc               → SscPublic
+/:teamId/ssc/admin         → SscAdmin
+/:teamId/tk                → TkPublic
+/:teamId/tk/admin          → TkAdmin
+Legacy redirects: /:teamId/25man → /:teamId/gruulmag, /:teamId/25man/admin → /:teamId/gruulmag/admin
 Legacy redirects: /team-dick/history → /history, etc.
 ```
 
@@ -110,9 +123,11 @@ Legacy redirects: /team-dick/history → /history, etc.
 ```
 raid-kara/live                        — Kara live state (teamless)
 raid-kara-snapshots/{id}              — Kara snapshots
-raid/{teamId}/25man-tue/live          — Tuesday 25-man live state
-raid/{teamId}/25man-thu/live          — Thursday 25-man live state
-raid/{teamId}/25man-snapshots/{id}    — 25-man snapshots (has night: "tue"|"thu" field)
+raid/{teamId}/25man-tue/live          — Tuesday T4 (Gruul/Mag) live state [path kept as "25man-*" post-rename]
+raid/{teamId}/25man-thu/live          — Thursday T4 (Gruul/Mag) live state [path kept as "25man-*" post-rename]
+raid/{teamId}/25man-snapshots/{id}    — T4 snapshots (has night: "tue"|"thu" field; module metadata still "25man")
+raid/{teamId}/ssc/live                — T5 SSC live state
+raid/{teamId}/tk/live                 — T5 TK live state
 ```
 
 ### Firestore Rules
@@ -168,8 +183,9 @@ match /raid-kara-snapshots/{snapId} { allow read, write: if true; }
 
 - **Kara is teamless** — single `/kara` route, single Firebase doc. Tuesday = Team Dick roster, Thursday = Team Balls roster. Both managed in one admin page.
 - **History is teamless** — `/history` fetches from both `team-dick` and `team-balls` 25man-snapshots in parallel, merges and sorts by date.
-- **WCL/RPB/CLA URLs live in History Admin** — removed from 25-Man admin. Workflow: assign in 25-Man admin → add to history in History Admin.
-- **Snapshot button removed from 25-Man admin** — creating history entries now happens exclusively via History Admin → Add Raid Week.
+- **WCL/RPB/CLA URLs live in History Admin** — removed from T4 admin. Workflow: assign in T4/T5 admin → add to history in History Admin.
+- **Snapshot button removed from T4 admin** — creating history entries now happens exclusively via History Admin → Add Raid Week.
+- **T4/T5 sidebar naming** — the 25-man module was renamed `gruulmag` (sidebar: "T4 - Gruuls / Mags"). SSC sidebar: "T5 - Serpentshrine Cavern". TK sidebar: "T5 - Tempest Keep". Internal Firestore paths for the T4 module remain `raid/{teamId}/25man-*` to preserve production data; the `saveTwentyFiveState` / `fetchTwentyFiveState` function names also stayed. SSC and TK use their own identifiers (`ssc`, `tk`) end-to-end.
 - **Auth is two-tier** — member role for site access, admin role for admin pages. All pages require Discord login. Password gate is fallback only.
 - **Parse scores refresh button** — only shown in admin views (`showRefresh` prop on `ParseScoresPanel`). Hidden in public views.
 - **Sidebar collapsible** — state lives in `AppShell`, collapses to 44px icon rail. Parse panel and team switcher hide when collapsed.

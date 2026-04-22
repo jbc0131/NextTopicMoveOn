@@ -104,7 +104,7 @@ export default function TeamSelector() {
             <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: text.primary }}>{team.name}</div>
             <div style={{ fontSize: fontSize.sm, color: text.muted }}>{team.night} raids</div>
             <div style={{ display: "flex", gap: space[1], marginTop: space[2] }}>
-              {["Karazhan", "25-Man", "History"].map(m => (
+              {["Karazhan", "T4", "T5 SSC", "T5 TK"].map(m => (
                 <span key={m} style={{
                   fontSize: fontSize.xs, color: text.muted,
                   background: surface.base, border: `1px solid ${border.subtle}`,

@@ -146,7 +146,7 @@ function PublicCubeTeamsGrid({ assignments, roster, searchName, wclScores, activ
   );
 }
 
-export default function TwentyFivePublic({ teamId }) {
+export default function GruulmagPublic({ teamId }) {
   const night = teamId === "team-balls" ? "thu" : "tue";
   const [data,        setData]        = useState(null);
   const [loading,     setLoading]     = useState(true);
@@ -156,10 +156,10 @@ export default function TwentyFivePublic({ teamId }) {
   const [searchName,  setSearchName]  = useState("");
 
   const { scores: wclScores, loading: wclLoading, lastFetch: wclLastFetch, refetch: wclRefetch } =
-    useWarcraftLogs(data?.roster ?? [], { teamId, module: "25man" });
+    useWarcraftLogs(data?.roster ?? [], { teamId, module: "gruulmag" });
 
   useEffect(() => {
-    document.title = `NTMO 25-Man – ${teamId === "team-dick" ? "Team Dick" : "Team Balls"}`;
+    document.title = `NTMO T4 – ${teamId === "team-dick" ? "Team Dick" : "Team Balls"}`;
     if (!FIREBASE_OK) { setLoading(false); return; }
 
     setLoading(true); setLiveSync(false); setData(null);
@@ -181,13 +181,13 @@ export default function TwentyFivePublic({ teamId }) {
 
   return (
     <AppShell teamId={teamId} parsePanelContent={
-      <ParseScoresPanel scores={wclScores} roster={viewRoster} module="25man"
+      <ParseScoresPanel scores={wclScores} roster={viewRoster} module="gruulmag"
         loading={wclLoading} lastFetch={wclLastFetch} onRefetch={wclRefetch} onWclNameChange={null} />
     }>
       <ModuleHeader
         icon="⚔"
-        title="25-Man Raids"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / 25-Man`}
+        title="T4 — Gruul's Lair + Magtheridon"
+        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / T4`}
         mobileActions={<>
           {FIREBASE_OK && <SyncBadge live={liveSync} />}
           {lastUpdate && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Updated {lastUpdate.toLocaleTimeString()}</span>}
@@ -202,7 +202,7 @@ export default function TwentyFivePublic({ teamId }) {
       {loading ? (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}><LoadingSpinner size={32} /></div>
       ) : !hasData ? (
-        <EmptyState icon="⚔" title="No assignments published yet" message={`The raid leader hasn't published ${nightLabel} 25-man assignments yet — check back soon.`} />
+        <EmptyState icon="⚔" title="No assignments published yet" message={`The raid leader hasn't published ${nightLabel} T4 (Gruul/Mag) assignments yet — check back soon.`} />
       ) : (
         <div style={{ flex: 1, overflowY: "auto", padding: space[3] }}>
 

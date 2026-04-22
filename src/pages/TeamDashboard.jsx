@@ -129,12 +129,12 @@ export default function TeamDashboard({ teamId }) {
           )}
         </SummaryCard>
 
-        {/* 25-Man card */}
+        {/* T4 - Gruuls / Mags card */}
         <SummaryCard
           icon="⚔"
-          title="25-Man Raids"
+          title="T4 - Gruuls / Mags"
           description="Gruul's Lair & Magtheridon"
-          onClick={() => navigate(`/${teamId}/25man`)}
+          onClick={() => navigate(`/${teamId}/gruulmag`)}
           loading={loading && FIREBASE_OK}
         >
           {(tfTueSummary || tfThuSummary) ? (<>
@@ -176,7 +176,7 @@ export default function TeamDashboard({ teamId }) {
                     {snap.raidDate || new Date(snap.savedAt).toLocaleDateString()}
                   </div>
                   <div style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, marginTop: 1 }}>
-                    {snap.module === "kara" ? "🏰 Karazhan" : "⚔ 25-Man"}
+                    {snap.module === "kara" ? "🏰 Karazhan" : "⚔ T4"}
                     {snap.raidLeader ? ` · ${snap.raidLeader}` : ""}
                   </div>
                 </div>

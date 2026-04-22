@@ -632,7 +632,7 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
                   if (isKara) navigate("/kara/admin");
                   else if (location.pathname.includes("/ssc")) navigate(`/${teamId || "team-dick"}/ssc/admin`);
                   else if (/\/tk(\/|$)/.test(location.pathname)) navigate(`/${teamId || "team-dick"}/tk/admin`);
-                  else navigate(`/${teamId || "team-dick"}/25man/admin`);
+                  else navigate(`/${teamId || "team-dick"}/gruulmag/admin`);
                 }} style={btnStyle("default")}>Admin →</button>
               )}
             </>
@@ -649,10 +649,10 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
   const isKara    = location.pathname.startsWith("/kara");
 
   const navLinks = [
-    { path: `/kara`,                                     label: "Karazhan",     external: false },
-    { path: `/${teamId || "team-dick"}/25man`,           label: "25-Man Raids", external: false },
-    { path: `/${teamId || "team-dick"}/ssc`,             label: "SSC",          external: false },
-    { path: `/${teamId || "team-dick"}/tk`,              label: "Tempest Keep", external: false },
+    { path: `/kara`,                                     label: "Karazhan",                     external: false },
+    { path: `/${teamId || "team-dick"}/gruulmag`,        label: "T4 - Gruuls / Mags",           external: false },
+    { path: `/${teamId || "team-dick"}/ssc`,             label: "T5 - Serpentshrine Cavern",    external: false },
+    { path: `/${teamId || "team-dick"}/tk`,              label: "T5 - Tempest Keep",            external: false },
     { path: `/rpb`,                                      label: "Combat Log Analytics",      external: false },
     { path: `/profile`,                                  label: "Profile",      external: false },
     { path: "https://professions.nexttopicmoveon.com/", label: "Professions",  external: true  },
@@ -694,13 +694,13 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
         </div>
         {navLinks.map(link => {
           const active =
-            (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))  ||
-            (link.path.includes("/25man")   && location.pathname.includes("/25man"))   ||
-            (link.path.includes("/ssc")     && location.pathname.includes("/ssc"))     ||
-            (link.path.includes("/tk")      && /\/tk(\/|$)/.test(location.pathname))   ||
-            (link.path.includes("/history") && location.pathname.includes("/history")) ||
-            (link.path.includes("/rpb")     && location.pathname.startsWith("/rpb"))   ||
-            (link.path.includes("/profile") && location.pathname.startsWith("/profile"));
+            (link.path.includes("/kara")     && location.pathname.startsWith("/kara"))  ||
+            (link.path.includes("/gruulmag") && location.pathname.includes("/gruulmag")) ||
+            (link.path.includes("/ssc")      && location.pathname.includes("/ssc"))     ||
+            (link.path.includes("/tk")       && /\/tk(\/|$)/.test(location.pathname))   ||
+            (link.path.includes("/history")  && location.pathname.includes("/history")) ||
+            (link.path.includes("/rpb")      && location.pathname.startsWith("/rpb"))   ||
+            (link.path.includes("/profile")  && location.pathname.startsWith("/profile"));
           return (
             <button
               key={link.path}
@@ -729,7 +729,7 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
             </div>
             {RAID_TEAMS.map(team => {
               const active = team.id === teamId;
-              const currentModule = location.pathname.includes("/25man") ? "/25man"
+              const currentModule = location.pathname.includes("/gruulmag") ? "/gruulmag"
                 : location.pathname.includes("/ssc")     ? "/ssc/admin"
                 : /\/tk(\/|$)/.test(location.pathname)   ? "/tk/admin"
                 : location.pathname.includes("/history") ? "/history"
@@ -768,10 +768,10 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
   const isKara    = location.pathname.startsWith("/kara");
 
   const navLinks = [
-    { path: `/kara${adminMode ? "/admin" : ""}`,                           label: "Karazhan",     icon: "KR" },
-    { path: `/${teamId || "team-dick"}/25man${adminMode ? "/admin" : ""}`, label: "25-Man Raids", icon: "25" },
-    { path: `/${teamId || "team-dick"}/ssc${adminMode ? "/admin" : ""}`,   label: "SSC",          icon: "SS" },
-    { path: `/${teamId || "team-dick"}/tk${adminMode ? "/admin" : ""}`,    label: "Tempest Keep", icon: "TK" },
+    { path: `/kara${adminMode ? "/admin" : ""}`,                              label: "Karazhan",                  icon: "KR" },
+    { path: `/${teamId || "team-dick"}/gruulmag${adminMode ? "/admin" : ""}`,  label: "T4 - Gruuls / Mags",        icon: "25" },
+    { path: `/${teamId || "team-dick"}/ssc${adminMode ? "/admin" : ""}`,       label: "T5 - Serpentshrine Cavern", icon: "SS" },
+    { path: `/${teamId || "team-dick"}/tk${adminMode ? "/admin" : ""}`,        label: "T5 - Tempest Keep",         icon: "TK" },
     { path: `/rpb`,                                                        label: "Combat Log Analytics",      icon: "RC" },
     { path: "https://professions.nexttopicmoveon.com/",                    label: "Professions",  icon: "PF", external: true },
   ];
@@ -810,11 +810,11 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
 
         {navLinks.map(link => {
           const active =
-            (link.path.includes("/kara")    && location.pathname.startsWith("/kara"))   ||
-            (link.path.includes("/25man")   && location.pathname.includes("/25man"))    ||
-            (link.path.includes("/ssc")     && location.pathname.includes("/ssc"))      ||
-            (link.path.includes("/tk")      && /\/tk(\/|$)/.test(location.pathname))    ||
-            (link.path.includes("/rpb")     && location.pathname.startsWith("/rpb"));
+            (link.path.includes("/kara")     && location.pathname.startsWith("/kara"))   ||
+            (link.path.includes("/gruulmag") && location.pathname.includes("/gruulmag")) ||
+            (link.path.includes("/ssc")      && location.pathname.includes("/ssc"))      ||
+            (link.path.includes("/tk")       && /\/tk(\/|$)/.test(location.pathname))    ||
+            (link.path.includes("/rpb")      && location.pathname.startsWith("/rpb"));
 
           const handleClick = () => {
             if (link.external) window.open(link.path, "_blank", "noopener noreferrer");
@@ -864,9 +864,9 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
               <button
                 key={team.id}
                 onClick={() => {
-                  const currentModule = location.pathname.includes("/ssc")   ? "/ssc"
-                    : /\/tk(\/|$)/.test(location.pathname) ? "/tk"
-                    : location.pathname.includes("/25man") ? "/25man"
+                  const currentModule = location.pathname.includes("/ssc")      ? "/ssc"
+                    : /\/tk(\/|$)/.test(location.pathname)    ? "/tk"
+                    : location.pathname.includes("/gruulmag") ? "/gruulmag"
                     : "";
                   const adminSuffix = adminMode ? "/admin" : "";
                   navigate(`/${team.id}${currentModule}${adminSuffix}`);
@@ -1012,7 +1012,7 @@ export function SearchBox({ value, onChange, placeholder = "Search…" }) {
 
 // ── Parse scores panel ────────────────────────────────────────────────────────
 // Collapsible sidebar panel showing WCL median performance averages.
-// module: "kara" | "25man" — controls which score column is shown.
+// module: "kara" | "gruulmag" — controls which score column is shown.
 // Pass wclLoading, wclError, wclLastFetch, onRefetch from useWarcraftLogs.
 export function ParseScoresPanel({ scores, roster, module, loading, error, lastFetch, onRefetch, onWclNameChange, showRefresh = false }) {
   const [open,   setOpen]   = useState(true);
@@ -1041,7 +1041,7 @@ export function ParseScoresPanel({ scores, roster, module, loading, error, lastF
       return b.score - a.score;
     });
 
-  const label = module === "kara" ? "Karazhan Parses" : "25-Man Parses";
+  const label = module === "kara" ? "Karazhan Parses" : "T4 Parses";
 
   return (
     <div style={{ borderTop: `1px solid ${border.subtle}`, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>

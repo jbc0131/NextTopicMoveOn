@@ -3,8 +3,8 @@ import TeamSelector     from "./pages/TeamSelector";
 import TeamDashboard    from "./pages/TeamDashboard";
 import KaraPublic       from "./modules/kara/KaraPublic";
 import KaraAdmin        from "./modules/kara/KaraAdmin";
-import TwentyFivePublic from "./modules/25man/TwentyFivePublic";
-import TwentyFiveAdmin  from "./modules/25man/TwentyFiveAdmin";
+import GruulmagPublic   from "./modules/gruulmag/GruulmagPublic";
+import GruulmagAdmin    from "./modules/gruulmag/GruulmagAdmin";
 import SscPublic        from "./modules/ssc/SscPublic";
 import SscAdmin         from "./modules/ssc/SscAdmin";
 import TkPublic         from "./modules/tk/TkPublic";
@@ -29,30 +29,34 @@ export default function App() {
         <Route path="/profile" element={<ProfilePage />} />
 
         {/* Team Dick */}
-        <Route path="/team-dick"             element={<TeamDashboard    teamId="team-dick"  />} />
-        <Route path="/team-dick/25man"       element={<TwentyFivePublic teamId="team-dick"  />} />
-        <Route path="/team-dick/25man/admin" element={<TwentyFiveAdmin  teamId="team-dick"  />} />
-        <Route path="/team-dick/ssc"         element={<SscPublic        teamId="team-dick"  />} />
-        <Route path="/team-dick/ssc/admin"   element={<SscAdmin         teamId="team-dick"  />} />
-        <Route path="/team-dick/tk"          element={<TkPublic         teamId="team-dick"  />} />
-        <Route path="/team-dick/tk/admin"    element={<TkAdmin          teamId="team-dick"  />} />
+        <Route path="/team-dick"                element={<TeamDashboard  teamId="team-dick"  />} />
+        <Route path="/team-dick/gruulmag"       element={<GruulmagPublic teamId="team-dick"  />} />
+        <Route path="/team-dick/gruulmag/admin" element={<GruulmagAdmin  teamId="team-dick"  />} />
+        <Route path="/team-dick/ssc"            element={<SscPublic      teamId="team-dick"  />} />
+        <Route path="/team-dick/ssc/admin"      element={<SscAdmin       teamId="team-dick"  />} />
+        <Route path="/team-dick/tk"             element={<TkPublic       teamId="team-dick"  />} />
+        <Route path="/team-dick/tk/admin"       element={<TkAdmin        teamId="team-dick"  />} />
 
         {/* Team Balls */}
-        <Route path="/team-balls"             element={<TeamDashboard    teamId="team-balls" />} />
-        <Route path="/team-balls/25man"       element={<TwentyFivePublic teamId="team-balls" />} />
-        <Route path="/team-balls/25man/admin" element={<TwentyFiveAdmin  teamId="team-balls" />} />
-        <Route path="/team-balls/ssc"         element={<SscPublic        teamId="team-balls" />} />
-        <Route path="/team-balls/ssc/admin"   element={<SscAdmin         teamId="team-balls" />} />
-        <Route path="/team-balls/tk"          element={<TkPublic         teamId="team-balls" />} />
-        <Route path="/team-balls/tk/admin"    element={<TkAdmin          teamId="team-balls" />} />
+        <Route path="/team-balls"                element={<TeamDashboard  teamId="team-balls" />} />
+        <Route path="/team-balls/gruulmag"       element={<GruulmagPublic teamId="team-balls" />} />
+        <Route path="/team-balls/gruulmag/admin" element={<GruulmagAdmin  teamId="team-balls" />} />
+        <Route path="/team-balls/ssc"            element={<SscPublic      teamId="team-balls" />} />
+        <Route path="/team-balls/ssc/admin"      element={<SscAdmin       teamId="team-balls" />} />
+        <Route path="/team-balls/tk"             element={<TkPublic       teamId="team-balls" />} />
+        <Route path="/team-balls/tk/admin"       element={<TkAdmin        teamId="team-balls" />} />
 
         {/* Legacy redirects */}
-        <Route path="/team-dick/kara"          element={<Navigate to="/kara"          replace />} />
-        <Route path="/team-dick/kara/admin"    element={<Navigate to="/kara/admin"    replace />} />
-        <Route path="/team-balls/kara"         element={<Navigate to="/kara"          replace />} />
-        <Route path="/team-balls/kara/admin"   element={<Navigate to="/kara/admin"    replace />} />
-        <Route path="/team-dick/admin"         element={<Navigate to="/kara/admin"    replace />} />
-        <Route path="/team-balls/admin"        element={<Navigate to="/kara/admin"    replace />} />
+        <Route path="/team-dick/kara"           element={<Navigate to="/kara"                     replace />} />
+        <Route path="/team-dick/kara/admin"     element={<Navigate to="/kara/admin"               replace />} />
+        <Route path="/team-balls/kara"          element={<Navigate to="/kara"                     replace />} />
+        <Route path="/team-balls/kara/admin"    element={<Navigate to="/kara/admin"               replace />} />
+        <Route path="/team-dick/admin"          element={<Navigate to="/kara/admin"               replace />} />
+        <Route path="/team-balls/admin"         element={<Navigate to="/kara/admin"               replace />} />
+        <Route path="/team-dick/25man"          element={<Navigate to="/team-dick/gruulmag"        replace />} />
+        <Route path="/team-dick/25man/admin"    element={<Navigate to="/team-dick/gruulmag/admin"  replace />} />
+        <Route path="/team-balls/25man"         element={<Navigate to="/team-balls/gruulmag"       replace />} />
+        <Route path="/team-balls/25man/admin"   element={<Navigate to="/team-balls/gruulmag/admin" replace />} />
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

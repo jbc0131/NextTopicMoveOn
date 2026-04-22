@@ -325,7 +325,7 @@ function ManualAddPlayer({ onAdd, roster }) {
 }
 
 // ── Roster sidebar ────────────────────────────────────────────────────────────
-function TwentyFiveRosterPanel({ roster, assignments, roleFilter, setRoleFilter, onDragStart, onAddManual, onRemove }) {
+function GruulmagRosterPanel({ roster, assignments, roleFilter, setRoleFilter, onDragStart, onAddManual, onRemove }) {
   const nightRoster = roster;
   const filtered    = nightRoster.filter(s => roleFilter === "All" || getRole(s) === roleFilter);
 
@@ -420,8 +420,8 @@ function CubeTeamsGrid({ assignments, roster, onDrop, onClear, onDragStart }) {
   );
 }
 
-// ── Main TwentyFiveAdmin ──────────────────────────────────────────────────────
-export default function TwentyFiveAdmin({ teamId }) {
+// ── Main GruulmagAdmin ────────────────────────────────────────────────────────
+export default function GruulmagAdmin({ teamId }) {
   const night = teamId === "team-balls" ? "thu" : "tue";
   const [roster,       setRoster]       = useState([]);
   const [assignments,  setAssignments]  = useState({});
@@ -462,7 +462,7 @@ export default function TwentyFiveAdmin({ teamId }) {
 
   useEffect(() => {
     loadNight(night);
-    document.title = `NTMO 25-Man Admin – ${teamId === "team-dick" ? "Tuesday" : "Thursday"}`;
+    document.title = `NTMO T4 Admin – ${teamId === "team-dick" ? "Tuesday" : "Thursday"}`;
   }, [teamId, night, loadNight]);
 
   // ── Auto-save ─────────────────────────────────────────────────────────────
@@ -585,12 +585,12 @@ export default function TwentyFiveAdmin({ teamId }) {
 
   return (
     <AppShell teamId={teamId} adminMode>
-      <ConfirmDialog open={confirmClearOpen} title="Clear All Assignments" message="This will remove all 25-man assignments for this night. Cannot be undone." confirmLabel="Clear All" dangerous onConfirm={() => { setAssignments({}); setTextInputs({}); setConfirmClearOpen(false); }} onCancel={() => setConfirmClearOpen(false)} />
+      <ConfirmDialog open={confirmClearOpen} title="Clear All Assignments" message="This will remove all T4 (Gruul/Mag) assignments for this night. Cannot be undone." confirmLabel="Clear All" dangerous onConfirm={() => { setAssignments({}); setTextInputs({}); setConfirmClearOpen(false); }} onCancel={() => setConfirmClearOpen(false)} />
 
       <ModuleHeader
         icon="⚔"
-        title="25-Man Raids Admin"
-        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / 25-Man`}
+        title="T4 — Gruul's Lair + Magtheridon Admin"
+        breadcrumb={`${teamId === "team-dick" ? "Team Dick" : "Team Balls"} / T4`}
         actions={<>
           <SaveStatus status={saveStatus} />
           <button onClick={() => setShowImport(v => !v)} style={btnStyle("default")}>📂 {roster.length ? `Roster (${roster.length})` : "Import JSON"}</button>
@@ -636,7 +636,7 @@ export default function TwentyFiveAdmin({ teamId }) {
         <EmptyState icon="⚔" title={`No ${nightLabel} roster`} message={`Import the ${nightLabel} JSON to get started`} action="Import JSON" onAction={() => setShowImport(true)} />
       ) : (
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-          <TwentyFiveRosterPanel
+          <GruulmagRosterPanel
             roster={roster}
             assignments={assignments}
             roleFilter={roleFilter}
