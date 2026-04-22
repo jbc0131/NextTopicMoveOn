@@ -648,14 +648,16 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
   const location  = useLocation();
   const isKara    = location.pathname.startsWith("/kara");
 
-  const navLinks = [
-    { path: `/kara`,                                     label: "Karazhan",                     external: false },
-    { path: `/${teamId || "team-dick"}/gruulmag`,        label: "T4 - Gruuls / Mags",           external: false },
-    { path: `/${teamId || "team-dick"}/ssc`,             label: "T5 - Serpentshrine Cavern",    external: false },
-    { path: `/${teamId || "team-dick"}/tk`,              label: "T5 - Tempest Keep",            external: false },
-    { path: `/rpb`,                                      label: "Combat Log Analytics",      external: false },
-    { path: `/profile`,                                  label: "Profile",      external: false },
-    { path: "https://professions.nexttopicmoveon.com/", label: "Professions",  external: true  },
+  const raidLinks = [
+    { path: `/kara`,                                     label: "T4 - Karazhan",             external: false },
+    { path: `/${teamId || "team-dick"}/gruulmag`,        label: "T4 - Gruuls / Mags",        external: false },
+    { path: `/${teamId || "team-dick"}/ssc`,             label: "T5 - Serpentshrine Cavern", external: false },
+    { path: `/${teamId || "team-dick"}/tk`,              label: "T5 - Tempest Keep",         external: false },
+  ];
+  const utilityLinks = [
+    { path: `/rpb`,                                     label: "Combat Log Analytics", external: false },
+    { path: `/profile`,                                 label: "Profile",              external: false },
+    { path: "https://professions.nexttopicmoveon.com/", label: "Professions",          external: true  },
   ];
 
   const go = (link) => {
@@ -688,12 +690,8 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
 
       {/* Nav content */}
       <div style={{ flex: 1, overflowY: "auto", padding: space[4] }}>
-        {/* Modules */}
-        <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[2] }}>
-          Modules
-        </div>
-        {navLinks.map(link => {
-          const active =
+        {(() => {
+          const isLinkActive = (link) =>
             (link.path.includes("/kara")     && location.pathname.startsWith("/kara"))  ||
             (link.path.includes("/gruulmag") && location.pathname.includes("/gruulmag")) ||
             (link.path.includes("/ssc")      && location.pathname.includes("/ssc"))     ||
@@ -701,25 +699,44 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
             (link.path.includes("/history")  && location.pathname.includes("/history")) ||
             (link.path.includes("/rpb")      && location.pathname.startsWith("/rpb"))   ||
             (link.path.includes("/profile")  && location.pathname.startsWith("/profile"));
-          return (
-            <button
-              key={link.path}
-              onClick={() => go(link)}
-              style={{
-                width: "100%", border: "none", textAlign: "left", cursor: "pointer",
-                display: "flex", alignItems: "center", gap: space[3],
-                padding: `${space[3]}px ${space[3]}px`,
-                borderRadius: radius.base, marginBottom: space[1],
-                background: active ? `${accent.blue}18` : "transparent",
-                color: active ? accent.blue : text.secondary,
-                fontSize: fontSize.base, fontFamily: font.sans,
-                borderLeft: active ? `3px solid ${accent.blue}` : `3px solid transparent`,
-              }}
-            >
-              <span>{link.label}</span>
-            </button>
-          );
-        })}
+          const renderLink = (link) => {
+            const active = isLinkActive(link);
+            return (
+              <button
+                key={link.path}
+                onClick={() => go(link)}
+                style={{
+                  width: "100%", border: "none", textAlign: "left", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: space[3],
+                  padding: `${space[3]}px ${space[3]}px`,
+                  borderRadius: radius.base, marginBottom: space[1],
+                  background: active ? `${accent.blue}18` : "transparent",
+                  color: active ? accent.blue : text.secondary,
+                  fontSize: fontSize.base, fontFamily: font.sans,
+                  borderLeft: active ? `3px solid ${accent.blue}` : `3px solid transparent`,
+                }}
+              >
+                <span>{link.label}</span>
+              </button>
+            );
+          };
+          return (<>
+            {/* Raids */}
+            <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[2] }}>
+              Raids
+            </div>
+            {raidLinks.map(renderLink)}
+
+            {/* Divider */}
+            <div style={{ margin: `${space[3]}px 0`, borderTop: `1px solid ${border.subtle}` }} />
+
+            {/* Utility */}
+            <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[2] }}>
+              Utility
+            </div>
+            {utilityLinks.map(renderLink)}
+          </>);
+        })()}
 
         {/* Team switcher */}
         {!isKara && (
@@ -767,14 +784,53 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
   const navigate  = useNavigate();
   const isKara    = location.pathname.startsWith("/kara");
 
-  const navLinks = [
-    { path: `/kara${adminMode ? "/admin" : ""}`,                              label: "Karazhan",                  icon: "KR" },
-    { path: `/${teamId || "team-dick"}/gruulmag${adminMode ? "/admin" : ""}`,  label: "T4 - Gruuls / Mags",        icon: "25" },
-    { path: `/${teamId || "team-dick"}/ssc${adminMode ? "/admin" : ""}`,       label: "T5 - Serpentshrine Cavern", icon: "SS" },
-    { path: `/${teamId || "team-dick"}/tk${adminMode ? "/admin" : ""}`,        label: "T5 - Tempest Keep",         icon: "TK" },
-    { path: `/rpb`,                                                        label: "Combat Log Analytics",      icon: "RC" },
-    { path: "https://professions.nexttopicmoveon.com/",                    label: "Professions",  icon: "PF", external: true },
+  const raidLinks = [
+    { path: `/kara${adminMode ? "/admin" : ""}`,                              label: "T4 - Karazhan",             icon: "KR" },
+    { path: `/${teamId || "team-dick"}/gruulmag${adminMode ? "/admin" : ""}`, label: "T4 - Gruuls / Mags",        icon: "25" },
+    { path: `/${teamId || "team-dick"}/ssc${adminMode ? "/admin" : ""}`,      label: "T5 - Serpentshrine Cavern", icon: "SS" },
+    { path: `/${teamId || "team-dick"}/tk${adminMode ? "/admin" : ""}`,       label: "T5 - Tempest Keep",         icon: "TK" },
   ];
+  const utilityLinks = [
+    { path: `/rpb`,                                     label: "Combat Log Analytics", icon: "RC" },
+    { path: "https://professions.nexttopicmoveon.com/", label: "Professions",          icon: "PF", external: true },
+  ];
+
+  const isLinkActive = (link) =>
+    (link.path.includes("/kara")     && location.pathname.startsWith("/kara"))   ||
+    (link.path.includes("/gruulmag") && location.pathname.includes("/gruulmag")) ||
+    (link.path.includes("/ssc")      && location.pathname.includes("/ssc"))      ||
+    (link.path.includes("/tk")       && /\/tk(\/|$)/.test(location.pathname))    ||
+    (link.path.includes("/rpb")      && location.pathname.startsWith("/rpb"));
+
+  const handleNavClick = (link) => {
+    if (link.external) window.open(link.path, "_blank", "noopener noreferrer");
+    else navigate(link.path);
+  };
+
+  const renderLink = (link) => {
+    const active = isLinkActive(link);
+    return (
+      <button
+        key={link.path}
+        onClick={() => handleNavClick(link)}
+        title={collapsed ? link.label : undefined}
+        style={{
+          ...navItemStyle(active), width: "100%", border: "none",
+          textAlign: "left", justifyContent: collapsed ? "center" : "flex-start",
+          padding: collapsed ? `${space[2]}px 0` : undefined,
+        }}
+      >
+        <span style={{
+          fontSize: 10, color: active ? accent.blue : text.disabled,
+          fontFamily: font.mono, fontWeight: fontWeight.bold,
+          minWidth: collapsed ? undefined : 20,
+        }}>
+          {link.icon}
+        </span>
+        {!collapsed && <span>{link.label}{link.external && <span style={{ fontSize: 9, color: text.disabled, marginLeft: 4 }}>↗</span>}</span>}
+      </button>
+    );
+  };
 
   const COLLAPSED_WIDTH = 44;
 
@@ -787,11 +843,11 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
     }}>
       {/* Module nav */}
       <div style={{ padding: `${space[2]}px 0`, borderBottom: `1px solid ${border.subtle}` }}>
-        {/* Header row with collapse toggle */}
+        {/* Raids section — header row with collapse toggle */}
         <div style={{ padding: `${space[1]}px ${space[3]}px ${space[2]}px`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {!collapsed && (
             <span style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-              Modules
+              Raids
             </span>
           )}
           <button
@@ -808,41 +864,21 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
           </button>
         </div>
 
-        {navLinks.map(link => {
-          const active =
-            (link.path.includes("/kara")     && location.pathname.startsWith("/kara"))   ||
-            (link.path.includes("/gruulmag") && location.pathname.includes("/gruulmag")) ||
-            (link.path.includes("/ssc")      && location.pathname.includes("/ssc"))      ||
-            (link.path.includes("/tk")       && /\/tk(\/|$)/.test(location.pathname))    ||
-            (link.path.includes("/rpb")      && location.pathname.startsWith("/rpb"));
+        {raidLinks.map(renderLink)}
 
-          const handleClick = () => {
-            if (link.external) window.open(link.path, "_blank", "noopener noreferrer");
-            else navigate(link.path);
-          };
+        {/* Divider between Raids and Utility */}
+        <div style={{ margin: `${space[2]}px ${collapsed ? space[2] : space[3]}px`, borderTop: `1px solid ${border.subtle}` }} />
 
-          return (
-            <button
-              key={link.path}
-              onClick={handleClick}
-              title={collapsed ? link.label : undefined}
-              style={{
-                ...navItemStyle(active), width: "100%", border: "none",
-                textAlign: "left", justifyContent: collapsed ? "center" : "flex-start",
-                padding: collapsed ? `${space[2]}px 0` : undefined,
-              }}
-            >
-              <span style={{
-                fontSize: 10, color: active ? accent.blue : text.disabled,
-                fontFamily: font.mono, fontWeight: fontWeight.bold,
-                minWidth: collapsed ? undefined : 20,
-              }}>
-                {link.icon}
-              </span>
-              {!collapsed && <span>{link.label}{link.external && <span style={{ fontSize: 9, color: text.disabled, marginLeft: 4 }}>↗</span>}</span>}
-            </button>
-          );
-        })}
+        {/* Utility section */}
+        {!collapsed && (
+          <div style={{ padding: `0 ${space[3]}px ${space[2]}px` }}>
+            <span style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Utility
+            </span>
+          </div>
+        )}
+
+        {utilityLinks.map(renderLink)}
       </div>
 
       {/* Parse panel — hidden when collapsed */}
