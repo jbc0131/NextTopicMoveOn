@@ -57,6 +57,30 @@ SSC encounter IDs for WCL: Hydross 623 · Lurker 624 · Leotheras 625 · Karathr
 **e. Text-area affordance (low priority)** — several SSC slots use `textInput: true` for multi-line notes (Inner Demon Kill Priority, Burn Phase Plan, Core Chain Backup, Whirlwind Drop-Aggro Plan). They render as single-line `<input>`. If users find them cramped in practice, add a `textArea: true` variant to `AssignmentRow` and swap the element.
 
 **f. Pattern re-use for TK** — SSC's three files (`src/shared/constants.js` SSC_* exports + `SSC_BOSSES` wrapper, `SscAdmin.jsx`, `SscPublic.jsx`, plus Firestore helpers) are the template to copy for Tempest Keep. If the duplication between `TwentyFiveAdmin.jsx` / `SscAdmin.jsx` / future `TkAdmin.jsx` becomes painful, factor `AssignmentRow` / `AssignmentPanel` / `ManualAddPlayer` / `RosterPanel` into `shared/components.jsx`. Not worth doing until TK is in flight — YAGNI for now.
+[Update 2026-04-22: TK is in flight. `TkAdmin.jsx` / `TkPublic.jsx` are now duplicates of the SSC files. Three near-identical admin components is enough weight to justify extracting the shared `AssignmentRow` / `AssignmentPanel` / `ManualAddPlayer` / roster panel. 25-man's cube-group conflict logic is the one thing that makes a full unification awkward; the simplest path is a generic `<BossRaidAdmin bosses={BOSSES} moduleKey saveState fetchState />` wrapper that SSC and TK use, with 25-man staying on its own for now.]
+
+**g. TK — same follow-ups as SSC.** Parse scores (WCL encounter IDs for TK: Al'ar 730 · Void Reaver 731 · Solarian 732 · Kael'thas 733), snapshots (`raid/{teamId}/tk-snapshots/{id}`), TeamDashboard card (`fetchTkSummary` ready), and data validation on Dreamscythe (especially Solarian P1 add composition and Kael P4 Nether Vapor vs Gravity Lapse interactions) all apply symmetrically to TK.
+
+---
+
+### 0.5. Mobile Team-Switcher Passes a String to `go()` That Expects an Object
+
+In `MobileNavOverlay` (`src/shared/components.jsx` ~line 738), the team-switcher buttons call `onClick={() => go(\`/${team.id}${currentModule}\`)}` — passing a string. But `go` is defined as:
+
+```js
+const go = (link) => {
+  if (link.external) { window.open(link.path, "_blank", ...); onClose(); }
+  else { navigate(link.path); onClose(); }
+};
+```
+
+It accesses `link.external` and `link.path`, so a string argument silently resolves to `navigate(undefined)` → nav doesn't happen. This breaks team-switching on mobile for **every** module (25-man, SSC, TK, History).
+
+**Why:** The nav-link buttons in the same overlay use `go(link)` with a link object, so the pattern was cargo-culted onto the team switcher without noticing the shape mismatch.
+
+**Fix sketch:** either change the team-switcher to call `navigate` directly (`onClick={() => { navigate(\`/${team.id}${currentModule}${adminSuffix}\`); onClose(); }}`), or normalize `go` to accept both shapes. Also consider mirroring the desktop behavior of respecting `adminMode` for the `/admin` suffix — the current hardcoded `/ssc/admin` / `/tk/admin` in `currentModule` will drop public-view mobile users onto `/admin` routes they can't access.
+
+Pre-existing bug, surfaced while wiring TK. Doesn't block any desktop workflows.
 
 ---
 
