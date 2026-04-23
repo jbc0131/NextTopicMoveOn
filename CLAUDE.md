@@ -19,7 +19,7 @@ NTMO (Next Topic Move On) is a private raid assignment management platform for a
 | **Team Dick** | `/team-dick` | Tuesday | `raid/team-dick/` |
 | **Team Balls** | `/team-balls` | Thursday | `raid/team-balls/` |
 
-Karazhan and Raid History are **teamless** — shared across both teams at `/kara` and `/history`.
+Karazhan is **teamless** — shared across both teams at `/kara`. Historical raid archives are served by the Combat Log Analytics module (`/rpb`).
 
 ---
 
@@ -35,12 +35,11 @@ Karazhan and Raid History are **teamless** — shared across both teams at `/kar
 - Entire site gated behind Discord login (including `/` landing page)
 - User avatar, display name, and "Sign out" shown in header for all logged-in users
 - "Admin" button only visible to users with admin roles
-- Karazhan admin (`/kara/admin`) — import Tue/Thu JSON rosters, drag-and-drop team assignments, spec cycling, conflict detection, copy Discord output, WCL parse scores, snapshot/history
+- Karazhan admin (`/kara/admin`) — import Tue/Thu JSON rosters, drag-and-drop team assignments, spec cycling, conflict detection, copy Discord output, WCL parse scores
 - T4 (Gruul / Mag) admin (`/:teamId/gruulmag/admin`, aliased as "T4 - Gruuls / Mags" in sidebar) — drag-and-drop Gruul/Mag assignments, manual player add, import JSON, save/auto-save to Firebase. Module is called `gruulmag` in code; Firestore paths remain `25man-*` to preserve live data
 - T5 SSC admin (`/:teamId/ssc/admin`, sidebar: "T5 - Serpentshrine Cavern") — 6-boss SSC module, same admin pattern
 - T5 TK admin (`/:teamId/tk/admin`, sidebar: "T5 - Tempest Keep") — 4-boss TK module, same admin pattern
-- Raid History (`/history`) — consolidated view of both teams, All/Tuesday/Thursday filter, RPB iFrame, CLA iFrame, collapsible assignments
-- Raid History Admin (`/history/admin`) — add raid week, edit WCL/RPB/CLA URLs, delete snapshots, tag night, night auto-fetched from WCL URL
+- Combat Log Analytics (`/rpb`) — WCL-based historical raid archive and analytics (replaces the old Raid History module)
 - Public views for all modules — read-only, search by name, mobile responsive
 - Mobile hamburger nav with full-screen overlay
 - Collapsible desktop sidebar (expands/collapses to icon rail)
@@ -49,8 +48,6 @@ Karazhan and Raid History are **teamless** — shared across both teams at `/kar
 - TeamSelector landing page at `/`
 
 ### Not Yet Built
-- Kara history (intentionally excluded — 25-man only)
-- Attendance tracker on history
 - Phase 5 features (see NEXT_SESSION.md)
 
 ---
@@ -85,9 +82,8 @@ src/
     tk/
       TkAdmin.jsx                  — /:teamId/tk/admin ("T5 - Tempest Keep")
       TkPublic.jsx                 — /:teamId/tk
-    history/
-      HistoryView.jsx              — /history (public, both teams)
-      HistoryAdmin.jsx             — /history/admin
+    rpb/
+      RpbPage.jsx                  — /rpb (Combat Log Analytics; WCL historical archive)
 api/
   auth/
     discord.js                     — Vercel serverless: redirect to Discord OAuth
@@ -104,8 +100,9 @@ api/
 /                          → TeamSelector (Discord login required)
 /kara                      → KaraPublic (teamless, member role required)
 /kara/admin                → KaraAdmin (teamless, admin role required)
-/history                   → HistoryView (teamless, both teams, member role required)
-/history/admin             → HistoryAdmin (admin role required)
+/rpb                       → RpbPage (Combat Log Analytics; WCL historical archive)
+/rpb/:raidId               → RpbPage (single-raid view)
+/profile                   → ProfilePage
 /:teamId                   → Legacy redirect to / (the per-team dashboard page was removed in favor of the home page's nested team cards)
 /:teamId/gruulmag          → GruulmagPublic (member role required)
 /:teamId/gruulmag/admin    → GruulmagAdmin (admin role required)
@@ -114,28 +111,25 @@ api/
 /:teamId/tk                → TkPublic
 /:teamId/tk/admin          → TkAdmin
 Legacy redirects: /:teamId/25man → /:teamId/gruulmag, /:teamId/25man/admin → /:teamId/gruulmag/admin
-Legacy redirects: /team-dick/history → /history, etc.
 ```
 
 ### Firebase Schema
 
 ```
-raid-kara/live                        — Kara live state (teamless)
-raid-kara-snapshots/{id}              — Kara snapshots
-raid/{teamId}/25man-tue/live          — Tuesday T4 (Gruul/Mag) live state [path kept as "25man-*" post-rename]
-raid/{teamId}/25man-thu/live          — Thursday T4 (Gruul/Mag) live state [path kept as "25man-*" post-rename]
-raid/{teamId}/25man-snapshots/{id}    — T4 snapshots (has night: "tue"|"thu" field; module metadata still "25man")
-raid/{teamId}/ssc/live                — T5 SSC live state
-raid/{teamId}/tk/live                 — T5 TK live state
+raid-kara/live                  — Kara live state (teamless)
+raid/{teamId}/25man-tue/live     — Tuesday T4 (Gruul/Mag) live state [path kept as "25man-*" post-rename]
+raid/{teamId}/25man-thu/live     — Thursday T4 (Gruul/Mag) live state [path kept as "25man-*" post-rename]
+raid/{teamId}/ssc/live           — T5 SSC live state
+raid/{teamId}/tk/live            — T5 TK live state
 ```
+
+Legacy `raid-kara-snapshots/*` and `raid/{teamId}/25man-snapshots/*` documents still exist in Firestore from before historical archiving moved to RPB. No code reads or writes them — safe to leave in place or purge.
 
 ### Firestore Rules
 ```javascript
 match /raid/{teamId} { allow read, write: if true; }
 match /raid/{teamId}/{module}/{docId} { allow read, write: if true; }
-match /raid/{teamId}/25man-snapshots/{snapId} { allow read, write: if true; }
 match /raid-kara/{docId} { allow read, write: if true; }
-match /raid-kara-snapshots/{snapId} { allow read, write: if true; }
 ```
 
 ---
@@ -181,9 +175,7 @@ match /raid-kara-snapshots/{snapId} { allow read, write: if true; }
 ## Key Design Decisions
 
 - **Kara is teamless** — single `/kara` route, single Firebase doc. Tuesday = Team Dick roster, Thursday = Team Balls roster. Both managed in one admin page.
-- **History is teamless** — `/history` fetches from both `team-dick` and `team-balls` 25man-snapshots in parallel, merges and sorts by date.
-- **WCL/RPB/CLA URLs live in History Admin** — removed from T4 admin. Workflow: assign in T4/T5 admin → add to history in History Admin.
-- **Snapshot button removed from T4 admin** — creating history entries now happens exclusively via History Admin → Add Raid Week.
+- **Historical archives live in Combat Log Analytics (RPB)** — the old snapshot-based `/history` module was removed; WCL-driven RPB is now the canonical archive. Raid admins publish assignments live; history and analytics come from WCL via RPB.
 - **T4/T5 sidebar naming** — the 25-man module was renamed `gruulmag` (sidebar: "T4 - Gruuls / Mags"). SSC sidebar: "T5 - Serpentshrine Cavern". TK sidebar: "T5 - Tempest Keep". Internal Firestore paths for the T4 module remain `raid/{teamId}/25man-*` to preserve production data; the `saveTwentyFiveState` / `fetchTwentyFiveState` function names also stayed. SSC and TK use their own identifiers (`ssc`, `tk`) end-to-end.
 - **Auth is two-tier** — member role for site access, admin role for admin pages. All pages require Discord login. Password gate is fallback only.
 - **Parse scores refresh button** — only shown in admin views (`showRefresh` prop on `ParseScoresPanel`). Hidden in public views.
@@ -207,5 +199,4 @@ match /raid-kara-snapshots/{snapId} { allow read, write: if true; }
 
 **CRITICAL:** GitHub web editor is the deploy mechanism. No local repo.
 - Edit files directly in GitHub → commit → Vercel auto-deploys from `main` branch
-- Root-level `modules/`, `shared/`, `pages/` folders exist as dead weight from early zip extraction errors — leave them, they don't affect the build (Vite only bundles what `src/App.jsx` imports)
 - Always edit files under `src/` — that's what Vite builds from

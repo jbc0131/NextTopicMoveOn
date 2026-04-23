@@ -120,8 +120,6 @@ export default function TkPublic({ teamId }) {
   const viewAssignments = data?.assignments ?? {};
   const viewRoster      = data?.roster      ?? [];
   const viewTextInputs  = data?.textInputs  ?? {};
-  const viewRaidDate    = data?.raidDate;
-  const viewRaidLeader  = data?.raidLeader;
   const hasData         = viewRoster.length > 0;
 
   const currentBoss = TK_BOSSES.find(b => b.id === activeBoss) || TK_BOSSES[0];
@@ -149,13 +147,6 @@ export default function TkPublic({ teamId }) {
         <EmptyState icon="⚡" title="No TK assignments published yet" message="The raid leader hasn't published TK assignments yet — check back soon." />
       ) : (
         <div style={{ flex: 1, overflowY: "auto", padding: space[3] }}>
-
-          {(viewRaidDate || viewRaidLeader) && (
-            <div style={{ marginBottom: space[3], fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, display: "flex", gap: space[3] }}>
-              {viewRaidDate   && <span>📅 {viewRaidDate}</span>}
-              {viewRaidLeader && <span>👤 {viewRaidLeader}</span>}
-            </div>
-          )}
 
           {/* Boss tab bar */}
           <div style={{

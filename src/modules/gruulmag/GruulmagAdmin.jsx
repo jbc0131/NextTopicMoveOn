@@ -427,8 +427,6 @@ export default function GruulmagAdmin({ teamId }) {
   const [assignments,  setAssignments]  = useState({});
   const [textInputs,   setTextInputs]   = useState({});
   const [dividers,     setDividers]     = useState([]);
-  const [raidDate,     setRaidDate]     = useState("");
-  const [raidLeader,   setRaidLeader]   = useState("");
   const [activeTab,    setActiveTab]    = useState("mags");
   const [dragSlot,     setDragSlot]     = useState(null);
   const [dragSourceKey, setDragSourceKey] = useState(null);
@@ -453,10 +451,8 @@ export default function GruulmagAdmin({ teamId }) {
       setAssignments(s.assignments || {});
       setTextInputs(s.textInputs || {});
       setDividers(s.dividers || []);
-      setRaidDate(s.raidDate || "");
-      setRaidLeader(s.raidLeader || "");
     } else {
-      setRoster([]); setAssignments({}); setTextInputs({}); setDividers([]); setRaidDate(""); setRaidLeader("");
+      setRoster([]); setAssignments({}); setTextInputs({}); setDividers([]);
     }
   }, [teamId]);
 
@@ -473,7 +469,7 @@ export default function GruulmagAdmin({ teamId }) {
     if (!FIREBASE_OK) return;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
-      const state = { roster, assignments, textInputs, dividers, raidDate, raidLeader };
+      const state = { roster, assignments, textInputs, dividers };
       saveState(state, teamId, `25man-${night}`);
       try {
         setSaveStatus("saving");
@@ -482,10 +478,10 @@ export default function GruulmagAdmin({ teamId }) {
         setTimeout(() => setSaveStatus("idle"), 2000);
       } catch (e) { setSaveStatus("error"); setTimeout(() => setSaveStatus("idle"), 3000); }
     }, 4000);
-  }, [roster, assignments, textInputs, raidDate, raidLeader]);
+  }, [roster, assignments, textInputs]);
 
   const handleSave = useCallback(async () => {
-    const state = { roster, assignments, textInputs, dividers, raidDate, raidLeader };
+    const state = { roster, assignments, textInputs, dividers };
     saveState(state, teamId, `25man-${night}`);
     if (!FIREBASE_OK) { setSaveStatus("offline"); return; }
     setSaveStatus("saving");
@@ -494,7 +490,7 @@ export default function GruulmagAdmin({ teamId }) {
       setSaveStatus("saved"); setHasUnsaved(false);
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (e) { setSaveStatus("error"); setTimeout(() => setSaveStatus("idle"), 4000); }
-  }, [roster, assignments, textInputs, dividers, raidDate, raidLeader, teamId, night]);
+  }, [roster, assignments, textInputs, dividers, teamId, night]);
 
   // ── Import ────────────────────────────────────────────────────────────────
   const handleImportJSON = useCallback((text) => {
@@ -618,18 +614,6 @@ export default function GruulmagAdmin({ teamId }) {
           </div>
         </div>
       )}
-
-      {/* Raid date / leader inputs */}
-      <div style={{ padding: `${space[2]}px ${space[3]}px`, background: surface.panel, borderBottom: `1px solid ${border.subtle}`, display: "flex", gap: space[3], alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
-          <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Raid Date</span>
-          <input value={raidDate} onChange={e => setRaidDate(e.target.value)} placeholder="e.g. 3-18-26" style={{ ...inputStyle, width: 100, fontSize: fontSize.xs }} />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
-          <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>Raid Leader</span>
-          <input value={raidLeader} onChange={e => setRaidLeader(e.target.value)} placeholder="Name" style={{ ...inputStyle, width: 120, fontSize: fontSize.xs }} />
-        </div>
-      </div>
 
       {/* Main content */}
       {roster.length === 0 ? (

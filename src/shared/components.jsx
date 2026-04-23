@@ -697,7 +697,6 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
             (link.path.includes("/gruulmag") && location.pathname.includes("/gruulmag")) ||
             (link.path.includes("/ssc")      && location.pathname.includes("/ssc"))     ||
             (link.path.includes("/tk")       && /\/tk(\/|$)/.test(location.pathname))   ||
-            (link.path.includes("/history")  && location.pathname.includes("/history")) ||
             (link.path.includes("/rpb")      && location.pathname.startsWith("/rpb"))   ||
             (link.path.includes("/profile")  && location.pathname.startsWith("/profile"));
           const renderLink = (link) => {
@@ -747,15 +746,15 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
             </div>
             {RAID_TEAMS.map(team => {
               const active = team.id === teamId;
-              const currentModule = location.pathname.includes("/gruulmag") ? "/gruulmag"
-                : location.pathname.includes("/ssc")     ? "/ssc/admin"
-                : /\/tk(\/|$)/.test(location.pathname)   ? "/tk/admin"
-                : location.pathname.includes("/history") ? "/history"
+              const adminSuffix = adminMode ? "/admin" : "";
+              const currentModule = location.pathname.includes("/gruulmag") ? `/gruulmag${adminSuffix}`
+                : location.pathname.includes("/ssc")     ? `/ssc${adminSuffix}`
+                : /\/tk(\/|$)/.test(location.pathname)   ? `/tk${adminSuffix}`
                 : "";
               return (
                 <button
                   key={team.id}
-                  onClick={() => go(`/${team.id}${currentModule}`)}
+                  onClick={() => { navigate(`/${team.id}${currentModule}`); onClose(); }}
                   style={{
                     width: "100%", border: "none", textAlign: "left", cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "space-between",

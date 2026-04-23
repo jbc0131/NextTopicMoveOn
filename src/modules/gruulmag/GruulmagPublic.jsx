@@ -173,8 +173,6 @@ export default function GruulmagPublic({ teamId }) {
   const viewAssignments = data?.assignments ?? {};
   const viewRoster      = data?.roster ?? [];
   const viewTextInputs  = data?.textInputs ?? {};
-  const viewRaidDate    = data?.raidDate;
-  const viewRaidLeader  = data?.raidLeader;
   const hasData         = viewRoster.length > 0;
   const nightColor      = night === "tue" ? intent.success : accent.blue;
   const nightLabel      = night === "tue" ? "Tuesday" : "Thursday";
@@ -205,14 +203,6 @@ export default function GruulmagPublic({ teamId }) {
         <EmptyState icon="⚔" title="No assignments published yet" message={`The raid leader hasn't published ${nightLabel} T4 (Gruul/Mag) assignments yet — check back soon.`} />
       ) : (
         <div style={{ flex: 1, overflowY: "auto", padding: space[3] }}>
-
-          {/* Date / leader bar */}
-          {(viewRaidDate || viewRaidLeader) && (
-            <div style={{ marginBottom: space[3], fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, display: "flex", gap: space[3] }}>
-              {viewRaidDate   && <span>📅 {viewRaidDate}</span>}
-              {viewRaidLeader && <span>👤 {viewRaidLeader}</span>}
-            </div>
-          )}
 
           {/* Tab bar — segmented control style */}
           <div style={{
