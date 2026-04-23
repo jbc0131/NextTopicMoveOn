@@ -47,7 +47,7 @@ Copy the whole object.
 
 ## Step 4 — Paste config into the app
 
-Open `src/firebase.js` and replace the placeholder block:
+Open `src/shared/firebase.js` and replace the placeholder block:
 
 ```js
 // BEFORE
@@ -79,19 +79,19 @@ To make it so only your app can write (but anyone can read):
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Anyone can read assignments (public view)
-    match /raid/assignments {
-      allow read: always;
-      // Only requests with the right secret can write
-      // For a simple setup, leave write open and rely on the admin password
-      allow write: if true;
-    }
+    // Team-scoped live state (25-man tue/thu, SSC, TK)
+    match /raid/{teamId} { allow read, write: if true; }
+    match /raid/{teamId}/{module}/{docId} { allow read, write: if true; }
+
+    // Teamless Karazhan live state
+    match /raid-kara/{docId} { allow read, write: if true; }
   }
 }
 ```
 
-> For a more secure setup down the road, add Firebase Authentication
-> and restrict writes to authenticated users.
+> Write protection comes from Discord OAuth at the application layer —
+> admin pages are gated behind `DISCORD_ALLOWED_ROLE_IDS`. The Firestore
+> rules are permissive because the site itself is the only client.
 
 ---
 
@@ -110,17 +110,21 @@ Then push to Vercel (or run `npx vercel`).
 
 | Action | Result |
 |--------|--------|
-| Admin drags player, clicks **☁️ Save & Publish** | Writes to Firestore |
+| Admin drags player (auto-save runs after ~4s idle) | Writes to Firestore |
 | Anyone with the public URL opens the page | Reads from Firestore in real-time |
 | Admin updates assignments | Public page updates **instantly** (no refresh needed) |
-| Firebase not configured | Falls back to localStorage silently |
+| Firebase not configured | Falls back to `localStorage` silently |
 
 ---
 
-## Changing the admin password
+## Admin access
 
-Open `src/AdminView.jsx`, line 13:
+Admin access is gated by Discord OAuth (see `CLAUDE.md` → Authentication).
+Configure these Vercel env vars to enable it:
 
-```js
-const ADMIN_PASSWORD = "raidlead"; // ← change this!
-```
+- `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`
+- `DISCORD_GUILD_ID`, `DISCORD_ALLOWED_ROLE_IDS`, `DISCORD_MEMBER_ROLE_IDS`
+- `AUTH_SECRET`
+
+If Discord env vars are not configured, the site falls back to a simple
+password gate (`Admin` / `NTMO6969`) on admin pages only.

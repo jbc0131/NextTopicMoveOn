@@ -1,15 +1,15 @@
 # NTMO Raid Platform — Product Specification
 
-**Version:** 1.0.0  
-**Last updated:** March 18, 2026  
-**Guild:** Next Topic Move On (NTMO)  
+**Version:** 2.0.0
+**Last updated:** April 23, 2026
+**Guild:** Next Topic Move On (NTMO)
 **Server:** Dreamscythe (WoW TBC Anniversary)
 
 ---
 
 ## Overview
 
-The NTMO Raid Platform is a private, guild-internal web application for managing World of Warcraft TBC Anniversary raid assignments. It provides a real-time, drag-and-drop assignment interface for raid leaders, a live public view for raiders to check their assignments, and a historical record of past raids with performance analysis tools.
+The NTMO Raid Platform is a private, guild-internal web application for managing World of Warcraft TBC Anniversary raid assignments. It provides a real-time, drag-and-drop assignment interface for raid leaders, a live public view for raiders to check their assignments, and WCL-backed historical analytics.
 
 **Core value:** Replace Discord-based manual assignment coordination with a structured, persistent, real-time tool that works on desktop and mobile.
 
@@ -17,16 +17,16 @@ The NTMO Raid Platform is a private, guild-internal web application for managing
 
 ## Teams
 
-| Team | Day | Raid Night |
-|------|-----|-----------|
-| Team Dick | Tuesday | 25-Man progression (Gruul, Magtheridon) + Karazhan |
-| Team Balls | Thursday | 25-Man progression (Gruul, Magtheridon) + Karazhan |
+| Team | Raid Night | Content |
+|------|-----------|---------|
+| Team Dick  | Tuesday  | Karazhan + T4 (Gruul / Mag) + T5 (SSC, TK) |
+| Team Balls | Thursday | Karazhan + T4 (Gruul / Mag) + T5 (SSC, TK) |
 
 ---
 
 ## Modules
 
-### Karazhan (`/kara`)
+### Karazhan — `/kara` (teamless)
 
 10-man content. Three teams of 10, each split into 2 groups of 5. Runs Tuesday AND Thursday — both nights use the same admin page, same Firebase document.
 
@@ -41,103 +41,87 @@ The NTMO Raid Platform is a private, guild-internal web application for managing
 - 3 teams × 2 groups × 5 slots = 30 slots per night
 - Utility tracker per team (Remove Curse, Dispel Magic, Cure Poison, Cure Disease, Interrupt, Bloodlust)
 - Tank / Healer counts per team
-- Unplaced vs placed player indicators in roster sidebar
 
-**Discord output:**
-- Per-night "Copy Discord" button
-- Output format: `<@discordUserId>` mentions grouped by team and group
-
-**History:**
-- Snapshot on demand
-- WCL report URL submission (locks week)
-- RPB Sheet URL + CLA URL
-- Week slider to browse historical snapshots
+**Discord output:** per-night "Copy Discord" button using `<@discordUserId>` mentions grouped by team and group.
 
 ---
 
-### 25-Man Raids (`/:teamId/25man`)
+### T4 Gruul / Mag — `/:teamId/gruulmag` (per team)
 
-25-man content. Team Dick = Tuesday, Team Balls = Thursday. Each team has its own live state and snapshot history.
+25-man. Sidebar label: "T4 - Gruuls / Mags". Module is called `gruulmag` in code; Firestore paths stay `raid/{teamId}/25man-{night}/*` to preserve live production data.
 
 **Bosses:**
 1. **Magtheridon** (tab loads first — first boss of the night)
    - Phase 2 panel on LEFT (primary), Phase 1 Channelers on RIGHT
-   - Cube Clickers shown at top of Phase 2 with gold PRIMARY ASSIGNMENT styling
+   - Cube Clickers at top of Phase 2 with gold PRIMARY ASSIGNMENT styling
    - Cube Healers labeled distinctly from Cube Clickers
 2. **Gruul's Lair** — High King Maulgar + Gruul the Dragonkiller
 
-**General assignments** (bottom of page, shared across both bosses):
-- Warlock Curses (4 rows)
-- Trash Interrupts (8 marker rows with WoW target icons)
+**General assignments** (bottom of page, shared across both bosses): Warlock Curses, Trash Interrupts.
 
-**Roster:**
-- Import JSON roster
-- Manual Add Player — name + class + spec, creates draggable badge
-- Role filter (All / Tank / Healer / DPS)
-- WCL parse scores in sidebar
+**Roster:** JSON import, Manual Add Player, role filter (All / Tank / Healer / DPS).
 
-**Assignment UI:**
-- Drag-and-drop from roster to assignment rows
-- Drag between assignment rows (move players)
-- ✕ button to remove from slot
-- Cube group conflict detection (can't be in two cube groups)
-- Text input for Shatter Groups (Gruul)
+**Assignment UI:** Drag-and-drop with cube-group conflict detection, text input for Shatter Groups (Gruul).
 
 ---
 
-### Raid History (`/history`)
+### T5 Serpentshrine Cavern — `/:teamId/ssc` (per team)
 
-Consolidated view of all 25-man raid history across both teams.
+Sidebar label: "T5 - Serpentshrine Cavern". 6 bosses: Hydross, Lurker Below, Leotheras, Karathress, Morogrim, Vashj.
 
-**Public view:**
-- Filter: All / Tuesday / Thursday
-- Each week card shows: date, lock status, night tag, links to WCL/RPB/CLA
-- Expand a week to see:
-  1. RPB Sheet iFrame (Role Performance Breakdown)
-  2. CLA Sheet iFrame (Combat Log Analysis)
-  3. Collapsible raid assignments section (roster + key assignments)
+Same admin pattern as T4: JSON roster import, drag-and-drop, boss tab bar, auto-save to Firestore. Firestore path: `raid/{teamId}/ssc/live`.
 
-**Admin view (`/history/admin`):**
-- Add Raid Week modal:
-  - Select night (Tuesday = Team Dick, Thursday = Team Balls)
-  - WCL Report URL (auto-fetches raid date, locks the week)
-  - RPB Sheet URL (optional)
-  - CLA URL (optional)
-  - Pulls current live assignments from Firebase for that team/night
-- Edit existing weeks (expand card): update any URL, change night tag
-- Delete week (with confirmation)
-- Night unset detection — red badge + auto-expand for snapshots missing the `night` field
-- Team Dick / Team Balls chip on each card
+---
+
+### T5 Tempest Keep — `/:teamId/tk` (per team)
+
+Sidebar label: "T5 - Tempest Keep". 4 bosses: Al'ar, Void Reaver, Solarian, Kael'thas.
+
+Same admin pattern as SSC. Firestore path: `raid/{teamId}/tk/live`.
+
+---
+
+### Combat Log Analytics (RPB) — `/rpb`
+
+WCL-driven historical archive and analytics. Ingests Warcraft Logs report URLs and computes per-raid, per-fight, and per-player metrics directly from WCL data. Replaces the retired snapshot-based `/history` module.
+
+Single-raid drilldown available at `/rpb/:raidId`.
 
 ---
 
 ### Professions
 
-External link to https://professions.nexttopicmoveon.com/ — opens in new tab. Listed as a module in the sidebar.
+External link to https://professions.nexttopicmoveon.com/ — opens in new tab. Listed as a utility link in the sidebar.
+
+---
+
+## Authentication
+
+All pages require Discord login.
+
+**Two tiers (role-based, checked at OAuth callback via the bot's guild-members API):**
+- **Member roles** (`DISCORD_MEMBER_ROLE_IDS`) — access to any page
+- **Admin roles** (`DISCORD_ALLOWED_ROLE_IDS`) — access to `/admin` pages
+
+Sessions are signed JWTs in an `httpOnly` `Secure` `SameSite=Lax` cookie (`ntmo_auth`), 7-day expiry. User info (avatar, display name) shown in the header with "Sign out". The "Admin" header button is hidden from non-admins.
+
+**Fallback:** when Discord env vars are not configured, a simple `Admin` / `NTMO6969` password gate activates on admin routes only (public pages stay open).
 
 ---
 
 ## Admin Features
 
-### Password Gate
-All admin routes are protected by a simple password gate:
-- Username: `Admin`
-- Password: `NTMO6969`
-- Session persists via `sessionStorage` (survives refresh, clears on tab close)
-- Planned replacement: Discord OAuth
-
 ### Parse Scores Sidebar
 - Shows WarcraftLogs Median Performance Average for all roster players
-- Kara scores on Kara admin, Gruul/Mags scores on 25-Man admin
+- Kara scores on Kara admin, Gruul/Mags scores on Gruul/Mag admin
+- SSC and TK parse-score wiring is pending (see NEXT_SESSION.md)
 - Sorted descending by score
 - WCL name override — click a player's name to set a different WarcraftLogs character name
 - **Refresh button** visible in admin only (not shown in public views)
-- 10-minute cache via sessionStorage
+- 10-minute cache via `sessionStorage`
 
-### Snapshots
-- Admin can snapshot current week's assignments at any time
-- WCL URL submission auto-fetches raid date and locks the snapshot
-- Locked snapshots appear in Raid History public view with iFrame embeds
+### Auto-save
+Assignment admin pages auto-save to Firestore after ~4s of idle time. Manual save button also present. Local `localStorage` mirror as an offline fallback.
 
 ---
 
@@ -145,11 +129,10 @@ All admin routes are protected by a simple password gate:
 
 ### Desktop Sidebar
 - Collapsible — `«` / `»` toggle collapses to 44px icon rail
-- Collapsed state: icon-only (KR, 25, HX, PF), tooltips on hover
+- Sections: **Raids** (T4 Karazhan, T4 Gruuls / Mags, T5 Serpentshrine Cavern, T5 Tempest Keep) and **Utility** (Combat Log Analytics, Profile, Professions ↗)
 - Collapsed state hides: parse scores panel, team switcher
-- Links: Karazhan, 25-Man Raids, Raid History, Professions ↗
 - Team switcher (below parse panel) — switches between Team Dick and Team Balls, preserving current module and admin/public state
-- Team switcher hidden on teamless routes (kara, history)
+- Team switcher hidden on teamless routes (kara, rpb)
 
 ### Mobile (< 768px)
 - Sidebar hidden entirely
@@ -161,11 +144,14 @@ All admin routes are protected by a simple password gate:
 
 ## WarcraftLogs Integration
 
-**Score types:**
-- `kara` — Karazhan median parse
-- `gruulMags` — Gruul/Magtheridon median parse
+**API files (Vercel serverless):**
+- `api/warcraftlogs.js` — GraphQL proxy, returns parse scores for the roster
+- `api/warcraftlogs-report.js` — v1 REST proxy for report fights/friendlies (used by RPB)
+
+**Current score types returned:** `kara`, `gruulMags`. SSC and TK pending — see NEXT_SESSION.md for encounter IDs and the plumbing plan.
 
 **Parse color scale (WarcraftLogs official):**
+
 | Score | Color |
 |-------|-------|
 | 100 | Gold (`#e5cc80`) |
@@ -176,56 +162,46 @@ All admin routes are protected by a simple password gate:
 | 25–49 | Green (`#1eff00`) |
 | 0–24 | Grey (`#9d9d9d`) |
 
+**Cache key:** `wcl_scores_v6_{teamId}_{module}` in `sessionStorage`, 10-minute TTL.
+
 ---
 
 ## Public View Features
 
 - **Search by name** — highlights matching player badges across all assignment rows
 - **Live sync badge** — green dot + "LIVE" when Firebase is connected
-- **Week slider** — browse historical snapshots
-- **Locked week display** — RPB Sheet + CLA iFrame embeds when week is locked
 - **Mobile responsive** — panels stack vertically before clipping
+- **Read-only** — no drag-and-drop; changes published by admin appear in real-time via Firestore `onSnapshot`
 
 ---
 
 ## Data Architecture
 
-### Firebase Firestore
+### Firebase Firestore (live state only)
 
 | Path | Contents |
 |------|----------|
-| `raid-kara/live` | Kara live state (rosterTue, rosterThu, assignments, specOverrides, raidDateTue, raidDateThu) |
-| `raid-kara-snapshots/{id}` | Kara historical snapshots |
-| `raid/{teamId}/25man-tue/live` | Tuesday 25-man live state |
-| `raid/{teamId}/25man-thu/live` | Thursday 25-man live state |
-| `raid/{teamId}/25man-snapshots/{id}` | 25-man snapshots (includes `night: "tue"/"thu"`) |
+| `raid-kara/live` | Kara live state (rosterTue, rosterThu, assignments, specOverrides, per-night raid dates) |
+| `raid/{teamId}/25man-tue/live` | Tuesday T4 (Gruul/Mag) live state |
+| `raid/{teamId}/25man-thu/live` | Thursday T4 (Gruul/Mag) live state |
+| `raid/{teamId}/ssc/live` | T5 SSC live state |
+| `raid/{teamId}/tk/live` | T5 TK live state |
 
-### Snapshot Schema (25-Man)
-```json
-{
-  "roster": [...],
-  "assignments": { "key": ["playerId", ...] },
-  "textInputs": { "key": "text" },
-  "raidDate": "3-18-26",
-  "raidLeader": "Name",
-  "night": "tue",
-  "savedAt": "ISO timestamp",
-  "locked": true,
-  "wclReportUrl": "https://fresh.warcraftlogs.com/reports/...",
-  "sheetUrl": "https://docs.google.com/spreadsheets/.../htmlview",
-  "combatLogUrl": "https://docs.google.com/spreadsheets/.../htmlview"
-}
-```
+Live-state documents contain: `roster`, `assignments`, `textInputs`, `dividers`, `updatedAt`. (Kara has its own richer shape.)
+
+Historical archives are served by RPB, which persists ingested WCL reports separately. The assignment modules do not write snapshot collections.
+
+**Legacy:** `raid-kara-snapshots/*` and `raid/{teamId}/25man-snapshots/*` documents exist from before history retirement. No code reads or writes them; safe to purge.
 
 ---
 
 ## Non-Goals (Explicitly Out of Scope)
 
 - Multi-guild / multi-server support
-- Character gear tracking / BiS lists
+- Character gear tracking / BiS lists (RPB surfaces a few gear issues but is not a BiS tracker)
 - DKP or loot tracking
 - Guild bank management
-- Discord bot integration (roster JSON is imported manually)
-- Mobile admin view
+- Automated Discord posting (the Copy Discord button is manual by design)
+- Discord bot integration for roster sync (JSON import is manual by design)
+- Mobile admin view (admin is desktop-only)
 - In-app voice communication
-- Automated Discord posting (copy button is manual)

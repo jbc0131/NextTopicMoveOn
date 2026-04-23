@@ -27,19 +27,25 @@ src/
     constants.js       — Game data only. No UI logic.
     firebase.js        — All Firebase helpers. No UI imports.
     useWarcraftLogs.js — WCL hook only.
+    auth.js            — Discord OAuth hook + helpers.
     components.jsx     — ALL shared UI components.
-  pages/               — Route-level page components
-  modules/             — Feature modules (kara, 25man, history)
-    kara/
-    25man/
-    history/
+  pages/               — Route-level page components (TeamSelector, ProfilePage)
+  modules/             — Feature modules
+    kara/              — T4 Karazhan (teamless)
+    gruulmag/          — T4 Gruul / Magtheridon (per team)
+    ssc/               — T5 Serpentshrine Cavern (per team)
+    tk/                — T5 Tempest Keep (per team)
+    rpb/               — Combat Log Analytics (historical archive)
 api/                   — Vercel serverless functions (not under src/)
+  auth/                — Discord OAuth endpoints
+  warcraftlogs.js      — WCL GraphQL proxy
+  warcraftlogs-report.js — WCL v1 REST proxy (fights)
 ```
 
 **Rules:**
 - Never put Firebase logic in a component file — it goes in `src/shared/firebase.js`
 - Never put design tokens inline in components — import from `src/shared/theme.js`
-- Never put game data (MAGS_P2, KARA_TUE_TEAMS, etc.) in components — import from `src/shared/constants.js`
+- Never put game data (MAGS_P2, SSC_BOSSES, etc.) in components — import from `src/shared/constants.js`
 - All shared UI primitives live in `src/shared/components.jsx` — not in module folders
 - Module-specific components (e.g. KaraDropRow) live inside the module file, not in shared
 
@@ -49,7 +55,6 @@ api/                   — Vercel serverless functions (not under src/)
 
 - **No local repo** — all edits happen in the GitHub web editor
 - **Always edit files under `src/`** — Vite only bundles from `src/App.jsx` imports
-- Root-level `modules/`, `shared/`, `pages/` are dead weight from early zip errors — ignore them
 - Commit in GitHub → Vercel auto-deploys from `main` branch
 - Check Vercel build logs immediately after committing — build errors appear within ~30 seconds
 
@@ -60,8 +65,8 @@ api/                   — Vercel serverless functions (not under src/)
 ### AppShell
 
 Every page wraps in `AppShell`. Props:
-- `teamId` — pass for team-scoped pages, omit for teamless (kara, history)
-- `adminMode` — `true` enables password gate + admin styling
+- `teamId` — pass for team-scoped pages, omit for teamless (kara, rpb)
+- `adminMode` — `true` requires Discord admin role (or password-gate fallback) and applies admin styling
 - `parsePanelContent` — JSX for the parse scores panel in the sidebar
 
 ```jsx
@@ -152,18 +157,32 @@ Key tokens:
 
 ---
 
+## Authentication
+
+All pages require Discord login (via `DiscordLoginGate` in `AppShell`).
+
+Two tiers, checked at OAuth callback time via the bot's guild-members API:
+- **Member roles** (`DISCORD_MEMBER_ROLE_IDS`) — access to any page
+- **Admin roles** (`DISCORD_ALLOWED_ROLE_IDS`) — access to `/admin` pages
+
+The auth state comes from `useAuth()` in `src/shared/auth.js`. Check `auth.isAdmin` before rendering admin chrome. Admin-only navigation is hidden from non-admins.
+
+If Discord env vars are not configured (e.g. local dev), `PasswordGate` activates on admin routes only — public pages stay open. Do not rely on the password gate for production.
+
+---
+
 ## Firebase Patterns
 
 ### Saving state
 Always `sanitize()` before writing to Firestore (removes `undefined` values which Firestore rejects).
 
-### Snapshot fields
-25-man snapshots must always include `night: "tue" | "thu"` — this field drives the Tuesday/Thursday filters in History.
+### Paths
+- Kara live (teamless): `raid-kara/live`
+- T4 Gruul/Mag: `raid/{teamId}/25man-{night}/live` — path kept as `25man-*` post-rename to preserve production data; the module is called `gruulmag` in code
+- T5 SSC: `raid/{teamId}/ssc/live`
+- T5 TK: `raid/{teamId}/tk/live`
 
-### Teamless paths
-- Kara live: `raid-kara/live`
-- Kara snapshots: `raid-kara-snapshots/{id}`
-- 25-man: `raid/{teamId}/25man-{night}/live` and `raid/{teamId}/25man-snapshots/{id}`
+Historical archives are handled by the RPB (Combat Log Analytics) module — no snapshot collections are written by the assignment modules.
 
 ---
 
@@ -210,7 +229,8 @@ Cube Clickers first (primary assignment), then Tank, then Healers. This order co
 ## Anti-Patterns (Never Do These)
 
 - **Don't use IIFEs in JSX** — they cause bracket mismatch errors. Extract to named components.
-- **Don't import from root-level `modules/` or `shared/`** — always import from `src/shared/` or `src/modules/`
 - **Don't add `teamId` to useEffect dependency arrays in teamless components** — KaraAdmin is teamless and crashed because of this
-- **Don't put the Snapshot/WCL submit UI in 25-Man admin** — this now lives exclusively in History Admin
+- **Don't reintroduce snapshot helpers in the assignment modules** — historical archives are RPB's concern; assignment modules write live state only
 - **Don't show the Refresh button in public ParseScoresPanel** — use `showRefresh` prop, default is `false`
+- **Don't rename the `25man-*` Firestore paths** — the module is called `gruulmag` in code, but the Firestore paths stay `25man-*` to preserve production data
+- **Don't pass a string to `go()` in `MobileNavOverlay`** — it expects a `{ path, external }` link object. Use `navigate()` directly for ad-hoc navigation

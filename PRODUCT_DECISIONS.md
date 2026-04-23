@@ -34,32 +34,43 @@ Read this before proposing architectural changes.
 
 ---
 
-### History Is Teamless
-**Decision:** `/history` fetches from both `team-dick` and `team-balls` 25man-snapshots and merges them.
+### Historical Archives Live in Combat Log Analytics (RPB), Not a Snapshot-Based History Module
+**Decision:** The snapshot-based `/history` module was retired. Historical raid archives and analytics are served by the Combat Log Analytics module (`/rpb`), which ingests Warcraft Logs reports directly.
 
-**Why:** A raid leader wants to see all raid history in one place, filtered by Tuesday or Thursday. Having to navigate to `/team-dick/history` vs `/team-balls/history` to see different nights is poor UX — especially when the goal is to compare performance week-over-week across both teams.
+**Why:** The old history module had multiple overlapping concerns — it captured assignment snapshots, stored post-raid URLs (WCL/RPB/CLA), and rendered an iFrame of the old Google Sheets RPB/CLA for analysis. RPB replaces all three: it's the canonical archive, it reads directly from WCL (no manual URL pasting), and it does real analytics instead of embedding a spreadsheet. The snapshot-based approach became dead weight.
 
-**What was rejected:** Team-scoped history routes. Initially implemented this way, but feedback showed players couldn't find their Tuesday or Thursday history without knowing which team to navigate to. Consolidated into one view.
+**What was rejected:** Keeping `/history` alongside RPB. Parallel archives invite drift and confuse users about where to look for past raids. One canonical source wins.
 
----
-
-### WCL/RPB/CLA URLs in History Admin, Not 25-Man Admin
-**Decision:** The WarcraftLogs URL submission, RPB Sheet URL, and Combat Log URL inputs were removed from 25-Man Admin and moved exclusively to History Admin.
-
-**Why:** These URLs are post-raid metadata — you paste them after the raid ends when logs are uploaded. Putting them in the assignment admin mixes the "setup for tonight's raid" workflow with the "document last night's raid" workflow. Separating them makes both workflows cleaner.
-
-**Workflow:** Assign in 25-Man Admin → After raid: open History Admin → Add Raid Week → paste WCL URL (auto-dates) + sheet URLs.
-
-**What was rejected:** Keeping WCL submit in 25-Man Admin alongside assignments. Rejected because it created UI clutter on the most-used admin page and confused the two workflows.
+**Legacy:** Snapshot Firestore collections (`raid-kara-snapshots/*`, `raid/{teamId}/25man-snapshots/*`) still exist with their pre-retirement contents. No code reads or writes them — they can be purged when convenient.
 
 ---
 
-### Snapshot Button Removed from 25-Man Admin
-**Decision:** The "Snapshot" button was removed from 25-Man Admin. History entries are now created exclusively via History Admin → Add Raid Week.
+### 25-Man Module Renamed to `gruulmag` (Firestore Paths Kept)
+**Decision:** The in-code module name was changed from `25man` to `gruulmag`. The sidebar label became "T4 - Gruuls / Mags". Firestore paths stay `raid/{teamId}/25man-*`, and the Firebase helper names (`saveTwentyFiveState`, `fetchTwentyFiveState`) stayed.
 
-**Why:** The snapshot button in 25-Man Admin created orphaned history entries with no WCL/RPB/CLA URLs attached. Raiders would see empty weeks in history with no useful information. The new workflow ensures that every history entry is created with intent and with the supporting URLs attached.
+**Why:** With T5 content (SSC, TK) landing, "25-Man" stopped being a useful module name — SSC and TK are also 25-man content. The sidebar labels now use WoW's tier naming ("T4 - Gruuls / Mags", "T5 - Serpentshrine Cavern", "T5 - Tempest Keep") which is how the guild refers to them in practice. The Firestore paths were not renamed because the live production documents already exist at those paths and renaming would require a migration.
 
-**What was rejected:** Keeping the snapshot button for "quick saves without URLs." Rejected because the History Admin's Add Raid Week modal is fast enough and produces better-quality history entries.
+**What was rejected:** A full rename including Firestore paths. Considered but the migration risk outweighed the cosmetic benefit — every raider opening the page during the rename would hit an empty module.
+
+---
+
+### TeamDashboard Page Removed; Home Page Shows Nested Team Cards
+**Decision:** The per-team landing page at `/:teamId` was removed in favor of the home page showing nested Raids / Utility cards with Team Dick / Team Balls sub-cards per raid module.
+
+**Why:** The TeamDashboard's job was to route a user who picked a team into their Tue/Thu schedule. But once the home page started showing both teams side-by-side, TeamDashboard became a one-extra-click detour that didn't add information.
+
+**What was rejected:** Keeping TeamDashboard as an optional intermediate step. Rejected because nobody was navigating to it intentionally — it was just in the way.
+
+**Legacy:** `/:teamId` is now a permanent redirect to `/` to preserve old Discord links.
+
+---
+
+### Raid Date / Raid Leader Fields Removed from Assignment Admin
+**Decision:** The raid date and raid leader text inputs in the Gruul/Mag, SSC, and TK admin pages were removed. The Firebase save shape no longer includes them.
+
+**Why:** Raid date auto-populates from the WCL report when an archive is created — manual entry was redundant and invited typos. Raid leader was never displayed anywhere useful. Both fields added UI clutter without earning their space.
+
+**What was rejected:** Keeping the fields for completeness. Rejected because unused UI is worse than missing UI.
 
 ---
 
@@ -95,15 +106,17 @@ Read this before proposing architectural changes.
 
 ---
 
-### Admin Gate via sessionStorage
-**Decision:** The password gate stores the unlocked state in `sessionStorage` rather than `localStorage` or a cookie.
+### Discord OAuth with Password Gate as Fallback
+**Decision:** Authentication is two-tier Discord OAuth, with the old shared password (`Admin` / `NTMO6969`) retained as a fallback that only activates when Discord env vars are missing.
 
-**Why:** 
-- `sessionStorage` persists across page refreshes (so the raid leader doesn't have to re-enter the password if they accidentally refresh mid-raid) 
-- `sessionStorage` clears when the browser tab is closed (so the password doesn't persist indefinitely on shared computers)
-- It's a temporary solution anyway — Discord OAuth is the intended replacement
+**Why:** Discord is already the guild's source of truth for membership and roles — we can derive both site access and admin access from it without maintaining a separate account system. Two tiers (member role for site access, admin role for admin pages) map cleanly to the "public vs admin" split the app already had. The password fallback keeps local dev and misconfigured deploys usable without a hard dependency on Discord being reachable.
 
-**What was rejected:** `localStorage` (too persistent — survives browser restart). Cookies (more complex to implement for a temporary solution).
+**Implementation:** Discord OAuth2 + bot token (used as an API credential from Vercel serverless functions, not hosted). Sessions are signed JWTs in an httpOnly cookie with a 7-day expiry.
+
+**What was rejected:**
+- Shared password only — doesn't scale beyond a small group and offers no accountability.
+- Firebase Auth — another account system the guild would need to manage; Discord already answers "is this person a guild member."
+- Per-user admin assignment in the app — admin is already a Discord role, so duplicating it in the app would drift.
 
 ---
 
@@ -126,21 +139,6 @@ Read this before proposing architectural changes.
 ---
 
 ## Rejected Features
-
-### Attendance Tracker
-**Considered:** Show who was present vs absent compared to the full roster for each historical week.
-
-**Not yet built:** Deferred for a future session. The comparison baseline (roster-at-time-of-snapshot vs current-roster) is straightforward but requires careful handling of player name changes and roster changes over time.
-
-### Boss Kill Tracker
-**Considered:** Checkboxes per week for which bosses were killed.
-
-**Not yet built:** Deferred. Would be a useful addition to history cards but wasn't urgent enough to build in Session 1.
-
-### Kara History
-**Considered:** Historical view for Karazhan snapshots alongside 25-Man history.
-
-**Not yet built:** Intentionally excluded from Session 1. The data exists in Firebase (`raid-kara-snapshots`) but the public history view only shows 25-Man snapshots. Kara history should be a filter tab in the consolidated `/history` view.
 
 ### Discord Bot Integration
 **Rejected:** Connect the Discord bot's roster JSON directly to Firebase rather than requiring manual import.

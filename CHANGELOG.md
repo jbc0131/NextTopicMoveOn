@@ -2,6 +2,82 @@
 
 ---
 
+## Session 3 — March 20 – April 23, 2026
+
+### Combat Log Analytics (RPB)
+
+The bulk of this session: the RPB (Role Performance Breakdown) Google Sheets workflow was rebuilt as an in-app module at `/rpb`. RPB ingests Warcraft Logs reports directly and computes per-raid, per-fight, and per-player analytics without the old spreadsheet intermediate step. It replaces the snapshot-based history module as the canonical archive.
+
+**Module shape:**
+- WCL report URL / ID ingestion with per-user API credentials (Profile page)
+- Raid list with parse-leader cards (color-coded by parse bucket)
+- Per-raid drilldown at `/rpb/:raidId` with tab query params
+- Threat graph tab with death timeline, misdirection overlays, boss target timeline, raider selector, consecration handling, blood frenzy estimate
+- Potions + mana recovery timeline, drums log notice
+- Debuff coverage timelines, boss debuff breakdown tab
+- Death log with healing-received windows
+- Gear issue checks (permanent enchants, off-hand enchants, temporary weapon enchants, gem quality thresholds)
+- Discord webhook posting for new reports, with role mentions and fight durations
+- Mobile item preview modal
+- Selective import flow and re-import action
+- Server-side persistence via `/api/rpb-store` (Upstash Redis), with local-only fallback
+
+### T5 Modules
+
+- **T5 Serpentshrine Cavern** shipped at `/:teamId/ssc` and `/:teamId/ssc/admin` — 6 bosses (Hydross, Lurker, Leotheras, Karathress, Morogrim, Vashj), same admin pattern as Gruul/Mag
+- **T5 Tempest Keep** shipped at `/:teamId/tk` and `/:teamId/tk/admin` — 4 bosses (Al'ar, Void Reaver, Solarian, Kael'thas), same admin pattern as SSC
+- WCL parse-score wiring for SSC and TK intentionally deferred (see NEXT_SESSION.md)
+
+### 25-Man Module Renamed to `gruulmag`
+
+- In-code module name changed from `25man` to `gruulmag`
+- Sidebar relabeled: "T4 - Gruuls / Mags", "T5 - Serpentshrine Cavern", "T5 - Tempest Keep"
+- Firestore paths kept as `raid/{teamId}/25man-*` (migration-free), helper names `saveTwentyFiveState` / `fetchTwentyFiveState` retained
+- Legacy redirects added for `/:teamId/25man → /:teamId/gruulmag`
+
+### Home Page Restructure
+
+- `TeamDashboard` page at `/:teamId` removed — now a permanent redirect to `/`
+- Home page shows nested Raids / Utility cards with Team Dick / Team Balls sub-cards per raid module
+- Section headers dropped, non-team emojis stripped, Karazhan card fixed
+- `fetchKaraSummary` / `fetchTwentyFiveSummary` / `fetchSscSummary` / `fetchTkSummary` helpers pruned
+
+### Sidebar
+
+- Split into two sections: **Raids** and **Utility**
+- Raids: T4 Karazhan, T4 Gruuls / Mags, T5 SSC, T5 TK
+- Utility: Combat Log Analytics, Profile, Professions ↗
+- Raid modules labeled by tier
+
+### Kara Admin
+
+- Remove player button added to Kara and gruulmag admin rosters
+- Slot swap action in Kara admin
+- Confirmation dialog before posting Kara roster to Discord
+- Per-night Discord webhooks with tank-named teams in the Kara output
+
+### Profile Page
+
+- New `/profile` page for per-user WCL API credentials (v1 key + v2 client ID/secret) and character aliases
+- User profiles persisted via `/api/profile-store` with local fallback
+
+### Cleanup (April 23)
+
+- **History module retired** — the snapshot-based `/history` module and its admin were removed; RPB is the canonical archive. Deleted `HistoryView`/`HistoryAdmin` references, dropped 9 unused snapshot helpers and `fetchAllSnapshots` from `src/shared/firebase.js`, removed dead `/history` branches from `components.jsx`, deleted orphaned `src/AnalysisView.jsx`
+- **Raid date / raid leader fields removed** from gruulmag, SSC, TK admin + public views and their Firebase save shapes — the fields were redundant once RPB auto-fetched dates from WCL
+- **Mobile team-switcher bug fixed** — `MobileNavOverlay` was passing a string to `go()` which expected a link object; replaced with a direct `navigate()` call that also respects `adminMode` for the admin suffix
+- **Root-level dead folders deleted** — `modules/`, `shared/`, `pages/`, `scripts/` (leftover from early zip-extraction errors; not referenced by the Vite build)
+- Stale references pruned from `CLAUDE.md` and `NEXT_SESSION.md`
+
+### Bug Fixes (notable)
+
+- Header admin/public toggle sending SSC users to 25-man
+- Various RPB import error paths (non-JSON responses, last-import JSON parse path)
+- RPB card leader selection across parse buckets and roles
+- Mobile item preview modal regressions
+
+---
+
 ## Session 2 — March 19, 2026
 
 ### Discord OAuth Authentication
