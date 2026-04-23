@@ -70,30 +70,6 @@ function readLocalUserProfile(discordId) {
   return profiles[String(discordId)] || null;
 }
 
-export async function saveRpbRaidImport(raid) {
-  const payload = sanitize({
-    ...raid,
-    id: raid.id || `${raid.reportId}-${raid.start ?? "0"}-${raid.end ?? "0"}`,
-    importedAt: raid.importedAt || new Date().toISOString(),
-  });
-
-  upsertLocalRpbRaid(payload);
-
-  try {
-    const response = await fetch("/api/rpb-store", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Failed to save RPB raid import");
-    return data;
-  } catch {
-    return { persistence: "local", raidId: payload.id, raid: payload };
-  }
-}
-
 export async function fetchRpbRaidList(maxCount = 25) {
   try {
     const response = await fetch(`/api/rpb-store?maxCount=${encodeURIComponent(String(maxCount))}`);

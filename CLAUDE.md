@@ -90,8 +90,10 @@ api/
     callback.js                    — Vercel serverless: OAuth callback, role check, set JWT cookie
     me.js                          — Vercel serverless: check auth state from cookie
     logout.js                      — Vercel serverless: clear auth cookie
-  warcraftlogs.js                  — Vercel serverless: WCL GraphQL proxy
-  warcraftlogs-report.js           — Vercel serverless: WCL v1 REST proxy (fights)
+  warcraftlogs.js                  — Vercel serverless: WCL GraphQL proxy (parse scores)
+  rpb-import.js                    — Vercel serverless: RPB raid-import pipeline
+  rpb-store.js                     — Vercel serverless: RPB persistence (Upstash Redis)
+  profile-store.js                 — Vercel serverless: user profile persistence
 ```
 
 ### Routes
@@ -188,8 +190,9 @@ match /raid-kara/{docId} { allow read, write: if true; }
 ## WarcraftLogs Integration
 
 **API files (Vercel serverless):**
-- `api/warcraftlogs.js` — GraphQL proxy, POST `{ players: [{name, role}] }`, returns `{ [name]: { kara, gruulMags, found } }`
-- `api/warcraftlogs-report.js` — v1 REST proxy, `fights` action returns `{ title, start, end, fights[], friendlies[] }`
+- `api/warcraftlogs.js` — GraphQL proxy, POST `{ players: [{name, role}] }`, returns `{ [name]: { kara, gruulMags, found } }` (used by the parse-scores panel)
+
+RPB does its own WCL ingestion server-side via `RPB/server/rpbImportService.js`, called from `api/rpb-import.js`.
 
 **Hook:** `useWarcraftLogs(roster, { teamId, module })` — cache key `wcl_scores_v6_{teamId}_{module}`, 10min TTL via sessionStorage
 

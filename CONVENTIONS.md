@@ -38,8 +38,10 @@ src/
     rpb/               — Combat Log Analytics (historical archive)
 api/                   — Vercel serverless functions (not under src/)
   auth/                — Discord OAuth endpoints
-  warcraftlogs.js      — WCL GraphQL proxy
-  warcraftlogs-report.js — WCL v1 REST proxy (fights)
+  warcraftlogs.js      — WCL GraphQL proxy (parse scores)
+  rpb-import.js        — RPB raid-import pipeline
+  rpb-store.js         — RPB persistence (Upstash Redis)
+  profile-store.js     — User profile persistence
 ```
 
 **Rules:**

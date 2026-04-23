@@ -145,8 +145,9 @@ Assignment admin pages auto-save to Firestore after ~4s of idle time. Manual sav
 ## WarcraftLogs Integration
 
 **API files (Vercel serverless):**
-- `api/warcraftlogs.js` — GraphQL proxy, returns parse scores for the roster
-- `api/warcraftlogs-report.js` — v1 REST proxy for report fights/friendlies (used by RPB)
+- `api/warcraftlogs.js` — GraphQL proxy, returns parse scores for the roster (powers the parse scores panel)
+
+RPB's WCL ingestion runs server-side via `RPB/server/rpbImportService.js`, invoked through `api/rpb-import.js`.
 
 **Current score types returned:** `kara`, `gruulMags`. SSC and TK pending — see NEXT_SESSION.md for encounter IDs and the plumbing plan.
 
