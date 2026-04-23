@@ -647,7 +647,12 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
 function MobileNavOverlay({ teamId, adminMode, onClose }) {
   const navigate  = useNavigate();
   const location  = useLocation();
-  const isKara    = location.pathname.startsWith("/kara");
+  const adminSuffix = adminMode ? "/admin" : "";
+  const currentModule = location.pathname.includes("/gruulmag") ? `/gruulmag${adminSuffix}`
+    : location.pathname.includes("/ssc")   ? `/ssc${adminSuffix}`
+    : /\/tk(\/|$)/.test(location.pathname) ? `/tk${adminSuffix}`
+    : "";
+  const showTeamSwitcher = currentModule !== "";
 
   const raidLinks = [
     { path: `/kara`,                                     label: "T4 - Karazhan",             external: false },
@@ -738,19 +743,14 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
           </>);
         })()}
 
-        {/* Team switcher */}
-        {!isKara && (
+        {/* Team switcher — hidden on teamless routes (kara, rpb, profile, home) */}
+        {showTeamSwitcher && (
           <>
             <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: space[6], marginBottom: space[2] }}>
               Team
             </div>
             {RAID_TEAMS.map(team => {
               const active = team.id === teamId;
-              const adminSuffix = adminMode ? "/admin" : "";
-              const currentModule = location.pathname.includes("/gruulmag") ? `/gruulmag${adminSuffix}`
-                : location.pathname.includes("/ssc")     ? `/ssc${adminSuffix}`
-                : /\/tk(\/|$)/.test(location.pathname)   ? `/tk${adminSuffix}`
-                : "";
               return (
                 <button
                   key={team.id}
@@ -782,7 +782,12 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
 function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleCollapse }) {
   const location  = useLocation();
   const navigate  = useNavigate();
-  const isKara    = location.pathname.startsWith("/kara");
+  const adminSuffix = adminMode ? "/admin" : "";
+  const currentModule = location.pathname.includes("/gruulmag") ? `/gruulmag${adminSuffix}`
+    : location.pathname.includes("/ssc")   ? `/ssc${adminSuffix}`
+    : /\/tk(\/|$)/.test(location.pathname) ? `/tk${adminSuffix}`
+    : "";
+  const showTeamSwitcher = currentModule !== "";
 
   const raidLinks = [
     { path: `/kara${adminMode ? "/admin" : ""}`,                              label: "T4 - Karazhan",             icon: "KR" },
@@ -888,8 +893,8 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
         </div>
       )}
 
-      {/* Team switcher — hidden on kara routes, hidden when collapsed */}
-      {!isKara && !collapsed && (
+      {/* Team switcher — hidden on teamless routes (kara, rpb, profile, home) and when collapsed */}
+      {showTeamSwitcher && !collapsed && (
         <div style={{ padding: space[3], borderTop: `1px solid ${border.subtle}` }}>
           <div style={{ fontSize: fontSize.xs, color: text.muted, fontWeight: fontWeight.medium, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: space[2] }}>
             Team
@@ -899,14 +904,7 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
             return (
               <button
                 key={team.id}
-                onClick={() => {
-                  const currentModule = location.pathname.includes("/ssc")      ? "/ssc"
-                    : /\/tk(\/|$)/.test(location.pathname)    ? "/tk"
-                    : location.pathname.includes("/gruulmag") ? "/gruulmag"
-                    : "";
-                  const adminSuffix = adminMode ? "/admin" : "";
-                  navigate(`/${team.id}${currentModule}${adminSuffix}`);
-                }}
+                onClick={() => navigate(`/${team.id}${currentModule}`)}
                 style={{
                   width: "100%", border: "none", cursor: "pointer", textAlign: "left",
                   padding: `${space[1]}px ${space[2]}px`, borderRadius: radius.base,

@@ -303,7 +303,7 @@ function TkRosterPanel({ roster, roleFilter, setRoleFilter, onDragStart, onAddMa
   );
 }
 
-// ── Main SscAdmin ─────────────────────────────────────────────────────────────
+// ── Main TkAdmin ──────────────────────────────────────────────────────────────
 export default function TkAdmin({ teamId }) {
   const [roster,        setRoster]        = useState([]);
   const [assignments,   setAssignments]   = useState({});
