@@ -270,12 +270,10 @@ export const SSC_HYDROSS = [
   { key: "ssc_hy_adds_frost",   label: "Frost Add Tank",                         role: "Tank",   hint: "2 adds on nature→frost transition" },
   { key: "ssc_hy_adds_nature",  label: "Nature Add Tank",                        role: "Tank",   hint: "4 adds on frost→nature transition" },
   // Healer Assignments
-  { key: "ssc_hy_mth1",         label: "Main Tank Heal",                         role: "Healer", hint: "" },
+  { key: "ssc_hy_mth1",         label: "Tank Heal",                              role: "Healer", hint: "" },
   { key: "ssc_hy_addheal1",     label: "Add Tank Heal",                          role: "Healer", hint: "" },
   { key: "ssc_hy_rheal",        label: "Raid Heal",                              role: "Healer", hint: "" },
   // Misc Assignments
-  { key: "ssc_hy_decurse",      label: "Decurse (Mages / Druids)",               role: "DPS", roleLabel: "Misc Assignments", hint: "Curse of the Shaman from Tainted Spawns" },
-  { key: "ssc_hy_cleanse",      label: "Poison Cleanse (Paladins / Druids)",     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_hy_nr_aura",      label: "Tank Group Nature Resistance Aura",      role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_hy_md_frost",     label: "Misdirect - Frost Side",                 role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_hy_md_nature",    label: "Misdirect - Nature Side",                role: "DPS", roleLabel: "Misc Assignments", hint: "" },
@@ -289,12 +287,12 @@ export const SSC_LURKER = [
   // Bloodlust callout
   { key: "ssc_lu_bloodlust",  label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "e.g. on pull (casters have no threat table)", textInput: true },
   // Tank Assignments
-  { key: "ssc_lu_mt",         label: "Main Tank",                                role: "Tank",   hint: "" },
+  { key: "ssc_lu_mt",         label: "Tank",                                     role: "Tank",   hint: "" },
   { key: "ssc_lu_add2",       label: "Coilfang Guardian Tank 1",                 role: "Tank",   hint: "" },
   { key: "ssc_lu_add3",       label: "Coilfang Guardian Tank 2",                 role: "Tank",   hint: "" },
   { key: "ssc_lu_add4",       label: "Coilfang Guardian Tank 3",                 role: "Tank",   hint: "" },
   // Healer Assignments - boss phase + paired heals per add tank (phases do not overlap)
-  { key: "ssc_lu_mth_1",      label: "Main Tank Heal",                           role: "Healer", hint: "" },
+  { key: "ssc_lu_mth_1",      label: "Tank Heal",                                role: "Healer", hint: "" },
   { key: "ssc_lu_gh_1a",      label: "Coilfang Guardian Tank 1 Heal",            role: "Healer", hint: "" },
   { key: "ssc_lu_gh_2a",      label: "Coilfang Guardian Tank 2 Heal",            role: "Healer", hint: "" },
   { key: "ssc_lu_gh_2b",      label: "Coilfang Guardian Tank 3 Heal",            role: "Healer", hint: "" },
@@ -317,11 +315,11 @@ export const SSC_LEOTHERAS_P1 = [
   // Bloodlust callout
   { key: "ssc_le1_bloodlust", label: "Bloodlust Timing",                          role: "DPS", roleLabel: "Bloodlust", hint: "e.g. first Demon phase, once Warlock or Prot Pally has aggro lead", textInput: true },
   // Tank Assignments
-  { key: "ssc_le1_mt_elf",   label: "Main Tank (Blood Elf Form)",                 role: "Tank",   hint: "Whirlwind - drop aggro, melee kite" },
-  { key: "ssc_le1_mt_demon", label: "Main Tank (Demon Form)",                     role: "Tank",   hint: "Positioning - Chaos Blast frontal cone" },
+  { key: "ssc_le1_mt_elf",   label: "Tank (Blood Elf Form)",                      role: "Tank",   hint: "Whirlwind - drop aggro, melee kite" },
+  { key: "ssc_le1_mt_demon", label: "Tank (Demon Form)",                          role: "Tank",   hint: "Positioning - Chaos Blast frontal cone" },
   // Healer Assignments
-  { key: "ssc_le1_mth_elf",  label: "Main Tank Heal (Blood Elf Form)",            role: "Healer", hint: "" },
-  { key: "ssc_le1_mth_dem",  label: "Main Tank Heal (Demon Form)",                role: "Healer", hint: "" },
+  { key: "ssc_le1_mth_elf",  label: "Tank Heal (Blood Elf Form)",                 role: "Healer", hint: "" },
+  { key: "ssc_le1_mth_dem",  label: "Tank Heal (Demon Form)",                     role: "Healer", hint: "" },
   { key: "ssc_le1_rheal",    label: "Raid Heal",                                  role: "Healer", hint: "Chaos Blast splash + Whirlwind" },
   // Misc Assignments
   { key: "ssc_le1_misc_notes", label: "Notes",                                    role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
@@ -331,12 +329,12 @@ export const SSC_LEOTHERAS_P1 = [
 
 export const SSC_LEOTHERAS_P2 = [
   // Tank Assignments - sub-15% split
-  { key: "ssc_le2_mt_body",    label: "Main Tank (Blood Elf Form)",               role: "Tank",   hint: "Melee-only - body roots in place" },
-  { key: "ssc_le2_mt_shadow",  label: "Main Tank (Demon Form)",                   role: "Tank",   hint: "Kite shadow - Chaos Blast frontal" },
+  { key: "ssc_le2_mt_body",    label: "Tank (Blood Elf Form)",                    role: "Tank",   hint: "Melee-only - body roots in place" },
+  { key: "ssc_le2_mt_shadow",  label: "Tank (Demon Form)",                        role: "Tank",   hint: "Kite shadow - Chaos Blast frontal" },
   // Healer Assignments
-  { key: "ssc_le2_mth_body",   label: "Main Tank Heal (Blood Elf Form)",          role: "Healer", hint: "" },
-  { key: "ssc_le2_mth_shadow", label: "Main Tank Heal (Demon Form)",              role: "Healer", hint: "" },
-  { key: "ssc_le2_rheal",      label: "Raid Heal (Inner Demons phase)",           role: "Healer", hint: "Cannot heal demon-afflicted players" },
+  { key: "ssc_le2_mth_body",   label: "Tank Heal (Blood Elf Form)",               role: "Healer", hint: "" },
+  { key: "ssc_le2_mth_shadow", label: "Tank Heal (Demon Form)",                   role: "Healer", hint: "" },
+  { key: "ssc_le2_rheal",      label: "Raid Heal",                                role: "Healer", hint: "Cannot heal demon-afflicted players" },
   // Misc Assignments
   { key: "ssc_le2_md_elf",     label: "Misdirect - Main Tank (Blood Elf Form)",   role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_le2_md_demon",   label: "Misdirect - Main Tank (Demon Form)",       role: "DPS", roleLabel: "Misc Assignments", hint: "" },
@@ -377,17 +375,13 @@ export const SSC_MOROGRIM = [
   // Bloodlust callout
   { key: "ssc_mo_bloodlust",   label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "When to pop Bloodlust", textInput: true },
   // Tank Assignments
-  { key: "ssc_mo_mt",          label: "Morogrim Main Tank",                       role: "Tank",   hint: "" },
+  { key: "ssc_mo_mt",          label: "Tank",                                     role: "Tank",   hint: "" },
   { key: "ssc_mo_adds1",       label: "Murloc Add Tank",                          role: "Tank",   hint: "AoE tank - Prot Paladin ideal" },
-  // Healer Assignments - multi-MT-heal model + grave/flex coverage
-  { key: "ssc_mo_mth_1",       label: "Main Tank Heal 1",                         role: "Healer", hint: "" },
-  { key: "ssc_mo_mth_2",       label: "Main Tank Heal 2",                         role: "Healer", hint: "" },
-  { key: "ssc_mo_mth_3",       label: "Main Tank Heal 3",                         role: "Healer", hint: "" },
+  // Healer Assignments - multi-tank-heal model + grave/flex coverage
+  { key: "ssc_mo_mth_1",       label: "Tank Heal",                                role: "Healer", hint: "" },
   { key: "ssc_mo_addh1",       label: "Murloc Add Tank Heal",                     role: "Healer", hint: "" },
-  { key: "ssc_mo_grave_heal",  label: "Grave Healer",                             role: "Healer", hint: "Heals players trapped under grates" },
-  { key: "ssc_mo_flex_heal_1", label: "Flex Healer 1",                            role: "Healer", hint: "Covers for healers who get graved (no heal spec required)" },
-  { key: "ssc_mo_flex_heal_2", label: "Flex Healer 2",                            role: "Healer", hint: "Covers for healers who get graved (no heal spec required)" },
-  { key: "ssc_mo_rheal",       label: "Raid Heal (Tidal Wave + Globules)",        role: "Healer", hint: "" },
+  { key: "ssc_mo_grave_heal",  label: "Grave Heal",                               role: "Healer", hint: "Heals players trapped under grates" },
+  { key: "ssc_mo_rheal",       label: "Raid Heal",                                role: "Healer", hint: "" },
   // Hunter Traps
   { key: "ssc_mo_trap_n",      label: "North Trap",                               role: "DPS", roleLabel: "Hunter Traps", hint: "See map for placement" },
   { key: "ssc_mo_trap_s",      label: "South Trap",                               role: "DPS", roleLabel: "Hunter Traps", hint: "See map for placement" },
@@ -409,15 +403,15 @@ export const SSC_VASHJ_P1 = [
   // Bloodlust callout (fight-level)
   { key: "ssc_vs1_bloodlust",   label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Bloodlust", hint: "e.g. as soon as P3 adds are dead", textInput: true },
   // Tank Assignments
-  { key: "ssc_vs1_mt",          label: "Vashj Main Tank (P1: 100%–70%)",          role: "Tank",   hint: "Shock Blast knockback" },
+  { key: "ssc_vs1_mt",          label: "Tank",                                    role: "Tank",   hint: "Shock Blast knockback" },
   // Healer Assignments
-  { key: "ssc_vs1_mth",         label: "Main Tank Heal",                          role: "Healer", hint: "" },
-  { key: "ssc_vs1_rheal",       label: "Raid Heal (Static Charge)",               role: "Healer", hint: "" },
+  { key: "ssc_vs1_mth",         label: "Tank Heal",                               role: "Healer", hint: "" },
+  { key: "ssc_vs1_rheal",       label: "Raid Heal",                               role: "Healer", hint: "" },
   // Healer Positioning (cardinal)
-  { key: "ssc_vs1_heal_n",      label: "North Healer",                            role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
-  { key: "ssc_vs1_heal_s",      label: "South Healer",                            role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
-  { key: "ssc_vs1_heal_e",      label: "East Healer",                             role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
-  { key: "ssc_vs1_heal_w",      label: "West Healer",                             role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
+  { key: "ssc_vs1_heal_n",      label: "North Heal",                              role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
+  { key: "ssc_vs1_heal_s",      label: "South Heal",                              role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
+  { key: "ssc_vs1_heal_e",      label: "East Heal",                               role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
+  { key: "ssc_vs1_heal_w",      label: "West Heal",                               role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
   // Misc
   { key: "ssc_vs1_disp_static", label: "Static Charge Dispel (Priests)",          role: "DPS", roleLabel: "Misc Assignments", hint: "Dispel off chain target" },
   { key: "ssc_vs1_grounding",   label: "Grounding Totem",                         role: "DPS", roleLabel: "Misc Assignments", hint: "Eats priority casts" },
@@ -464,16 +458,16 @@ export const SSC_VASHJ_P2 = [
 
 export const SSC_VASHJ_P3 = [
   // Tank Assignments
-  { key: "ssc_vs3_mt",         label: "Vashj Main Tank (P3: sub-30%)",             role: "Tank",   hint: "Shock Blast resumes" },
+  { key: "ssc_vs3_mt",         label: "Tank",                                      role: "Tank",   hint: "Shock Blast resumes" },
   { key: "ssc_vs3_strider",    label: "Residual Strider Kiters",                   role: "Tank",   hint: "Striders continue spawning in P3" },
   // Healer Assignments
-  { key: "ssc_vs3_mth",        label: "Main Tank Heal",                            role: "Healer", hint: "" },
-  { key: "ssc_vs3_rheal",      label: "Raid Heal (Sporebat burst)",                role: "Healer", hint: "" },
+  { key: "ssc_vs3_mth",        label: "Tank Heal",                                 role: "Healer", hint: "" },
+  { key: "ssc_vs3_rheal",      label: "Raid Heal",                                 role: "Healer", hint: "" },
   // Healer Positioning (cardinal)
-  { key: "ssc_vs3_heal_n",     label: "North Healer",                              role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
-  { key: "ssc_vs3_heal_s",     label: "South Healer",                              role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
-  { key: "ssc_vs3_heal_e",     label: "East Healer",                               role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
-  { key: "ssc_vs3_heal_w",     label: "West Healer",                               role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
+  { key: "ssc_vs3_heal_n",     label: "North Heal",                                role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
+  { key: "ssc_vs3_heal_s",     label: "South Heal",                                role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
+  { key: "ssc_vs3_heal_e",     label: "East Heal",                                 role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
+  { key: "ssc_vs3_heal_w",     label: "West Heal",                                 role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
   // Misc
   { key: "ssc_vs3_spore_duty", label: "Toxic Sporebat Kills",                      role: "DPS", roleLabel: "Misc Assignments", hint: "Kill ASAP - raidwide poison" },
   { key: "ssc_vs3_grounding",  label: "Grounding Totem",                           role: "DPS", roleLabel: "Misc Assignments", hint: "Eats priority casts" },
@@ -522,9 +516,9 @@ export const TK_ALAR = [
   { key: "tk_alar_pt2",        label: "Platform Tank 2",                         role: "Tank",   hint: "" },
   { key: "tk_alar_add",        label: "Add Tank",                                role: "Tank",   hint: "" },
   // Healers
-  { key: "tk_alar_h_pt",       label: "Platform Tank Healer",                    role: "Healer", hint: "" },
-  { key: "tk_alar_h_add",      label: "Add Tank Healer",                         role: "Healer", hint: "" },
-  { key: "tk_alar_h_raid",     label: "Raid Healer",                             role: "Healer", hint: "" },
+  { key: "tk_alar_h_pt",       label: "Platform Tank Heal",                      role: "Healer", hint: "" },
+  { key: "tk_alar_h_add",      label: "Add Tank Heal",                           role: "Healer", hint: "" },
+  { key: "tk_alar_h_raid",     label: "Raid Heal",                               role: "Healer", hint: "" },
   // Misc Assignments
   { key: "tk_alar_md1",        label: "Misdirect #1",                            role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "tk_alar_md2",        label: "Misdirect #2",                            role: "DPS", roleLabel: "Misc Assignments", hint: "" },
@@ -556,10 +550,10 @@ export const TK_VOIDREAVER = [
 export const TK_SOLARIAN = [
   // Bloodlust callout
   { key: "tk_sol_bloodlust",   label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Bloodlust", hint: "e.g. P3 (Solarian boss form)", textInput: true },
-  { key: "tk_sol_mt",          label: "Main Tank",                               role: "Tank",   hint: "" },
-  { key: "tk_sol_h_mt",        label: "Main Tank Healer",                        role: "Healer", hint: "" },
-  { key: "tk_sol_h_missiles",  label: "Arcane Missiles Healer",                  role: "Healer", hint: "" },
-  { key: "tk_sol_h_raid",      label: "Raid Healer",                             role: "Healer", hint: "" },
+  { key: "tk_sol_mt",          label: "Tank",                                    role: "Tank",   hint: "" },
+  { key: "tk_sol_h_mt",        label: "Tank Heal",                               role: "Healer", hint: "" },
+  { key: "tk_sol_h_missiles",  label: "Arcane Missiles Heal",                    role: "Healer", hint: "" },
+  { key: "tk_sol_h_raid",      label: "Raid Heal",                               role: "Healer", hint: "" },
 ];
 
 // ── Kael'thas Sunstrider ─────────────────────────────────────────────────────
@@ -583,9 +577,9 @@ export const TK_KAELTHAS_P1 = [
   // Misc
   { key: "tk_k1_fear_ward",    label: "Fear Ward / Tremor Totem (Sanguinar)",    role: "DPS", roleLabel: "Misc Assignments", hint: "Priests / Shamans" },
   { key: "tk_k1_cap_conflag",  label: "Capernian Conflag Soaker",                role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  { key: "tk_k1_md_sanguinar", label: "Lord Sanguinar Misdirect",                role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  { key: "tk_k1_md_capernian", label: "Grand Astromancer Capernian Misdirect",   role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  { key: "tk_k1_md_telonicus", label: "Master Engineer Telonicus Misdirect",     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "tk_k1_md_sanguinar", label: "Misdirect - Lord Sanguinar",              role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "tk_k1_md_capernian", label: "Misdirect - Grand Astromancer Capernian", role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "tk_k1_md_telonicus", label: "Misdirect - Master Engineer Telonicus",   role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 export const TK_KAELTHAS_P2 = [
@@ -600,7 +594,7 @@ export const TK_KAELTHAS_P2 = [
   { key: "tk_k2_weap_circle",   label: "Netherstrand Longbow",                   role: "DPS", roleLabel: "Legendary Weapons", hint: "Bow - assign to hunter" },
   // Healers
   { key: "tk_k2_h_weap_group",  label: "Weapons Phase Raid Heal",                role: "Healer", hint: "" },
-  { key: "tk_k2_h_tank_pool",   label: "Weapon Target Healer Pool",              role: "Healer", hint: "" },
+  { key: "tk_k2_h_tank_pool",   label: "Weapon Target Heal Pool",                role: "Healer", hint: "" },
   // Misc
   { key: "tk_k2_weap_order",    label: "Weapon Kill Order (notes)",              role: "DPS", roleLabel: "Misc Assignments", hint: "Typical: Staff → Bow → Mace → Slicer", textInput: true },
   { key: "tk_k2_wielder_pickup",label: "Weapon Pickup Assignments (post-death)", role: "DPS", roleLabel: "Misc Assignments", hint: "Loot & equip - 2 min buff", textInput: true },
@@ -623,11 +617,10 @@ export const TK_KAELTHAS_P4 = [
   // Kael'thas himself. Sub-50% execute-phase mechanics continue in this phase -
   // captured as an execute-cooldowns notes row rather than a separate P5.
   // Tanks
-  { key: "tk_k4_mt",           label: "Kael'thas Main Tank",                     role: "Tank",   hint: "" },
+  { key: "tk_k4_mt",           label: "Tank",                                    role: "Tank",   hint: "" },
   { key: "tk_k4_phoenix",      label: "Phoenix Kiter / Tank",                    role: "Tank",   hint: "" },
   // Healers
-  { key: "tk_k4_h_mt1",        label: "Kael Main Tank Heal 1",                   role: "Healer", hint: "" },
-  { key: "tk_k4_h_mt2",        label: "Kael Main Tank Heal 2",                   role: "Healer", hint: "" },
+  { key: "tk_k4_h_mt1",        label: "Tank Heal",                               role: "Healer", hint: "" },
   { key: "tk_k4_h_phoenix",    label: "Phoenix Kiter Heal",                      role: "Healer", hint: "" },
   { key: "tk_k4_h_mc",         label: "Mind Control Heal-to-Break",              role: "Healer", hint: "Heal MC'd players to break the MC" },
   { key: "tk_k4_h_raid",       label: "Raid Heal",                               role: "Healer", hint: "" },
