@@ -3,3 +3,6 @@
 .env.local
 node_modules
 dist
+
+# Local raid assignment drafts (contain player names — private guild info)
+SSC_ASSIGNMENTS.md
