@@ -277,9 +277,9 @@ export const SSC_HYDROSS = [
   { key: "ssc_hy_decurse",      label: "Decurse (Mages / Druids)",               role: "DPS", roleLabel: "Misc Assignments", hint: "Curse of the Shaman from Tainted Spawns" },
   { key: "ssc_hy_cleanse",      label: "Poison Cleanse (Paladins / Druids)",     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_hy_nr_aura",      label: "Tank Group Nature Resistance Aura",      role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  { key: "ssc_hy_md_frost",     label: "Misdirect - Frost Side",                 role: "DPS", roleLabel: "Misc Assignments", subSection: "Misdirect Assignments", hint: "" },
-  { key: "ssc_hy_md_nature",    label: "Misdirect - Nature Side",                role: "DPS", roleLabel: "Misc Assignments", subSection: "Misdirect Assignments", hint: "" },
-  { key: "ssc_hy_md_adds",      label: "Misdirect - Adds",                       role: "DPS", roleLabel: "Misc Assignments", subSection: "Misdirect Assignments", hint: "" },
+  { key: "ssc_hy_md_frost",     label: "Misdirect - Frost Side",                 role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_hy_md_nature",    label: "Misdirect - Nature Side",                role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_hy_md_adds",      label: "Misdirect - Adds",                       role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 // ── The Lurker Below ─────────────────────────────────────────────────────────
