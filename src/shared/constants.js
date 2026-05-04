@@ -265,23 +265,21 @@ export const SSC_HYDROSS = [
   // Bloodlust callout
   { key: "ssc_hy_bloodlust",    label: "Bloodlust Timing",                       role: "DPS", roleLabel: "Bloodlust", hint: "e.g. 10s after contact (let MT generate threat first)", textInput: true },
   // Tank Assignments
-  { key: "ssc_hy_mt_frost",     label: "Hydross Main Tank (Frost stance)",       role: "Tank",   hint: "Nature resist gear" },
-  { key: "ssc_hy_mt_nature",    label: "Hydross Main Tank (Nature stance)",      role: "Tank",   hint: "Frost resist gear - same player if solo, different if trading" },
-  { key: "ssc_hy_adds_frost",   label: "Frost Add Tank (Pure Spawns)",           role: "Tank",   hint: "2 adds on nature→frost transition" },
-  { key: "ssc_hy_adds_nature",  label: "Nature Add Tank (Tainted Spawns)",       role: "Tank",   hint: "4 adds on frost→nature transition" },
+  { key: "ssc_hy_mt_frost",     label: "Frost Tank",                             role: "Tank",   hint: "Nature resist gear" },
+  { key: "ssc_hy_mt_nature",    label: "Nature Tank",                            role: "Tank",   hint: "Frost resist gear - same player if solo, different if trading" },
+  { key: "ssc_hy_adds_frost",   label: "Frost Add Tank",                         role: "Tank",   hint: "2 adds on nature→frost transition" },
+  { key: "ssc_hy_adds_nature",  label: "Nature Add Tank",                        role: "Tank",   hint: "4 adds on frost→nature transition" },
   // Healer Assignments
-  { key: "ssc_hy_mth1",         label: "Main Tank Heal (Frost group)",           role: "Healer", hint: "" },
-  { key: "ssc_hy_mth2",         label: "Main Tank Heal (Nature group)",          role: "Healer", hint: "" },
-  { key: "ssc_hy_addheal1",     label: "Frost Add Tank Heal",                    role: "Healer", hint: "" },
-  { key: "ssc_hy_addheal2",     label: "Nature Add Tank Heal",                   role: "Healer", hint: "" },
+  { key: "ssc_hy_mth1",         label: "Main Tank Heal",                         role: "Healer", hint: "" },
+  { key: "ssc_hy_addheal1",     label: "Add Tank Heal",                          role: "Healer", hint: "" },
   { key: "ssc_hy_rheal",        label: "Raid Heal",                              role: "Healer", hint: "" },
   // Misc Assignments
   { key: "ssc_hy_decurse",      label: "Decurse (Mages / Druids)",               role: "DPS", roleLabel: "Misc Assignments", hint: "Curse of the Shaman from Tainted Spawns" },
   { key: "ssc_hy_cleanse",      label: "Poison Cleanse (Paladins / Druids)",     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_hy_nr_aura",      label: "Tank Group Nature Resistance Aura",      role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  { key: "ssc_hy_md_frost",     label: "Misdirect - Frost Side",                 role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_hy_md_nature",    label: "Misdirect - Nature Side",                role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_hy_md_adds",      label: "Misdirect - Adds",                       role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_hy_md_frost",     label: "Misdirect - Frost Side",                 role: "DPS", roleLabel: "Misc Assignments", subSection: "Misdirect Assignments", hint: "" },
+  { key: "ssc_hy_md_nature",    label: "Misdirect - Nature Side",                role: "DPS", roleLabel: "Misc Assignments", subSection: "Misdirect Assignments", hint: "" },
+  { key: "ssc_hy_md_adds",      label: "Misdirect - Adds",                       role: "DPS", roleLabel: "Misc Assignments", subSection: "Misdirect Assignments", hint: "" },
 ];
 
 // ── The Lurker Below ─────────────────────────────────────────────────────────

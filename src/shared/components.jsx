@@ -100,17 +100,18 @@ export function KaraPlayerBadge({ slot, onSpecCycle, onDragStart }) {
   );
 }
 
-// ── Sub-section divider (thin label for grouping within a role section) ──────
+// ── Sub-section divider (label for grouping within a role section) ───────────
 export function SubSectionDivider({ label }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: space[2],
-      padding: `${space[1]}px ${space[3]}px`,
-      marginTop: space[1],
+      padding: `${space[2]}px ${space[3]}px ${space[1]}px`,
+      marginTop: space[2],
+      borderTop: `2px solid ${border.subtle}`,
     }}>
       <span style={{
-        fontSize: 9, fontFamily: font.sans, fontWeight: fontWeight.semibold,
-        color: text.muted, letterSpacing: "0.06em", textTransform: "uppercase",
+        fontSize: fontSize.xs, fontFamily: font.sans, fontWeight: fontWeight.bold,
+        color: text.secondary, letterSpacing: "0.08em", textTransform: "uppercase",
       }}>
         {label}
       </span>
