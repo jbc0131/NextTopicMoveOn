@@ -275,19 +275,13 @@ export const SSC_HYDROSS = [
   { key: "ssc_hy_addheal1",     label: "Frost Add Tank Heal",                    role: "Healer", hint: "" },
   { key: "ssc_hy_addheal2",     label: "Nature Add Tank Heal",                   role: "Healer", hint: "" },
   { key: "ssc_hy_rheal",        label: "Raid Heal",                              role: "Healer", hint: "" },
-  // Banishers (alt add strategy - Rank 2 Banish on back-position adds)
-  { key: "ssc_hy_banish_bl",    label: "Banisher (Back Left)",                   role: "DPS", roleLabel: "Banishers", hint: "Rank 2 Banish" },
-  { key: "ssc_hy_banish_br",    label: "Banisher (Back Right)",                  role: "DPS", roleLabel: "Banishers", hint: "Rank 2 Banish" },
-  { key: "ssc_hy_banish_fl",    label: "Banisher (Front Left)",                  role: "DPS", roleLabel: "Banishers", hint: "Tanked or killed (typically N/A)" },
-  { key: "ssc_hy_banish_fr",    label: "Banisher (Front Right)",                 role: "DPS", roleLabel: "Banishers", hint: "Tanked or killed (typically N/A)" },
-  { key: "ssc_hy_banish_notes", label: "Banish Strategy Notes",                  role: "DPS", roleLabel: "Banishers", hint: "Reduce banish count once kill speed allows", textInput: true },
   // Misc Assignments
   { key: "ssc_hy_decurse",      label: "Decurse (Mages / Druids)",               role: "DPS", roleLabel: "Misc Assignments", hint: "Curse of the Shaman from Tainted Spawns" },
   { key: "ssc_hy_cleanse",      label: "Poison Cleanse (Paladins / Druids)",     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  { key: "ssc_hy_md_frost",     label: "Misdirect - Frost Adds",                 role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_hy_md_nature",    label: "Misdirect - Nature Adds",                role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_hy_frost_group",  label: "Frost Resist Group (roster)",            role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
-  { key: "ssc_hy_nature_group", label: "Nature Resist Group (roster)",           role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+  { key: "ssc_hy_nr_aura",      label: "Tank Group Nature Resistance Aura",      role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_hy_md_frost",     label: "Misdirect - Frost Side",                 role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_hy_md_nature",    label: "Misdirect - Nature Side",                role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_hy_md_adds",      label: "Misdirect - Adds",                       role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
 ];
 
 // ── The Lurker Below ─────────────────────────────────────────────────────────
@@ -298,31 +292,25 @@ export const SSC_LURKER = [
   { key: "ssc_lu_bloodlust",  label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "e.g. on pull (casters have no threat table)", textInput: true },
   // Tank Assignments
   { key: "ssc_lu_mt",         label: "Lurker Main Tank",                         role: "Tank",   hint: "" },
-  { key: "ssc_lu_add1",       label: "Coilfang Ambusher Tank (ranged add)",      role: "Tank",   hint: "Stays on platform - ranged caster" },
   { key: "ssc_lu_add2",       label: "Coilfang Guardian Tank 1 (melee add)",     role: "Tank",   hint: "" },
   { key: "ssc_lu_add3",       label: "Coilfang Guardian Tank 2 (melee add)",     role: "Tank",   hint: "" },
+  { key: "ssc_lu_add4",       label: "Coilfang Guardian Tank 3 (melee add)",     role: "Tank",   hint: "" },
   // Healer Assignments - boss phase + paired heals per add tank (phases do not overlap)
   { key: "ssc_lu_mth_1",      label: "Main Tank Heal 1",                         role: "Healer", hint: "Boss-up phase" },
-  { key: "ssc_lu_mth_2",      label: "Main Tank Heal 2",                         role: "Healer", hint: "Boss-up phase" },
   { key: "ssc_lu_mth_3",      label: "Main Tank Heal 3",                         role: "Healer", hint: "Boss-up phase" },
-  { key: "ssc_lu_amh_1",      label: "Ambusher Tank Heal 1",                     role: "Healer", hint: "Submerge phase" },
   { key: "ssc_lu_amh_2",      label: "Ambusher Tank Heal 2",                     role: "Healer", hint: "Submerge phase" },
   { key: "ssc_lu_gh_1a",      label: "Guardian Tank Heal 1a",                    role: "Healer", hint: "Submerge phase" },
-  { key: "ssc_lu_gh_1b",      label: "Guardian Tank Heal 1b",                    role: "Healer", hint: "Submerge phase" },
   { key: "ssc_lu_gh_2a",      label: "Guardian Tank Heal 2a",                    role: "Healer", hint: "Submerge phase" },
   { key: "ssc_lu_gh_2b",      label: "Guardian Tank Heal 2b",                    role: "Healer", hint: "Submerge phase" },
   { key: "ssc_lu_rheal",      label: "Raid Heal (Spout damage)",                 role: "Healer", hint: "" },
-  // Platform Zones (RDPS split + per-platform healer)
-  { key: "ssc_lu_plat_a_dps",  label: "Platform A - RDPS Team",                  role: "DPS", roleLabel: "Platform Zones", hint: "Split between sides 1 or 2; do not stand in center", textInput: true },
-  { key: "ssc_lu_plat_a_heal", label: "Platform A - Healer",                     role: "Healer", roleLabel: "Platform Zones", hint: "Stay on main donut, in range of platform (not on it)" },
-  { key: "ssc_lu_plat_b_dps",  label: "Platform B - RDPS Team",                  role: "DPS", roleLabel: "Platform Zones", hint: "", textInput: true },
-  { key: "ssc_lu_plat_b_heal", label: "Platform B - Healer",                     role: "Healer", roleLabel: "Platform Zones", hint: "" },
-  { key: "ssc_lu_plat_c_dps",  label: "Platform C - RDPS Team",                  role: "DPS", roleLabel: "Platform Zones", hint: "", textInput: true },
-  { key: "ssc_lu_plat_c_heal", label: "Platform C - Healer",                     role: "Healer", roleLabel: "Platform Zones", hint: "" },
+  // Platform Zones
+  { key: "ssc_lu_sheep_left",  label: "Sheep Left",                              role: "DPS", roleLabel: "Platform Zones", hint: "" },
+  { key: "ssc_lu_sheep_right", label: "Sheep Right",                             role: "DPS", roleLabel: "Platform Zones", hint: "" },
   // Misc Assignments
   { key: "ssc_lu_fisher",     label: "Fishing Pull (opener)",                    role: "DPS", roleLabel: "Misc Assignments", hint: "Requires Weather-Beaten Journal" },
-  { key: "ssc_lu_md_lurker",  label: "Misdirect - Lurker",                       role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_lu_md_ambush",  label: "Misdirect - Ambusher",                     role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_lu_md1",        label: "Misdirect #1",                             role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_lu_md2",        label: "Misdirect #2",                             role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_lu_md3",        label: "Misdirect #3",                             role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
   { key: "ssc_lu_kill_order", label: "Add Kill Order (notes)",                   role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
 ];
 
