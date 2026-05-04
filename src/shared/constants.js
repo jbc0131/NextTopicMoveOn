@@ -341,11 +341,10 @@ export const SSC_LEOTHERAS_P1 = [
   { key: "ssc_le1_mth_elf",  label: "Main Tank Heal (Blood Elf Form)",            role: "Healer", hint: "" },
   { key: "ssc_le1_mth_dem",  label: "Main Tank Heal (Demon Form)",                role: "Healer", hint: "" },
   { key: "ssc_le1_rheal",    label: "Raid Heal",                                  role: "Healer", hint: "Chaos Blast splash + Whirlwind" },
-  // Hunter Misdirects
-  { key: "ssc_le1_md_elf",   label: "Misdirect - Main Tank (Blood Elf Form)",     role: "DPS", roleLabel: "Hunter Misdirects", hint: "" },
-  { key: "ssc_le1_md_demon", label: "Misdirect - Main Tank (Demon Form)",         role: "DPS", roleLabel: "Hunter Misdirects", hint: "" },
-  // Misc Assignments
+  // Misc Assignments (with Hunter Misdirects sub-section)
   { key: "ssc_le1_misc_notes", label: "Notes",                                    role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+  { key: "ssc_le1_md_elf",   label: "Misdirect - Main Tank (Blood Elf Form)",     role: "DPS", roleLabel: "Misc Assignments", subSection: "Hunter Misdirects", hint: "" },
+  { key: "ssc_le1_md_demon", label: "Misdirect - Main Tank (Demon Form)",         role: "DPS", roleLabel: "Misc Assignments", subSection: "Hunter Misdirects", hint: "" },
 ];
 
 export const SSC_LEOTHERAS_P2 = [

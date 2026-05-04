@@ -7,7 +7,7 @@ import {
   getColor, getSpecDisplay, TK_BOSSES,
 } from "../../shared/constants";
 import {
-  AppShell, ModuleHeader, BossPanel, RoleHeader, MarkerIcon,
+  AppShell, ModuleHeader, BossPanel, RoleHeader, SubSectionDivider, MarkerIcon,
   SyncBadge, SearchBox, EmptyState, LoadingSpinner,
 } from "../../shared/components";
 import {
@@ -75,11 +75,17 @@ function PublicRow({ rowCfg, ids, textValues, roster, searchName }) {
 function PublicPanel({ title, subtitle, rows, assignments, textValues, roster, searchName }) {
   const items = [];
   let lastSectionKey = null;
+  let lastSubSection = null;
   rows.forEach(r => {
     const sectionKey = r.roleLabel || r.role;
     if (sectionKey !== lastSectionKey) {
       items.push({ type: "header", role: r.role, label: r.roleLabel || null });
       lastSectionKey = sectionKey;
+      lastSubSection = null;
+    }
+    if (r.subSection && r.subSection !== lastSubSection) {
+      items.push({ type: "subdivider", label: r.subSection });
+      lastSubSection = r.subSection;
     }
     items.push({ type: "row", row: r });
   });
@@ -89,6 +95,8 @@ function PublicPanel({ title, subtitle, rows, assignments, textValues, roster, s
         {items.map((item, i) =>
           item.type === "header"
             ? <RoleHeader key={i} role={item.role} overrideLabel={item.label} />
+            : item.type === "subdivider"
+            ? <SubSectionDivider key={i} label={item.label} />
             : <PublicRow key={item.row.key} rowCfg={item.row} ids={assignments[item.row.key]}
                 textValues={textValues} roster={roster} searchName={searchName} />
         )}

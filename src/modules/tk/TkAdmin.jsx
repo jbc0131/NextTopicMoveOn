@@ -8,7 +8,7 @@ import {
   TK_BOSSES,
 } from "../../shared/constants";
 import {
-  AppShell, ModuleHeader, BossPanel, RoleHeader, PlayerBadge, MarkerIcon,
+  AppShell, ModuleHeader, BossPanel, RoleHeader, SubSectionDivider, PlayerBadge, MarkerIcon,
   EmptyState, ConfirmDialog, SaveStatus,
 } from "../../shared/components";
 import {
@@ -94,11 +94,17 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
 function AssignmentPanel({ title, subtitle, rows, assignments, textValues, roster, onDrop, onClear, onTextChange, onDragStart }) {
   const items = [];
   let lastSectionKey = null;
+  let lastSubSection = null;
   rows.forEach(r => {
     const sectionKey = r.roleLabel || r.role;
     if (sectionKey !== lastSectionKey) {
       items.push({ type: "header", role: r.role, label: r.roleLabel || null });
       lastSectionKey = sectionKey;
+      lastSubSection = null;
+    }
+    if (r.subSection && r.subSection !== lastSubSection) {
+      items.push({ type: "subdivider", label: r.subSection });
+      lastSubSection = r.subSection;
     }
     items.push({ type: "row", row: r });
   });
@@ -107,6 +113,8 @@ function AssignmentPanel({ title, subtitle, rows, assignments, textValues, roste
       {items.map((item, i) =>
         item.type === "header"
           ? <RoleHeader key={i} role={item.role} overrideLabel={item.label} />
+          : item.type === "subdivider"
+          ? <SubSectionDivider key={i} label={item.label} />
           : <AssignmentRow key={item.row.key} rowCfg={item.row} assignedIds={assignments[item.row.key]}
               textValues={textValues} roster={roster}
               onDrop={onDrop} onClear={onClear} onTextChange={onTextChange} onDragStart={onDragStart} />

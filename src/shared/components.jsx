@@ -100,7 +100,27 @@ export function KaraPlayerBadge({ slot, onSpecCycle, onDragStart }) {
   );
 }
 
+// ── Sub-section divider (thin label for grouping within a role section) ──────
+export function SubSectionDivider({ label }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: space[2],
+      padding: `${space[1]}px ${space[3]}px`,
+      marginTop: space[1],
+    }}>
+      <span style={{
+        fontSize: 9, fontFamily: font.sans, fontWeight: fontWeight.semibold,
+        color: text.muted, letterSpacing: "0.06em", textTransform: "uppercase",
+      }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: border.subtle }} />
+    </div>
+  );
+}
+
 // ── Role section header ───────────────────────────────────────────────────────
+const CUSTOM_LABEL_COLOR = "#C87619"; // orange/gold for non-standard role labels
 export function RoleHeader({ role: roleName, overrideLabel }) {
   const isCubeClickers = overrideLabel === "Cube Clickers";
   const rc     = roleColors[roleName?.toLowerCase()] || roleColors.dps;
@@ -131,18 +151,23 @@ export function RoleHeader({ role: roleName, overrideLabel }) {
     );
   }
 
+  // Bloodlust keeps the DPS (red) color; other custom labels get a distinct
+  // accent so Tank (blue) / Healer (green) / Bloodlust (red) stand apart.
+  const isBloodlust = overrideLabel === "Bloodlust";
+  const headerColor = overrideLabel && !isBloodlust ? CUSTOM_LABEL_COLOR : rc.color;
+
   // Standard role headers — visible but not dominant
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: space[2],
       padding: `${space[1]}px ${space[3]}px`,
-      borderLeft: `3px solid ${rc.color}88`,
-      background: `${rc.color}0d`,
+      borderLeft: `3px solid ${headerColor}88`,
+      background: `${headerColor}0d`,
       marginTop: space[2], marginBottom: 2,
     }}>
       <span style={{
         fontSize: fontSize.xs, fontFamily: font.sans, fontWeight: fontWeight.semibold,
-        color: rc.color, letterSpacing: "0.08em", textTransform: "uppercase",
+        color: headerColor, letterSpacing: "0.08em", textTransform: "uppercase",
       }}>
         {label}
       </span>
