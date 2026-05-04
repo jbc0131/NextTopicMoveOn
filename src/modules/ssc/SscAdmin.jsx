@@ -535,13 +535,12 @@ export default function SscAdmin({ teamId }) {
               ))}
             </div>
 
-            {/* Phases — side-by-side, wrap on narrow viewports */}
+            {/* Phases - side-by-side, wrap on narrow viewports */}
             <div style={{ display: "flex", gap: space[3], flexWrap: "wrap", alignItems: "flex-start" }}>
               {currentBoss.phases.map(phase => (
                 <div key={phase.id} style={{ flex: "1 1 420px", minWidth: 360, display: "flex" }}>
                   <AssignmentPanel
-                    title={phase.label ? `${currentBoss.name.toUpperCase()} — ${phase.label.toUpperCase()}` : currentBoss.name.toUpperCase()}
-                    subtitle={phase.label || undefined}
+                    title={phase.label ? `${currentBoss.name.toUpperCase()} - ${phase.label.toUpperCase()}` : currentBoss.name.toUpperCase()}
                     rows={phase.slots}
                     assignments={assignments}
                     textValues={textInputs}

@@ -58,7 +58,7 @@ function PublicRow({ rowCfg, ids, textValues, roster, searchName }) {
         {slots.map(slot => (
           <PlayerChip key={slot.id} slot={slot} searchName={searchName} />
         ))}
-        {slots.length === 0 && !noteText && <span style={{ fontSize: fontSize.xs, color: text.disabled, fontFamily: font.sans }}>—</span>}
+        {slots.length === 0 && !noteText && <span style={{ fontSize: fontSize.xs, color: text.disabled, fontFamily: font.sans }}>-</span>}
         {noteText && (
           <span style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans, fontStyle: "italic" }}>{noteText}</span>
         )}
@@ -144,7 +144,7 @@ export default function SscPublic({ teamId }) {
       {loading ? (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}><LoadingSpinner size={32} /></div>
       ) : !hasData ? (
-        <EmptyState icon="🌊" title="No SSC assignments published yet" message="The raid leader hasn't published SSC assignments yet — check back soon." />
+        <EmptyState icon="🌊" title="No SSC assignments published yet" message="The raid leader hasn't published SSC assignments yet. Check back soon." />
       ) : (
         <div style={{ flex: 1, overflowY: "auto", padding: space[3] }}>
 
@@ -173,13 +173,12 @@ export default function SscPublic({ teamId }) {
             ))}
           </div>
 
-          {/* Phases — side-by-side, wrap on narrow viewports */}
+          {/* Phases - side-by-side, wrap on narrow viewports */}
           <div style={{ display: "flex", gap: space[3], flexWrap: "wrap", alignItems: "flex-start" }}>
             {currentBoss.phases.map(phase => (
               <PublicPanel
                 key={phase.id}
-                title={phase.label ? `${currentBoss.name.toUpperCase()} — ${phase.label.toUpperCase()}` : currentBoss.name.toUpperCase()}
-                subtitle={phase.label || undefined}
+                title={phase.label ? `${currentBoss.name.toUpperCase()} - ${phase.label.toUpperCase()}` : currentBoss.name.toUpperCase()}
                 rows={phase.slots}
                 assignments={viewAssignments}
                 textValues={viewTextInputs}
