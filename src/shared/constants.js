@@ -290,26 +290,22 @@ export const SSC_LURKER = [
   { key: "ssc_lu_bloodlust",  label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "e.g. on pull (casters have no threat table)", textInput: true },
   // Tank Assignments
   { key: "ssc_lu_mt",         label: "Lurker Main Tank",                         role: "Tank",   hint: "" },
-  { key: "ssc_lu_add2",       label: "Coilfang Guardian Tank 1 (melee add)",     role: "Tank",   hint: "" },
-  { key: "ssc_lu_add3",       label: "Coilfang Guardian Tank 2 (melee add)",     role: "Tank",   hint: "" },
-  { key: "ssc_lu_add4",       label: "Coilfang Guardian Tank 3 (melee add)",     role: "Tank",   hint: "" },
+  { key: "ssc_lu_add2",       label: "Coilfang Guardian Tank 1",                 role: "Tank",   hint: "" },
+  { key: "ssc_lu_add3",       label: "Coilfang Guardian Tank 2",                 role: "Tank",   hint: "" },
+  { key: "ssc_lu_add4",       label: "Coilfang Guardian Tank 3",                 role: "Tank",   hint: "" },
   // Healer Assignments - boss phase + paired heals per add tank (phases do not overlap)
-  { key: "ssc_lu_mth_1",      label: "Main Tank Heal 1",                         role: "Healer", hint: "Boss-up phase" },
-  { key: "ssc_lu_mth_3",      label: "Main Tank Heal 3",                         role: "Healer", hint: "Boss-up phase" },
-  { key: "ssc_lu_amh_2",      label: "Ambusher Tank Heal 2",                     role: "Healer", hint: "Submerge phase" },
-  { key: "ssc_lu_gh_1a",      label: "Guardian Tank Heal 1a",                    role: "Healer", hint: "Submerge phase" },
-  { key: "ssc_lu_gh_2a",      label: "Guardian Tank Heal 2a",                    role: "Healer", hint: "Submerge phase" },
-  { key: "ssc_lu_gh_2b",      label: "Guardian Tank Heal 2b",                    role: "Healer", hint: "Submerge phase" },
-  { key: "ssc_lu_rheal",      label: "Raid Heal (Spout damage)",                 role: "Healer", hint: "" },
-  // Platform Zones
-  { key: "ssc_lu_sheep_left",  label: "Sheep Left",                              role: "DPS", roleLabel: "Platform Zones", hint: "" },
-  { key: "ssc_lu_sheep_right", label: "Sheep Right",                             role: "DPS", roleLabel: "Platform Zones", hint: "" },
+  { key: "ssc_lu_mth_1",      label: "Main Tank Heal",                           role: "Healer", hint: "Boss-up phase" },
+  { key: "ssc_lu_gh_1a",      label: "Coilfang Guardian Tank 1 Heal",            role: "Healer", hint: "Submerge phase" },
+  { key: "ssc_lu_gh_2a",      label: "Coilfang Guardian Tank 2 Heal",            role: "Healer", hint: "Submerge phase" },
+  { key: "ssc_lu_gh_2b",      label: "Coilfang Guardian Tank 3 Heal",            role: "Healer", hint: "Submerge phase" },
+  { key: "ssc_lu_rheal",      label: "Raid Heal",                                role: "Healer", hint: "" },
   // Misc Assignments
   { key: "ssc_lu_fisher",     label: "Fishing Pull (opener)",                    role: "DPS", roleLabel: "Misc Assignments", hint: "Requires Weather-Beaten Journal" },
-  { key: "ssc_lu_md1",        label: "Misdirect #1",                             role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_lu_md2",        label: "Misdirect #2",                             role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_lu_md3",        label: "Misdirect #3",                             role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_lu_kill_order", label: "Add Kill Order (notes)",                   role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
+  { key: "ssc_lu_sheep_left",  label: "Sheep Left",                              role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_lu_sheep_right", label: "Sheep Right",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_lu_md1",        label: "Misdirect #1",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_lu_md2",        label: "Misdirect #2",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_lu_md3",        label: "Misdirect #3",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 // ── Leotheras the Blind ──────────────────────────────────────────────────────
