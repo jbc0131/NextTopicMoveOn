@@ -315,29 +315,29 @@ export const SSC_LEOTHERAS_P1 = [
   // Bloodlust callout
   { key: "ssc_le1_bloodlust", label: "Bloodlust Timing",                          role: "DPS", roleLabel: "Bloodlust", hint: "e.g. first Demon phase, once Warlock or Prot Pally has aggro lead", textInput: true },
   // Tank Assignments
-  { key: "ssc_le1_mt_elf",   label: "Tank (Blood Elf Form)",                      role: "Tank",   hint: "Whirlwind - drop aggro, melee kite" },
-  { key: "ssc_le1_mt_demon", label: "Tank (Demon Form)",                          role: "Tank",   hint: "Positioning - Chaos Blast frontal cone" },
+  { key: "ssc_le1_mt_elf",   label: "Blood Elf Tank",                             role: "Tank",   hint: "Whirlwind - drop aggro, melee kite" },
+  { key: "ssc_le1_mt_demon", label: "Demon Tank",                                 role: "Tank",   hint: "Positioning - Chaos Blast frontal cone" },
   // Healer Assignments
-  { key: "ssc_le1_mth_elf",  label: "Tank Heal (Blood Elf Form)",                 role: "Healer", hint: "" },
-  { key: "ssc_le1_mth_dem",  label: "Tank Heal (Demon Form)",                     role: "Healer", hint: "" },
+  { key: "ssc_le1_mth_elf",  label: "Blood Elf Tank Heal",                        role: "Healer", hint: "" },
+  { key: "ssc_le1_mth_dem",  label: "Demon Tank Heal",                            role: "Healer", hint: "" },
   { key: "ssc_le1_rheal",    label: "Raid Heal",                                  role: "Healer", hint: "Chaos Blast splash + Whirlwind" },
   // Misc Assignments
   { key: "ssc_le1_misc_notes", label: "Notes",                                    role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
-  { key: "ssc_le1_md_elf",   label: "Misdirect - Main Tank (Blood Elf Form)",     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  { key: "ssc_le1_md_demon", label: "Misdirect - Main Tank (Demon Form)",         role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_le1_md_elf",   label: "Misdirect - Blood Elf Tank",                 role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_le1_md_demon", label: "Misdirect - Demon Tank",                     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 export const SSC_LEOTHERAS_P2 = [
   // Tank Assignments - sub-15% split
-  { key: "ssc_le2_mt_body",    label: "Tank (Blood Elf Form)",                    role: "Tank",   hint: "Melee-only - body roots in place" },
-  { key: "ssc_le2_mt_shadow",  label: "Tank (Demon Form)",                        role: "Tank",   hint: "Kite shadow - Chaos Blast frontal" },
+  { key: "ssc_le2_mt_body",    label: "Blood Elf Tank",                           role: "Tank",   hint: "Melee-only - body roots in place" },
+  { key: "ssc_le2_mt_shadow",  label: "Demon Tank",                               role: "Tank",   hint: "Kite shadow - Chaos Blast frontal" },
   // Healer Assignments
-  { key: "ssc_le2_mth_body",   label: "Tank Heal (Blood Elf Form)",               role: "Healer", hint: "" },
-  { key: "ssc_le2_mth_shadow", label: "Tank Heal (Demon Form)",                   role: "Healer", hint: "" },
+  { key: "ssc_le2_mth_body",   label: "Blood Elf Tank Heal",                      role: "Healer", hint: "" },
+  { key: "ssc_le2_mth_shadow", label: "Demon Tank Heal",                          role: "Healer", hint: "" },
   { key: "ssc_le2_rheal",      label: "Raid Heal",                                role: "Healer", hint: "Cannot heal demon-afflicted players" },
   // Misc Assignments
-  { key: "ssc_le2_md_elf",     label: "Misdirect - Main Tank (Blood Elf Form)",   role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  { key: "ssc_le2_md_demon",   label: "Misdirect - Main Tank (Demon Form)",       role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_le2_md_elf",     label: "Misdirect - Blood Elf Tank",               role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_le2_md_demon",   label: "Misdirect - Demon Tank",                   role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 // ── Fathom-Lord Karathress ───────────────────────────────────────────────────
@@ -382,11 +382,10 @@ export const SSC_MOROGRIM = [
   { key: "ssc_mo_addh1",       label: "Murloc Add Tank Heal",                     role: "Healer", hint: "" },
   { key: "ssc_mo_grave_heal",  label: "Grave Heal",                               role: "Healer", hint: "Heals players trapped under grates" },
   { key: "ssc_mo_rheal",       label: "Raid Heal",                                role: "Healer", hint: "" },
-  // Hunter Traps
-  { key: "ssc_mo_trap_n",      label: "North Trap",                               role: "DPS", roleLabel: "Hunter Traps", hint: "See map for placement" },
-  { key: "ssc_mo_trap_s",      label: "South Trap",                               role: "DPS", roleLabel: "Hunter Traps", hint: "See map for placement" },
-  { key: "ssc_mo_trap_raid",   label: "Trap on Raid (off-position)",              role: "DPS", roleLabel: "Hunter Traps", hint: "Backup trap if adds reach the raid" },
   // Misc Assignments
+  { key: "ssc_mo_trap_n",      label: "North Trap",                               role: "DPS", roleLabel: "Misc Assignments", hint: "See map for placement" },
+  { key: "ssc_mo_trap_s",      label: "South Trap",                               role: "DPS", roleLabel: "Misc Assignments", hint: "See map for placement" },
+  { key: "ssc_mo_trap_raid",   label: "Trap on Raid (off-position)",              role: "DPS", roleLabel: "Misc Assignments", hint: "Backup trap if adds reach the raid" },
   { key: "ssc_mo_slow_trap_1", label: "Slow Trap #1",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_mo_slow_trap_2", label: "Slow Trap #2",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_mo_md_boss",     label: "Misdirect - Morogrim",                     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
@@ -536,11 +535,10 @@ export const TK_VOIDREAVER = [
   { key: "tk_vr_h_tank",       label: "Tank Heal",                               role: "Healer", hint: "" },
   { key: "tk_vr_h_raid",       label: "Raid Heal",                               role: "Healer", hint: "" },
   { key: "tk_vr_h_soaker",     label: "Soaker Heal",                             role: "Healer", hint: "" },
-  // Soakers
-  { key: "tk_vr_soak1",        label: "Soaker #1",                               role: "DPS", roleLabel: "Soaker Assignments", hint: "" },
-  { key: "tk_vr_soak2",        label: "Soaker #2",                               role: "DPS", roleLabel: "Soaker Assignments", hint: "" },
-  { key: "tk_vr_soak3",        label: "Soaker #3",                               role: "DPS", roleLabel: "Soaker Assignments", hint: "" },
   // Misc Assignments
+  { key: "tk_vr_soak1",        label: "Soaker #1",                               role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "tk_vr_soak2",        label: "Soaker #2",                               role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "tk_vr_soak3",        label: "Soaker #3",                               role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "tk_vr_md1",          label: "Misdirect #1",                            role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "tk_vr_md2",          label: "Misdirect #2",                            role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
