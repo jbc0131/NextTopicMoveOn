@@ -289,23 +289,23 @@ export const SSC_LURKER = [
   // Bloodlust callout
   { key: "ssc_lu_bloodlust",  label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "e.g. on pull (casters have no threat table)", textInput: true },
   // Tank Assignments
-  { key: "ssc_lu_mt",         label: "Lurker Main Tank",                         role: "Tank",   hint: "" },
+  { key: "ssc_lu_mt",         label: "Main Tank",                                role: "Tank",   hint: "" },
   { key: "ssc_lu_add2",       label: "Coilfang Guardian Tank 1",                 role: "Tank",   hint: "" },
   { key: "ssc_lu_add3",       label: "Coilfang Guardian Tank 2",                 role: "Tank",   hint: "" },
   { key: "ssc_lu_add4",       label: "Coilfang Guardian Tank 3",                 role: "Tank",   hint: "" },
   // Healer Assignments - boss phase + paired heals per add tank (phases do not overlap)
-  { key: "ssc_lu_mth_1",      label: "Main Tank Heal",                           role: "Healer", hint: "Boss-up phase" },
-  { key: "ssc_lu_gh_1a",      label: "Coilfang Guardian Tank 1 Heal",            role: "Healer", hint: "Submerge phase" },
-  { key: "ssc_lu_gh_2a",      label: "Coilfang Guardian Tank 2 Heal",            role: "Healer", hint: "Submerge phase" },
-  { key: "ssc_lu_gh_2b",      label: "Coilfang Guardian Tank 3 Heal",            role: "Healer", hint: "Submerge phase" },
+  { key: "ssc_lu_mth_1",      label: "Main Tank Heal",                           role: "Healer", hint: "" },
+  { key: "ssc_lu_gh_1a",      label: "Coilfang Guardian Tank 1 Heal",            role: "Healer", hint: "" },
+  { key: "ssc_lu_gh_2a",      label: "Coilfang Guardian Tank 2 Heal",            role: "Healer", hint: "" },
+  { key: "ssc_lu_gh_2b",      label: "Coilfang Guardian Tank 3 Heal",            role: "Healer", hint: "" },
   { key: "ssc_lu_rheal",      label: "Raid Heal",                                role: "Healer", hint: "" },
   // Misc Assignments
-  { key: "ssc_lu_fisher",     label: "Fishing Pull (opener)",                    role: "DPS", roleLabel: "Misc Assignments", hint: "Requires Weather-Beaten Journal" },
-  { key: "ssc_lu_sheep_left",  label: "Sheep Left",                              role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  { key: "ssc_lu_sheep_right", label: "Sheep Right",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_lu_sheep_left",  label: "Mage Platform - Sheep Left",              role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_lu_sheep_right", label: "Mage Platform - Sheep Right",             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_lu_md1",        label: "Misdirect #1",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_lu_md2",        label: "Misdirect #2",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_lu_md3",        label: "Misdirect #3",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_lu_fisher",     label: "Fishing Pull (opener)",                    role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 // ── Leotheras the Blind ──────────────────────────────────────────────────────
@@ -323,10 +323,10 @@ export const SSC_LEOTHERAS_P1 = [
   { key: "ssc_le1_mth_elf",  label: "Main Tank Heal (Blood Elf Form)",            role: "Healer", hint: "" },
   { key: "ssc_le1_mth_dem",  label: "Main Tank Heal (Demon Form)",                role: "Healer", hint: "" },
   { key: "ssc_le1_rheal",    label: "Raid Heal",                                  role: "Healer", hint: "Chaos Blast splash + Whirlwind" },
-  // Misc Assignments (with Hunter Misdirects sub-section)
+  // Misc Assignments
   { key: "ssc_le1_misc_notes", label: "Notes",                                    role: "DPS", roleLabel: "Misc Assignments", hint: "", textInput: true },
-  { key: "ssc_le1_md_elf",   label: "Misdirect - Main Tank (Blood Elf Form)",     role: "DPS", roleLabel: "Misc Assignments", subSection: "Hunter Misdirects", hint: "" },
-  { key: "ssc_le1_md_demon", label: "Misdirect - Main Tank (Demon Form)",         role: "DPS", roleLabel: "Misc Assignments", subSection: "Hunter Misdirects", hint: "" },
+  { key: "ssc_le1_md_elf",   label: "Misdirect - Main Tank (Blood Elf Form)",     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_le1_md_demon", label: "Misdirect - Main Tank (Demon Form)",         role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 export const SSC_LEOTHERAS_P2 = [
@@ -337,9 +337,9 @@ export const SSC_LEOTHERAS_P2 = [
   { key: "ssc_le2_mth_body",   label: "Main Tank Heal (Blood Elf Form)",          role: "Healer", hint: "" },
   { key: "ssc_le2_mth_shadow", label: "Main Tank Heal (Demon Form)",              role: "Healer", hint: "" },
   { key: "ssc_le2_rheal",      label: "Raid Heal (Inner Demons phase)",           role: "Healer", hint: "Cannot heal demon-afflicted players" },
-  // Hunter Misdirects
-  { key: "ssc_le2_md_elf",     label: "Misdirect - Main Tank (Blood Elf Form)",   role: "DPS", roleLabel: "Hunter Misdirects", hint: "" },
-  { key: "ssc_le2_md_demon",   label: "Misdirect - Main Tank (Demon Form)",       role: "DPS", roleLabel: "Hunter Misdirects", hint: "" },
+  // Misc Assignments
+  { key: "ssc_le2_md_elf",     label: "Misdirect - Main Tank (Blood Elf Form)",   role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_le2_md_demon",   label: "Misdirect - Main Tank (Demon Form)",       role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 // ── Fathom-Lord Karathress ───────────────────────────────────────────────────
@@ -362,12 +362,12 @@ export const SSC_KARATHRESS = [
   // Interrupts
   { key: "ssc_ka_int_carib",     label: "Caribdis Interrupt (Healing Wave / Tidal Surge)", role: "DPS", roleLabel: "Interrupt Assignments", hint: "Priority #1" },
   { key: "ssc_ka_int_grounding", label: "Tidalvess Grounding Totem (absorb cast)",  role: "DPS", roleLabel: "Interrupt Assignments", hint: "Drop Grounding Totem to eat priority casts" },
-  // Misdirects
-  { key: "ssc_ka_md_shark",     label: "Misdirect - Sharkkis",                     role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_ka_md_shark_pet", label: "Misdirect - Sharkkis Pet (Fathomlurker hyena)", role: "DPS", roleLabel: "Misdirect Assignments", hint: "Pet despawns when Sharkkis dies" },
-  { key: "ssc_ka_md_carib",     label: "Misdirect - Caribdis",                     role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_ka_md_tidal",     label: "Misdirect - Tidalvess",                    role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_ka_md_kara",      label: "Misdirect - Karathress",                   role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  // Misc Assignments
+  { key: "ssc_ka_md_shark",     label: "Misdirect - Sharkkis",                     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_ka_md_shark_pet", label: "Misdirect - Sharkkis Pet (Fathomlurker hyena)", role: "DPS", roleLabel: "Misc Assignments", hint: "Pet despawns when Sharkkis dies" },
+  { key: "ssc_ka_md_carib",     label: "Misdirect - Caribdis",                     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_ka_md_tidal",     label: "Misdirect - Tidalvess",                    role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_ka_md_kara",      label: "Misdirect - Karathress",                   role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 // ── Morogrim Tidewalker ──────────────────────────────────────────────────────
@@ -395,10 +395,9 @@ export const SSC_MOROGRIM = [
   // Misc Assignments
   { key: "ssc_mo_slow_trap_1", label: "Slow Trap #1",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_mo_slow_trap_2", label: "Slow Trap #2",                             role: "DPS", roleLabel: "Misc Assignments", hint: "" },
-  // Misdirects
-  { key: "ssc_mo_md_boss",     label: "Misdirect - Morogrim",                     role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_mo_md_west",     label: "Misdirect - West Adds",                    role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_mo_md_east",     label: "Misdirect - East Adds",                    role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_mo_md_boss",     label: "Misdirect - Morogrim",                     role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_mo_md_west",     label: "Misdirect - West Adds",                    role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_mo_md_east",     label: "Misdirect - East Adds",                    role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 // ── Lady Vashj ───────────────────────────────────────────────────────────────
@@ -422,7 +421,7 @@ export const SSC_VASHJ_P1 = [
   // Misc
   { key: "ssc_vs1_disp_static", label: "Static Charge Dispel (Priests)",          role: "DPS", roleLabel: "Misc Assignments", hint: "Dispel off chain target" },
   { key: "ssc_vs1_grounding",   label: "Grounding Totem",                         role: "DPS", roleLabel: "Misc Assignments", hint: "Eats priority casts" },
-  { key: "ssc_vs1_md",          label: "Misdirect - Vashj (opener)",              role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_vs1_md",          label: "Misdirect - Vashj (opener)",              role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 export const SSC_VASHJ_P2 = [
@@ -459,9 +458,8 @@ export const SSC_VASHJ_P2 = [
   // Misc
   { key: "ssc_vs2_naga_burst", label: "Enchanted Elemental Burst (Mages/Locks)",   role: "DPS", roleLabel: "Misc Assignments", hint: "Feeds Vashj mana if they reach her" },
   { key: "ssc_vs2_decurse",    label: "Entangle Decurse (Mages / Druids)",         role: "DPS", roleLabel: "Misc Assignments", hint: "Vashj's root on random players" },
-  // Misdirects
-  { key: "ssc_vs2_md_elem",    label: "Misdirect - Tainted Elementals",            role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "ssc_vs2_md_naga",    label: "Misdirect - Naga",                          role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  { key: "ssc_vs2_md_elem",    label: "Misdirect - Tainted Elementals",            role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "ssc_vs2_md_naga",    label: "Misdirect - Naga",                          role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 export const SSC_VASHJ_P3 = [
@@ -527,9 +525,9 @@ export const TK_ALAR = [
   { key: "tk_alar_h_pt",       label: "Platform Tank Healer",                    role: "Healer", hint: "" },
   { key: "tk_alar_h_add",      label: "Add Tank Healer",                         role: "Healer", hint: "" },
   { key: "tk_alar_h_raid",     label: "Raid Healer",                             role: "Healer", hint: "" },
-  // Misdirects
-  { key: "tk_alar_md1",        label: "Misdirect #1",                            role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "tk_alar_md2",        label: "Misdirect #2",                            role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  // Misc Assignments
+  { key: "tk_alar_md1",        label: "Misdirect #1",                            role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "tk_alar_md2",        label: "Misdirect #2",                            role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 // ── Void Reaver ──────────────────────────────────────────────────────────────
@@ -548,9 +546,9 @@ export const TK_VOIDREAVER = [
   { key: "tk_vr_soak1",        label: "Soaker #1",                               role: "DPS", roleLabel: "Soaker Assignments", hint: "" },
   { key: "tk_vr_soak2",        label: "Soaker #2",                               role: "DPS", roleLabel: "Soaker Assignments", hint: "" },
   { key: "tk_vr_soak3",        label: "Soaker #3",                               role: "DPS", roleLabel: "Soaker Assignments", hint: "" },
-  // Misdirects
-  { key: "tk_vr_md1",          label: "Misdirect #1",                            role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
-  { key: "tk_vr_md2",          label: "Misdirect #2",                            role: "DPS", roleLabel: "Misdirect Assignments", hint: "" },
+  // Misc Assignments
+  { key: "tk_vr_md1",          label: "Misdirect #1",                            role: "DPS", roleLabel: "Misc Assignments", hint: "" },
+  { key: "tk_vr_md2",          label: "Misdirect #2",                            role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
 // ── High Astromancer Solarian ────────────────────────────────────────────────
