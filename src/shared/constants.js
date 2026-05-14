@@ -418,15 +418,12 @@ export const SSC_VASHJ_P1 = [
 ];
 
 export const SSC_VASHJ_P2 = [
-  // Tank Assignments - platform elites + striders + adds + ball boy
+  // Tank Assignments - platform elites + striders
   { key: "ssc_vs2_plat_t1",    label: "Platform Elite Tank 1",                     role: "Tank",   hint: "Tanks elites on inner platform" },
   { key: "ssc_vs2_plat_t2",    label: "Platform Elite Tank 2",                     role: "Tank",   hint: "Second elite tank" },
   { key: "ssc_vs2_strider1",   label: "Coilfang Strider Kiter (Skull)",            role: "Tank",   hint: "Hunter or OT - uninterruptible, kite only" },
   { key: "ssc_vs2_strider2",   label: "Coilfang Strider Kiter (Cross)",            role: "Tank",   hint: "" },
   { key: "ssc_vs2_strider3",   label: "Coilfang Strider Kiter (Square)",           role: "Tank",   hint: "" },
-  { key: "ssc_vs2_elem_tank",  label: "Tainted Elemental Tank",                    role: "Tank",   hint: "Drops Tainted Core on death" },
-  { key: "ssc_vs2_naga_tank",  label: "Enchanted Elemental / Naga Off-Tank",       role: "Tank",   hint: "AoE add control" },
-  { key: "ssc_vs2_ball_boy",   label: "Ball Boy (final core thrower)",             role: "Tank",   hint: "Sits near active generator, throws core at Vashj" },
   // Healer Assignments
   { key: "ssc_vs2_heal_plat",  label: "Platform / Elite Tank Heals",               role: "Healer", hint: "Heals Platform Tank 1 + Tank 2 on inner platform" },
   { key: "ssc_vs2_heal_str",   label: "Strider Kiter Heals",                       role: "Healer", hint: "Kiters take heavy damage" },
@@ -442,16 +439,7 @@ export const SSC_VASHJ_P2 = [
   { key: "ssc_vs2_zone_e_heal", label: "East Zone Healer",                         role: "Healer", roleLabel: "Stairs Zones (zone-based daisy chain)", hint: "" },
   { key: "ssc_vs2_zone_s_dps",  label: "South Zone DPS",                           role: "DPS", roleLabel: "Stairs Zones (zone-based daisy chain)", hint: "" },
   { key: "ssc_vs2_zone_s_heal", label: "South Zone Healer",                        role: "Healer", roleLabel: "Stairs Zones (zone-based daisy chain)", hint: "" },
-  // Tainted Core Pass Chain - the defining P2 mechanic (legacy fixed-runner model)
-  { key: "ssc_vs2_core1",      label: "Tainted Core Runner 1 (pickup)",            role: "DPS", roleLabel: "Tainted Core Chain", hint: "Grab from Elemental corpse" },
-  { key: "ssc_vs2_core2",      label: "Tainted Core Runner 2",                     role: "DPS", roleLabel: "Tainted Core Chain", hint: "" },
-  { key: "ssc_vs2_core3",      label: "Tainted Core Runner 3",                     role: "DPS", roleLabel: "Tainted Core Chain", hint: "" },
-  { key: "ssc_vs2_core4",      label: "Tainted Core Runner 4 (throws at Vashj)",   role: "DPS", roleLabel: "Tainted Core Chain", hint: "Drops Vashj shield" },
-  { key: "ssc_vs2_core_backup",label: "Core Chain Backup (if runner dies)",        role: "DPS", roleLabel: "Tainted Core Chain", hint: "", textInput: true },
   // Misc
-  { key: "ssc_vs2_naga_burst", label: "Enchanted Elemental Burst (Mages/Locks)",   role: "DPS", roleLabel: "Misc Assignments", hint: "Feeds Vashj mana if they reach her" },
-  { key: "ssc_vs2_decurse",    label: "Entangle Decurse (Mages / Druids)",         role: "DPS", roleLabel: "Misc Assignments", hint: "Vashj's root on random players" },
-  { key: "ssc_vs2_md_elem",    label: "Misdirect - Tainted Elementals",            role: "DPS", roleLabel: "Misc Assignments", hint: "" },
   { key: "ssc_vs2_md_naga",    label: "Misdirect - Naga",                          role: "DPS", roleLabel: "Misc Assignments", hint: "" },
 ];
 
@@ -468,7 +456,6 @@ export const SSC_VASHJ_P3 = [
   { key: "ssc_vs3_heal_e",     label: "East Heal",                                 role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
   { key: "ssc_vs3_heal_w",     label: "West Heal",                                 role: "Healer", roleLabel: "Healer Positioning (cardinal)", hint: "" },
   // Misc
-  { key: "ssc_vs3_spore_duty", label: "Toxic Sporebat Kills",                      role: "DPS", roleLabel: "Misc Assignments", hint: "Kill ASAP - raidwide poison" },
   { key: "ssc_vs3_grounding",  label: "Grounding Totem",                           role: "DPS", roleLabel: "Misc Assignments", hint: "Eats priority casts" },
   { key: "ssc_vs3_burn_group", label: "Burn Phase Plan (notes)",                   role: "DPS", roleLabel: "Misc Assignments", hint: "Bloodlust + cooldowns", textInput: true },
 ];
