@@ -16,6 +16,20 @@ import {
 
 const FIREBASE_OK = isFirebaseConfigured();
 
+const BOSS_IMAGES = {
+  vashj: {
+    src: "/LadyVashjPhase2.png",
+    caption: "Phase 2 Zone Map",
+    alt: "Lady Vashj Phase 2 zone map showing North, East, South, and West zones with healer and ranged DPS positions",
+  },
+  karathress: {
+    src: "/Karathress.png",
+    caption: "Raid Positioning",
+    alt: "Fathom-Lord Karathress raid positioning map",
+    maxWidth: 360,
+  },
+};
+
 function PlayerChip({ slot, searchName }) {
   if (!slot) return null;
   const color     = getColor(slot);
@@ -191,19 +205,20 @@ export default function SscPublic({ teamId }) {
             ))}
           </div>
 
-          {currentBoss.id === "vashj" && (
+          {BOSS_IMAGES[currentBoss.id] && (
             <div style={{ marginTop: space[4], display: "flex", flexDirection: "column", alignItems: "center", gap: space[2] }}>
               <div style={{
                 fontFamily: font.sans, fontSize: fontSize.xs, fontWeight: fontWeight.semibold,
                 color: text.muted, letterSpacing: "0.08em", textTransform: "uppercase",
               }}>
-                Phase 2 Zone Map
+                {BOSS_IMAGES[currentBoss.id].caption}
               </div>
               <img
-                src="/LadyVashjPhase2.png"
-                alt="Lady Vashj Phase 2 zone map showing North, East, South, and West zones with healer and ranged DPS positions"
+                src={BOSS_IMAGES[currentBoss.id].src}
+                alt={BOSS_IMAGES[currentBoss.id].alt}
                 style={{
-                  maxWidth: "100%", width: 560, height: "auto",
+                  maxWidth: BOSS_IMAGES[currentBoss.id].maxWidth || 560,
+                  width: "100%", height: "auto",
                   borderRadius: radius.md, border: `1px solid ${border.subtle}`,
                 }}
               />
