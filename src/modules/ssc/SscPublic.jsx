@@ -195,6 +195,25 @@ export default function SscPublic({ teamId }) {
               />
             ))}
           </div>
+
+          {currentBoss.id === "vashj" && (
+            <div style={{ marginTop: space[4], display: "flex", flexDirection: "column", alignItems: "center", gap: space[2] }}>
+              <div style={{
+                fontFamily: font.sans, fontSize: fontSize.xs, fontWeight: fontWeight.semibold,
+                color: text.muted, letterSpacing: "0.08em", textTransform: "uppercase",
+              }}>
+                Phase 2 Zone Map
+              </div>
+              <img
+                src="/LadyVashjPhase2.png"
+                alt="Lady Vashj Phase 2 zone map showing North, East, South, and West zones with healer and ranged DPS positions"
+                style={{
+                  maxWidth: "100%", width: 560, height: "auto",
+                  borderRadius: radius.md, border: `1px solid ${border.subtle}`,
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
     </AppShell>
