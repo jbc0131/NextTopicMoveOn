@@ -263,9 +263,9 @@ export const MAGS_P2 = [
 // Water Tombs spawn on nature side and hatch Tainted Spawns if not broken.
 export const SSC_HYDROSS = [
   // Raid Leader Notes
-  { key: "ssc_hy_rl_notes",     label: "Notes",                                  role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "ssc_hy_rl_notes",     label: "Notes",                                  role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
-  { key: "ssc_hy_bloodlust",    label: "Bloodlust Timing",                       role: "DPS", roleLabel: "Bloodlust", hint: "e.g. 10s after contact (let MT generate threat first)", textInput: true },
+  { key: "ssc_hy_bloodlust",    label: "Bloodlust Timing",                       role: "DPS", roleLabel: "Notes + Lust", hint: "e.g. 10s after contact (let MT generate threat first)", textInput: true },
   // Tank Assignments
   { key: "ssc_hy_mt_frost",     label: "Frost Tank",                             role: "Tank" },
   { key: "ssc_hy_mt_nature",    label: "Nature Tank",                            role: "Tank" },
@@ -287,9 +287,9 @@ export const SSC_HYDROSS = [
 // 2 waves of adds during submerge.
 export const SSC_LURKER = [
   // Raid Leader Notes
-  { key: "ssc_lu_rl_notes",   label: "Notes",                                    role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "ssc_lu_rl_notes",   label: "Notes",                                    role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
-  { key: "ssc_lu_bloodlust",  label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "e.g. on pull (casters have no threat table)", textInput: true },
+  { key: "ssc_lu_bloodlust",  label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Notes + Lust", hint: "e.g. on pull (casters have no threat table)", textInput: true },
   // Tank Assignments
   { key: "ssc_lu_mt",         label: "Tank",                                     role: "Tank" },
   { key: "ssc_lu_add2",       label: "Coilfang Guardian Tank 1",                 role: "Tank" },
@@ -317,9 +317,9 @@ export const SSC_LURKER = [
 //   Shadow demon (mobile, Chaos Blast). Inner Demons continue to spawn on all players.
 export const SSC_LEOTHERAS_P1 = [
   // Raid Leader Notes
-  { key: "ssc_le1_rl_notes",  label: "Notes",                                     role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "ssc_le1_rl_notes",  label: "Notes",                                     role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
-  { key: "ssc_le1_bloodlust", label: "Bloodlust Timing",                          role: "DPS", roleLabel: "Bloodlust", hint: "e.g. first Demon phase, once Warlock or Prot Pally has aggro lead", textInput: true },
+  { key: "ssc_le1_bloodlust", label: "Bloodlust Timing",                          role: "DPS", roleLabel: "Notes + Lust", hint: "e.g. first Demon phase, once Warlock or Prot Pally has aggro lead", textInput: true },
   // Tank Assignments
   { key: "ssc_le1_mt_elf",   label: "Blood Elf Tank",                             role: "Tank" },
   { key: "ssc_le1_mt_demon", label: "Demon Tank",                                 role: "Tank" },
@@ -351,9 +351,9 @@ export const SSC_LEOTHERAS_P2 = [
 // Karathress gains the abilities of each advisor he outlives.
 export const SSC_KARATHRESS = [
   // Raid Leader Notes
-  { key: "ssc_ka_rl_notes",    label: "Notes",                                    role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "ssc_ka_rl_notes",    label: "Notes",                                    role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
-  { key: "ssc_ka_bloodlust",   label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "e.g. when Skull/X are dead and boss is at 75%", textInput: true },
+  { key: "ssc_ka_bloodlust",   label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Notes + Lust", hint: "e.g. when Skull/X are dead and boss is at 75%", textInput: true },
   // Tank Assignments
   { key: "ssc_ka_mt_kara",     label: "Karathress Tank",                          role: "Tank" },
   { key: "ssc_ka_mt_shark",    label: "Sharkkis Tank",                            role: "Tank" },
@@ -381,9 +381,9 @@ export const SSC_KARATHRESS = [
 // players under grates mid-fight. Water Globules target random players at sub-25%.
 export const SSC_MOROGRIM = [
   // Raid Leader Notes
-  { key: "ssc_mo_rl_notes",    label: "Notes",                                    role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "ssc_mo_rl_notes",    label: "Notes",                                    role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
-  { key: "ssc_mo_bloodlust",   label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "ssc_mo_bloodlust",   label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
   // Tank Assignments
   { key: "ssc_mo_mt",          label: "Tank",                                     role: "Tank" },
   { key: "ssc_mo_adds1",       label: "Murloc Add Tank",                          role: "Tank" },
@@ -410,9 +410,9 @@ export const SSC_MOROGRIM = [
 //   Tainted Elementals drop cores, Enchanted Elementals feed Vashj mana if unchecked.
 export const SSC_VASHJ_P1 = [
   // Raid Leader Notes
-  { key: "ssc_vs1_rl_notes",    label: "Notes",                                   role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "ssc_vs1_rl_notes",    label: "Notes",                                   role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout (fight-level)
-  { key: "ssc_vs1_bloodlust",   label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Bloodlust", hint: "e.g. as soon as P3 adds are dead", textInput: true },
+  { key: "ssc_vs1_bloodlust",   label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Notes + Lust", hint: "e.g. as soon as P3 adds are dead", textInput: true },
   // Tank Assignments
   { key: "ssc_vs1_mt",          label: "Tank",                                    role: "Tank" },
   // Healer Assignments
@@ -483,9 +483,9 @@ export const SSC_BOSSES = [
 // handles Embers in P2.
 export const TK_ALAR = [
   // Raid Leader Notes
-  { key: "tk_alar_rl_notes",   label: "Notes",                                   role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "tk_alar_rl_notes",   label: "Notes",                                   role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
-  { key: "tk_alar_bloodlust",  label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Bloodlust", hint: "e.g. on pull or P2 transition", textInput: true },
+  { key: "tk_alar_bloodlust",  label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Notes + Lust", hint: "e.g. on pull or P2 transition", textInput: true },
   // Tanks
   { key: "tk_alar_pt1",        label: "Platform Tank 1",                         role: "Tank" },
   { key: "tk_alar_pt2",        label: "Platform Tank 2",                         role: "Tank" },
@@ -503,9 +503,9 @@ export const TK_ALAR = [
 // Single phase. Knock Away drops MT threat - tanks rotate as they get knocked.
 export const TK_VOIDREAVER = [
   // Raid Leader Notes
-  { key: "tk_vr_rl_notes",     label: "Notes",                                   role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "tk_vr_rl_notes",     label: "Notes",                                   role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
-  { key: "tk_vr_bloodlust",    label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Bloodlust", hint: "e.g. on pull (tank-and-spank fight)", textInput: true },
+  { key: "tk_vr_bloodlust",    label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Notes + Lust", hint: "e.g. on pull (tank-and-spank fight)", textInput: true },
   // Tanks
   { key: "tk_vr_first",        label: "First Tank",                              role: "Tank" },
   { key: "tk_vr_next",         label: "Next Tanks",                              role: "Tank" },
@@ -525,9 +525,9 @@ export const TK_VOIDREAVER = [
 // Single panel - phases collapsed.
 export const TK_SOLARIAN = [
   // Raid Leader Notes
-  { key: "tk_sol_rl_notes",    label: "Notes",                                   role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "tk_sol_rl_notes",    label: "Notes",                                   role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
-  { key: "tk_sol_bloodlust",   label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Bloodlust", hint: "e.g. P3 (Solarian boss form)", textInput: true },
+  { key: "tk_sol_bloodlust",   label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Notes + Lust", hint: "e.g. P3 (Solarian boss form)", textInput: true },
   { key: "tk_sol_mt",          label: "Tank",                                    role: "Tank" },
   { key: "tk_sol_h_mt",        label: "Tank Heal",                               role: "Healer" },
   { key: "tk_sol_h_missiles",  label: "Arcane Missiles Heal",                    role: "Healer" },
@@ -544,7 +544,7 @@ export const TK_SOLARIAN = [
 //     Sub-50% execute-phase mechanics continue in P4 - not a separate phase.
 export const TK_KAELTHAS_P1 = [
   // Raid Leader Notes
-  { key: "tk_k1_rl_notes",     label: "Notes",                                   role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "tk_k1_rl_notes",     label: "Notes",                                   role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Advisor tanks (killed in order)
   { key: "tk_k1_thaladred",    label: "Thaladred the Darkener (Advisor 1)",      role: "Tank" },
   { key: "tk_k1_sanguinar",    label: "Lord Sanguinar (Advisor 2)",              role: "Tank" },
