@@ -63,11 +63,6 @@ function PublicRow({ rowCfg, ids, textValues, roster, searchName }) {
           <span style={{ fontSize: fontSize.xs, color: text.secondary, fontFamily: font.sans, fontStyle: "italic" }}>{noteText}</span>
         )}
       </div>
-      {rowCfg.hint && !rowCfg.textInput && (
-        <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, fontStyle: "italic", maxWidth: 220, textAlign: "right", lineHeight: 1.2 }}>
-          {rowCfg.hint}
-        </span>
-      )}
     </div>
   );
 }

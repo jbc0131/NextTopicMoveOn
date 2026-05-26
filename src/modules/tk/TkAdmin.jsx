@@ -73,11 +73,6 @@ function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClea
         })}
         {over && <span style={{ fontSize: fontSize.xs, color: accent.blue, fontStyle: "italic" }}>drop here</span>}
       </div>
-      {rowCfg.hint && !rowCfg.textInput && (
-        <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans, fontStyle: "italic", maxWidth: 260, textAlign: "right", lineHeight: 1.2 }}>
-          {rowCfg.hint}
-        </span>
-      )}
       {rowCfg.textInput && (
         <input
           value={textValues?.[rowCfg.key] || ""}
