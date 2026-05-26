@@ -262,6 +262,8 @@ export const MAGS_P2 = [
 // 2 Frost Pure Spawns (entering frost) / 4 Nature Tainted Spawns (entering nature).
 // Water Tombs spawn on nature side and hatch Tainted Spawns if not broken.
 export const SSC_HYDROSS = [
+  // Raid Leader Notes
+  { key: "ssc_hy_rl_notes",     label: "Notes",                                  role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
   { key: "ssc_hy_bloodlust",    label: "Bloodlust Timing",                       role: "DPS", roleLabel: "Bloodlust", hint: "e.g. 10s after contact (let MT generate threat first)", textInput: true },
   // Tank Assignments
@@ -284,6 +286,8 @@ export const SSC_HYDROSS = [
 // Alternates boss up (tank & spank + Spout) vs boss submerged (adds phase).
 // 2 waves of adds during submerge.
 export const SSC_LURKER = [
+  // Raid Leader Notes
+  { key: "ssc_lu_rl_notes",   label: "Notes",                                    role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
   { key: "ssc_lu_bloodlust",  label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "e.g. on pull (casters have no threat table)", textInput: true },
   // Tank Assignments
@@ -312,6 +316,8 @@ export const SSC_LURKER = [
 // P2 (sub-15%): Leotheras splits into stationary Elf body (melee only) and a
 //   Shadow demon (mobile, Chaos Blast). Inner Demons continue to spawn on all players.
 export const SSC_LEOTHERAS_P1 = [
+  // Raid Leader Notes
+  { key: "ssc_le1_rl_notes",  label: "Notes",                                     role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
   { key: "ssc_le1_bloodlust", label: "Bloodlust Timing",                          role: "DPS", roleLabel: "Bloodlust", hint: "e.g. first Demon phase, once Warlock or Prot Pally has aggro lead", textInput: true },
   // Tank Assignments
@@ -344,6 +350,8 @@ export const SSC_LEOTHERAS_P2 = [
 // 4 bosses pulled together. Common kill order: Sharkkis → Caribdis → Tidalvess → Karathress.
 // Karathress gains the abilities of each advisor he outlives.
 export const SSC_KARATHRESS = [
+  // Raid Leader Notes
+  { key: "ssc_ka_rl_notes",    label: "Notes",                                    role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
   { key: "ssc_ka_bloodlust",   label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "e.g. when Skull/X are dead and boss is at 75%", textInput: true },
   // Tank Assignments
@@ -372,6 +380,8 @@ export const SSC_KARATHRESS = [
 // Add waves at 75%, 50%, 25% (Murlocs in 2 streams). Watery Grave teleports
 // players under grates mid-fight. Water Globules target random players at sub-25%.
 export const SSC_MOROGRIM = [
+  // Raid Leader Notes
+  { key: "ssc_mo_rl_notes",    label: "Notes",                                    role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
   { key: "ssc_mo_bloodlust",   label: "Bloodlust Timing",                         role: "DPS", roleLabel: "Bloodlust", hint: "When to pop Bloodlust", textInput: true },
   // Tank Assignments
@@ -394,11 +404,13 @@ export const SSC_MOROGRIM = [
 ];
 
 // ── Lady Vashj ───────────────────────────────────────────────────────────────
-// P1 (100%–70%): Tank & spank with Shock Blast + Static Charge.
+// P1 (100%–70%) and P3 (sub-30%): Tank & spank with Shock Blast + Static Charge.
+//   P3 adds Toxic Sporebats and residual P2 adds, but assignments mirror P1.
 // P2 (70%–30%): Shield up - must drop with 4 Tainted Cores. Striders kited,
 //   Tainted Elementals drop cores, Enchanted Elementals feed Vashj mana if unchecked.
-// P3 (30%–0%): Shield down, P1 mechanics resume + Toxic Sporebats + residual P2 adds.
 export const SSC_VASHJ_P1 = [
+  // Raid Leader Notes
+  { key: "ssc_vs1_rl_notes",    label: "Notes",                                   role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout (fight-level)
   { key: "ssc_vs1_bloodlust",   label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Bloodlust", hint: "e.g. as soon as P3 adds are dead", textInput: true },
   // Tank Assignments
@@ -406,13 +418,7 @@ export const SSC_VASHJ_P1 = [
   // Healer Assignments
   { key: "ssc_vs1_mth",         label: "Tank Heal",                               role: "Healer" },
   { key: "ssc_vs1_rheal",       label: "Raid Heal",                               role: "Healer" },
-  // Healer Positioning (cardinal)
-  { key: "ssc_vs1_heal_n",      label: "North Heal",                              role: "Healer", roleLabel: "Healer Positioning (cardinal)" },
-  { key: "ssc_vs1_heal_s",      label: "South Heal",                              role: "Healer", roleLabel: "Healer Positioning (cardinal)" },
-  { key: "ssc_vs1_heal_e",      label: "East Heal",                               role: "Healer", roleLabel: "Healer Positioning (cardinal)" },
-  { key: "ssc_vs1_heal_w",      label: "West Heal",                               role: "Healer", roleLabel: "Healer Positioning (cardinal)" },
   // Misc
-  { key: "ssc_vs1_disp_static", label: "Static Charge Dispel (Priests)",          role: "DPS", roleLabel: "Misc Assignments" },
   { key: "ssc_vs1_grounding",   label: "Grounding Totem",                         role: "DPS", roleLabel: "Misc Assignments" },
   { key: "ssc_vs1_md",          label: "Misdirect - Vashj (opener)",              role: "DPS", roleLabel: "Misc Assignments" },
 ];
@@ -428,36 +434,18 @@ export const SSC_VASHJ_P2 = [
   { key: "ssc_vs2_heal_plat",  label: "Platform / Elite Tank Heals",               role: "Healer" },
   { key: "ssc_vs2_heal_str",   label: "Strider Kiter Heals",                       role: "Healer" },
   { key: "ssc_vs2_heal_elem",  label: "Elemental / Add Tank Heals",                role: "Healer" },
-  { key: "ssc_vs2_heal_core",  label: "Core Runner Heals",                         role: "Healer" },
+  { key: "ssc_vs2_zone_w_heal", label: "West Zone Healer",                         role: "Healer" },
+  { key: "ssc_vs2_zone_n_heal", label: "North Zone Healer",                        role: "Healer" },
+  { key: "ssc_vs2_zone_e_heal", label: "East Zone Healer",                         role: "Healer" },
+  { key: "ssc_vs2_zone_s_heal", label: "South Zone Healer",                        role: "Healer" },
   { key: "ssc_vs2_heal_raid",  label: "Raid Heal",                                 role: "Healer" },
-  // Stairs Zones (zone-based daisy chain - pickup → relay → throw)
-  { key: "ssc_vs2_zone_w_dps",  label: "West Zone DPS",                            role: "DPS", roleLabel: "Stairs Zones (zone-based daisy chain)" },
-  { key: "ssc_vs2_zone_w_heal", label: "West Zone Healer",                         role: "Healer", roleLabel: "Stairs Zones (zone-based daisy chain)" },
-  { key: "ssc_vs2_zone_n_dps",  label: "North Zone DPS",                           role: "DPS", roleLabel: "Stairs Zones (zone-based daisy chain)" },
-  { key: "ssc_vs2_zone_n_heal", label: "North Zone Healer",                        role: "Healer", roleLabel: "Stairs Zones (zone-based daisy chain)" },
-  { key: "ssc_vs2_zone_e_dps",  label: "East Zone DPS",                            role: "DPS", roleLabel: "Stairs Zones (zone-based daisy chain)" },
-  { key: "ssc_vs2_zone_e_heal", label: "East Zone Healer",                         role: "Healer", roleLabel: "Stairs Zones (zone-based daisy chain)" },
-  { key: "ssc_vs2_zone_s_dps",  label: "South Zone DPS",                           role: "DPS", roleLabel: "Stairs Zones (zone-based daisy chain)" },
-  { key: "ssc_vs2_zone_s_heal", label: "South Zone Healer",                        role: "Healer", roleLabel: "Stairs Zones (zone-based daisy chain)" },
+  // Stairs Zones
+  { key: "ssc_vs2_zone_w_dps",  label: "West Zone DPS",                            role: "DPS", roleLabel: "Stairs Zones" },
+  { key: "ssc_vs2_zone_n_dps",  label: "North Zone DPS",                           role: "DPS", roleLabel: "Stairs Zones" },
+  { key: "ssc_vs2_zone_e_dps",  label: "East Zone DPS",                            role: "DPS", roleLabel: "Stairs Zones" },
+  { key: "ssc_vs2_zone_s_dps",  label: "South Zone DPS",                           role: "DPS", roleLabel: "Stairs Zones" },
   // Misc
   { key: "ssc_vs2_md_naga",    label: "Misdirect - Naga",                          role: "DPS", roleLabel: "Misc Assignments" },
-];
-
-export const SSC_VASHJ_P3 = [
-  // Tank Assignments
-  { key: "ssc_vs3_mt",         label: "Tank",                                      role: "Tank" },
-  { key: "ssc_vs3_strider",    label: "Residual Strider Kiters",                   role: "Tank" },
-  // Healer Assignments
-  { key: "ssc_vs3_mth",        label: "Tank Heal",                                 role: "Healer" },
-  { key: "ssc_vs3_rheal",      label: "Raid Heal",                                 role: "Healer" },
-  // Healer Positioning (cardinal)
-  { key: "ssc_vs3_heal_n",     label: "North Heal",                                role: "Healer", roleLabel: "Healer Positioning (cardinal)" },
-  { key: "ssc_vs3_heal_s",     label: "South Heal",                                role: "Healer", roleLabel: "Healer Positioning (cardinal)" },
-  { key: "ssc_vs3_heal_e",     label: "East Heal",                                 role: "Healer", roleLabel: "Healer Positioning (cardinal)" },
-  { key: "ssc_vs3_heal_w",     label: "West Heal",                                 role: "Healer", roleLabel: "Healer Positioning (cardinal)" },
-  // Misc
-  { key: "ssc_vs3_grounding",  label: "Grounding Totem",                           role: "DPS", roleLabel: "Misc Assignments" },
-  { key: "ssc_vs3_burn_group", label: "Burn Phase Plan (notes)",                   role: "DPS", roleLabel: "Misc Assignments", hint: "Bloodlust + cooldowns", textInput: true },
 ];
 
 // SSC_BOSSES - structured wrapper for tab-per-boss admin rendering.
@@ -481,9 +469,8 @@ export const SSC_BOSSES = [
     { id: "main", label: "", slots: SSC_MOROGRIM },
   ]},
   { id: "vashj",      name: "Lady Vashj",            phases: [
-    { id: "p1", label: "P1 (100%–70%)", slots: SSC_VASHJ_P1 },
-    { id: "p2", label: "P2 (70%–30%)",  slots: SSC_VASHJ_P2 },
-    { id: "p3", label: "P3 (sub-30%)",  slots: SSC_VASHJ_P3 },
+    { id: "p1", label: "P1 (100%–70%) and P3 (sub-30%)", slots: SSC_VASHJ_P1 },
+    { id: "p2", label: "P2 (70%–30%)",                   slots: SSC_VASHJ_P2 },
   ]},
 ];
 
@@ -495,6 +482,8 @@ export const SSC_BOSSES = [
 // Single combined phase: 2 platform tanks rotate during P1 perches, 1 add tank
 // handles Embers in P2.
 export const TK_ALAR = [
+  // Raid Leader Notes
+  { key: "tk_alar_rl_notes",   label: "Notes",                                   role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
   { key: "tk_alar_bloodlust",  label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Bloodlust", hint: "e.g. on pull or P2 transition", textInput: true },
   // Tanks
@@ -513,6 +502,8 @@ export const TK_ALAR = [
 // ── Void Reaver ──────────────────────────────────────────────────────────────
 // Single phase. Knock Away drops MT threat - tanks rotate as they get knocked.
 export const TK_VOIDREAVER = [
+  // Raid Leader Notes
+  { key: "tk_vr_rl_notes",     label: "Notes",                                   role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
   { key: "tk_vr_bloodlust",    label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Bloodlust", hint: "e.g. on pull (tank-and-spank fight)", textInput: true },
   // Tanks
@@ -533,6 +524,8 @@ export const TK_VOIDREAVER = [
 // ── High Astromancer Solarian ────────────────────────────────────────────────
 // Single panel - phases collapsed.
 export const TK_SOLARIAN = [
+  // Raid Leader Notes
+  { key: "tk_sol_rl_notes",    label: "Notes",                                   role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Bloodlust callout
   { key: "tk_sol_bloodlust",   label: "Bloodlust Timing",                        role: "DPS", roleLabel: "Bloodlust", hint: "e.g. P3 (Solarian boss form)", textInput: true },
   { key: "tk_sol_mt",          label: "Tank",                                    role: "Tank" },
@@ -550,6 +543,8 @@ export const TK_SOLARIAN = [
 //     Nether Vapor, Gravity Lapse (raid flies, dodge Nether Beams from ceiling).
 //     Sub-50% execute-phase mechanics continue in P4 - not a separate phase.
 export const TK_KAELTHAS_P1 = [
+  // Raid Leader Notes
+  { key: "tk_k1_rl_notes",     label: "Notes",                                   role: "DPS", roleLabel: "Raid Leader Notes", hint: "Strategy notes, callouts, reminders…", textInput: true },
   // Advisor tanks (killed in order)
   { key: "tk_k1_thaladred",    label: "Thaladred the Darkener (Advisor 1)",      role: "Tank" },
   { key: "tk_k1_sanguinar",    label: "Lord Sanguinar (Advisor 2)",              role: "Tank" },
