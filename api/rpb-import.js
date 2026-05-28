@@ -13,23 +13,14 @@ const KNOWN_IMPORT_STEP_KEYS = [
   "threatByFight",
 ];
 
-function mergePerFightStepData(existing, incoming) {
-  const existingSnapshots = Array.isArray(existing?.snapshots) ? existing.snapshots : [];
-  const incomingSnapshots = Array.isArray(incoming?.snapshots) ? incoming.snapshots : [];
-  const incomingFightIds = new Set(incomingSnapshots.map(snapshot => String(snapshot?.fightId || "")));
-  const filteredExisting = existingSnapshots.filter(snapshot => !incomingFightIds.has(String(snapshot?.fightId || "")));
-  return {
-    ...(existing || {}),
-    ...(incoming || {}),
-    snapshots: [...filteredExisting, ...incomingSnapshots],
-  };
-}
-
-function getImportSessionStepKey(importSessionId, stepKey) {
+function getImportSessionStepKey(importSessionId, stepKey, fightId = "") {
   const normalizedSession = String(importSessionId || "").trim();
   const normalizedStep = String(stepKey || "").trim();
   if (!normalizedSession || !normalizedStep) return "";
-  return buildCacheKey("rpb:import-session", [normalizedSession, normalizedStep]);
+  const parts = [normalizedSession, normalizedStep];
+  const normalizedFight = String(fightId || "").trim();
+  if (normalizedFight) parts.push(normalizedFight);
+  return buildCacheKey("rpb:import-session", parts);
 }
 
 async function loadStagedStep(importSessionId, stepKey) {
@@ -38,19 +29,52 @@ async function loadStagedStep(importSessionId, stepKey) {
   return getJsonCache(key);
 }
 
-async function saveStagedStep(importSessionId, stepKey, data) {
-  const key = getImportSessionStepKey(importSessionId, stepKey);
+async function saveStagedStep(importSessionId, stepKey, data, fightId = "") {
+  const key = getImportSessionStepKey(importSessionId, stepKey, fightId);
   if (!key) return false;
   return setJsonCache(key, data, IMPORT_SESSION_TTL_SECONDS);
+}
+
+function getEligiblePerFightIds(fightsData) {
+  return (fightsData?.fights || [])
+    .filter(fight => (fight?.boss || 0) > 0 && Number(fight?.end_time ?? 0) > Number(fight?.start_time ?? 0))
+    .map(fight => String(fight?.id || ""))
+    .filter(Boolean);
+}
+
+async function loadPerFightStagedStep(importSessionId, stepKey, fightIds) {
+  if (!fightIds?.length) return null;
+  const chunks = await Promise.all(fightIds.map(fightId => {
+    const key = getImportSessionStepKey(importSessionId, stepKey, fightId);
+    return key ? getJsonCache(key) : Promise.resolve(null);
+  }));
+  const snapshots = [];
+  let restFields = null;
+  for (const chunk of chunks) {
+    if (!chunk) continue;
+    const chunkSnapshots = Array.isArray(chunk?.snapshots) ? chunk.snapshots : [];
+    snapshots.push(...chunkSnapshots);
+    const { snapshots: _ignored, ...rest } = chunk;
+    restFields = { ...(restFields || {}), ...rest };
+  }
+  if (snapshots.length === 0 && !restFields) return null;
+  return { ...(restFields || {}), snapshots };
 }
 
 async function loadStagedDatasets(importSessionId) {
   const normalized = String(importSessionId || "").trim();
   if (!normalized) return null;
   const datasets = {};
-  await Promise.all(KNOWN_IMPORT_STEP_KEYS.map(async stepKey => {
-    const data = await loadStagedStep(normalized, stepKey);
-    if (data) datasets[stepKey] = data;
+  await Promise.all(KNOWN_IMPORT_STEP_KEYS
+    .filter(stepKey => !PER_FIGHT_STEP_KEYS.has(stepKey))
+    .map(async stepKey => {
+      const data = await loadStagedStep(normalized, stepKey);
+      if (data) datasets[stepKey] = data;
+    }));
+  const fightIds = getEligiblePerFightIds(datasets.fights);
+  await Promise.all(Array.from(PER_FIGHT_STEP_KEYS).map(async stepKey => {
+    const merged = await loadPerFightStagedStep(normalized, stepKey, fightIds);
+    if (merged) datasets[stepKey] = merged;
   }));
   return datasets;
 }
@@ -58,7 +82,15 @@ async function loadStagedDatasets(importSessionId) {
 async function deleteStagedDatasets(importSessionId) {
   const normalized = String(importSessionId || "").trim();
   if (!normalized) return false;
+  const fightsData = await loadStagedStep(normalized, "fights");
+  const fightIds = getEligiblePerFightIds(fightsData);
   await Promise.all(KNOWN_IMPORT_STEP_KEYS.map(stepKey => {
+    if (PER_FIGHT_STEP_KEYS.has(stepKey)) {
+      return Promise.all(fightIds.map(fightId => {
+        const key = getImportSessionStepKey(normalized, stepKey, fightId);
+        return key ? deleteKey(key) : Promise.resolve();
+      }));
+    }
     const key = getImportSessionStepKey(normalized, stepKey);
     return key ? deleteKey(key) : Promise.resolve();
   }));
@@ -132,12 +164,9 @@ export default async function handler(req, res) {
       if (req.body?.importSessionId) {
         const stepKey = req.body.step;
         const isPerFightChunk = Boolean(req.body?.fightId) && PER_FIGHT_STEP_KEYS.has(stepKey);
-        let stagedValue = data;
-        if (isPerFightChunk) {
-          const existing = await loadStagedStep(req.body.importSessionId, stepKey);
-          stagedValue = mergePerFightStepData(existing, data);
-        }
-        const saved = await saveStagedStep(req.body.importSessionId, stepKey, stagedValue);
+        const saved = isPerFightChunk
+          ? await saveStagedStep(req.body.importSessionId, stepKey, data, String(req.body.fightId))
+          : await saveStagedStep(req.body.importSessionId, stepKey, data);
         if (!saved) {
           return res.status(500).json({ error: "Failed to stage import data in Redis." });
         }
