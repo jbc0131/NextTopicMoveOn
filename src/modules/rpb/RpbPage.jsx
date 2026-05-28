@@ -6331,8 +6331,8 @@ export default function RpbPage() {
         const isPerFightStep = PER_FIGHT_IMPORT_STEP_KEYS.has(step.key);
         const eligibleFights = isPerFightStep
           ? ((datasets.fights?.fights || []).filter(fight =>
-              Number(fight?.end_time ?? 0) > Number(fight?.start_time ?? 0)
-              && (step.key !== "threatByFight" || (fight?.boss || 0) > 0)
+              (fight?.boss || 0) > 0
+              && Number(fight?.end_time ?? 0) > Number(fight?.start_time ?? 0)
             ))
           : [];
 
