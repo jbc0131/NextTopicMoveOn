@@ -100,6 +100,7 @@ const RPB_IMPORT_STEP_DEFINITIONS = [
 ];
 const DEFAULT_RPB_IMPORT_STEP_KEYS = RPB_IMPORT_STEP_DEFINITIONS.map(step => step.key);
 const PER_FIGHT_IMPORT_STEP_KEYS = new Set(["damageByFight", "healingByFight", "threatByFight"]);
+const PER_FIGHT_IMPORT_CONCURRENCY = 2;
 
 const MOBILE_BREAKPOINT = 960;
 
@@ -6340,19 +6341,25 @@ export default function RpbPage() {
         if (isPerFightStep && eligibleFights.length > 0) {
           const mergedSnapshots = [];
           let mergedRest = null;
-          for (let fightIndex = 0; fightIndex < eligibleFights.length; fightIndex++) {
-            const fight = eligibleFights[fightIndex];
+          for (let batchStart = 0; batchStart < eligibleFights.length; batchStart += PER_FIGHT_IMPORT_CONCURRENCY) {
+            const batch = eligibleFights.slice(batchStart, batchStart + PER_FIGHT_IMPORT_CONCURRENCY);
+            const batchEnd = batchStart + batch.length;
+            const batchNames = batch.map(fight => fight?.name).filter(Boolean).join(", ");
             updateImportProgressState((index * 2) + 2, step.label, step.detail, {
-              subdetail: `Stage ${index + 1} of ${steps.length} · Fight ${fightIndex + 1} of ${eligibleFights.length}${fight?.name ? ` · ${fight.name}` : ""}`,
-              completedEstimatedMs: phaseEstimateMs.prepare + completedStepEstimateMs + (Number(step.estimateMs || 0) * (fightIndex / eligibleFights.length)),
+              subdetail: `Stage ${index + 1} of ${steps.length} · Fight${batch.length > 1 ? "s" : ""} ${batchStart + 1}${batch.length > 1 ? `–${batchEnd}` : ""} of ${eligibleFights.length}${batchNames ? ` · ${batchNames}` : ""}`,
+              completedEstimatedMs: phaseEstimateMs.prepare + completedStepEstimateMs + (Number(step.estimateMs || 0) * (batchStart / eligibleFights.length)),
               activeStepKey: step.key,
               steps: getProgressSteps(step.key, completedStepKeys),
             });
-            const chunk = await callImportStep(step.key, { fightId: String(fight?.id ?? "") });
-            const chunkSnapshots = Array.isArray(chunk?.snapshots) ? chunk.snapshots : [];
-            mergedSnapshots.push(...chunkSnapshots);
-            const { snapshots: _ignored, ...restFields } = chunk || {};
-            mergedRest = { ...(mergedRest || {}), ...restFields };
+            const chunks = await Promise.all(batch.map(fight =>
+              callImportStep(step.key, { fightId: String(fight?.id ?? "") })
+            ));
+            for (const chunk of chunks) {
+              const chunkSnapshots = Array.isArray(chunk?.snapshots) ? chunk.snapshots : [];
+              mergedSnapshots.push(...chunkSnapshots);
+              const { snapshots: _ignored, ...restFields } = chunk || {};
+              mergedRest = { ...(mergedRest || {}), ...restFields };
+            }
           }
           data = { ...(mergedRest || {}), snapshots: mergedSnapshots };
         } else {
