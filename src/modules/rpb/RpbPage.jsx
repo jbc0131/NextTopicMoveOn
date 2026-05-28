@@ -4389,6 +4389,7 @@ function filterFights(fights, mode, selectedFightId, outcome = "") {
 function ImportProgressModal({ open, progress, onClose }) {
   const [displayPercent, setDisplayPercent] = useState(0);
   const [displayEtaMs, setDisplayEtaMs] = useState(null);
+  const [displayElapsedMs, setDisplayElapsedMs] = useState(0);
 
   useEffect(() => {
     if (!open) {
@@ -4436,6 +4437,24 @@ function ImportProgressModal({ open, progress, onClose }) {
     const intervalId = window.setInterval(tick, 250);
     return () => window.clearInterval(intervalId);
   }, [open, progress?.estimatedRemainingMs, progress?.etaUpdatedAtMs, progress?.percent, progress?.startedAtMs]);
+
+  useEffect(() => {
+    if (!open) {
+      setDisplayElapsedMs(0);
+      return undefined;
+    }
+
+    const startedAtMs = Number(progress?.startedAtMs || 0);
+    if (!(startedAtMs > 0)) {
+      setDisplayElapsedMs(0);
+      return undefined;
+    }
+
+    const tick = () => setDisplayElapsedMs(Math.max(0, Date.now() - startedAtMs));
+    tick();
+    const intervalId = window.setInterval(tick, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [open, progress?.startedAtMs]);
 
   if (!open) return null;
   const canClose = typeof onClose === "function";
@@ -4510,6 +4529,14 @@ function ImportProgressModal({ open, progress, onClose }) {
         }}>
           <span>{displayEtaMs != null ? formatEstimatedTimeRemaining(displayEtaMs) : ""}</span>
           <span>{Math.round(displayPercent)}%</span>
+        </div>
+
+        <div style={{
+          fontSize: fontSize.xs,
+          color: text.muted,
+          opacity: 0.85,
+        }}>
+          Overall: {formatElapsedDuration(displayElapsedMs)}
         </div>
       </div>
     </div>
@@ -4606,6 +4633,20 @@ function formatEstimatedTimeRemaining(ms) {
     return `${hours}h ${remainingMinutes}m remaining`;
   }
   return seconds > 0 ? `${minutes}m ${seconds}s remaining` : `${minutes}m remaining`;
+}
+
+function formatElapsedDuration(ms) {
+  const totalSeconds = Math.max(0, Math.round(Number(ms || 0) / 1000));
+  if (totalSeconds < 60) return `${totalSeconds}s elapsed`;
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m elapsed`;
+  }
+  return seconds > 0 ? `${minutes}m ${seconds}s elapsed` : `${minutes}m elapsed`;
 }
 
 function ImportWebhookModal({ open, raidTitle, onYes, onNo }) {
