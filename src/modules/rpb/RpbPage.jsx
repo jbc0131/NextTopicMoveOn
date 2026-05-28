@@ -101,6 +101,12 @@ const RPB_IMPORT_STEP_DEFINITIONS = [
 const DEFAULT_RPB_IMPORT_STEP_KEYS = RPB_IMPORT_STEP_DEFINITIONS.map(step => step.key);
 const PER_FIGHT_IMPORT_STEP_KEYS = new Set(["damageByFight", "healingByFight", "threatByFight"]);
 const PER_FIGHT_IMPORT_CONCURRENCY = 2;
+const PARALLEL_SAFE_LIGHTWEIGHT_STEP_KEYS = new Set([
+  "summary", "deaths", "tracked", "hostile", "fullCasts",
+  "engineering", "oil", "buffs", "drums",
+  "reportRankings", "reportSpeed",
+]);
+const LIGHTWEIGHT_IMPORT_CONCURRENCY = 3;
 
 const MOBILE_BREAKPOINT = 960;
 
@@ -6358,17 +6364,18 @@ export default function RpbPage() {
         return payload;
       };
 
-      for (let index = 0; index < steps.length; index++) {
-        const step = steps[index];
+      const runOneStep = async (step, index, { suppressProgress = false } = {}) => {
         const completedStepEstimateMs = steps
           .slice(0, index)
           .reduce((sum, currentStep) => sum + Number(currentStep.estimateMs || 0), 0);
-        updateImportProgressState((index * 2) + 2, step.label, step.detail, {
-          subdetail: `Stage ${index + 1} of ${steps.length}`,
-          completedEstimatedMs: phaseEstimateMs.prepare + completedStepEstimateMs + (Number(step.estimateMs || 0) * 0.35),
-          activeStepKey: step.key,
-          steps: getProgressSteps(step.key, completedStepKeys),
-        });
+        if (!suppressProgress) {
+          updateImportProgressState((index * 2) + 2, step.label, step.detail, {
+            subdetail: `Stage ${index + 1} of ${steps.length}`,
+            completedEstimatedMs: phaseEstimateMs.prepare + completedStepEstimateMs + (Number(step.estimateMs || 0) * 0.35),
+            activeStepKey: step.key,
+            steps: getProgressSteps(step.key, completedStepKeys),
+          });
+        }
 
         const isPerFightStep = PER_FIGHT_IMPORT_STEP_KEYS.has(step.key);
         const eligibleFights = isPerFightStep
@@ -6409,12 +6416,81 @@ export default function RpbPage() {
 
         datasets[step.key] = data;
         completedStepKeys.add(step.key);
-        updateImportProgressState((index * 2) + 3, `Stored ${step.label.replace(/\.\.\.$/, "").toLowerCase()}`, step.detail, {
-          subdetail: `Captured ${step.key} into the saved import payload`,
-          completedEstimatedMs: phaseEstimateMs.prepare + completedStepEstimateMs + Number(step.estimateMs || 0),
-          activeStepKey: step.key,
-          steps: getProgressSteps(step.key, completedStepKeys),
-        });
+        if (!suppressProgress) {
+          updateImportProgressState((index * 2) + 3, `Stored ${step.label.replace(/\.\.\.$/, "").toLowerCase()}`, step.detail, {
+            subdetail: `Captured ${step.key} into the saved import payload`,
+            completedEstimatedMs: phaseEstimateMs.prepare + completedStepEstimateMs + Number(step.estimateMs || 0),
+            activeStepKey: step.key,
+            steps: getProgressSteps(step.key, completedStepKeys),
+          });
+        }
+      };
+
+      let stepIndex = 0;
+      while (stepIndex < steps.length) {
+        let parallelGroupEnd = stepIndex;
+        while (
+          parallelGroupEnd < steps.length
+          && PARALLEL_SAFE_LIGHTWEIGHT_STEP_KEYS.has(steps[parallelGroupEnd].key)
+        ) {
+          parallelGroupEnd++;
+        }
+
+        if (parallelGroupEnd - stepIndex > 1) {
+          const groupSteps = steps.slice(stepIndex, parallelGroupEnd);
+          const groupStartIndex = stepIndex;
+          const groupCompletedEstimateMs = steps
+            .slice(0, groupStartIndex)
+            .reduce((sum, currentStep) => sum + Number(currentStep.estimateMs || 0), 0);
+          const groupTotalEstimateMs = groupSteps.reduce((sum, s) => sum + Number(s.estimateMs || 0), 0);
+          const groupKeysLabel = groupSteps.map(s => s.key).join(", ");
+
+          updateImportProgressState(
+            (groupStartIndex * 2) + 2,
+            `Fetching ${groupSteps.length} datasets in parallel...`,
+            groupKeysLabel,
+            {
+              subdetail: `Stages ${groupStartIndex + 1}–${parallelGroupEnd} of ${steps.length} · 0/${groupSteps.length} complete`,
+              completedEstimatedMs: phaseEstimateMs.prepare + groupCompletedEstimateMs + (groupTotalEstimateMs * 0.25),
+              activeStepKey: groupSteps[0].key,
+              steps: getProgressSteps(groupSteps[0].key, completedStepKeys),
+            }
+          );
+
+          let nextWorkerIdx = 0;
+          let completedInGroup = 0;
+          await Promise.all(
+            Array.from(
+              { length: Math.min(LIGHTWEIGHT_IMPORT_CONCURRENCY, groupSteps.length) },
+              async () => {
+                while (true) {
+                  const i = nextWorkerIdx++;
+                  if (i >= groupSteps.length) return;
+                  const childStep = groupSteps[i];
+                  await runOneStep(childStep, groupStartIndex + i, { suppressProgress: true });
+                  completedInGroup += 1;
+                  updateImportProgressState(
+                    ((groupStartIndex + completedInGroup - 1) * 2) + 3,
+                    `Stored ${childStep.label.replace(/\.\.\.$/, "").toLowerCase()}`,
+                    groupKeysLabel,
+                    {
+                      subdetail: `Parallel batch · ${completedInGroup}/${groupSteps.length} complete`,
+                      completedEstimatedMs: phaseEstimateMs.prepare + groupCompletedEstimateMs + (groupTotalEstimateMs * (completedInGroup / groupSteps.length)),
+                      activeStepKey: childStep.key,
+                      steps: getProgressSteps(childStep.key, completedStepKeys),
+                    }
+                  );
+                }
+              }
+            )
+          );
+
+          stepIndex = parallelGroupEnd;
+          continue;
+        }
+
+        await runOneStep(steps[stepIndex], stepIndex);
+        stepIndex++;
       }
 
       updateImportProgressState((steps.length * 2) + 2, mergeIntoExistingRaid ? "Reassembling merged raid payload..." : "Assembling raid payload...", "Normalizing fights, players, analytics, and saved breakdown rows", {
