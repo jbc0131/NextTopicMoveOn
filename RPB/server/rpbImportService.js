@@ -910,9 +910,12 @@ async function hydrateSourceScopedFightEntry({
   };
 }
 
-async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
+async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "", targetFightId = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
-  const snapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
+  const allSnapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
+  const snapshotFights = targetFightId
+    ? allSnapshotFights.filter(fight => String(fight?.id) === String(targetFightId))
+    : allSnapshotFights;
   const friendlyById = new Map((fightsData.friendlies || []).map(friendly => [String(friendly?.id || ""), friendly]));
   const ownedDamagePetsByFightId = new Map();
 
@@ -1123,9 +1126,12 @@ async function fetchFightDamageSnapshots(reportId, apiKeyOverride = "") {
   return { snapshots };
 }
 
-async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "") {
+async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "", targetFightId = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
-  const snapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
+  const allSnapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
+  const snapshotFights = targetFightId
+    ? allSnapshotFights.filter(fight => String(fight?.id) === String(targetFightId))
+    : allSnapshotFights;
 
   const snapshots = [];
   for (const fight of snapshotFights) {
@@ -2923,11 +2929,14 @@ function summarizeFightMisdirectionWindows(fight, events = [], buffTable = {}, f
     .sort((left, right) => Number(left.startTimeMs || 0) - Number(right.startTimeMs || 0));
 }
 
-async function fetchFightThreatSnapshots(reportId, apiKeyOverride = "") {
+async function fetchFightThreatSnapshots(reportId, apiKeyOverride = "", targetFightId = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
-  const snapshotFights = (fightsData.fights || []).filter(fight =>
+  const allSnapshotFights = (fightsData.fights || []).filter(fight =>
     (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
+  const snapshotFights = targetFightId
+    ? allSnapshotFights.filter(fight => String(fight?.id) === String(targetFightId))
+    : allSnapshotFights;
 
   const fightEventsById = {};
   const misdirectionWindowsByFightId = {};
@@ -3739,6 +3748,7 @@ export async function fetchRpbImportStep(action, input = {}) {
     wclV2ClientSecret = "",
     sourceId = "",
     fightIds = [],
+    fightId = "",
     mode = "damage",
   } = input;
   const reportId = getResolvedReportId({ reportUrl, reportId: rawReportId });
@@ -3841,9 +3851,9 @@ export async function fetchRpbImportStep(action, input = {}) {
     case "raiderData":
       return fetchBossSummarySnapshots(reportId, apiKey);
     case "damageByFight":
-      return fetchFightDamageSnapshots(reportId, apiKey);
+      return fetchFightDamageSnapshots(reportId, apiKey, fightId);
     case "healingByFight":
-      return fetchFightHealingSnapshots(reportId, apiKey);
+      return fetchFightHealingSnapshots(reportId, apiKey, fightId);
     case "deathsByFight":
       return fetchFightDeathsSnapshots(reportId, apiKey);
     case "debuffsByFight":
@@ -3851,7 +3861,7 @@ export async function fetchRpbImportStep(action, input = {}) {
     case "buffsByFight":
       return fetchFightBuffSnapshots(reportId, apiKey);
     case "threatByFight":
-      return fetchFightThreatSnapshots(reportId, apiKey);
+      return fetchFightThreatSnapshots(reportId, apiKey, fightId);
     case "playerAbilityBreakdown":
       return fetchPlayerAbilityBreakdown({
         reportUrl,

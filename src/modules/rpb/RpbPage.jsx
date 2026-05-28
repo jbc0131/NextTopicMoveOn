@@ -99,6 +99,7 @@ const RPB_IMPORT_STEP_DEFINITIONS = [
   { key: "threatByFight", label: "Saving threat-engine event payloads per boss fight...", detail: "GET /report/events per boss fight", estimateMs: 24000 },
 ];
 const DEFAULT_RPB_IMPORT_STEP_KEYS = RPB_IMPORT_STEP_DEFINITIONS.map(step => step.key);
+const PER_FIGHT_IMPORT_STEP_KEYS = new Set(["damageByFight", "healingByFight", "threatByFight"]);
 
 const MOBILE_BREAKPOINT = 960;
 
@@ -6295,6 +6296,26 @@ export default function RpbPage() {
         steps: getProgressSteps("", completedStepKeys),
       });
 
+      const callImportStep = async (stepKey, extraBody = {}) => {
+        const response = await fetch(`/api/rpb-import`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "step",
+            step: stepKey,
+            importSessionId,
+            reportUrl: normalizedReportInput,
+            apiKey: profileApiKey,
+            wclV2ClientId: profileV2ClientId,
+            wclV2ClientSecret: profileV2ClientSecret,
+            ...extraBody,
+          }),
+        });
+        const payload = await readApiJson(response);
+        if (!response.ok) throw new Error(payload.error || `Import step failed: ${stepKey}`);
+        return payload;
+      };
+
       for (let index = 0; index < steps.length; index++) {
         const step = steps[index];
         const completedStepEstimateMs = steps
@@ -6307,22 +6328,37 @@ export default function RpbPage() {
           steps: getProgressSteps(step.key, completedStepKeys),
         });
 
-        const response = await fetch(`/api/rpb-import`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "step",
-            step: step.key,
-            importSessionId,
-            reportUrl: normalizedReportInput,
-            apiKey: profileApiKey,
-            wclV2ClientId: profileV2ClientId,
-            wclV2ClientSecret: profileV2ClientSecret,
-          }),
-        });
+        const isPerFightStep = PER_FIGHT_IMPORT_STEP_KEYS.has(step.key);
+        const eligibleFights = isPerFightStep
+          ? ((datasets.fights?.fights || []).filter(fight =>
+              Number(fight?.end_time ?? 0) > Number(fight?.start_time ?? 0)
+              && (step.key !== "threatByFight" || (fight?.boss || 0) > 0)
+            ))
+          : [];
 
-        const data = await readApiJson(response);
-        if (!response.ok) throw new Error(data.error || `Import step failed: ${step.key}`);
+        let data;
+        if (isPerFightStep && eligibleFights.length > 0) {
+          const mergedSnapshots = [];
+          let mergedRest = null;
+          for (let fightIndex = 0; fightIndex < eligibleFights.length; fightIndex++) {
+            const fight = eligibleFights[fightIndex];
+            updateImportProgressState((index * 2) + 2, step.label, step.detail, {
+              subdetail: `Stage ${index + 1} of ${steps.length} · Fight ${fightIndex + 1} of ${eligibleFights.length}${fight?.name ? ` · ${fight.name}` : ""}`,
+              completedEstimatedMs: phaseEstimateMs.prepare + completedStepEstimateMs + (Number(step.estimateMs || 0) * (fightIndex / eligibleFights.length)),
+              activeStepKey: step.key,
+              steps: getProgressSteps(step.key, completedStepKeys),
+            });
+            const chunk = await callImportStep(step.key, { fightId: String(fight?.id ?? "") });
+            const chunkSnapshots = Array.isArray(chunk?.snapshots) ? chunk.snapshots : [];
+            mergedSnapshots.push(...chunkSnapshots);
+            const { snapshots: _ignored, ...restFields } = chunk || {};
+            mergedRest = { ...(mergedRest || {}), ...restFields };
+          }
+          data = { ...(mergedRest || {}), snapshots: mergedSnapshots };
+        } else {
+          data = await callImportStep(step.key);
+        }
+
         datasets[step.key] = data;
         completedStepKeys.add(step.key);
         updateImportProgressState((index * 2) + 3, `Stored ${step.label.replace(/\.\.\.$/, "").toLowerCase()}`, step.detail, {

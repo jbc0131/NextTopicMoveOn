@@ -4,6 +4,19 @@ import { buildAutoReportTitle } from "../src/modules/rpb/reportTitle.js";
 import { getRaidBundle, saveRaidBundle } from "./rpb-store.js";
 
 const IMPORT_SESSION_TTL_SECONDS = 60 * 30;
+const PER_FIGHT_STEP_KEYS = new Set(["damageByFight", "healingByFight", "threatByFight"]);
+
+function mergePerFightStepData(existing, incoming) {
+  const existingSnapshots = Array.isArray(existing?.snapshots) ? existing.snapshots : [];
+  const incomingSnapshots = Array.isArray(incoming?.snapshots) ? incoming.snapshots : [];
+  const incomingFightIds = new Set(incomingSnapshots.map(snapshot => String(snapshot?.fightId || "")));
+  const filteredExisting = existingSnapshots.filter(snapshot => !incomingFightIds.has(String(snapshot?.fightId || "")));
+  return {
+    ...(existing || {}),
+    ...(incoming || {}),
+    snapshots: [...filteredExisting, ...incomingSnapshots],
+  };
+}
 
 function getImportSessionKey(importSessionId) {
   const normalized = String(importSessionId || "").trim();
@@ -74,8 +87,11 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const reportId = parseReportId(req.body?.reportUrl || req.body?.reportId || "");
+  const stepFightSuffix = req.body?.action === "step" && req.body?.fightId
+    ? `:fight:${req.body.fightId}`
+    : "";
   const actionLabel = req.body?.action === "step"
-    ? `step:${req.body?.step || "unknown"}`
+    ? `step:${req.body?.step || "unknown"}${stepFightSuffix}`
     : (req.body?.action || "import");
   const lockKey = reportId ? buildCacheKey("rpb:import-lock", [reportId, actionLabel]) : "";
 
@@ -91,7 +107,11 @@ export default async function handler(req, res) {
       const data = await fetchRpbImportStep(req.body.step, req.body || {});
       if (req.body?.importSessionId) {
         const stagedDatasets = (await loadStagedDatasets(req.body.importSessionId)) || {};
-        stagedDatasets[req.body.step] = data;
+        const stepKey = req.body.step;
+        const isPerFightChunk = Boolean(req.body?.fightId) && PER_FIGHT_STEP_KEYS.has(stepKey);
+        stagedDatasets[stepKey] = isPerFightChunk
+          ? mergePerFightStepData(stagedDatasets[stepKey], data)
+          : data;
         const saved = await saveStagedDatasets(req.body.importSessionId, stagedDatasets);
         if (!saved) {
           return res.status(500).json({ error: "Failed to stage import data in Redis." });
