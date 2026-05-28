@@ -5,6 +5,13 @@ import { getRaidBundle, saveRaidBundle } from "./rpb-store.js";
 
 const IMPORT_SESSION_TTL_SECONDS = 60 * 30;
 const PER_FIGHT_STEP_KEYS = new Set(["damageByFight", "healingByFight", "threatByFight"]);
+const KNOWN_IMPORT_STEP_KEYS = [
+  "fights", "summary", "deaths", "tracked", "hostile", "fullCasts",
+  "engineering", "oil", "buffs", "buffsByFight", "drums", "drumsByFight",
+  "potionsByFight", "reportRankings", "reportSpeed", "raiderData",
+  "damageByFight", "healingByFight", "deathsByFight", "debuffsByFight",
+  "threatByFight",
+];
 
 function mergePerFightStepData(existing, incoming) {
   const existingSnapshots = Array.isArray(existing?.snapshots) ? existing.snapshots : [];
@@ -18,27 +25,44 @@ function mergePerFightStepData(existing, incoming) {
   };
 }
 
-function getImportSessionKey(importSessionId) {
-  const normalized = String(importSessionId || "").trim();
-  return normalized ? buildCacheKey("rpb:import-session", [normalized]) : "";
+function getImportSessionStepKey(importSessionId, stepKey) {
+  const normalizedSession = String(importSessionId || "").trim();
+  const normalizedStep = String(stepKey || "").trim();
+  if (!normalizedSession || !normalizedStep) return "";
+  return buildCacheKey("rpb:import-session", [normalizedSession, normalizedStep]);
+}
+
+async function loadStagedStep(importSessionId, stepKey) {
+  const key = getImportSessionStepKey(importSessionId, stepKey);
+  if (!key) return null;
+  return getJsonCache(key);
+}
+
+async function saveStagedStep(importSessionId, stepKey, data) {
+  const key = getImportSessionStepKey(importSessionId, stepKey);
+  if (!key) return false;
+  return setJsonCache(key, data, IMPORT_SESSION_TTL_SECONDS);
 }
 
 async function loadStagedDatasets(importSessionId) {
-  const key = getImportSessionKey(importSessionId);
-  if (!key) return null;
-  return (await getJsonCache(key)) || {};
-}
-
-async function saveStagedDatasets(importSessionId, datasets) {
-  const key = getImportSessionKey(importSessionId);
-  if (!key) return false;
-  return setJsonCache(key, datasets || {}, IMPORT_SESSION_TTL_SECONDS);
+  const normalized = String(importSessionId || "").trim();
+  if (!normalized) return null;
+  const datasets = {};
+  await Promise.all(KNOWN_IMPORT_STEP_KEYS.map(async stepKey => {
+    const data = await loadStagedStep(normalized, stepKey);
+    if (data) datasets[stepKey] = data;
+  }));
+  return datasets;
 }
 
 async function deleteStagedDatasets(importSessionId) {
-  const key = getImportSessionKey(importSessionId);
-  if (!key) return false;
-  return deleteKey(key);
+  const normalized = String(importSessionId || "").trim();
+  if (!normalized) return false;
+  await Promise.all(KNOWN_IMPORT_STEP_KEYS.map(stepKey => {
+    const key = getImportSessionStepKey(normalized, stepKey);
+    return key ? deleteKey(key) : Promise.resolve();
+  }));
+  return true;
 }
 
 async function assembleMergedRaid(reqBody, datasets) {
@@ -106,13 +130,14 @@ export default async function handler(req, res) {
     if (req.body?.action === "step") {
       const data = await fetchRpbImportStep(req.body.step, req.body || {});
       if (req.body?.importSessionId) {
-        const stagedDatasets = (await loadStagedDatasets(req.body.importSessionId)) || {};
         const stepKey = req.body.step;
         const isPerFightChunk = Boolean(req.body?.fightId) && PER_FIGHT_STEP_KEYS.has(stepKey);
-        stagedDatasets[stepKey] = isPerFightChunk
-          ? mergePerFightStepData(stagedDatasets[stepKey], data)
-          : data;
-        const saved = await saveStagedDatasets(req.body.importSessionId, stagedDatasets);
+        let stagedValue = data;
+        if (isPerFightChunk) {
+          const existing = await loadStagedStep(req.body.importSessionId, stepKey);
+          stagedValue = mergePerFightStepData(existing, data);
+        }
+        const saved = await saveStagedStep(req.body.importSessionId, stepKey, stagedValue);
         if (!saved) {
           return res.status(500).json({ error: "Failed to stage import data in Redis." });
         }

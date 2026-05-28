@@ -71,7 +71,11 @@ export async function setJsonCache(key, value, ttlSeconds) {
     const response = await upstashCommand(args);
     if (response?.result !== "OK") throw new Error("Unexpected Upstash SET result");
     return true;
-  } catch {
+  } catch (error) {
+    console.warn("Upstash setJsonCache failed", {
+      key,
+      message: error?.message || String(error || ""),
+    });
     return false;
   }
 }
