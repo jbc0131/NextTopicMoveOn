@@ -34,7 +34,7 @@ const TRACKED_BOSS_DEBUFFS = [
   { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 5 },
   { key: "hunters-mark", label: "Hunter's Mark", aliases: ["hunter s mark", "hunters mark"], spellIds: new Set(["14325"]), preferredClass: "Hunter", order: 6 },
   { key: "expose-weakness", label: "Expose Weakness", aliases: ["expose weakness"], spellIds: new Set(["34501"]), preferredClass: "Hunter", order: 7 },
-  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["26993", "27011"]), preferredClass: "Druid", order: 8 },
+  { key: "faerie-fire", label: "Faerie Fire", aliases: ["faerie fire"], spellIds: new Set(["770", "778", "9749", "9907", "26993", "16857", "17390", "17391", "17392", "27010", "27011"]), preferredClass: "Druid", order: 8 },
   { key: "judgement-of-wisdom", label: "Judgement of Wisdom", aliases: ["judgement of wisdom"], spellIds: new Set(["27164"]), preferredClass: "Paladin", order: 9 },
   { key: "judgement-of-the-crusader", label: "Judgement of the Crusader", aliases: ["judgement of the crusader"], spellIds: new Set(["27159"]), preferredClass: "Paladin", order: 10 },
 ];
@@ -2078,10 +2078,12 @@ function mergeTrackedBossDebuffRows(
         bands,
         maxStacks: Number(maxStacksByDebuffKey.get(entry.key) || entry.maxStacks || 0),
         uptimePercent: durationMs > 0 ? (totalUptime / durationMs) * 100 : 0,
-        sources: [...(sourcesByDebuffKey.get(entry.key)?.values() || [])].sort((a, b) => {
-          if (b.casts !== a.casts) return b.casts - a.casts;
-          return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
-        }),
+        sources: sourcesByDebuffKey.has(entry.key)
+          ? [...sourcesByDebuffKey.get(entry.key).values()].sort((a, b) => {
+              if (b.casts !== a.casts) return b.casts - a.casts;
+              return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+            })
+          : (Array.isArray(entry?.sources) ? entry.sources : []),
       };
     })
     .sort((a, b) => {
