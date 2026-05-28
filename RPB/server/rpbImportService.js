@@ -28,7 +28,7 @@ const DRUMS_TYPE_LABELS = new Map([
 const TRACKED_BOSS_DEBUFFS = [
   { key: "blood-frenzy-estimate", label: "Blood Frenzy", aliases: [], spellIds: new Set(), preferredClass: "Warrior", order: 0, estimated: true },
   { key: "armor-reduction", label: "Sunder Armor / IEA", aliases: ["sunder armor", "improved expose armor", "expose armor"], spellIds: new Set(["25225", "26866"]), preferredClass: "Warrior", order: 1 },
-  { key: "demoralizing-shout", label: "Demoralizing Shout", aliases: ["demoralizing shout"], spellIds: new Set(["25203"]), preferredClass: "Warrior", order: 2 },
+  { key: "demoralizing-shout", label: "Demoralizing Shout / Roar", aliases: ["demoralizing shout", "demoralizing roar"], spellIds: new Set(["1160", "6190", "11554", "11555", "11556", "25202", "25203", "99", "1735", "9490", "9747", "9898", "26998"]), preferredClass: "Warrior", order: 2 },
   { key: "curse-of-recklessness", label: "Curse of Recklessness", aliases: ["curse of recklessness"], spellIds: new Set(["27226"]), preferredClass: "Warlock", order: 3 },
   { key: "curse-of-the-elements", label: "Curse of the Elements", aliases: ["curse of the elements"], spellIds: new Set(["27228"]), preferredClass: "Warlock", order: 4 },
   { key: "curse-of-weakness", label: "Curse of Weakness", aliases: ["curse of weakness"], spellIds: new Set(["30909"]), preferredClass: "Warlock", order: 5 },
@@ -1344,22 +1344,19 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "", targetFi
     const trackedSpellIds = new Set(TRACKED_BOSS_DEBUFF_SPELL_IDS);
 
     let castsByAbility = {};
-    if (trackedSpellIds.size > 0) {
-      try {
-        castsByAbility = await wclFetch(`/report/tables/casts/${reportId}`, {
-          start: fight.start_time ?? 0,
-          end: fight.end_time ?? 0,
-          by: "source",
-          filter: buildAbilityIdFilter(trackedSpellIds),
-        }, apiKeyOverride);
-      } catch (error) {
-        console.warn("RPB tracked debuff casts lookup failed", {
-          reportId,
-          fightId: fight?.id,
-          fightName: fight?.name,
-          error: error?.message || String(error),
-        });
-      }
+    try {
+      castsByAbility = await wclFetch(`/report/tables/casts/${reportId}`, {
+        start: fight.start_time ?? 0,
+        end: fight.end_time ?? 0,
+        by: "source",
+      }, apiKeyOverride);
+    } catch (error) {
+      console.warn("RPB tracked debuff casts lookup failed", {
+        reportId,
+        fightId: fight?.id,
+        fightName: fight?.name,
+        error: error?.message || String(error),
+      });
     }
     const castSourcesByDebuffKey = collectTrackedBossDebuffSourcesFromCasts(castsByAbility, sourceLookup);
 
