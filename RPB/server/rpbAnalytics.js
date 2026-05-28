@@ -427,7 +427,7 @@ function getSummaryPlayerEntry(summaryData, player) {
 }
 
 function getRaiderSummaryPlayerEntry(raiderData, player) {
-  for (const snapshot of raiderData?.summaries || []) {
+  for (const snapshot of raiderData?.snapshots || []) {
     const found = getSummaryPlayerEntry(snapshot?.summary, player);
     if (found) return found;
   }

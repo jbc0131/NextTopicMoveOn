@@ -99,7 +99,11 @@ const RPB_IMPORT_STEP_DEFINITIONS = [
   { key: "threatByFight", label: "Saving threat-engine event payloads per boss fight...", detail: "GET /report/events per boss fight", estimateMs: 24000 },
 ];
 const DEFAULT_RPB_IMPORT_STEP_KEYS = RPB_IMPORT_STEP_DEFINITIONS.map(step => step.key);
-const PER_FIGHT_IMPORT_STEP_KEYS = new Set(["damageByFight", "healingByFight", "threatByFight"]);
+const PER_FIGHT_IMPORT_STEP_KEYS = new Set([
+  "damageByFight", "healingByFight", "threatByFight",
+  "buffsByFight", "drumsByFight", "potionsByFight",
+  "debuffsByFight", "deathsByFight", "raiderData",
+]);
 const PER_FIGHT_IMPORT_CONCURRENCY = 2;
 const PARALLEL_SAFE_LIGHTWEIGHT_STEP_KEYS = new Set([
   "summary", "deaths", "tracked", "hostile", "fullCasts",

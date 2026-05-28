@@ -4,7 +4,11 @@ import { buildAutoReportTitle } from "../src/modules/rpb/reportTitle.js";
 import { getRaidBundle, saveRaidBundle } from "./rpb-store.js";
 
 const IMPORT_SESSION_TTL_SECONDS = 60 * 30;
-const PER_FIGHT_STEP_KEYS = new Set(["damageByFight", "healingByFight", "threatByFight"]);
+const PER_FIGHT_STEP_KEYS = new Set([
+  "damageByFight", "healingByFight", "threatByFight",
+  "buffsByFight", "drumsByFight", "potionsByFight",
+  "debuffsByFight", "deathsByFight", "raiderData",
+]);
 const KNOWN_IMPORT_STEP_KEYS = [
   "fights", "summary", "deaths", "tracked", "hostile", "fullCasts",
   "engineering", "oil", "buffs", "buffsByFight", "drums", "drumsByFight",

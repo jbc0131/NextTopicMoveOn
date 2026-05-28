@@ -161,20 +161,23 @@ async function getWclV2AccessToken(clientIdOverride = "", clientSecretOverride =
   return cachedV2Token;
 }
 
-async function fetchBossSummarySnapshots(reportId, apiKeyOverride = "") {
+async function fetchBossSummarySnapshots(reportId, apiKeyOverride = "", targetFightId = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
-  const bossFights = (fightsData.fights || []).filter(fight =>
+  const allBossFights = (fightsData.fights || []).filter(fight =>
     (fight.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
+  const bossFights = targetFightId
+    ? allBossFights.filter(fight => String(fight?.id) === String(targetFightId))
+    : allBossFights;
 
-  const summaries = [];
+  const snapshots = [];
   for (const fight of bossFights) {
     const summary = await wclFetch(`/report/tables/summary/${reportId}`, {
       start: fight.start_time ?? 0,
       end: fight.end_time ?? 0,
     }, apiKeyOverride);
 
-    summaries.push({
+    snapshots.push({
       fightId: String(fight.id),
       encounterId: fight.boss || 0,
       fightName: fight.name || "Unknown Fight",
@@ -184,16 +187,7 @@ async function fetchBossSummarySnapshots(reportId, apiKeyOverride = "") {
     });
   }
 
-  return {
-    fights: bossFights.map(fight => ({
-      id: String(fight.id),
-      encounterId: fight.boss || 0,
-      fightName: fight.name || "Unknown Fight",
-      start: fight.start_time ?? 0,
-      end: fight.end_time ?? 0,
-    })),
-    summaries,
-  };
+  return { snapshots };
 }
 
 function makeRankingAlias(metric, fightId) {
@@ -1192,9 +1186,12 @@ async function fetchFightHealingSnapshots(reportId, apiKeyOverride = "", targetF
   return { snapshots };
 }
 
-async function fetchFightDeathsSnapshots(reportId, apiKeyOverride = "") {
+async function fetchFightDeathsSnapshots(reportId, apiKeyOverride = "", targetFightId = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
-  const snapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
+  const allSnapshotFights = getSnapshotEligibleFights(fightsData.fights || []);
+  const snapshotFights = targetFightId
+    ? allSnapshotFights.filter(fight => String(fight?.id) === String(targetFightId))
+    : allSnapshotFights;
   const deathActorLookup = buildDeathActorLookup(fightsData);
 
   const snapshots = [];
@@ -1258,11 +1255,14 @@ async function fetchFightDeathsSnapshots(reportId, apiKeyOverride = "") {
   return { snapshots };
 }
 
-async function fetchFightBuffSnapshots(reportId, apiKeyOverride = "") {
+async function fetchFightBuffSnapshots(reportId, apiKeyOverride = "", targetFightId = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
-  const snapshotFights = (fightsData.fights || []).filter(fight =>
+  const allSnapshotFights = (fightsData.fights || []).filter(fight =>
     (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
+  const snapshotFights = targetFightId
+    ? allSnapshotFights.filter(fight => String(fight?.id) === String(targetFightId))
+    : allSnapshotFights;
   const players = (fightsData.friendlies || []).filter(player =>
     PLAYER_TYPES.has(player?.type) && player?.id != null && player?.name
   );
@@ -1300,11 +1300,14 @@ async function fetchFightBuffSnapshots(reportId, apiKeyOverride = "") {
   return { snapshots };
 }
 
-async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "") {
+async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "", targetFightId = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
-  const snapshotFights = (fightsData.fights || []).filter(fight =>
+  const allSnapshotFights = (fightsData.fights || []).filter(fight =>
     (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
+  const snapshotFights = targetFightId
+    ? allSnapshotFights.filter(fight => String(fight?.id) === String(targetFightId))
+    : allSnapshotFights;
   const sourceLookup = new Map(
     (fightsData.friendlies || [])
       .filter(entry => entry?.id != null)
@@ -2562,7 +2565,7 @@ function summarizePotionEvents(
     .sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
 }
 
-async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
+async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "", targetFightId = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
   const playerNamesById = new Map(
     (fightsData.friendlies || [])
@@ -2600,9 +2603,12 @@ async function fetchFightPotionSnapshots(reportId, apiKeyOverride = "") {
   const healFilter = buildAbilityIdFilter(
     collectMatchingAbilityIdsFromTable(fullHealingData, isTrackedPotionHealName)
   );
-  const snapshotFights = (fightsData.fights || []).filter(fight =>
+  const allSnapshotFights = (fightsData.fights || []).filter(fight =>
     (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
+  const snapshotFights = targetFightId
+    ? allSnapshotFights.filter(fight => String(fight?.id) === String(targetFightId))
+    : allSnapshotFights;
 
   const snapshots = [];
   for (const fight of snapshotFights) {
@@ -2828,7 +2834,7 @@ function summarizeDrumEvents(castEvents = [], buffEvents = [], knownCastersByGui
   }));
 }
 
-async function fetchFightDrumSnapshots(reportId, apiKeyOverride = "") {
+async function fetchFightDrumSnapshots(reportId, apiKeyOverride = "", targetFightId = "") {
   const fightsData = await wclFetch(`/report/fights/${reportId}`, {}, apiKeyOverride);
   const drumsData = await wclFetch(`/report/tables/casts/${reportId}`, {
     start: 0,
@@ -2837,9 +2843,12 @@ async function fetchFightDrumSnapshots(reportId, apiKeyOverride = "") {
     filter: DRUMS_CAST_FILTER,
   }, apiKeyOverride);
   const knownCastersByGuid = buildDrumCasterLookup(drumsData);
-  const snapshotFights = (fightsData.fights || []).filter(fight =>
+  const allSnapshotFights = (fightsData.fights || []).filter(fight =>
     (fight?.boss || 0) > 0 && getDurationMs(fight.start_time, fight.end_time) > 0
   );
+  const snapshotFights = targetFightId
+    ? allSnapshotFights.filter(fight => String(fight?.id) === String(targetFightId))
+    : allSnapshotFights;
 
   const snapshots = [];
   for (const fight of snapshotFights) {
@@ -3820,9 +3829,9 @@ export async function fetchRpbImportStep(action, input = {}) {
         filter: DRUMS_CAST_FILTER,
       }, apiKey);
     case "drumsByFight":
-      return fetchFightDrumSnapshots(reportId, apiKey);
+      return fetchFightDrumSnapshots(reportId, apiKey, fightId);
     case "potionsByFight":
-      return fetchFightPotionSnapshots(reportId, apiKey);
+      return fetchFightPotionSnapshots(reportId, apiKey, fightId);
     case "reportRankings":
       try {
         return await fetchReportRankings(
@@ -3849,17 +3858,17 @@ export async function fetchRpbImportStep(action, input = {}) {
         return { available: false, fights: {}, reportSpeedPercent: null };
       }
     case "raiderData":
-      return fetchBossSummarySnapshots(reportId, apiKey);
+      return fetchBossSummarySnapshots(reportId, apiKey, fightId);
     case "damageByFight":
       return fetchFightDamageSnapshots(reportId, apiKey, fightId);
     case "healingByFight":
       return fetchFightHealingSnapshots(reportId, apiKey, fightId);
     case "deathsByFight":
-      return fetchFightDeathsSnapshots(reportId, apiKey);
+      return fetchFightDeathsSnapshots(reportId, apiKey, fightId);
     case "debuffsByFight":
-      return fetchFightDebuffSnapshots(reportId, apiKey);
+      return fetchFightDebuffSnapshots(reportId, apiKey, fightId);
     case "buffsByFight":
-      return fetchFightBuffSnapshots(reportId, apiKey);
+      return fetchFightBuffSnapshots(reportId, apiKey, fightId);
     case "threatByFight":
       return fetchFightThreatSnapshots(reportId, apiKey, fightId);
     case "playerAbilityBreakdown":
@@ -3892,7 +3901,7 @@ export function assembleRpbRaid({ reportUrl, reportId: rawReportId }, datasets) 
       const damageSnapshot = (datasets.damageByFight?.snapshots || []).find(snapshot => snapshot.fightId === String(normalizedFight.id));
       const healingSnapshot = (datasets.healingByFight?.snapshots || []).find(snapshot => snapshot.fightId === String(normalizedFight.id));
       const deathsSnapshot = (datasets.deathsByFight?.snapshots || []).find(snapshot => snapshot.fightId === String(normalizedFight.id));
-      const raiderSnapshot = (datasets.raiderData?.summaries || []).find(snapshot => snapshot.fightId === String(normalizedFight.id));
+      const raiderSnapshot = (datasets.raiderData?.snapshots || []).find(snapshot => snapshot.fightId === String(normalizedFight.id));
       const rankingSnapshot = datasets.reportRankings?.fights?.[String(normalizedFight.id)] || {};
       const speedSnapshot = datasets.reportSpeed?.fights?.[String(normalizedFight.id)] || {};
 
