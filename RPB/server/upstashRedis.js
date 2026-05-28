@@ -1,8 +1,24 @@
+import { gzipSync, gunzipSync } from "node:zlib";
+
 const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || "";
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
+const GZIP_PREFIX = "gz1:";
+const GZIP_THRESHOLD_BYTES = 64 * 1024;
 
 function canUseRedis() {
   return !!(REDIS_URL && REDIS_TOKEN);
+}
+
+function maybeCompressJsonString(jsonString) {
+  if (typeof jsonString !== "string" || jsonString.length < GZIP_THRESHOLD_BYTES) return jsonString;
+  return GZIP_PREFIX + gzipSync(jsonString).toString("base64");
+}
+
+function maybeDecompressRedisValue(rawValue) {
+  if (typeof rawValue !== "string") return rawValue;
+  if (!rawValue.startsWith(GZIP_PREFIX)) return rawValue;
+  const base64 = rawValue.slice(GZIP_PREFIX.length);
+  return gunzipSync(Buffer.from(base64, "base64")).toString("utf8");
 }
 
 function sanitizeKeyPart(value) {
@@ -56,7 +72,9 @@ export async function getJsonCache(key) {
   try {
     const response = await upstashFetch("get", [key]);
     const raw = response?.result;
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const json = maybeDecompressRedisValue(raw);
+    return JSON.parse(json);
   } catch {
     return null;
   }
@@ -66,7 +84,9 @@ export async function setJsonCache(key, value, ttlSeconds) {
   if (!canUseRedis()) return false;
 
   try {
-    const args = ["SET", key, JSON.stringify(value)];
+    const json = JSON.stringify(value);
+    const payload = maybeCompressJsonString(json);
+    const args = ["SET", key, payload];
     if (ttlSeconds > 0) args.push("EX", String(ttlSeconds));
     const response = await upstashCommand(args);
     if (response?.result !== "OK") throw new Error("Unexpected Upstash SET result");
