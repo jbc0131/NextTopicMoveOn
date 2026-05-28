@@ -1343,6 +1343,26 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "", targetFi
     );
     const trackedSpellIds = new Set(TRACKED_BOSS_DEBUFF_SPELL_IDS);
 
+    let castsByAbility = {};
+    if (trackedSpellIds.size > 0) {
+      try {
+        castsByAbility = await wclFetch(`/report/tables/casts/${reportId}`, {
+          start: fight.start_time ?? 0,
+          end: fight.end_time ?? 0,
+          by: "source",
+          filter: buildAbilityIdFilter(trackedSpellIds),
+        }, apiKeyOverride);
+      } catch (error) {
+        console.warn("RPB tracked debuff casts lookup failed", {
+          reportId,
+          fightId: fight?.id,
+          fightName: fight?.name,
+          error: error?.message || String(error),
+        });
+      }
+    }
+    const castSourcesByDebuffKey = collectTrackedBossDebuffSourcesFromCasts(castsByAbility, sourceLookup);
+
     let sourceEvents = [];
     if (trackedSpellIds.size > 0) {
       try {
@@ -1361,13 +1381,23 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "", targetFi
         });
       }
     }
-    const sourcesByDebuffKey = collectTrackedBossDebuffSourcesFromEvents(sourceEvents, sourceLookup);
+    const eventSourcesByDebuffKey = collectTrackedBossDebuffSourcesFromEvents(sourceEvents, sourceLookup);
     const maxStacksByDebuffKey = collectTrackedBossDebuffMaxStacksFromEvents(sourceEvents);
     const eventBandsByDebuffKey = collectTrackedBossDebuffBandsFromEvents(
       sourceEvents,
       Number(fight.start_time ?? 0),
       Number(fight.end_time ?? 0)
     );
+    const sourcesByDebuffKey = new Map();
+    const allDebuffKeys = new Set([...castSourcesByDebuffKey.keys(), ...eventSourcesByDebuffKey.keys()]);
+    for (const key of allDebuffKeys) {
+      const castMap = castSourcesByDebuffKey.get(key);
+      if (castMap && castMap.size > 0) {
+        sourcesByDebuffKey.set(key, castMap);
+      } else if (eventSourcesByDebuffKey.has(key)) {
+        sourcesByDebuffKey.set(key, eventSourcesByDebuffKey.get(key));
+      }
+    }
     const mergedDebuffs = mergeTrackedBossDebuffRows(
       debuffSummary,
       sourcesByDebuffKey,
@@ -1375,6 +1405,12 @@ async function fetchFightDebuffSnapshots(reportId, apiKeyOverride = "", targetFi
       eventBandsByDebuffKey,
       durationMs
     );
+    for (const debuff of mergedDebuffs) {
+      const castMap = castSourcesByDebuffKey.get(debuff.key);
+      if (!castMap || castMap.size === 0) continue;
+      const totalFromCasts = [...castMap.values()].reduce((sum, source) => sum + Number(source?.casts || 0), 0);
+      debuff.totalUses = totalFromCasts;
+    }
     const bloodFrenzyEstimate = await estimateBloodFrenzyContribution(
       reportId,
       fight,
@@ -1809,6 +1845,51 @@ function collectTrackedBossDebuffSources(tableData) {
       trackedSource.casts += casts;
       trackedSources.set(trackedSourceKey, trackedSource);
       grouped.set(tracker.key, trackedSources);
+    }
+  }
+
+  return grouped;
+}
+
+function collectTrackedBossDebuffSourcesFromCasts(castsTable = {}, sourceLookup = new Map()) {
+  const grouped = new Map();
+  const sourceRows = Array.isArray(castsTable?.entries) ? castsTable.entries : [];
+
+  for (const sourceRow of sourceRows) {
+    const rawSourceId = sourceRow?.id ?? sourceRow?.sourceID ?? sourceRow?.sourceId ?? null;
+    const sourceIdKey = String(rawSourceId ?? "");
+    const lookupEntry = sourceIdKey ? (sourceLookup.get(sourceIdKey) || null) : null;
+    const sourceName = sourceRow?.name || lookupEntry?.name || "Unknown";
+    const sourceType = sourceRow?.type || lookupEntry?.type || "";
+
+    for (const ability of getAbilityRows(sourceRow, "")) {
+      const tracker = matchTrackedBossDebuff(
+        ability?.guid ?? ability?.gameID ?? ability?.abilityGameID ?? ability?.id ?? null,
+        ability?.name || ""
+      );
+      if (!tracker) continue;
+
+      const casts = Number(
+        ability?.total
+        ?? ability?.casts
+        ?? ability?.totalUses
+        ?? ability?.uses
+        ?? ability?.useCount
+        ?? 0
+      );
+      if (!Number.isFinite(casts) || casts <= 0) continue;
+
+      const sourceMap = grouped.get(tracker.key) || new Map();
+      const sourceKey = sourceIdKey || sourceName;
+      const entry = sourceMap.get(sourceKey) || {
+        sourceId: rawSourceId,
+        name: sourceName,
+        type: sourceType,
+        casts: 0,
+      };
+      entry.casts += casts;
+      sourceMap.set(sourceKey, entry);
+      grouped.set(tracker.key, sourceMap);
     }
   }
 
