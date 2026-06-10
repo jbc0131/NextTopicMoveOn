@@ -16,8 +16,8 @@
 // staging is needed. Abandoned applications leave nothing behind.
 //
 // Required env vars (Vercel → Settings → Environment Variables):
-//   DISCORD_PUBLIC_KEY   — from Developer Portal → General Information
-//   DISCORD_BOT_TOKEN    — from Developer Portal → Bot
+//   ROSTER_BOT_PUBLIC_KEY   — from Developer Portal → General Information
+//   ROSTER_BOT_TOKEN    — from Developer Portal → Bot
 //   GOAT_ROLE_ID         — right-click GOAT role → Copy Role ID
 //   TICKET_CATEGORY_ID   — (optional) category to create ticket channels under
 
@@ -303,7 +303,7 @@ async function discord(path, method, body) {
   const r = await fetch(`${API}${path}`, {
     method,
     headers: {
-      Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+      Authorization: `Bot ${process.env.ROSTER_BOT_TOKEN}`,
       "Content-Type": "application/json",
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -326,7 +326,7 @@ function verifySignature(req, rawBody) {
     // crypto can consume it without any external dependency.
     const der = Buffer.concat([
       Buffer.from("302a300506032b6570032100", "hex"),
-      Buffer.from(process.env.DISCORD_PUBLIC_KEY, "hex"),
+      Buffer.from(process.env.ROSTER_BOT_PUBLIC_KEY, "hex"),
     ]);
     const key = crypto.createPublicKey({ key: der, format: "der", type: "spki" });
     return crypto.verify(null, Buffer.from(timestamp + rawBody), key, Buffer.from(signature, "hex"));
