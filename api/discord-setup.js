@@ -7,7 +7,7 @@
 //   https://<your-app>.vercel.app/api/discord-setup?secret=YOUR_SETUP_SECRET
 //
 // Required env vars:
-//   DISCORD_BOT_TOKEN  — same as the interactions endpoint
+//   ROSTER_BOT_TOKEN  — same as the interactions endpoint
 //   APPLY_CHANNEL_ID   — right-click #📝-roster-application → Copy Channel ID
 //   SETUP_SECRET       — any random string, just keeps strangers from spamming it
 
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     {
       method: "POST",
       headers: {
-        Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+        Authorization: `Bot ${process.env.ROSTER_BOT_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
