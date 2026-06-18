@@ -384,9 +384,21 @@ export default function TkAdmin({ teamId }) {
       if (!data.slots) throw new Error("No 'slots' array found");
       const existingOverrides = {};
       roster.forEach(p => { if (p.wclName) existingOverrides[p.name.toLowerCase()] = p.wclName; });
-      const mergedSlots = data.slots.map(slot => {
+      // Guarantee unique roster ids. Imported JSON sometimes reuses an id
+      // across two players; since slots are resolved via roster.find(s => s.id === id),
+      // a duplicate id makes every assignment for it render as whichever player
+      // appears first in the roster. Reassign collisions.
+      const seenIds = new Set();
+      const mergedSlots = data.slots.map((slot, i) => {
         const override = existingOverrides[slot.name?.toLowerCase()];
-        return override ? { ...slot, wclName: override } : slot;
+        const base = override ? { ...slot, wclName: override } : slot;
+        let id = base.id;
+        if (id == null || seenIds.has(id)) {
+          id = `${base.id ?? "slot"}__dup${i}`;
+          while (seenIds.has(id)) id += "_";
+        }
+        seenIds.add(id);
+        return id === base.id ? base : { ...base, id };
       });
       setRoster(mergedSlots);
       setDividers(data.dividers || []);
