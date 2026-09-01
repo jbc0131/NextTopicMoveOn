@@ -7,10 +7,11 @@ import {
   getRole, getClass, getColor, getSpecDisplay, CLASS_COLORS, ROLE_COLORS, CLASS_SPECS,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, BOSS_KEYS, CUBE_TEAMS,
   GENERAL_CURSES, GENERAL_INTERRUPTS, CUBE1_KEYS, CUBE2_KEYS, CUBE3_KEYS, CUBE4_KEYS, CUBEBU_KEYS,
+  slugify,
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, PlayerBadge, MarkerIcon,
-  EmptyState, ConfirmDialog, toast, SaveStatus,
+  EmptyState, ConfirmDialog, toast, SaveStatus, PositioningSection,
 } from "../../shared/components";
 import {
   saveTwentyFiveState, fetchTwentyFiveState, isFirebaseConfigured,
@@ -678,6 +679,8 @@ export default function GruulmagAdmin({ teamId }) {
                 <AssignmentPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage={BOSS_KEYS.mags} rows={MAGS_P1} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={handleDragStart} />
                 <AssignmentPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage={BOSS_KEYS.mags} rows={MAGS_P2} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={handleDragStart} />
               </div>
+
+              <PositioningSection moduleSlug={slugify("Gruul's / Mags")} bossSlug={slugify("Magtheridon")} bossName="Magtheridon" />
             </>}
 
             {activeTab === "gruul" && <>
@@ -685,6 +688,8 @@ export default function GruulmagAdmin({ teamId }) {
                 <AssignmentPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage={BOSS_KEYS.maulgar} rows={GRUUL_MAULGAR} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={handleDragStart} />
                 <AssignmentPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage={BOSS_KEYS.gruul} rows={GRUUL_BOSS} assignments={assignments} textValues={textInputs} roster={roster} onDrop={handleDrop} onClear={handleClear} onTextChange={(k, v) => setTextInputs(p => ({ ...p, [k]: v }))} onDragStart={handleDragStart} />
               </div>
+
+              <PositioningSection moduleSlug={slugify("Gruul's / Mags")} bossSlug={slugify("Gruul's Lair")} bossName="Gruul's Lair" />
             </>}
           </div>
         </div>

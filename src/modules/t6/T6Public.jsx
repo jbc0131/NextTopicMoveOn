@@ -3,10 +3,10 @@ import {
   surface, border, text, font, fontSize,
   fontWeight, radius, space, layout,
 } from "../../shared/theme";
-import { getColor, getSpecDisplay } from "../../shared/constants";
+import { getColor, getSpecDisplay, slugify } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, SubSectionDivider, MarkerIcon,
-  SyncBadge, SearchBox, EmptyState, LoadingSpinner,
+  SyncBadge, SearchBox, EmptyState, LoadingSpinner, PositioningSection,
 } from "../../shared/components";
 import {
   fetchRaidModuleState, subscribeToRaidModuleState, isFirebaseConfigured,
@@ -210,6 +210,12 @@ export default function T6Public({ teamId, raid }) {
               />
             ))}
           </div>
+
+          <PositioningSection
+            moduleSlug={slugify(cfg.title)}
+            bossSlug={slugify(currentBoss.name)}
+            bossName={currentBoss.name}
+          />
         </div>
       )}
     </AppShell>

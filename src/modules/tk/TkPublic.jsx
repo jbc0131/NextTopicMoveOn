@@ -4,11 +4,11 @@ import {
   fontWeight, radius, space, layout,
 } from "../../shared/theme";
 import {
-  getColor, getSpecDisplay, TK_BOSSES,
+  getColor, getSpecDisplay, TK_BOSSES, slugify,
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, SubSectionDivider, MarkerIcon,
-  SyncBadge, SearchBox, EmptyState, LoadingSpinner,
+  SyncBadge, SearchBox, EmptyState, LoadingSpinner, PositioningSection,
 } from "../../shared/components";
 import {
   fetchTkState, subscribeToTkState, isFirebaseConfigured,
@@ -190,6 +190,12 @@ export default function TkPublic({ teamId }) {
               />
             ))}
           </div>
+
+          <PositioningSection
+            moduleSlug={"tempest-keep"}
+            bossSlug={slugify(currentBoss.name)}
+            bossName={currentBoss.name}
+          />
         </div>
       )}
     </AppShell>

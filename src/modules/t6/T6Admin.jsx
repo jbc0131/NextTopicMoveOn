@@ -5,11 +5,11 @@ import {
 } from "../../shared/theme";
 import {
   getRole, getClass, getColor, getSpecDisplay, CLASS_COLORS, ROLE_COLORS, CLASS_SPECS,
-  defaultTextInputs,
+  defaultTextInputs, slugify,
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, SubSectionDivider, PlayerBadge, MarkerIcon,
-  EmptyState, ConfirmDialog, SaveStatus,
+  EmptyState, ConfirmDialog, SaveStatus, PositioningSection,
 } from "../../shared/components";
 import {
   saveRaidModuleState, fetchRaidModuleState, isFirebaseConfigured,
@@ -622,6 +622,12 @@ export default function T6Admin({ teamId, raid }) {
                 </div>
               ))}
             </div>
+
+            <PositioningSection
+              moduleSlug={slugify(cfg.title)}
+              bossSlug={slugify(currentBoss.name)}
+              bossName={currentBoss.name}
+            />
           </div>
         </div>
       )}

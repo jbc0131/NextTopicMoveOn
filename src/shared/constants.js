@@ -955,6 +955,18 @@ export const MARKER_ICONS = {
   star:     "https://wow.zamimg.com/images/wow/icons/large/alliance_icon.jpg",
 };
 
+// ── Slugs ─────────────────────────────────────────────────────────────────────
+// Kebab-case slug used for static asset lookups (positioning images).
+// Display-name derived, never a storage key: "Kaz'rogal" → "kazrogal",
+// "Fathom-Lord Karathress" → "fathom-lord-karathress".
+export function slugify(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/['\u2019]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // ── localStorage helpers ──────────────────────────────────────────────────────
 function storageKey(teamId, module) {
   return `raidAssignments_v2_${teamId}_${module}`;

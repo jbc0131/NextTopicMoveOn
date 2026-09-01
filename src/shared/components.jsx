@@ -122,7 +122,7 @@ export function SubSectionDivider({ label }) {
 
 // ── Role section header ───────────────────────────────────────────────────────
 const CUSTOM_LABEL_COLOR = "#C87619"; // orange/gold for non-standard role labels
-export function RoleHeader({ role: roleName, overrideLabel }) {
+export function RoleHeader({ role: roleName, overrideLabel, overrideColor }) {
   const isCubeClickers = overrideLabel === "Cube Clickers";
   const rc     = roleColors[roleName?.toLowerCase()] || roleColors.dps;
   const titles = { Tank: "Tank Assignments", Healer: "Healer Assignments", DPS: "DPS Assignments" };
@@ -155,7 +155,7 @@ export function RoleHeader({ role: roleName, overrideLabel }) {
   // Bloodlust keeps the DPS (red) color; other custom labels get a distinct
   // accent so Tank (blue) / Healer (green) / Bloodlust (red) stand apart.
   const isBloodlust = overrideLabel === "Bloodlust";
-  const headerColor = overrideLabel && !isBloodlust ? CUSTOM_LABEL_COLOR : rc.color;
+  const headerColor = overrideColor || (overrideLabel && !isBloodlust ? CUSTOM_LABEL_COLOR : rc.color);
 
   // Standard role headers — visible but not dominant
   return (
@@ -1252,6 +1252,142 @@ export function ParseScoresPanel({ scores, roster, module, loading, error, lastF
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Positioning images ────────────────────────────────────────────────────────
+// Convention over config: drop files into
+//   public/positioning/<module-slug>/<boss-slug>.png   (then -2, -3, … )
+// and they show up under the boss's assignments. Nothing to register.
+// An optional <boss-slug>.txt sidecar supplies the caption / alt text.
+//
+// Both the dev server and Vercel rewrite unknown paths to index.html, so a
+// missing file answers 200 with HTML — every probe checks the content type
+// rather than just the status.
+
+const POSITIONING_COLOR = "#8788EE"; // violet — distinct from tank/healer/misc
+const POSITIONING_EXTS  = ["png", "jpg", "jpeg", "webp"];
+const POSITIONING_MAX   = 10;        // stop probing after -10
+const positioningCache  = new Map(); // "<module>/<boss>" → Promise<[{src, caption}]>
+
+async function probeContentType(url, prefix) {
+  try {
+    const res = await fetch(url, { method: "HEAD" });
+    if (!res.ok) return false;
+    return (res.headers.get("content-type") || "").toLowerCase().startsWith(prefix);
+  } catch {
+    return false;
+  }
+}
+
+async function loadPositioning(moduleSlug, bossSlug) {
+  const found = [];
+  for (let i = 1; i <= POSITIONING_MAX; i++) {
+    const base = `/positioning/${moduleSlug}/${bossSlug}${i === 1 ? "" : `-${i}`}`;
+    let src = null;
+    for (const ext of POSITIONING_EXTS) {
+      if (await probeContentType(`${base}.${ext}`, "image/")) { src = `${base}.${ext}`; break; }
+    }
+    if (!src) break; // numbering is contiguous — first gap ends the set
+    let caption = null;
+    if (await probeContentType(`${base}.txt`, "text/plain")) {
+      try {
+        const first = (await (await fetch(`${base}.txt`)).text()).split("\n")[0].trim();
+        if (first) caption = first;
+      } catch {}
+    }
+    found.push({ src, caption });
+  }
+  return found;
+}
+
+function Lightbox({ src, alt, onClose }) {
+  useEffect(() => {
+    const onKey = e => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+      style={{
+        position: "fixed", inset: 0, zIndex: 10000,
+        background: "rgba(0,0,0,0.85)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: space[4], cursor: "zoom-out",
+      }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: "95vw", maxHeight: "95vh", objectFit: "contain", borderRadius: radius.lg, cursor: "default" }}
+      />
+      <button
+        onClick={onClose}
+        aria-label="Close"
+        style={{
+          position: "absolute", top: space[3], right: space[4],
+          background: "none", border: "none", color: "#fff",
+          fontSize: 28, lineHeight: 1, cursor: "pointer", padding: space[1],
+        }}
+      >×</button>
+    </div>
+  );
+}
+
+export function PositioningSection({ moduleSlug, bossSlug, bossName }) {
+  const [images,   setImages]   = useState(null);
+  const [lightbox, setLightbox] = useState(null);
+
+  useEffect(() => {
+    if (!moduleSlug || !bossSlug) { setImages([]); return undefined; }
+    const key = `${moduleSlug}/${bossSlug}`;
+    let pending = positioningCache.get(key);
+    if (!pending) { pending = loadPositioning(moduleSlug, bossSlug); positioningCache.set(key, pending); }
+    let cancelled = false;
+    setImages(null);
+    pending.then(found => { if (!cancelled) setImages(found); });
+    return () => { cancelled = true; };
+  }, [moduleSlug, bossSlug]);
+
+  // Nothing to show while probing, and nothing at all when the boss has no image.
+  if (!images || images.length === 0) return null;
+
+  return (
+    <div style={{ ...panelStyle, marginTop: space[3] }}>
+      <RoleHeader role="DPS" overrideLabel="Positioning" overrideColor={POSITIONING_COLOR} />
+      <div style={{ display: "flex", flexDirection: "column", gap: space[3], padding: `${space[2]}px ${space[3]}px ${space[3]}px` }}>
+        {images.map(({ src, caption }, i) => {
+          const alt = caption || `${bossName} positioning`;
+          return (
+            <figure key={src} style={{ margin: 0, display: "flex", flexDirection: "column", gap: space[1] }}>
+              <img
+                src={src}
+                alt={alt}
+                loading="lazy"
+                onClick={() => setLightbox({ src, alt })}
+                style={{
+                  width: "100%", maxWidth: "100%", height: "auto", display: "block",
+                  borderRadius: radius.lg, border: `1px solid ${border.subtle}`,
+                  cursor: "zoom-in",
+                }}
+              />
+              {caption && (
+                <figcaption style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>
+                  {caption}
+                </figcaption>
+              )}
+            </figure>
+          );
+        })}
+      </div>
+      {lightbox && <Lightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

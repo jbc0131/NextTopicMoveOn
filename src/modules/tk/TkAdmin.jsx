@@ -5,11 +5,11 @@ import {
 } from "../../shared/theme";
 import {
   getRole, getClass, getColor, getSpecDisplay, CLASS_COLORS, ROLE_COLORS, CLASS_SPECS,
-  TK_BOSSES,
+  TK_BOSSES, slugify,
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, SubSectionDivider, PlayerBadge, MarkerIcon,
-  EmptyState, ConfirmDialog, SaveStatus,
+  EmptyState, ConfirmDialog, SaveStatus, PositioningSection,
 } from "../../shared/components";
 import {
   saveTkState, fetchTkState, isFirebaseConfigured,
@@ -568,6 +568,12 @@ export default function TkAdmin({ teamId }) {
                 </div>
               ))}
             </div>
+
+            <PositioningSection
+              moduleSlug={"tempest-keep"}
+              bossSlug={slugify(currentBoss.name)}
+              bossName={currentBoss.name}
+            />
           </div>
         </div>
       )}

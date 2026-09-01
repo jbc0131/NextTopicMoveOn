@@ -6,12 +6,12 @@ import {
 import {
   getColor, getSpecDisplay, ROLE_COLORS,
   GRUUL_MAULGAR, GRUUL_BOSS, MAGS_P1, MAGS_P2, CUBE_TEAMS,
-  GENERAL_CURSES, GENERAL_INTERRUPTS,
+  GENERAL_CURSES, GENERAL_INTERRUPTS, slugify,
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, MarkerIcon,
   SyncBadge, SearchBox, EmptyState, LoadingSpinner, ParseScoresPanel,
-  useIsMobile,
+  useIsMobile, PositioningSection,
 } from "../../shared/components";
 import {
   fetchTwentyFiveState, subscribeToTwentyFiveState,
@@ -243,14 +243,18 @@ export default function GruulmagPublic({ teamId }) {
               <PublicPanel title="PHASE 1 — CHANNELERS" icon="⛓" subtitle="Kill simultaneously" bossImage="mags" rows={MAGS_P1} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
               <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage="mags" rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
             </div>
+
+            <PositioningSection moduleSlug={slugify("Gruul's / Mags")} bossSlug={slugify("Magtheridon")} bossName="Magtheridon" />
           </>)}
 
-          {activeTab === "gruul" && (
+          {activeTab === "gruul" && (<>
             <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
               <PublicPanel title="HIGH KING MAULGAR" icon="👑" subtitle="Council of Five" bossImage="maulgar" rows={GRUUL_MAULGAR} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
               <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage="gruul" rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
             </div>
-          )}
+
+            <PositioningSection moduleSlug={slugify("Gruul's / Mags")} bossSlug={slugify("Gruul's Lair")} bossName="Gruul's Lair" />
+          </>)}
         </div>
       )}
     </AppShell>

@@ -5,11 +5,11 @@ import {
 } from "../../shared/theme";
 import {
   getRole, getClass, getColor, getSpecDisplay, CLASS_COLORS, ROLE_COLORS, CLASS_SPECS,
-  SSC_BOSSES,
+  SSC_BOSSES, slugify,
 } from "../../shared/constants";
 import {
   AppShell, ModuleHeader, BossPanel, RoleHeader, SubSectionDivider, PlayerBadge, MarkerIcon,
-  EmptyState, ConfirmDialog, SaveStatus,
+  EmptyState, ConfirmDialog, SaveStatus, PositioningSection,
 } from "../../shared/components";
 import {
   saveSscState, fetchSscState, isFirebaseConfigured,
@@ -18,20 +18,6 @@ import { saveState, loadState } from "../../shared/constants";
 
 const FIREBASE_OK = isFirebaseConfigured();
 const MODULE_KEY  = "ssc";
-
-const BOSS_IMAGES = {
-  vashj: {
-    src: "/LadyVashjPhase2.png",
-    caption: "Phase 2 Zone Map",
-    alt: "Lady Vashj Phase 2 zone map showing North, East, South, and West zones with healer and ranged DPS positions",
-  },
-  karathress: {
-    src: "/Karathress.png",
-    caption: "Raid Positioning",
-    alt: "Fathom-Lord Karathress raid positioning map",
-    maxWidth: 360,
-  },
-};
 
 // ── Assignment row ────────────────────────────────────────────────────────────
 function AssignmentRow({ rowCfg, assignedIds, textValues, roster, onDrop, onClear, onTextChange, onDragStart }) {
@@ -583,25 +569,12 @@ export default function SscAdmin({ teamId }) {
               ))}
             </div>
 
-            {BOSS_IMAGES[currentBoss.id] && (
-              <div style={{ marginTop: space[4], display: "flex", flexDirection: "column", alignItems: "center", gap: space[2] }}>
-                <div style={{
-                  fontFamily: font.sans, fontSize: fontSize.xs, fontWeight: fontWeight.semibold,
-                  color: text.muted, letterSpacing: "0.08em", textTransform: "uppercase",
-                }}>
-                  {BOSS_IMAGES[currentBoss.id].caption}
-                </div>
-                <img
-                  src={BOSS_IMAGES[currentBoss.id].src}
-                  alt={BOSS_IMAGES[currentBoss.id].alt}
-                  style={{
-                    maxWidth: BOSS_IMAGES[currentBoss.id].maxWidth || 560,
-                    width: "100%", height: "auto",
-                    borderRadius: radius.md, border: `1px solid ${border.subtle}`,
-                  }}
-                />
-              </div>
-            )}
+            <PositioningSection
+              moduleSlug={"serpentshrine-cavern"}
+              bossSlug={slugify(currentBoss.name)}
+              bossName={currentBoss.name}
+            />
+
           </div>
         </div>
       )}
