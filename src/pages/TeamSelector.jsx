@@ -8,6 +8,8 @@ const RAID_MODULES = [
   { id: "gruulmag", label: "T4 - Gruul's / Mags" },
   { id: "ssc",      label: "T5 - Serpentshrine Cavern" },
   { id: "tk",       label: "T5 - Tempest Keep" },
+  { id: "hyjal",    label: "T6 - Mount Hyjal" },
+  { id: "bt",       label: "T6 - Black Temple" },
 ];
 
 const TEAM_EMOJI = { "team-dick": "🍆", "team-balls": "🍒" };

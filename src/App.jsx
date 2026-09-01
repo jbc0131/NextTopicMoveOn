@@ -8,6 +8,8 @@ import SscPublic        from "./modules/ssc/SscPublic";
 import SscAdmin         from "./modules/ssc/SscAdmin";
 import TkPublic         from "./modules/tk/TkPublic";
 import TkAdmin          from "./modules/tk/TkAdmin";
+import T6Public         from "./modules/t6/T6Public";
+import T6Admin          from "./modules/t6/T6Admin";
 import RpbPage          from "./modules/rpb/RpbPage";
 import ProfilePage      from "./pages/ProfilePage";
 
@@ -34,6 +36,10 @@ export default function App() {
         <Route path="/team-dick/ssc/admin"      element={<SscAdmin       teamId="team-dick"  />} />
         <Route path="/team-dick/tk"             element={<TkPublic       teamId="team-dick"  />} />
         <Route path="/team-dick/tk/admin"       element={<TkAdmin        teamId="team-dick"  />} />
+        <Route path="/team-dick/hyjal"          element={<T6Public       teamId="team-dick"  raid="hyjal" />} />
+        <Route path="/team-dick/hyjal/admin"    element={<T6Admin        teamId="team-dick"  raid="hyjal" />} />
+        <Route path="/team-dick/bt"             element={<T6Public       teamId="team-dick"  raid="bt"    />} />
+        <Route path="/team-dick/bt/admin"       element={<T6Admin        teamId="team-dick"  raid="bt"    />} />
 
         {/* Team Balls */}
         <Route path="/team-balls/gruulmag"       element={<GruulmagPublic teamId="team-balls" />} />
@@ -42,6 +48,10 @@ export default function App() {
         <Route path="/team-balls/ssc/admin"      element={<SscAdmin       teamId="team-balls" />} />
         <Route path="/team-balls/tk"             element={<TkPublic       teamId="team-balls" />} />
         <Route path="/team-balls/tk/admin"       element={<TkAdmin        teamId="team-balls" />} />
+        <Route path="/team-balls/hyjal"          element={<T6Public       teamId="team-balls" raid="hyjal" />} />
+        <Route path="/team-balls/hyjal/admin"    element={<T6Admin        teamId="team-balls" raid="hyjal" />} />
+        <Route path="/team-balls/bt"             element={<T6Public       teamId="team-balls" raid="bt"    />} />
+        <Route path="/team-balls/bt/admin"       element={<T6Admin        teamId="team-balls" raid="bt"    />} />
 
         {/* Legacy redirects */}
         <Route path="/team-dick"                element={<Navigate to="/"                         replace />} />

@@ -7,6 +7,8 @@
  *   raid/{teamId}/25man-thu/live   — Thursday 25-man live state
  *   raid/{teamId}/ssc/live         — Serpentshrine Cavern live state
  *   raid/{teamId}/tk/live          — Tempest Keep (The Eye) live state
+ *   raid/{teamId}/hyjal/live       — T6 Mount Hyjal live state
+ *   raid/{teamId}/bt/live          — T6 Black Temple live state
  */
 
 import { initializeApp, getApps } from "firebase/app";
@@ -53,6 +55,11 @@ function sscLiveDoc(teamId) {
 }
 function tkLiveDoc(teamId) {
   return doc(db, "raid", teamId, "tk", "live");
+}
+// Generic per-module live doc — raid/{teamId}/{moduleKey}/live.
+// Used by the T6 modules (mh, bt); SSC/TK keep their named helpers above.
+function moduleLiveDoc(teamId, moduleKey) {
+  return doc(db, "raid", teamId, moduleKey, "live");
 }
 
 const USER_PROFILES_LOCAL_STORAGE_KEY = "ntmo_user_profiles_v1";
@@ -238,3 +245,27 @@ export function subscribeToTkState(teamId, callback) {
   });
 }
 
+// ── Generic raid module — live state ──────────────────────────────────────────
+// Same document shape as SSC/TK (roster / assignments / textInputs / dividers),
+// keyed by an arbitrary module key so new raids don't each need their own trio
+// of helpers. Currently used by Mount Hyjal ("hyjal") and Black Temple ("bt").
+export async function saveRaidModuleState(state, teamId, moduleKey) {
+  await setDoc(moduleLiveDoc(teamId, moduleKey), sanitize({
+    roster:      state.roster      ?? [],
+    assignments: state.assignments ?? {},
+    textInputs:  state.textInputs  ?? {},
+    dividers:    state.dividers    ?? [],
+    updatedAt:   new Date().toISOString(),
+  }));
+}
+
+export async function fetchRaidModuleState(teamId, moduleKey) {
+  const snap = await getDoc(moduleLiveDoc(teamId, moduleKey));
+  return snap.exists() ? snap.data() : null;
+}
+
+export function subscribeToRaidModuleState(teamId, moduleKey, callback) {
+  return onSnapshot(moduleLiveDoc(teamId, moduleKey), snap => {
+    if (snap.exists()) callback(snap.data());
+  });
+}

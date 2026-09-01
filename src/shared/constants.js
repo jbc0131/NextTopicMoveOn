@@ -629,6 +629,295 @@ export const TK_BOSSES = [
   ]},
 ];
 
+// ══════════════════════════════════════════════════════════════════════════════
+// TIER 6 — MOUNT HYJAL (MH) + BLACK TEMPLE (BT)
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// Same row/phase/boss shape as SSC_BOSSES / TK_BOSSES, plus five optional row
+// fields introduced for T6 (all backwards compatible — SSC/TK rows omit them):
+//
+//   max:       n     cap on how many players the slot accepts ([1]/[2]/[3]/[5]).
+//                    Omitted = unlimited ([N]).
+//   ordered:   true  order matters — chips render as "A › B › C".
+//   note:      "…"   small italic helper line rendered under the row.
+//   default:   "…"   seed value for a textInput row (written on first load).
+//   textLong:  true  render the text field full-width (long default notes).
+//
+// Class/role hints from the spec are carried in the row label (the roster picker
+// filters by role only, so there is nowhere to attach a class filter).
+
+// ── Hyjal trash (waves 1-8) ──────────────────────────────────────────────────
+export const MH_TRASH = [
+  // Tank Assignments
+  { key: "mh_tr_pally",      label: "Pally Tank (ghouls / everything untanked)", role: "Tank", max: 1 },
+  { key: "mh_tr_bears",      label: "Bear Tanks",                               role: "Tank", max: 2 },
+  { key: "mh_tr_wyrm",       label: "Frost Wyrm Hunter-Tank",                   role: "Tank", max: 1 },
+  // Misc Assignments
+  { key: "mh_tr_mc",         label: "Mind Control - Necromancer buffer (Priest)",  role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "mh_tr_banish",     label: "Banish - Fel Stalkers / Infernals (Warlock)", role: "DPS", roleLabel: "Misc Assignments", max: 2 },
+  { key: "mh_tr_frost_trap", label: "Frost Trap (Hunter)",                        role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "mh_tr_decurse",    label: "Decurse - Banshee Curse (Mage / Druid)",     role: "DPS", roleLabel: "Misc Assignments", max: 3 },
+  { key: "mh_tr_priority",   label: "Kill priority (wave)",                       role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true, hint: "Wave-by-wave kill priority…" },
+];
+
+// ── Rage Winterchill ─────────────────────────────────────────────────────────
+export const MH_WINTERCHILL = [
+  { key: "mh_wc_notes",     label: "Notes",             role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "mh_wc_bloodlust", label: "Bloodlust Timing",  role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "mh_wc_mt",        label: "Main Tank",         role: "Tank", max: 1 },
+  { key: "mh_wc_h_tank",    label: "Tank Heal",         role: "Healer" },
+  { key: "mh_wc_h_raid",    label: "Raid Heal",         role: "Healer" },
+  { key: "mh_wc_misc_notes", label: "Notes",            role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
+    default: "Stack in Death and Decay. Pop Lust when threat is established." },
+];
+
+// ── Anetheron ────────────────────────────────────────────────────────────────
+export const MH_ANETHERON = [
+  { key: "mh_an_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "mh_an_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  // Tank Assignments
+  { key: "mh_an_mt",        label: "Main Tank (Bear)",                                          role: "Tank", max: 1 },
+  { key: "mh_an_infernal",  label: "Infernal Tank (Pally, FR aura + FR pieces, tanks by Jaina)", role: "Tank", max: 1 },
+  { key: "mh_an_fardrop",   label: "Far-drop Delivery (Feral, brings distant Infernals in)",     role: "Tank", max: 1 },
+  // Healer Assignments
+  { key: "mh_an_h_mt",      label: "Main Tank Heal (from the house)", role: "Healer" },
+  { key: "mh_an_h_inf",     label: "Infernal Tank Heal",             role: "Healer" },
+  { key: "mh_an_h_raid",    label: "Raid Heal",                      role: "Healer" },
+  // Misc Assignments
+  { key: "mh_an_ms",        label: "MS / Aimed Shot / Wound Poison uptime", role: "DPS", roleLabel: "Misc Assignments", max: 3 },
+  { key: "mh_an_stacks",    label: "Ranged Stack Leads (3 stacks)",        role: "DPS", roleLabel: "Misc Assignments", max: 3 },
+];
+
+// ── Kaz'rogal ────────────────────────────────────────────────────────────────
+export const MH_KAZROGAL = [
+  { key: "mh_kz_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "mh_kz_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "mh_kz_mt",        label: "Main Tank",                                  role: "Tank", max: 1 },
+  { key: "mh_kz_cleave",    label: "Cleave Stackers (stack ON TOP of MT, Druid)", role: "Tank", max: 2 },
+  { key: "mh_kz_h_tank",    label: "Tank Heal",        role: "Healer" },
+  { key: "mh_kz_h_raid",    label: "Raid Heal",        role: "Healer" },
+  { key: "mh_kz_pullback",  label: "Hunter Pull-back to MT", role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "mh_kz_mana_note", label: "Mana Note",              role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
+    default: "Mana users: >3000 mana or step out of raid." },
+];
+
+// ── Azgalor ──────────────────────────────────────────────────────────────────
+export const MH_AZGALOR = [
+  { key: "mh_az_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "mh_az_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "mh_az_mt",        label: "Main Tank (Bear, full mitigation set)",                        role: "Tank", max: 1 },
+  { key: "mh_az_ot",        label: "Doomguard Off-Tank (Pally, initial threat only)",              role: "Tank", max: 1,
+    note: "Tauren Warriors kill the Doomguards - the OT only needs the opening threat." },
+  { key: "mh_az_h_tank",    label: "Tank Heal (rolling HoTs/shields pre-pull)", role: "Healer" },
+  { key: "mh_az_h_raid",    label: "Raid Heal",                                role: "Healer" },
+  { key: "mh_az_soulstone", label: "Soulstone - Doom targets (Warlock)", role: "DPS", roleLabel: "Misc Assignments" },
+  { key: "mh_az_doom_note", label: "Doom Note",                          role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
+    default: "Doom target: run PAST the OT by the Tauren." },
+];
+
+// ── Archimonde ───────────────────────────────────────────────────────────────
+export const MH_ARCHIMONDE = [
+  { key: "mh_ar_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "mh_ar_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "mh_ar_mt",        label: "Main Tank (use Tears BEFORE hitting the ground)", role: "Tank", max: 1 },
+  { key: "mh_ar_stump",     label: "Stump Tank (optional, if Air Burst bugged, Druid)", role: "Tank", max: 1 },
+  { key: "mh_ar_h_tank",    label: "Tank Heal",        role: "Healer" },
+  { key: "mh_ar_h_raid",    label: "Raid Heal",        role: "Healer" },
+  { key: "mh_ar_dec_12",    label: "Decurse - Groups 1-2", role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "mh_ar_dec_3",     label: "Decurse - Group 3",    role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "mh_ar_dec_45",    label: "Decurse - Groups 4-5", role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  // Tremor Totem — one slot per raid group (config has no five-slot row type).
+  { key: "mh_ar_tremor_g1", label: "G1", role: "DPS", roleLabel: "Misc Assignments", subSection: "Tremor Totem (Shaman)", max: 1 },
+  { key: "mh_ar_tremor_g2", label: "G2", role: "DPS", roleLabel: "Misc Assignments", subSection: "Tremor Totem (Shaman)", max: 1 },
+  { key: "mh_ar_tremor_g3", label: "G3", role: "DPS", roleLabel: "Misc Assignments", subSection: "Tremor Totem (Shaman)", max: 1 },
+  { key: "mh_ar_tremor_g4", label: "G4", role: "DPS", roleLabel: "Misc Assignments", subSection: "Tremor Totem (Shaman)", max: 1 },
+  { key: "mh_ar_tremor_g5", label: "G5", role: "DPS", roleLabel: "Misc Assignments", subSection: "Tremor Totem (Shaman)", max: 1 },
+];
+
+export const MH_BOSSES = [
+  { id: "trash",       name: "Hyjal Trash",      phases: [{ id: "main", label: "Waves",   slots: MH_TRASH }] },
+  { id: "winterchill", name: "Rage Winterchill", phases: [{ id: "main", label: "",        slots: MH_WINTERCHILL }] },
+  { id: "anetheron",   name: "Anetheron",        phases: [{ id: "main", label: "",        slots: MH_ANETHERON }] },
+  { id: "kazrogal",    name: "Kaz'rogal",        phases: [{ id: "main", label: "",        slots: MH_KAZROGAL }] },
+  { id: "azgalor",     name: "Azgalor",          phases: [{ id: "main", label: "",        slots: MH_AZGALOR }] },
+  { id: "archimonde",  name: "Archimonde",       phases: [{ id: "main", label: "",        slots: MH_ARCHIMONDE }] },
+];
+
+// ── BT trash (routing / marks) ───────────────────────────────────────────────
+export const BT_TRASH = [
+  // Raid Marks — one player per mark
+  { key: "bt_tr_skull",    label: "Skull",              markerKey: "skull",    role: "DPS", roleLabel: "Raid Marks", max: 1 },
+  { key: "bt_tr_cross",    label: "Cross (X)",          markerKey: "cross",    role: "DPS", roleLabel: "Raid Marks", max: 1 },
+  { key: "bt_tr_triangle", label: "Triangle",           markerKey: "triangle", role: "DPS", roleLabel: "Raid Marks", max: 1 },
+  { key: "bt_tr_circle",   label: "Circle",             markerKey: "circle",   role: "DPS", roleLabel: "Raid Marks", max: 1 },
+  { key: "bt_tr_square",   label: "Square",             markerKey: "square",   role: "DPS", roleLabel: "Raid Marks", max: 1 },
+  { key: "bt_tr_moon",     label: "Moon - Shackle (Priest)",   markerKey: "moon",    role: "DPS", roleLabel: "Raid Marks", max: 1 },
+  { key: "bt_tr_star",     label: "Star - Trap (Hunter)",      markerKey: "star",    role: "DPS", roleLabel: "Raid Marks", max: 1 },
+  { key: "bt_tr_diamond",  label: "Diamond - Banish (Warlock)", markerKey: "diamond", role: "DPS", roleLabel: "Raid Marks", max: 1 },
+  // Misc Assignments
+  { key: "bt_tr_hands",    label: "Hands of Gorefiend tanks (bears)", role: "DPS", roleLabel: "Misc Assignments", max: 2 },
+  { key: "bt_tr_notes",    label: "Notes",                            role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
+    default: "Illidari Nightlord = ZERG (run out of Rain of Fire). Big pull before Akama = bubble pull + LoS. Freedom the tank on Akama-room root packs. Mana users step out of AoE drain packs. GTFO addon + Rocket Boots for the post-Teron run." },
+];
+
+// ── High Warlord Najentus ────────────────────────────────────────────────────
+export const BT_NAJENTUS = [
+  { key: "bt_na_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "bt_na_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "bt_na_mt",        label: "Main Tank",        role: "Tank", max: 1 },
+  { key: "bt_na_h_tank",    label: "Tank Heal",        role: "Healer" },
+  { key: "bt_na_h_raid",    label: "Raid Heal",        role: "Healer" },
+  { key: "bt_na_spine",     label: "Spine Note",       role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
+    default: "1 spine per Impale - closest buddy clicks it off, call 'spine'." },
+];
+
+// ── Supremus ─────────────────────────────────────────────────────────────────
+export const BT_SUPREMUS = [
+  { key: "bt_su_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "bt_su_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "bt_su_mt",        label: "Main Tank",                                 role: "Tank", max: 1 },
+  { key: "bt_su_soakers",   label: "Hateful Strike Soakers (chase, stam gear)", role: "Tank", max: 2 },
+  { key: "bt_su_h_tank",    label: "Tank / Soaker Heal", role: "Healer" },
+  { key: "bt_su_h_raid",    label: "Raid Heal",          role: "Healer" },
+  { key: "bt_su_md",        label: "Misdirect on Phase Flip (Hunter)", role: "DPS", roleLabel: "Misc Assignments" },
+];
+
+// ── Shade of Akama ───────────────────────────────────────────────────────────
+export const BT_AKAMA = [
+  { key: "bt_ak_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "bt_ak_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true,
+    default: "When Shade releases" },
+  { key: "bt_ak_left",      label: "Left Adds Tank",   role: "Tank", max: 1 },
+  { key: "bt_ak_right",     label: "Right Adds Tank",  role: "Tank", max: 1 },
+  { key: "bt_ak_holder",    label: "Battlemaster / Defender Holder (under Akama for Seed cleave)", role: "Tank", max: 1 },
+  { key: "bt_ak_h_left",    label: "Left Tank Heal",   role: "Healer" },
+  { key: "bt_ak_h_right",   label: "Right Tank Heal",  role: "Healer" },
+  { key: "bt_ak_h_raid",    label: "Raid Heal",        role: "Healer" },
+  { key: "bt_ak_seed",      label: "Seed of Corruption cleavers (Warlock)", role: "DPS", roleLabel: "Misc Assignments" },
+];
+
+// ── Teron Gorefiend ──────────────────────────────────────────────────────────
+export const BT_TERON = [
+  { key: "bt_te_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "bt_te_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "bt_te_mt",        label: "Main Tank",        role: "Tank", max: 1 },
+  { key: "bt_te_h_tank",    label: "Tank Heal",        role: "Healer" },
+  { key: "bt_te_h_raid",    label: "Raid Heal",        role: "Healer" },
+  { key: "bt_te_brez",      label: "Battle-Res Priority (dead-ghost healers, Druid)", role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "bt_te_ghost",     label: "Ghost Order Note",                                role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
+    default: "Button 5 Volley, Button 4 Chains, Button 3 Lance x2 each construct. Ghost simulator MANDATORY." },
+];
+
+// ── Gurtogg Bloodboil ────────────────────────────────────────────────────────
+export const BT_GURTOGG = [
+  { key: "bt_gu_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "bt_gu_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "bt_gu_rotation",  label: "Tank Rotation",    role: "Tank", max: 3, ordered: true,
+    note: "~15-20 stacks per swap; first tank drops threat to second, third or first finishes." },
+  { key: "bt_gu_h_tank",    label: "Tank Heal",                                    role: "Healer" },
+  { key: "bt_gu_h_raid",    label: "Raid Heal",                                    role: "Healer" },
+  { key: "bt_gu_h_soak",    label: "Soaker Heal (from mid)",                       role: "Healer" },
+  { key: "bt_gu_h_line",    label: "Line Healers (heal from inside Soak Group 1)", role: "Healer" },
+  { key: "bt_gu_soak1",     label: "Soak Group 1 - holds the line", role: "DPS", roleLabel: "Misc Assignments", max: 5 },
+  { key: "bt_gu_soak2",     label: "Soak Group 2 - jump-ropes",     role: "DPS", roleLabel: "Misc Assignments", max: 5 },
+  { key: "bt_gu_never",     label: "Never Soaks",                   role: "DPS", roleLabel: "Misc Assignments" },
+  { key: "bt_gu_lust",      label: "Lust Caller",                   role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+];
+
+// ── Reliquary of Souls ───────────────────────────────────────────────────────
+export const BT_RELIQUARY = [
+  { key: "bt_ro_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true, textLong: true,
+    default: "P1 = no healing (healthstones/pots). Swap in the MIDDLE - incoming tank waits until RoS actually switches. LUST P3." },
+  { key: "bt_ro_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "bt_ro_p1",        label: "P1 Tank Rotation", role: "Tank", max: 4, ordered: true,
+    note: "Last slot expected to be a Rogue on Evasion." },
+  { key: "bt_ro_p2",        label: "P2 Tank",                    role: "Tank", max: 1 },
+  { key: "bt_ro_p3_first",  label: "P3 First Tank (rage dump, Bear)", role: "Tank", max: 1 },
+  { key: "bt_ro_p3_mt",     label: "P3 Taunt-off / MT (Pally)",      role: "Tank", max: 1 },
+  { key: "bt_ro_h_p2",      label: "P2 Tank Heal", role: "Healer" },
+  { key: "bt_ro_h_p3",      label: "P3 Tank Heal", role: "Healer" },
+  { key: "bt_ro_h_raid",    label: "Raid Heal",    role: "Healer" },
+  { key: "bt_ro_pummel",    label: "Pummel Rotation on Deaden (Warrior)",   role: "DPS", roleLabel: "Misc Assignments", max: 2 },
+  { key: "bt_ro_kick",      label: "Kick everything else (Spirit Shock, Rogue)", role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "bt_ro_steal",     label: "Spellsteal Rune Shield (Mage)",         role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+];
+
+// ── Mother Shahraz ───────────────────────────────────────────────────────────
+export const BT_SHAHRAZ = [
+  { key: "bt_sh_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "bt_sh_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "bt_sh_mt",        label: "Main Tank (Bear - Shriek silences the pally)", role: "Tank", max: 1 },
+  { key: "bt_sh_saber",     label: "Saber Lash Soakers",                          role: "Tank", max: 2 },
+  { key: "bt_sh_h_tank",    label: "Tank Heal", role: "Healer" },
+  { key: "bt_sh_h_raid",    label: "Raid Heal", role: "Healer" },
+  { key: "bt_sh_sr_group",  label: "Shadow Resistance Group", role: "DPS", roleLabel: "Misc Assignments" },
+  { key: "bt_sh_fa_note",   label: "Fatal Attraction Note",   role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
+    hint: "Fatal Attraction handling…" },
+];
+
+// ── Illidari Council ─────────────────────────────────────────────────────────
+export const BT_COUNCIL = [
+  { key: "bt_co_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "bt_co_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "bt_co_gathios",   label: "Gathios Tank",              role: "Tank", max: 1 },
+  { key: "bt_co_malande",   label: "Malande Tank",              role: "Tank", max: 1 },
+  { key: "bt_co_veras",     label: "Veras Tank (every vanish)", role: "Tank", max: 1 },
+  { key: "bt_co_zerevor",   label: "Zerevor Mage-Tank (kite, Mage)", role: "Tank", max: 1 },
+  { key: "bt_co_backup",    label: "Backup Mage-Tank (Mage)",        role: "Tank", max: 1 },
+  { key: "bt_co_h_gathios", label: "Gathios Tank Heal (glued)", role: "Healer" },
+  { key: "bt_co_h_malande", label: "Malande / Veras Heal",      role: "Healer" },
+  { key: "bt_co_h_zerevor", label: "Zerevor Flex Heal",         role: "Healer" },
+  { key: "bt_co_h_raid",    label: "Raid Heal",                 role: "Healer" },
+  { key: "bt_co_int1",      label: "Malande Interrupts - primary (Rogue)",             role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "bt_co_int2",      label: "Malande Interrupts - Earth Shock backup (Shaman)", role: "DPS", roleLabel: "Misc Assignments", max: 2 },
+  { key: "bt_co_innervate", label: "Innervate target (Druid to healer)",               role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "bt_co_kill_note", label: "Kill Order Note",                                  role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
+    default: "All DPS on Gathios. Lust once Gathios is settled." },
+];
+
+// ── Illidan Stormrage ────────────────────────────────────────────────────────
+export const BT_ILLIDAN = [
+  { key: "bt_il_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
+  { key: "bt_il_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true },
+  { key: "bt_il_mt",        label: "Main Tank",                       role: "Tank", max: 1 },
+  { key: "bt_il_flame_l",   label: "P2 Left Flame Tank (FR gear)",    role: "Tank", max: 1 },
+  { key: "bt_il_flame_r",   label: "P2 Right Flame Tank (FR gear)",   role: "Tank", max: 1 },
+  { key: "bt_il_flame_bk",  label: "Flame Tank Backup",               role: "Tank", max: 1 },
+  { key: "bt_il_demon",     label: "Demon Phase Shadow-Res Warlock Tank", role: "Tank", max: 1 },
+  { key: "bt_il_h_mt",      label: "MT Heal",          role: "Healer" },
+  { key: "bt_il_h_flame",   label: "Flame Tank Heal",  role: "Healer" },
+  { key: "bt_il_h_sr",      label: "SR Warlock Heal",  role: "Healer" },
+  { key: "bt_il_h_raid",    label: "Raid Heal",        role: "Healer" },
+  { key: "bt_il_brez",      label: "Battle-Res Holder (entire fight, Druid)", role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "bt_il_demon_note", label: "Shadow Demon Kill Note",                 role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
+    default: "Shadow Demons = #1 kill; if fixated, STAND STILL." },
+  { key: "bt_il_p5_note",   label: "P5 Note",                                 role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
+    default: "MT drags Illidan into Maiev's traps on her call. LUST P5." },
+];
+
+export const BT_BOSSES = [
+  { id: "trash",     name: "BT Trash",              phases: [{ id: "main", label: "Routing / Marks", slots: BT_TRASH }] },
+  { id: "najentus",  name: "High Warlord Najentus", phases: [{ id: "main", label: "", slots: BT_NAJENTUS }] },
+  { id: "supremus",  name: "Supremus",              phases: [{ id: "main", label: "", slots: BT_SUPREMUS }] },
+  { id: "akama",     name: "Shade of Akama",        phases: [{ id: "main", label: "", slots: BT_AKAMA }] },
+  { id: "teron",     name: "Teron Gorefiend",       phases: [{ id: "main", label: "", slots: BT_TERON }] },
+  { id: "gurtogg",   name: "Gurtogg Bloodboil",     phases: [{ id: "main", label: "", slots: BT_GURTOGG }] },
+  { id: "reliquary", name: "Reliquary of Souls",    phases: [{ id: "main", label: "", slots: BT_RELIQUARY }] },
+  { id: "shahraz",   name: "Mother Shahraz",        phases: [{ id: "main", label: "", slots: BT_SHAHRAZ }] },
+  { id: "council",   name: "Illidari Council",      phases: [{ id: "main", label: "", slots: BT_COUNCIL }] },
+  { id: "illidan",   name: "Illidan Stormrage",     phases: [{ id: "main", label: "", slots: BT_ILLIDAN }] },
+];
+
+// Default text values for a boss list — seeded into textInputs on first load so
+// the spec's default notes appear without the raid leader retyping them.
+export function defaultTextInputs(bosses) {
+  const out = {};
+  bosses.forEach(b => b.phases.forEach(p => p.slots.forEach(r => {
+    if (r.textInput && r.default) out[r.key] = r.default;
+  })));
+  return out;
+}
+
 // ── General assignments ───────────────────────────────────────────────────────
 const MARKERS = [
   { key: "skull",    label: "Skull"    },

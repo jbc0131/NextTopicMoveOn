@@ -651,6 +651,8 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
                   if (isKara) navigate("/kara");
                   else if (location.pathname.includes("/ssc")) navigate(`/${teamId || "team-dick"}/ssc`);
                   else if (/\/tk(\/|$)/.test(location.pathname)) navigate(`/${teamId || "team-dick"}/tk`);
+                  else if (location.pathname.includes("/hyjal")) navigate(`/${teamId || "team-dick"}/hyjal`);
+                  else if (/\/bt(\/|$)/.test(location.pathname)) navigate(`/${teamId || "team-dick"}/bt`);
                   else if (location.pathname.includes("/gruulmag")) navigate(`/${teamId || "team-dick"}/gruulmag`);
                   else navigate("/");
                 }} style={btnStyle("default")}>← Public View</button>
@@ -659,6 +661,8 @@ function AppHeader({ teamId, adminMode, isMobile, onMenuOpen, authUser, isAdmin 
                   if (isKara) navigate("/kara/admin");
                   else if (location.pathname.includes("/ssc")) navigate(`/${teamId || "team-dick"}/ssc/admin`);
                   else if (/\/tk(\/|$)/.test(location.pathname)) navigate(`/${teamId || "team-dick"}/tk/admin`);
+                  else if (location.pathname.includes("/hyjal")) navigate(`/${teamId || "team-dick"}/hyjal/admin`);
+                  else if (/\/bt(\/|$)/.test(location.pathname)) navigate(`/${teamId || "team-dick"}/bt/admin`);
                   else navigate(`/${teamId || "team-dick"}/gruulmag/admin`);
                 }} style={btnStyle("default")}>Admin →</button>
               )}
@@ -677,6 +681,8 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
   const currentModule = location.pathname.includes("/gruulmag") ? `/gruulmag${adminSuffix}`
     : location.pathname.includes("/ssc")   ? `/ssc${adminSuffix}`
     : /\/tk(\/|$)/.test(location.pathname) ? `/tk${adminSuffix}`
+    : location.pathname.includes("/hyjal") ? `/hyjal${adminSuffix}`
+    : /\/bt(\/|$)/.test(location.pathname) ? `/bt${adminSuffix}`
     : "";
   const showTeamSwitcher = currentModule !== "";
 
@@ -685,6 +691,8 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
     { path: `/${teamId || "team-dick"}/gruulmag`,        label: "T4 - Gruuls / Mags",        external: false },
     { path: `/${teamId || "team-dick"}/ssc`,             label: "T5 - Serpentshrine Cavern", external: false },
     { path: `/${teamId || "team-dick"}/tk`,              label: "T5 - Tempest Keep",         external: false },
+    { path: `/${teamId || "team-dick"}/hyjal`,           label: "T6 - Mount Hyjal",          external: false },
+    { path: `/${teamId || "team-dick"}/bt`,              label: "T6 - Black Temple",         external: false },
   ];
   const utilityLinks = [
     { path: `/rpb`,                                     label: "Combat Log Analytics", external: false },
@@ -728,6 +736,8 @@ function MobileNavOverlay({ teamId, adminMode, onClose }) {
             (link.path.includes("/gruulmag") && location.pathname.includes("/gruulmag")) ||
             (link.path.includes("/ssc")      && location.pathname.includes("/ssc"))     ||
             (link.path.includes("/tk")       && /\/tk(\/|$)/.test(location.pathname))   ||
+            (link.path.includes("/hyjal")    && location.pathname.includes("/hyjal"))    ||
+            (link.path.includes("/bt")       && /\/bt(\/|$)/.test(location.pathname))   ||
             (link.path.includes("/rpb")      && location.pathname.startsWith("/rpb"))   ||
             (link.path.includes("/profile")  && location.pathname.startsWith("/profile"));
           const renderLink = (link) => {
@@ -812,6 +822,8 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
   const currentModule = location.pathname.includes("/gruulmag") ? `/gruulmag${adminSuffix}`
     : location.pathname.includes("/ssc")   ? `/ssc${adminSuffix}`
     : /\/tk(\/|$)/.test(location.pathname) ? `/tk${adminSuffix}`
+    : location.pathname.includes("/hyjal") ? `/hyjal${adminSuffix}`
+    : /\/bt(\/|$)/.test(location.pathname) ? `/bt${adminSuffix}`
     : "";
   const showTeamSwitcher = currentModule !== "";
 
@@ -820,6 +832,8 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
     { path: `/${teamId || "team-dick"}/gruulmag${adminMode ? "/admin" : ""}`, label: "T4 - Gruuls / Mags",        icon: "25" },
     { path: `/${teamId || "team-dick"}/ssc${adminMode ? "/admin" : ""}`,      label: "T5 - Serpentshrine Cavern", icon: "SS" },
     { path: `/${teamId || "team-dick"}/tk${adminMode ? "/admin" : ""}`,       label: "T5 - Tempest Keep",         icon: "TK" },
+    { path: `/${teamId || "team-dick"}/hyjal${adminMode ? "/admin" : ""}`,    label: "T6 - Mount Hyjal",          icon: "MH" },
+    { path: `/${teamId || "team-dick"}/bt${adminMode ? "/admin" : ""}`,       label: "T6 - Black Temple",         icon: "BT" },
   ];
   const utilityLinks = [
     { path: `/rpb`,                                     label: "Combat Log Analytics", icon: "RC" },
@@ -831,6 +845,8 @@ function NavSidebar({ teamId, adminMode, parsePanelContent, collapsed, onToggleC
     (link.path.includes("/gruulmag") && location.pathname.includes("/gruulmag")) ||
     (link.path.includes("/ssc")      && location.pathname.includes("/ssc"))      ||
     (link.path.includes("/tk")       && /\/tk(\/|$)/.test(location.pathname))    ||
+    (link.path.includes("/hyjal")    && location.pathname.includes("/hyjal"))     ||
+    (link.path.includes("/bt")       && /\/bt(\/|$)/.test(location.pathname))    ||
     (link.path.includes("/rpb")      && location.pathname.startsWith("/rpb"));
 
   const handleNavClick = (link) => {

@@ -39,6 +39,9 @@ Karazhan is **teamless** — shared across both teams at `/kara`. Historical rai
 - T4 (Gruul / Mag) admin (`/:teamId/gruulmag/admin`, aliased as "T4 - Gruuls / Mags" in sidebar) — drag-and-drop Gruul/Mag assignments, manual player add, import JSON, save/auto-save to Firebase. Module is called `gruulmag` in code; Firestore paths remain `25man-*` to preserve live data
 - T5 SSC admin (`/:teamId/ssc/admin`, sidebar: "T5 - Serpentshrine Cavern") — 6-boss SSC module, same admin pattern
 - T5 TK admin (`/:teamId/tk/admin`, sidebar: "T5 - Tempest Keep") — 4-boss TK module, same admin pattern
+- T6 Mount Hyjal (`/:teamId/hyjal`, sidebar: "T6 - Mount Hyjal") — trash tab + 5 bosses in kill order
+- T6 Black Temple (`/:teamId/bt`, sidebar: "T6 - Black Temple") — trash tab + 9 bosses in kill order
+- Both T6 modules share one implementation (`src/modules/t6/`) driven by the same boss/phase/slot config format as SSC and TK
 - Combat Log Analytics (`/rpb`) — WCL-based historical raid archive and analytics (replaces the old Raid History module)
 - Public views for all modules — read-only, search by name, mobile responsive
 - Mobile hamburger nav with full-screen overlay
@@ -82,6 +85,10 @@ src/
     tk/
       TkAdmin.jsx                  — /:teamId/tk/admin ("T5 - Tempest Keep")
       TkPublic.jsx                 — /:teamId/tk
+    t6/
+      t6Raids.js                   — T6 raid registry (hyjal | bt) + row lookup helper
+      T6Admin.jsx                  — /:teamId/hyjal/admin and /:teamId/bt/admin
+      T6Public.jsx                 — /:teamId/hyjal and /:teamId/bt
     rpb/
       RpbPage.jsx                  — /rpb (Combat Log Analytics; WCL historical archive)
 api/
@@ -112,6 +119,10 @@ api/
 /:teamId/ssc/admin         → SscAdmin
 /:teamId/tk                → TkPublic
 /:teamId/tk/admin          → TkAdmin
+/:teamId/hyjal             → T6Public  (raid="hyjal")
+/:teamId/hyjal/admin       → T6Admin   (raid="hyjal")
+/:teamId/bt                → T6Public  (raid="bt")
+/:teamId/bt/admin          → T6Admin   (raid="bt")
 Legacy redirects: /:teamId/25man → /:teamId/gruulmag, /:teamId/25man/admin → /:teamId/gruulmag/admin
 ```
 
@@ -123,6 +134,8 @@ raid/{teamId}/25man-tue/live     — Tuesday T4 (Gruul/Mag) live state [path kep
 raid/{teamId}/25man-thu/live     — Thursday T4 (Gruul/Mag) live state [path kept as "25man-*" post-rename]
 raid/{teamId}/ssc/live           — T5 SSC live state
 raid/{teamId}/tk/live            — T5 TK live state
+raid/{teamId}/hyjal/live         — T6 Mount Hyjal live state
+raid/{teamId}/bt/live            — T6 Black Temple live state
 ```
 
 Legacy `raid-kara-snapshots/*` and `raid/{teamId}/25man-snapshots/*` documents still exist in Firestore from before historical archiving moved to RPB. No code reads or writes them — safe to leave in place or purge.
@@ -179,6 +192,8 @@ match /raid-kara/{docId} { allow read, write: if true; }
 - **Kara is teamless** — single `/kara` route, single Firebase doc. Tuesday = Team Dick roster, Thursday = Team Balls roster. Both managed in one admin page.
 - **Historical archives live in Combat Log Analytics (RPB)** — the old snapshot-based `/history` module was removed; WCL-driven RPB is now the canonical archive. Raid admins publish assignments live; history and analytics come from WCL via RPB.
 - **T4/T5 sidebar naming** — the 25-man module was renamed `gruulmag` (sidebar: "T4 - Gruuls / Mags"). SSC sidebar: "T5 - Serpentshrine Cavern". TK sidebar: "T5 - Tempest Keep". Internal Firestore paths for the T4 module remain `raid/{teamId}/25man-*` to preserve production data; the `saveTwentyFiveState` / `fetchTwentyFiveState` function names also stayed. SSC and TK use their own identifiers (`ssc`, `tk`) end-to-end.
+- **T6 is one implementation, two modules** — Mount Hyjal and Black Temple each have their own route, Firestore document and roster, but share `T6Admin` / `T6Public` (selected by a `raid` prop) instead of copy-pasting the SSC files a third and fourth time. They persist through the generic `saveRaidModuleState` / `fetchRaidModuleState` / `subscribeToRaidModuleState` helpers, which write the same document shape as SSC/TK at `raid/{teamId}/{moduleKey}/live`.
+- **T6 row config fields** — the slot format gained five optional, backwards-compatible fields (`max`, `ordered`, `note`, `default`, `textLong`) documented at the top of the T6 block in `constants.js`. SSC/TK rows omit them and are unaffected.
 - **Auth is two-tier** — member role for site access, admin role for admin pages. All pages require Discord login. Password gate is fallback only.
 - **Parse scores refresh button** — only shown in admin views (`showRefresh` prop on `ParseScoresPanel`). Hidden in public views.
 - **Sidebar collapsible** — state lives in `AppShell`, collapses to 44px icon rail. Parse panel and team switcher hide when collapsed.
