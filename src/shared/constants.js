@@ -807,7 +807,6 @@ export const BT_TERON = [
   { key: "bt_te_mt",        label: "Main Tank",        role: "Tank", max: 1 },
   { key: "bt_te_h_tank",    label: "Tank Heal",        role: "Healer" },
   { key: "bt_te_h_raid",    label: "Raid Heal",        role: "Healer" },
-  { key: "bt_te_brez",      label: "Battle-Res Priority (dead-ghost healers, Druid)", role: "DPS", roleLabel: "Misc Assignments", max: 1 },
   { key: "bt_te_ghost",     label: "Ghost Order Note",                                role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
     default: "Button 5 Volley, Button 4 Chains, Button 3 Lance x2 each construct. Ghost simulator MANDATORY." },
 ];
@@ -853,9 +852,6 @@ export const BT_SHAHRAZ = [
   { key: "bt_sh_saber",     label: "Saber Lash Soakers",                          role: "Tank", max: 2 },
   { key: "bt_sh_h_tank",    label: "Tank Heal", role: "Healer" },
   { key: "bt_sh_h_raid",    label: "Raid Heal", role: "Healer" },
-  { key: "bt_sh_sr_group",  label: "Shadow Resistance Group", role: "DPS", roleLabel: "Misc Assignments" },
-  { key: "bt_sh_fa_note",   label: "Fatal Attraction Note",   role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
-    hint: "Fatal Attraction handling…" },
 ];
 
 // ── Illidari Council ─────────────────────────────────────────────────────────
@@ -885,17 +881,9 @@ export const BT_ILLIDAN = [
   { key: "bt_il_mt",        label: "Main Tank",                       role: "Tank", max: 1 },
   { key: "bt_il_flame_l",   label: "P2 Left Flame Tank (FR gear)",    role: "Tank", max: 1 },
   { key: "bt_il_flame_r",   label: "P2 Right Flame Tank (FR gear)",   role: "Tank", max: 1 },
-  { key: "bt_il_flame_bk",  label: "Flame Tank Backup",               role: "Tank", max: 1 },
-  { key: "bt_il_demon",     label: "Demon Phase Shadow-Res Warlock Tank", role: "Tank", max: 1 },
   { key: "bt_il_h_mt",      label: "MT Heal",          role: "Healer" },
   { key: "bt_il_h_flame",   label: "Flame Tank Heal",  role: "Healer" },
-  { key: "bt_il_h_sr",      label: "SR Warlock Heal",  role: "Healer" },
   { key: "bt_il_h_raid",    label: "Raid Heal",        role: "Healer" },
-  { key: "bt_il_brez",      label: "Battle-Res Holder (entire fight, Druid)", role: "DPS", roleLabel: "Misc Assignments", max: 1 },
-  { key: "bt_il_demon_note", label: "Shadow Demon Kill Note",                 role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
-    default: "Shadow Demons = #1 kill; if fixated, STAND STILL." },
-  { key: "bt_il_p5_note",   label: "P5 Note",                                 role: "DPS", roleLabel: "Misc Assignments", textInput: true, textLong: true,
-    default: "MT drags Illidan into Maiev's traps on her call. LUST P5." },
 ];
 
 export const BT_BOSSES = [
