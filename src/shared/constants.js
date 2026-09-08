@@ -787,12 +787,16 @@ export const BT_AKAMA = [
   { key: "bt_ak_notes",     label: "Notes",            role: "DPS", roleLabel: "Notes + Lust", hint: "Strategy notes, callouts, reminders…", textInput: true },
   { key: "bt_ak_bloodlust", label: "Bloodlust Timing", role: "DPS", roleLabel: "Notes + Lust", hint: "When to pop Bloodlust", textInput: true,
     default: "When Shade releases" },
-  { key: "bt_ak_left",      label: "Left Adds Tank",   role: "Tank", max: 1 },
-  { key: "bt_ak_right",     label: "Right Adds Tank",  role: "Tank", max: 1 },
-  { key: "bt_ak_holder",    label: "Battlemaster / Defender Holder (under Akama for Seed cleave)", role: "Tank", max: 1 },
+  { key: "bt_ak_left",      label: "Left Adds Tank (Paladin)",  role: "Tank", max: 1 },
+  { key: "bt_ak_right",     label: "Right Adds Tank (Druid)",   role: "Tank", max: 1 },
+  { key: "bt_ak_holder",    label: "Battlemaster / Defender Holder (Druid, under Akama for Seed cleave)", role: "Tank", max: 1 },
   { key: "bt_ak_h_left",    label: "Left Tank Heal",   role: "Healer" },
   { key: "bt_ak_h_right",   label: "Right Tank Heal",  role: "Healer" },
   { key: "bt_ak_h_raid",    label: "Raid Heal",        role: "Healer" },
+  { key: "bt_ak_trap_l",    label: "Left Slow Trap (Hunter)",  role: "DPS", roleLabel: "Misc Assignments", max: 1,
+    note: "Frost Trap on the left spawn - drop it on the marked spot in the positioning image." },
+  { key: "bt_ak_trap_r",    label: "Right Slow Trap (Hunter)", role: "DPS", roleLabel: "Misc Assignments", max: 1,
+    note: "Frost Trap on the right spawn - drop it on the marked spot in the positioning image." },
   { key: "bt_ak_seed",      label: "Seed of Corruption cleavers (Warlock)", role: "DPS", roleLabel: "Misc Assignments" },
 ];
 
@@ -818,10 +822,9 @@ export const BT_GURTOGG = [
   { key: "bt_gu_h_raid",    label: "Raid Heal",                                    role: "Healer" },
   { key: "bt_gu_h_soak",    label: "Soaker Heal (from mid)",                       role: "Healer" },
   { key: "bt_gu_h_line",    label: "Line Healers (heal from inside Soak Group 1)", role: "Healer" },
-  { key: "bt_gu_soak1",     label: "Soak Group 1 - holds the line", role: "DPS", roleLabel: "Misc Assignments", max: 5 },
-  { key: "bt_gu_soak2",     label: "Soak Group 2 - jump-ropes",     role: "DPS", roleLabel: "Misc Assignments", max: 5 },
-  { key: "bt_gu_never",     label: "Never Soaks",                   role: "DPS", roleLabel: "Misc Assignments" },
-  { key: "bt_gu_lust",      label: "Lust Caller",                   role: "DPS", roleLabel: "Misc Assignments", max: 1 },
+  { key: "bt_gu_soak1",     label: "Soak Group 1", role: "DPS", roleLabel: "Misc Assignments", max: 5 },
+  { key: "bt_gu_soak2",     label: "Soak Group 2", role: "DPS", roleLabel: "Misc Assignments", max: 5 },
+  { key: "bt_gu_soak3",     label: "Soak Group 3", role: "DPS", roleLabel: "Misc Assignments", max: 5 },
 ];
 
 // ── Reliquary of Souls ───────────────────────────────────────────────────────
