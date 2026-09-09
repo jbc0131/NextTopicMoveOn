@@ -244,7 +244,7 @@ export default function GruulmagPublic({ teamId }) {
               <PublicPanel title="PHASE 2 — MAGTHERIDON" icon="😈" subtitle="Cleave frontal / Quake no move" bossImage="mags" rows={MAGS_P2} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
             </div>
 
-            <PositioningSection moduleSlug={slugify("Gruul's / Mags")} bossSlug={slugify("Magtheridon")} bossName="Magtheridon" />
+            <PositioningSection moduleSlug={slugify("Gruul's / Mags")} bossSlug={slugify("Magtheridon")} bossName="Magtheridon" teamId={teamId} />
           </>)}
 
           {activeTab === "gruul" && (<>
@@ -253,7 +253,7 @@ export default function GruulmagPublic({ teamId }) {
               <PublicPanel title="GRUUL THE DRAGONKILLER" icon="🗿" subtitle="Spread 10yd on Shatter" bossImage="gruul" rows={GRUUL_BOSS} assignments={viewAssignments} textValues={viewTextInputs} roster={viewRoster} searchName={searchName} wclScores={wclScores} activeTab={activeTab} />
             </div>
 
-            <PositioningSection moduleSlug={slugify("Gruul's / Mags")} bossSlug={slugify("Gruul's Lair")} bossName="Gruul's Lair" />
+            <PositioningSection moduleSlug={slugify("Gruul's / Mags")} bossSlug={slugify("Gruul's Lair")} bossName="Gruul's Lair" teamId={teamId} />
           </>)}
         </div>
       )}

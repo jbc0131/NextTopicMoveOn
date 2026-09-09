@@ -195,6 +195,7 @@ export default function TkPublic({ teamId }) {
             moduleSlug={"tempest-keep"}
             bossSlug={slugify(currentBoss.name)}
             bossName={currentBoss.name}
+            teamId={teamId}
           />
         </div>
       )}

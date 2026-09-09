@@ -215,6 +215,7 @@ export default function T6Public({ teamId, raid }) {
             moduleSlug={slugify(cfg.title)}
             bossSlug={slugify(currentBoss.name)}
             bossName={currentBoss.name}
+            teamId={teamId}
           />
         </div>
       )}

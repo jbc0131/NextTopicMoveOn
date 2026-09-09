@@ -195,6 +195,7 @@ export default function SscPublic({ teamId }) {
             moduleSlug={"serpentshrine-cavern"}
             bossSlug={slugify(currentBoss.name)}
             bossName={currentBoss.name}
+            teamId={teamId}
           />
 
         </div>

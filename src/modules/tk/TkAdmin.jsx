@@ -573,6 +573,7 @@ export default function TkAdmin({ teamId }) {
               moduleSlug={"tempest-keep"}
               bossSlug={slugify(currentBoss.name)}
               bossName={currentBoss.name}
+              teamId={teamId}
             />
           </div>
         </div>

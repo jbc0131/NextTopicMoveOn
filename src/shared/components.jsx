@@ -1262,6 +1262,13 @@ export function ParseScoresPanel({ scores, roster, module, loading, error, lastF
 // and they show up under the boss's assignments. Nothing to register.
 // An optional <boss-slug>.txt sidecar supplies the caption / alt text.
 //
+// The two teams fight some bosses differently, so a boss can also have a
+// team-specific override at
+//   public/positioning/<module-slug>/<team-id>/<boss-slug>.png
+// The team folder is checked first and, when it has an image, supplies the
+// whole stack for that boss — the module root is the shared default both teams
+// see until one of them overrides it. Kara is teamless and only uses the root.
+//
 // Both the dev server and Vercel rewrite unknown paths to index.html, so a
 // missing file answers 200 with HTML — every probe checks the content type
 // rather than just the status.
@@ -1269,7 +1276,7 @@ export function ParseScoresPanel({ scores, roster, module, loading, error, lastF
 const POSITIONING_COLOR = "#8788EE"; // violet — distinct from tank/healer/misc
 const POSITIONING_EXTS  = ["png", "jpg", "jpeg", "webp"];
 const POSITIONING_MAX   = 10;        // stop probing after -10
-const positioningCache  = new Map(); // "<module>/<boss>" → Promise<[{src, caption}]>
+const positioningCache  = new Map(); // "<module>/<team>/<boss>" → Promise<[{src, caption}]>
 
 async function probeContentType(url, prefix) {
   try {
@@ -1281,10 +1288,10 @@ async function probeContentType(url, prefix) {
   }
 }
 
-async function loadPositioning(moduleSlug, bossSlug) {
+async function loadPositioningFrom(dir, bossSlug) {
   const found = [];
   for (let i = 1; i <= POSITIONING_MAX; i++) {
-    const base = `/positioning/${moduleSlug}/${bossSlug}${i === 1 ? "" : `-${i}`}`;
+    const base = `${dir}/${bossSlug}${i === 1 ? "" : `-${i}`}`;
     let src = null;
     for (const ext of POSITIONING_EXTS) {
       if (await probeContentType(`${base}.${ext}`, "image/")) { src = `${base}.${ext}`; break; }
@@ -1300,6 +1307,15 @@ async function loadPositioning(moduleSlug, bossSlug) {
     found.push({ src, caption });
   }
   return found;
+}
+
+async function loadPositioning(moduleSlug, bossSlug, teamId) {
+  const root = `/positioning/${moduleSlug}`;
+  if (teamId) {
+    const override = await loadPositioningFrom(`${root}/${teamId}`, bossSlug);
+    if (override.length) return override; // team's own take on the fight wins outright
+  }
+  return loadPositioningFrom(root, bossSlug);
 }
 
 function Lightbox({ src, alt, onClose }) {
@@ -1341,20 +1357,20 @@ function Lightbox({ src, alt, onClose }) {
   );
 }
 
-export function PositioningSection({ moduleSlug, bossSlug, bossName }) {
+export function PositioningSection({ moduleSlug, bossSlug, bossName, teamId }) {
   const [images,   setImages]   = useState(null);
   const [lightbox, setLightbox] = useState(null);
 
   useEffect(() => {
     if (!moduleSlug || !bossSlug) { setImages([]); return undefined; }
-    const key = `${moduleSlug}/${bossSlug}`;
+    const key = `${moduleSlug}/${teamId || "-"}/${bossSlug}`;
     let pending = positioningCache.get(key);
-    if (!pending) { pending = loadPositioning(moduleSlug, bossSlug); positioningCache.set(key, pending); }
+    if (!pending) { pending = loadPositioning(moduleSlug, bossSlug, teamId); positioningCache.set(key, pending); }
     let cancelled = false;
     setImages(null);
     pending.then(found => { if (!cancelled) setImages(found); });
     return () => { cancelled = true; };
-  }, [moduleSlug, bossSlug]);
+  }, [moduleSlug, bossSlug, teamId]);
 
   // Nothing to show while probing, and nothing at all when the boss has no image.
   if (!images || images.length === 0) return null;
