@@ -797,7 +797,6 @@ export const BT_AKAMA = [
     note: "Frost Trap on the left spawn - drop it on the marked spot in the positioning image." },
   { key: "bt_ak_trap_r",    label: "Right Slow Trap (Hunter)", role: "DPS", roleLabel: "Misc Assignments", max: 1,
     note: "Frost Trap on the right spawn - drop it on the marked spot in the positioning image." },
-  { key: "bt_ak_seed",      label: "Seed of Corruption cleavers (Warlock)", role: "DPS", roleLabel: "Misc Assignments" },
 ];
 
 // ── Teron Gorefiend ──────────────────────────────────────────────────────────
