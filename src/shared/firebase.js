@@ -9,6 +9,7 @@
  *   raid/{teamId}/tk/live          — Tempest Keep (The Eye) live state
  *   raid/{teamId}/hyjal/live       — T6 Mount Hyjal live state
  *   raid/{teamId}/bt/live          — T6 Black Temple live state
+ *   raid/{teamId}/{module}/positioning — uploaded positioning image index
  */
 
 import { initializeApp, getApps } from "firebase/app";
@@ -144,6 +145,42 @@ export function subscribeToTwentyFiveState(teamId, night, callback) {
   return onSnapshot(tfLiveDoc(teamId, night), snap => {
     if (snap.exists()) callback(snap.data());
   });
+}
+
+// ── Positioning images — uploaded overrides ───────────────────────────────────
+// Which uploaded images belong to which boss, per team and module. The image
+// bytes live in Vercel Blob (uploaded through /api/positioning-upload, which is
+// admin-gated); this document is just the index pointing at them.
+//
+// It sits at raid/{teamId}/{moduleKey}/positioning so it lands inside the
+// existing `raid/{teamId}/{module}/{docId}` security rule — no rules change.
+//
+// Shape: { bosses: { "<boss-slug>": [{ url, pathname, caption, uploadedAt, uploadedBy }] } }
+// An empty or missing array for a boss means "fall back to the image committed
+// under public/positioning" — that is how Restore built-in works.
+function positioningDoc(teamId, moduleKey) {
+  return doc(db, "raid", teamId, moduleKey, "positioning");
+}
+
+export async function fetchPositioningImages(teamId, moduleKey) {
+  const snap = await getDoc(positioningDoc(teamId, moduleKey));
+  return snap.exists() ? (snap.data().bosses || {}) : {};
+}
+
+export function subscribeToPositioningImages(teamId, moduleKey, callback, onError) {
+  return onSnapshot(
+    positioningDoc(teamId, moduleKey),
+    snap => callback(snap.exists() ? (snap.data().bosses || {}) : {}),
+    err  => { if (onError) onError(err); },
+  );
+}
+
+// Replaces the whole list for one boss. Merge keeps the other bosses intact.
+export async function savePositioningImages(teamId, moduleKey, bossSlug, images) {
+  await setDoc(positioningDoc(teamId, moduleKey), sanitize({
+    bosses:    { [bossSlug]: images ?? [] },
+    updatedAt: new Date().toISOString(),
+  }), { merge: true });
 }
 
 // ── User profile ──────────────────────────────────────────────────────────────

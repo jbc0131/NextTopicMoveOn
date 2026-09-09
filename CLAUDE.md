@@ -98,6 +98,7 @@ api/
     me.js                          — Vercel serverless: check auth state from cookie
     logout.js                      — Vercel serverless: clear auth cookie
   warcraftlogs.js                  — Vercel serverless: WCL GraphQL proxy (parse scores)
+  positioning-upload.js            — Vercel serverless: admin-gated positioning image upload/delete (Vercel Blob)
   rpb-import.js                    — Vercel serverless: RPB raid-import pipeline
   rpb-store.js                     — Vercel serverless: RPB persistence (Upstash Redis)
   profile-store.js                 — Vercel serverless: user profile persistence
@@ -136,6 +137,7 @@ raid/{teamId}/ssc/live           — T5 SSC live state
 raid/{teamId}/tk/live            — T5 TK live state
 raid/{teamId}/hyjal/live         — T6 Mount Hyjal live state
 raid/{teamId}/bt/live            — T6 Black Temple live state
+raid/{teamId}/{module}/positioning — index of admin-uploaded positioning images (bytes live in Vercel Blob)
 ```
 
 Legacy `raid-kara-snapshots/*` and `raid/{teamId}/25man-snapshots/*` documents still exist in Firestore from before historical archiving moved to RPB. No code reads or writes them — safe to leave in place or purge.
@@ -179,6 +181,7 @@ match /raid-kara/{docId} { allow read, write: if true; }
 | `DISCORD_MEMBER_ROLE_IDS` | Comma-separated role IDs for site access |
 | `AUTH_SECRET` | Random hex string for signing JWT cookies |
 | `AUTH_DOMAIN` | Optional, defaults to `https://nexttopicmoveon.com` |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob store token — added automatically by the Vercel Blob integration. Without it the upload button returns a clear "not configured" error and built-in images still work. |
 
 ### Discord Developer Portal Requirements
 - OAuth2 redirect URI: `https://nexttopicmoveon.com/api/auth/callback`
@@ -195,6 +198,7 @@ match /raid-kara/{docId} { allow read, write: if true; }
 - **T6 is one implementation, two modules** — Mount Hyjal and Black Temple each have their own route, Firestore document and roster, but share `T6Admin` / `T6Public` (selected by a `raid` prop) instead of copy-pasting the SSC files a third and fourth time. They persist through the generic `saveRaidModuleState` / `fetchRaidModuleState` / `subscribeToRaidModuleState` helpers, which write the same document shape as SSC/TK at `raid/{teamId}/{moduleKey}/live`.
 - **Positioning images are convention, not config** — a boss shows a violet POSITIONING section under its assignments if `public/positioning/<module-slug>/<team-id>/<boss-slug>.<png|jpg|jpeg|webp>` exists (`-2`, `-3` … stack below it, an optional `.txt` sidecar supplies the caption). Slugs come from `slugify()` on the module title and boss tab label; they are asset lookups only and never touch storage keys. The section probes with HEAD and checks the content type, because both Vite and Vercel answer a missing path with `index.html` at status 200. Lady Vashj's and Karathress's old hardcoded maps moved into this folder.
 - **Every team gets its own copy of every positioning image** — `public/positioning/<module-slug>/<team-id>/` (`team-dick` / `team-balls`) holds a complete set per team, and most pairs are byte-identical on purpose: replacing one team's image can never move the other team's page. The cost is that a genuinely shared change has to be dropped into both folders or the teams drift. Only BT's Supremus, Teron Gorefiend and Illidari Council actually differ today. Duplication is free in git (identical content is one blob) and roughly doubles the deployed asset bytes. A bare `<module-slug>/<boss-slug>.png` at the module root still renders for both teams as a fallback, so a misfiled upload degrades instead of vanishing; a team folder wins over it outright, supplying the whole stack and captions. Kara is teamless and only reads the root.
+- **Positioning images can be uploaded at runtime** — T6 admins (`/:teamId/hyjal/admin`, `/:teamId/bt/admin`) get an "Upload Raid Positioning Image" button per boss. Bytes go to Vercel Blob via `api/positioning-upload.js`, which verifies the `ntmo_auth` cookie and requires `isAdmin` — the Firebase creds in the bundle are public, so a client-side check would be cosmetic. The index of which image belongs to which boss is a Firestore doc at `raid/{teamId}/{moduleKey}/positioning`, chosen because it falls inside the existing `raid/{teamId}/{module}/{docId}` rule (no rules change) and gives public viewers live updates through `onSnapshot`. Uploads win outright over the committed `public/positioning` file; removing every upload for a boss restores it. Images are downscaled to 2400px WebP in the browser, both to stay under Vercel's 4.5MB request body cap and to keep phones fast. `PositioningSection` only does any of this when given a `moduleKey`, so SSC/TK/Gruul-Mag are unchanged and gain the feature by passing two props.
 - **T6 row config fields** — the slot format gained five optional, backwards-compatible fields (`max`, `ordered`, `note`, `default`, `textLong`) documented at the top of the T6 block in `constants.js`. SSC/TK rows omit them and are unaffected.
 - **Auth is two-tier** — member role for site access, admin role for admin pages. All pages require Discord login. Password gate is fallback only.
 - **Parse scores refresh button** — only shown in admin views (`showRefresh` prop on `ParseScoresPanel`). Hidden in public views.

@@ -628,6 +628,8 @@ export default function T6Admin({ teamId, raid }) {
               bossSlug={slugify(currentBoss.name)}
               bossName={currentBoss.name}
               teamId={teamId}
+              moduleKey={MODULE_KEY}
+              editable
             />
           </div>
         </div>

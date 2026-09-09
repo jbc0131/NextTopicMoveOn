@@ -14,6 +14,7 @@ import {
 } from "./theme";
 import { getClass, getSpecDisplay, getColor, getRole, RAID_TEAMS } from "./constants";
 import { useAuth, getLoginUrl, getLogoutUrl, clearAuthCache } from "./auth";
+import { subscribeToPositioningImages, savePositioningImages } from "./firebase";
 
 // ── Marker SVGs (unchanged) ───────────────────────────────────────────────────
 const MARKER_SVGS = {
@@ -1357,52 +1358,302 @@ function Lightbox({ src, alt, onClose }) {
   );
 }
 
-export function PositioningSection({ moduleSlug, bossSlug, bossName, teamId }) {
-  const [images,   setImages]   = useState(null);
-  const [lightbox, setLightbox] = useState(null);
+// ── Uploaded positioning images ───────────────────────────────────────────────
+// Admins can replace a boss's map from the admin view. The bytes go to Vercel
+// Blob through /api/positioning-upload (which verifies the admin cookie); the
+// index of what belongs to which boss lives in Firestore, so every public
+// viewer's page updates the moment an upload lands — no refresh, no redeploy.
 
+const POSITIONING_MAX_EDGE    = 2400;   // px on the long side after downscaling
+const POSITIONING_WEBP_Q      = 0.85;
+const POSITIONING_MAX_UPLOAD  = 3 * 1024 * 1024; // base64 inflates 4/3 — stay under Vercel's 4.5MB body cap
+
+/**
+ * Raid maps are screenshots — often 4MB PNGs straight off a screen grab, which
+ * would blow the serverless body limit and load slowly on phones. Re-encode to
+ * WebP at a sane size in the browser before it ever leaves the machine.
+ */
+async function downscaleForUpload(file) {
+  const bitmap = await createImageBitmap(file);
+  const scale  = Math.min(1, POSITIONING_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const width  = Math.max(1, Math.round(bitmap.width  * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width  = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+
+  let blob = await new Promise(r => canvas.toBlob(r, "image/webp", POSITIONING_WEBP_Q));
+  if (!blob) blob = await new Promise(r => canvas.toBlob(r, "image/png")); // ancient browser
+  if (!blob) throw new Error("Could not re-encode that image.");
+
+  const dataBase64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read that file."));
+    reader.onload  = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.readAsDataURL(blob);
+  });
+
+  return { dataBase64, contentType: blob.type, bytes: blob.size };
+}
+
+async function postPositioning(method, body) {
+  const res = await fetch("/api/positioning-upload", {
+    method,
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  let data = {};
+  try { data = await res.json(); } catch {}
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+function PositioningUploader({ moduleKey, teamId, bossSlug, bossName, images, hasBuiltIn, onChange }) {
+  const inputRef = useRef(null);
+  const [busy,   setBusy]   = useState("");
+  const [error,  setError]  = useState("");
+  const [drafts, setDrafts] = useState({}); // index → caption being typed
+
+  // Captions are only persisted on blur — a write per keystroke would hammer
+  // Firestore and fight the snapshot listener for control of the input.
+  async function commitCaption(i) {
+    const draft = drafts[i];
+    setDrafts(d => { const next = { ...d }; delete next[i]; return next; });
+    if (draft === undefined || draft === (images[i]?.caption || "")) return;
+    try {
+      await onChange(images.map((m, n) => (n === i ? { ...m, caption: draft } : m)));
+    } catch (err) {
+      setError(err.message || "Could not save that caption.");
+    }
+  }
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // let the same file be picked again after a failure
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("That file is not an image."); return; }
+
+    setError("");
+    setBusy("Resizing…");
+    try {
+      const { dataBase64, contentType, bytes } = await downscaleForUpload(file);
+      if (bytes > POSITIONING_MAX_UPLOAD) throw new Error("Image is still too large after resizing.");
+
+      setBusy("Uploading…");
+      const blob = await postPositioning("POST", {
+        moduleKey, teamId, bossSlug, contentType, dataBase64,
+      });
+
+      await onChange([...images, {
+        url:        blob.url,
+        pathname:   blob.pathname,
+        caption:    "",
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: blob.uploadedBy || "",
+      }]);
+    } catch (err) {
+      setError(err.message || "Upload failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function removeAt(i) {
+    setError("");
+    setBusy("Removing…");
+    try {
+      const target = images[i];
+      const next   = images.filter((_, n) => n !== i);
+      await onChange(next);                       // drop it from the page first
+      if (target?.pathname) {
+        // Best-effort: a blob left behind is harmless, a broken link is not.
+        try { await postPositioning("DELETE", { pathname: target.pathname }); } catch {}
+      }
+    } catch (err) {
+      setError(err.message || "Could not remove that image.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <div style={{
+      borderTop: `1px solid ${border.subtle}`,
+      padding: `${space[2]}px ${space[3]}px ${space[3]}px`,
+      display: "flex", flexDirection: "column", gap: space[2],
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: space[2], flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={!!busy}
+          style={{ ...btnStyle("primary"), opacity: busy ? 0.5 : 1, cursor: busy ? "default" : "pointer" }}
+        >
+          Upload Raid Positioning Image
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={handleFile}
+          style={{ display: "none" }}
+        />
+        {busy && <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>{busy}</span>}
+        {!busy && images.length > 0 && hasBuiltIn && (
+          <span style={{ fontSize: fontSize.xs, color: intent.warning, fontFamily: font.sans }}>
+            Replacing the built-in image — remove all uploads to restore it.
+          </span>
+        )}
+      </div>
+
+      {error && (
+        <div style={{ fontSize: fontSize.xs, color: intent.danger, fontFamily: font.sans }}>{error}</div>
+      )}
+
+      {images.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: space[1] }}>
+          {images.map((img, i) => (
+            <div key={img.pathname || img.url} style={{ display: "flex", alignItems: "center", gap: space[2] }}>
+              <span style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.mono, minWidth: 18 }}>
+                {i + 1}.
+              </span>
+              <input
+                type="text"
+                value={drafts[i] ?? img.caption ?? ""}
+                placeholder="Caption (optional)"
+                onChange={ev => setDrafts(d => ({ ...d, [i]: ev.target.value }))}
+                onBlur={() => commitCaption(i)}
+                onKeyDown={ev => { if (ev.key === "Enter") ev.target.blur(); }}
+                style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+              />
+              <button
+                type="button"
+                onClick={() => removeAt(i)}
+                disabled={!!busy}
+                style={{ ...btnStyle(), borderColor: intent.danger, color: intent.danger, opacity: busy ? 0.5 : 1 }}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>
+        Resized to {POSITIONING_MAX_EDGE}px and converted to WebP in your browser before upload.
+        Applies to {bossName} for {teamId === "team-dick" ? "Team Dick" : "Team Balls"} only.
+      </div>
+    </div>
+  );
+}
+
+export function PositioningSection({ moduleSlug, bossSlug, bossName, teamId, moduleKey, editable }) {
+  const [staticImages, setStaticImages] = useState(null);
+  const [uploaded,     setUploaded]     = useState(null);
+  const [lightbox,     setLightbox]     = useState(null);
+
+  // Images committed under public/positioning — the built-in default.
   useEffect(() => {
-    if (!moduleSlug || !bossSlug) { setImages([]); return undefined; }
+    if (!moduleSlug || !bossSlug) { setStaticImages([]); return undefined; }
     const key = `${moduleSlug}/${teamId || "-"}/${bossSlug}`;
     let pending = positioningCache.get(key);
     if (!pending) { pending = loadPositioning(moduleSlug, bossSlug, teamId); positioningCache.set(key, pending); }
     let cancelled = false;
-    setImages(null);
-    pending.then(found => { if (!cancelled) setImages(found); });
+    setStaticImages(null);
+    pending.then(found => { if (!cancelled) setStaticImages(found); });
     return () => { cancelled = true; };
   }, [moduleSlug, bossSlug, teamId]);
 
-  // Nothing to show while probing, and nothing at all when the boss has no image.
-  if (!images || images.length === 0) return null;
+  // Images uploaded from the admin view, live via Firestore.
+  useEffect(() => {
+    if (!moduleKey || !teamId) { setUploaded([]); return undefined; }
+    setUploaded(null);
+    let cancelled = false;
+    let unsub = () => {};
+    try {
+      unsub = subscribeToPositioningImages(
+        teamId, moduleKey,
+        bosses => { if (!cancelled) setUploaded(bosses[bossSlug] || []); },
+        ()     => { if (!cancelled) setUploaded([]); }, // fall back to the built-in image
+      );
+    } catch {
+      setUploaded([]);
+    }
+    return () => { cancelled = true; unsub(); };
+  }, [moduleKey, teamId, bossSlug]);
+
+  const saveUploaded = useCallback(async next => {
+    const previous = uploaded;
+    setUploaded(next); // optimistic — the snapshot confirms or the catch rolls back
+    try {
+      await savePositioningImages(teamId, moduleKey, bossSlug, next);
+    } catch (err) {
+      setUploaded(previous);
+      throw err;
+    }
+  }, [teamId, moduleKey, bossSlug, uploaded]);
+
+  // Still probing — don't flash an empty panel.
+  if (staticImages === null || uploaded === null) return null;
+
+  // An upload wins outright, the same way a team folder wins over the module
+  // root: the whole stack comes from one place, so what you see is never a
+  // half-and-half merge of two sources.
+  const images = uploaded.length > 0 ? uploaded : staticImages;
+
+  if (images.length === 0 && !editable) return null;
 
   return (
     <div style={{ ...panelStyle, marginTop: space[3] }}>
       <RoleHeader role="DPS" overrideLabel="Positioning" overrideColor={POSITIONING_COLOR} />
-      <div style={{ display: "flex", flexDirection: "column", gap: space[3], padding: `${space[2]}px ${space[3]}px ${space[3]}px` }}>
-        {images.map(({ src, caption }, i) => {
-          const alt = caption || `${bossName} positioning`;
-          return (
-            <figure key={src} style={{ margin: 0, display: "flex", flexDirection: "column", gap: space[1] }}>
-              <img
-                src={src}
-                alt={alt}
-                loading="lazy"
-                onClick={() => setLightbox({ src, alt })}
-                style={{
-                  width: "100%", maxWidth: "100%", height: "auto", display: "block",
-                  borderRadius: radius.lg, border: `1px solid ${border.subtle}`,
-                  cursor: "zoom-in",
-                }}
-              />
-              {caption && (
-                <figcaption style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>
-                  {caption}
-                </figcaption>
-              )}
-            </figure>
-          );
-        })}
-      </div>
+
+      {images.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: space[3], padding: `${space[2]}px ${space[3]}px ${space[3]}px` }}>
+          {images.map(({ src, url, caption }, i) => {
+            const href = src || url;
+            const alt  = caption || `${bossName} positioning`;
+            return (
+              <figure key={href || i} style={{ margin: 0, display: "flex", flexDirection: "column", gap: space[1] }}>
+                <img
+                  src={href}
+                  alt={alt}
+                  loading="lazy"
+                  onClick={() => setLightbox({ src: href, alt })}
+                  style={{
+                    width: "100%", maxWidth: "100%", height: "auto", display: "block",
+                    borderRadius: radius.lg, border: `1px solid ${border.subtle}`,
+                    cursor: "zoom-in",
+                  }}
+                />
+                {caption && (
+                  <figcaption style={{ fontSize: fontSize.xs, color: text.muted, fontFamily: font.sans }}>
+                    {caption}
+                  </figcaption>
+                )}
+              </figure>
+            );
+          })}
+        </div>
+      )}
+
+      {editable && moduleKey && teamId && (
+        <PositioningUploader
+          moduleKey={moduleKey}
+          teamId={teamId}
+          bossSlug={bossSlug}
+          bossName={bossName}
+          images={uploaded}
+          hasBuiltIn={staticImages.length > 0}
+          onChange={saveUploaded}
+        />
+      )}
+
       {lightbox && <Lightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />}
     </div>
   );

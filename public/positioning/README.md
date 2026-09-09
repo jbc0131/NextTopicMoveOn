@@ -37,3 +37,18 @@ vanishing. A team folder always wins over the root, and wins outright: if it has
 for that boss, the whole stack and captions come from the team folder.
 
 Kara is teamless and only ever reads the module root.
+
+## Uploading from the admin view
+
+Black Temple and Mount Hyjal admins have an **Upload Raid Positioning Image** button
+under each boss. Uploads do not touch this folder — the bytes go to Vercel Blob and an
+index of them lives in Firestore at `raid/{teamId}/{moduleKey}/positioning`, so a new
+map appears on everyone's public page immediately, with no commit and no redeploy.
+
+An upload wins outright over the file committed here, the same way a team folder wins
+over the module root: once a boss has any uploaded image, the whole stack comes from the
+uploads. Removing every upload for that boss restores the committed image, which is why
+the files in this folder are still worth keeping as the known-good baseline.
+
+Images are resized to 2400px on the long edge and converted to WebP in the browser
+before upload, so a 4MB screenshot lands as a few hundred KB.
